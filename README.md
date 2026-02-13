@@ -6,7 +6,7 @@
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
 ![Status](https://img.shields.io/badge/status-active-success)
 
-> Real-time network privacy manager for Windows. Monitor DNS activity, manage your hosts file, control Windows Firewall rules, and block unwanted connections — all from a single dark-themed GUI.
+> Real-time network privacy manager for Windows. Monitor DNS activity, manage your hosts file, control Windows Firewall rules, and block unwanted connections.
 
 ## Quick Start
 
