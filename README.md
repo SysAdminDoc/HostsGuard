@@ -8,8 +8,6 @@
 
 > Real-time network privacy manager for Windows. Monitor DNS activity, manage your hosts file, control Windows Firewall rules, and block unwanted connections — all from a single dark-themed GUI.
 
-![Screenshot](screenshot.png)
-
 ## Quick Start
 
 ```bash
