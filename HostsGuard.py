@@ -12,6 +12,25 @@ from queue import Queue,Empty
 from threading import Lock,Event as TEvent
 import urllib.request,urllib.error
 
+
+# codex-branding:start
+def _branding_icon_path() -> Path:
+    candidates = []
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        candidates.append(exe_dir / "icon.png")
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "icon.png")
+    current = Path(__file__).resolve()
+    candidates.extend([current.parent / "icon.png", current.parent.parent / "icon.png", current.parent.parent.parent / "icon.png"])
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return Path("icon.png")
+# codex-branding:end
+
+
 # ─── DPI ────────────────────────────────────────────────────────────────────
 os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"]="1"
 os.environ["QT_ENABLE_HIGHDPI_SCALING"]="1"
@@ -42,6 +61,7 @@ def _bootstrap():
         if not ctypes.windll.shell32.IsUserAnAdmin():
             try:
                 h=ctypes.windll.kernel32.GetConsoleWindow()
+                h.setWindowIcon(branding_icon)
                 if h: ctypes.windll.user32.ShowWindow(h,0)
             except: pass
             ctypes.windll.shell32.ShellExecuteW(None,"runas",sys.executable,f'"{os.path.abspath(__file__)}"',None,1)
@@ -59,7 +79,7 @@ _bootstrap()
 import psutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtGui import *, QIcon
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling,True)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps,True)
 
@@ -2348,6 +2368,8 @@ def main():
         except: pass
     try:
         app=QApplication(sys.argv)
+        branding_icon = QIcon(str(_branding_icon_path()))
+        app.setWindowIcon(branding_icon)
         app.setStyle("Fusion"); app.setApplicationName(APP); app.setStyleSheet(STYLE)
 
         # Show splash immediately
