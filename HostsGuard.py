@@ -85,7 +85,12 @@ QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps,True)
 # ─── Constants ──────────────────────────────────────────────────────────────
 APP="HostsGuard"; VER="3.8.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
-CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
+_PORTABLE='--portable' in sys.argv
+if _PORTABLE:
+    _base=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
+    CONFIG_DIR=str(_base / "data")
+else:
+    CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
 DB_PATH=os.path.join(CONFIG_DIR,"hostsguard.db")
 CONN_DB=os.path.join(CONFIG_DIR,"connections.db")
 FAV_DIR=os.path.join(CONFIG_DIR,"favicons")
@@ -301,7 +306,7 @@ class LRU:
         with s._lock: return k in s._d
     def clear(s):
         with s._lock: s._d.clear()
-dns_c=LRU(); who_c=LRU(); geo_c=LRU(); proc_c=LRU(2000)
+dns_c=LRU(); who_c=LRU(); geo_c=LRU(); proc_c=LRU(2000); sig_c=LRU(500)
 
 # ─── Data Structures ───────────────────────────────────────────────────────
 @dataclass
@@ -309,7 +314,7 @@ class CI:
     key:str="";ts:str="";src:str="";dir:str="";proto:str=""
     la:str="";lp:str="";ra:str="";rp:str=""
     host:str="-";proc:str="?";pid:int=0;state:str=""
-    path:str="";org:str="-";stat:str="-";country:str="-";cc:str="";category:str=""
+    path:str="";org:str="-";stat:str="-";country:str="-";cc:str="";category:str="";sig:str=""
 @dataclass
 class FWR:
     name:str="";direction:str="Out";action:str="Block";enabled:bool=True
@@ -1090,8 +1095,27 @@ class DNSMonitor(QThread):
             try: s._etw_sess.stop()
             except: pass
 
+class SigWorker(QThread):
+    resolved=pyqtSignal(str,str)
+    def __init__(s): super().__init__(); s._q=Queue(); s._stop=TEvent()
+    def add(s,path):
+        if path not in sig_c: s._q.put(path)
+    def run(s):
+        while not s._stop.is_set():
+            try:
+                path=s._q.get(timeout=2)
+                if path in sig_c: continue
+                try:
+                    ok,out=_ps(f"(Get-AuthenticodeSignature {_ps_esc(path)}).Status",5)
+                    status=out.strip() if ok else 'Unknown'
+                    label={'Valid':'✔','NotSigned':'✘','HashMismatch':'⚠'}.get(status,'?')
+                    sig_c.put(path,label); s.resolved.emit(path,label)
+                except Exception: sig_c.put(path,'?')
+            except Empty: pass
+    def stop(s): s._stop.set()
+
 class ConnWorker(QThread):
-    ready=pyqtSignal(list); need_dns=pyqtSignal(str); need_geo=pyqtSignal(str)
+    ready=pyqtSignal(list); need_dns=pyqtSignal(str); need_geo=pyqtSignal(str); need_sig=pyqtSignal(str)
     def __init__(s,db): super().__init__(); s._stop=TEvent(); s._db=db
     def run(s):
         while not s._stop.is_set():
@@ -1132,9 +1156,14 @@ class ConnWorker(QThread):
                 state=c.status if hasattr(c,'status') else ""
                 cat=categorize(host,rp); geo=geo_c.get(ra)
                 country=geo[1] if geo else "-"; cc=geo[0] if geo else ""
+                sig_status=''
+                if ppath:
+                    cached_sig=sig_c.get(ppath)
+                    if cached_sig is not None: sig_status=cached_sig
+                    elif ppath: s.need_sig.emit(ppath)
                 ci=CI(key=f"{proto}:{la}:{lp}-{ra}:{rp}",ts=now,dir="Out" if c.status!="LISTEN" else "Listen",
                     proto=proto,la=la,lp=lp,ra=ra,rp=rp,host=host,proc=pname,pid=pid,state=state,
-                    path=ppath,stat=stat,country=country,cc=cc,category=cat)
+                    path=ppath,stat=stat,country=country,cc=cc,category=cat,sig=sig_status)
                 out.append(ci)
                 if host=="-": s.need_dns.emit(ra)
                 if not geo: s.need_geo.emit(ra)
@@ -1588,6 +1617,10 @@ class HostsActivityTab(QWidget):
             hm.addSeparator()
             hm.addAction(f"Allow {d}").triggered.connect(lambda:s._act_allow(d))
             hm.addAction(f"Allow root ({root})").triggered.connect(lambda:s._act_allow_root(d))
+            tm=hm.addMenu("Temp Allow"); tm.setStyleSheet(CTX)
+            for mins in [5,15,30,60]:
+                lbl=f"{mins} min" if mins<60 else "1 hour"
+                tm.addAction(lbl).triggered.connect(lambda _=None,d2=d,m2=mins:s._act_temp_allow(d2,m2))
             m.addSeparator()
             if f=="Hidden":
                 m.addAction("Unhide").triggered.connect(lambda:(s.db.feed_unhide(d),setattr(s,'_last_hash',0),s._refresh()))
@@ -1615,6 +1648,15 @@ class HostsActivityTab(QWidget):
     def _act_allow_root(s,d):
         root=get_root(d); s.db.add_root(d,'whitelisted','manual'); s.hm.unblock(root); s.db.log_event(root,'whitelisted','','Allowed root')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {root}",C['green'])
+    def _act_temp_allow(s,d,mins):
+        s.db.add_domain(d,'whitelisted','temp_allow'); s.hm.unblock(d)
+        s.db.log_event(d,'whitelisted','',f'Temp allow {mins}m')
+        s._last_hash=0; s._refresh(); s._toast(f"Allowed {d} for {mins}m",C['green'])
+        QTimer.singleShot(mins*60*1000,lambda:s._revert_temp(d))
+    def _revert_temp(s,d):
+        s.db.add_domain(d,'blocked','temp_reverted'); s.hm.block(d)
+        s.db.log_event(d,'blocked','','Temp allow expired')
+        s._last_hash=0; s._refresh(); s._toast(f"Temp allow expired: {d}",C['red'])
     def _act_hide(s,d):
         s.db.feed_hide(d)
         w=s.window()
@@ -1717,7 +1759,8 @@ class FWActivityTab(QWidget):
         for i,c in enumerate(conns):
             host=c.host if c.host not in ('-','') else c.ra
             _icon_item(s.tbl,i,0,host,c.host if c.host not in ('-','') else None)
-            s.tbl.setItem(i,1,QTableWidgetItem(f"{c.proc} ({c.pid})"))
+            proc_label=f"{c.sig} {c.proc} ({c.pid})" if c.sig else f"{c.proc} ({c.pid})"
+            s.tbl.setItem(i,1,QTableWidgetItem(proc_label))
             it_port=QTableWidgetItem(); it_port.setData(Qt.DisplayRole,int(c.rp) if c.rp.isdigit() else 0); it_port.setText(c.rp)
             s.tbl.setItem(i,2,it_port)
             f_blocked=c.ra in s._fw_blocked_ips
@@ -1927,6 +1970,16 @@ class HostsTab(QWidget):
         s.paste=QPlainTextEdit(); s.paste.setPlaceholderText("Paste domains (one per line)..."); s.paste.setMaximumHeight(_dp(60)); mgl.addWidget(s.paste)
         mr=QHBoxLayout(); mr.addWidget(_tbtn("Add to Hosts","primary",s._paste_h,100)); mr.addWidget(_tbtn("DB Only","dim",s._paste_db,70)); mr.addStretch()
         mgl.addLayout(mr); bl.addWidget(mg)
+        sg=QGroupBox("Auto-Refresh"); sgl=QVBoxLayout(sg)
+        sr=QHBoxLayout(); sr.setSpacing(_dp(5))
+        sr.addWidget(QLabel("Refresh selected lists every"))
+        s._ref_hours=QComboBox(); s._ref_hours.addItems(["Off","6h","12h","24h","48h"])
+        cfg=load_cfg(); rh=cfg.get('blocklist_refresh_hours',0)
+        idx={'0':0,'6':1,'12':2,'24':3,'48':4}.get(str(rh),0); s._ref_hours.setCurrentIndex(idx)
+        s._ref_hours.currentIndexChanged.connect(s._save_refresh)
+        sr.addWidget(s._ref_hours)
+        sr.addWidget(_tbtn("Subscribe Checked","dim",s._subscribe,130)); sr.addStretch()
+        sgl.addLayout(sr); bl.addWidget(sg)
         s._sub.addTab(bw,"Blocklists")
         lo.addWidget(s._sub)
         s._sub.currentChanged.connect(lambda i: s._sync_and_load() if i==0 else s._reload() if i==1 else None)
@@ -2110,6 +2163,14 @@ class HostsTab(QWidget):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
         for d in ds: s.db.add_domain(d,'blocked','paste')
         s._toast(f"DB: {len(ds)}",C['green']); s.paste.clear()
+    def _save_refresh(s,idx):
+        hours=[0,6,12,24,48][idx]
+        cfg=load_cfg(); cfg['blocklist_refresh_hours']=hours; save_cfg(cfg)
+        s._toast(f"Auto-refresh: {'off' if not hours else f'every {hours}h'}",C['blue'])
+    def _subscribe(s):
+        sel=[n for n,(cb,_,_) in s._chk.items() if cb.isChecked()]
+        cfg=load_cfg(); cfg['blocklist_subscriptions']=sel; save_cfg(cfg)
+        s._toast(f"Subscribed to {len(sel)} lists",C['green'])
     def _toast(s,msg,color):
         w=s.window()
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
@@ -2342,6 +2403,7 @@ class ToolsTab(QWidget):
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew)); l1.addStretch(); grid.addWidget(g1)
         g2=QGroupBox("Config & Data"); l2=QVBoxLayout(g2); l2.setSpacing(_dp(4))
         l2.addWidget(_tbtn("Export Config","primary",s._export)); l2.addWidget(_tbtn("Import Config","dim",s._import))
+        l2.addWidget(_tbtn("Export Connections","dim",s._export_conns))
         l2.addWidget(_tbtn("Prune History (30d)","dim",s._prune)); l2.addWidget(_tbtn("Clear Favicons","dim",s._clear_fav))
         l2.addWidget(_tbtn("Open Config Folder","dim",s._open)); l2.addStretch(); grid.addWidget(g2)
         g3=QGroupBox("Learning Mode"); l3=QVBoxLayout(g3); l3.setSpacing(_dp(4))
@@ -2427,6 +2489,21 @@ class ToolsTab(QWidget):
             fwct=len(data.get('fw_state',[]))
             s._toast(f"Imported {ct} domains, {fwct} FW rules",C['green']); s._upd_learn()
         except Exception as e: s._toast(f"Error: {e}",C['red'])
+    def _export_conns(s):
+        p,_=QFileDialog.getSaveFileName(s,"Export Connections",os.path.join(CONFIG_DIR,f"connections_{datetime.datetime.now():%Y%m%d_%H%M}"),"CSV (*.csv);;JSONL (*.jsonl)")
+        if not p: return
+        rows=s.cdb.search('',limit=100000)
+        cols=['ts','proto','local_addr','local_port','remote_addr','remote_port','host','process','pid','state','org','country','cc','category']
+        try:
+            if p.endswith('.jsonl'):
+                with open(p,'w',encoding='utf-8') as f:
+                    for r in rows: f.write(json.dumps(dict(zip(cols,r)),ensure_ascii=False)+'\n')
+            else:
+                with open(p,'w',newline='',encoding='utf-8') as f:
+                    w=csv.writer(f); w.writerow(cols)
+                    for r in rows: w.writerow(r)
+            s._toast(f"Exported {len(rows)} connections",C['green'])
+        except Exception as e: s._toast(f"Export failed: {e}",C['red'])
     def _prune(s): s.cdb.prune(30); s._toast("Pruned",C['green'])
     def _clear_fav(s):
         ct=sum(1 for f in Path(FAV_DIR).glob("*.png") if (f.unlink() or True))
@@ -2481,6 +2558,7 @@ class MainWindow(QMainWindow):
         # Background workers
         s._dns_w=DNSResolveWorker(); s._dns_w.start()
         s._geo_w=GeoWorker(); s._geo_w.start()
+        s._sig_w=SigWorker(); s._sig_w.start()
         s._conn_w=None; s._dns_mon=None
         s._build_ui()
         s._build_tray()
@@ -2494,6 +2572,20 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(200,s._start_conns)
         # Lazy-load favicons after UI is visible
         QTimer.singleShot(500,_init_fav)
+        # Scheduled blocklist refresh
+        cfg=load_cfg(); interval_h=cfg.get('blocklist_refresh_hours',0)
+        if interval_h>0:
+            s._bl_tmr=QTimer(s); s._bl_tmr.timeout.connect(s._auto_refresh_lists)
+            s._bl_tmr.start(interval_h*3600*1000)
+
+    def _auto_refresh_lists(s):
+        cfg=load_cfg(); lists=cfg.get('blocklist_subscriptions',[])
+        if not lists: return
+        sources=[]
+        for cat,items in SOURCES.items():
+            for name,url in items:
+                if name in lists: sources.append((name,url))
+        if sources: s._hosts_tab._run_imp(sources)
 
     def _startup_sync(s):
         """Run at startup: backup hosts, sync hosts entries to DB."""
@@ -2587,7 +2679,7 @@ class MainWindow(QMainWindow):
     def _start_conns(s):
         s._conn_w=ConnWorker(s.db)
         s._conn_w.ready.connect(s._on_conns)
-        s._conn_w.need_dns.connect(s._dns_w.add); s._conn_w.need_geo.connect(s._geo_w.add)
+        s._conn_w.need_dns.connect(s._dns_w.add); s._conn_w.need_geo.connect(s._geo_w.add); s._conn_w.need_sig.connect(s._sig_w.add)
         s._conn_w.start(); s._conn_on=True; s._set_st("All Active")
         s._cbtn.setText("CONNECTIONS: ON")
         s._cbtn.setStyleSheet(f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #5b7ee5,stop:1 {C['blue']});color:#fff;padding:2px 12px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
@@ -2649,6 +2741,7 @@ class MainWindow(QMainWindow):
             if s._watcher: s._watcher.stop(); workers.append(s._watcher)
             s._dns_w.stop(); workers.append(s._dns_w)
             s._geo_w.stop(); workers.append(s._geo_w)
+            s._sig_w.stop(); workers.append(s._sig_w)
             for w in workers: w.wait(3000)
             _pps.close()
         except: pass
