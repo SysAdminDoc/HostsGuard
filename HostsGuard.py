@@ -975,18 +975,77 @@ class GeoWorker(QThread):
             except: pass
 
 class DNSMonitor(QThread):
-    """Uses persistent PS session — no process spawn per scan."""
+    """ETW-based DNS monitoring with PowerShell polling fallback."""
     dns_event=pyqtSignal(dict); blocked_event=pyqtSignal(dict)
     status=pyqtSignal(str); updated=pyqtSignal()
     CMD='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
     def __init__(s,hm,db):
         super().__init__(); s.hm,s.db=hm,db; s.running=False; s._scan_lock=Lock()
-        s._seen=OrderedDict.fromkeys(s.db.get_hidden_set())
+        s._seen=OrderedDict.fromkeys(s.db.get_hidden_set()); s._etw_sess=None; s._use_etw=False
+    def _try_etw(s):
+        try:
+            from pyetwkit._core import EtwProvider, EtwSession
+            sess=EtwSession('HostsGuardDNS')
+            prov=EtwProvider.dns_client()
+            sess.add_provider(prov)
+            sess.start()
+            s._etw_sess=sess; s._use_etw=True
+            log.info("DNS monitoring via ETW (real-time)")
+            return True
+        except ImportError: log.debug("pyetwkit not installed, using PowerShell polling")
+        except Exception as e: log.warning(f"ETW DNS init failed (using PS fallback): {e}")
+        return False
     def run(s):
-        s.running=True; s.status.emit("Monitoring")
+        s.running=True
         if sys.platform!='win32': s.status.emit("Requires Windows"); return
+        if s._try_etw(): s.status.emit("ETW Active"); s._run_etw()
+        else: s.status.emit("Monitoring"); s._run_poll()
+    def _run_etw(s):
+        """Real-time ETW event loop — sub-second DNS event delivery."""
+        while s.running:
+            try:
+                ev=s._etw_sess.try_next_event()
+                if ev:
+                    props=dict(ev.properties) if hasattr(ev,'properties') else {}
+                    d=(props.get('QueryName','') or '').lower().strip().rstrip('.')
+                    if not d or d in IGNORED or '.' not in d: continue
+                    proc=''
+                    try:
+                        pid=ev.process_id
+                        if pid:
+                            cached=proc_c.get(pid)
+                            if cached: proc=cached[0]
+                            else:
+                                import psutil as _ps2
+                                proc=_ps2.Process(pid).name(); proc_c.put(pid,(proc,''))
+                    except: pass
+                    s._process_domain(d,proc)
+                else:
+                    time.sleep(0.1)
+            except Exception as e: log.debug(f"ETW event: {e}"); time.sleep(0.5)
+    def _run_poll(s):
+        """PowerShell polling fallback — 3s interval."""
         s._scan(); s.updated.emit()
         while s.running: s._scan(); time.sleep(3)
+    def _process_domain(s,d,proc=''):
+        blocked=s.db.get_blocked_set()
+        is_new=s.db.feed_upsert(d,proc)
+        if d not in s._seen:
+            s._seen[d]=True
+            if is_new:
+                ev={'domain':d,'ts':datetime.datetime.now().isoformat(),'process':proc}
+                s.dns_event.emit(ev)
+                if d in blocked:
+                    s.db.log_event(d,'blocked',proc,'Blocked by hosts')
+                    s.blocked_event.emit(ev)
+                s.updated.emit()
+        if len(s._seen)>10000:
+            hidden=s.db.get_hidden_set()
+            keep=OrderedDict()
+            for k in hidden: keep[k]=True
+            items=list(s._seen.items())
+            for k,v in items[-2000:]: keep[k]=True
+            s._seen=keep
     def _scan(s):
         if not s._scan_lock.acquire(blocking=False): return
         try: s._do_scan()
@@ -1022,8 +1081,14 @@ class DNSMonitor(QThread):
                 s._seen=keep
         except Exception as e: log.debug(f"DNS scan: {e}")
     def manual_scan(s):
-        if s.running: QTimer.singleShot(0,s._scan)
-    def stop(s): s.running=False
+        if s.running:
+            if s._use_etw: pass
+            else: QTimer.singleShot(0,s._scan)
+    def stop(s):
+        s.running=False
+        if s._etw_sess:
+            try: s._etw_sess.stop()
+            except: pass
 
 class ConnWorker(QThread):
     ready=pyqtSignal(list); need_dns=pyqtSignal(str); need_geo=pyqtSignal(str)
