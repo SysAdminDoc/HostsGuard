@@ -236,6 +236,21 @@ QScrollArea{{background:transparent;border:none;}}
 """
 CTX=f"QMenu{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};border-radius:10px;padding:6px;}}QMenu::item{{padding:7px 20px;border-radius:5px;}}QMenu::item:selected{{background:{C['s0']};}}QMenu::separator{{height:1px;background:{C['s0']};margin:4px 8px;}}"
 
+# ─── Thread-safe UI dispatch ────────────────────────────────────────────────
+class _UiBridge(QObject):
+    """QTimer.singleShot(0,...) from a plain threading.Thread never fires (no
+    event dispatcher in that thread). Signals ARE thread-safe, so route
+    callables through a queued signal onto the GUI thread instead."""
+    call=pyqtSignal(object)
+_ui_bridge=None
+def _init_ui_bridge():
+    global _ui_bridge
+    _ui_bridge=_UiBridge()
+    _ui_bridge.call.connect(lambda f:f(),Qt.QueuedConnection)
+def ui_call(f):
+    if _ui_bridge: _ui_bridge.call.emit(f)
+    else: QTimer.singleShot(0,f)
+
 # ─── Config ─────────────────────────────────────────────────────────────────
 def load_cfg():
     try:
@@ -278,9 +293,15 @@ def norm_line(line,normalize=True):
     return f"0.0.0.0 {d}" if normalize else d
 def clean_hosts(lines,wl=None):
     wl=wl or set(); seen=set(); kept=[]; st={'total':0,'active':0,'dupes':0,'whitelist':0,'invalid':0}
+    hdr=set(WINDOWS_HEADER)
     for l in lines:
         st['total']+=1; s=l.strip()
-        if not s or s.startswith('#'): kept.append(l); continue
+        if not s or s.startswith('#'):
+            # Strip line endings so output joins cleanly; drop stale copies of the
+            # Windows header and old managed-by markers so repeated cleans are idempotent.
+            c=l.rstrip('\r\n')
+            if c.strip() and c not in hdr and f'managed by {APP}' not in c: kept.append(c)
+            continue
         n=norm_line(s)
         if not n: st['invalid']+=1; continue
         d=n.split()[-1]
@@ -288,7 +309,7 @@ def clean_hosts(lines,wl=None):
         if d in seen: st['dupes']+=1; continue
         seen.add(d); kept.append(n); st['active']+=1
     header=WINDOWS_HEADER+[f"# --- {len(seen)} entries managed by {APP} v{VER} ---"]
-    return header+[l for l in kept if l not in WINDOWS_HEADER],st
+    return header+kept,st
 def categorize(host,port=0):
     h=host.lower() if host else ""
     for cat,kws in _CAT.items():
@@ -835,15 +856,31 @@ fw=FWEngine()
 class HostsMgr:
     def __init__(s):
         s._blocked=set(); s._lines=[]; s._lock=threading.RLock()
-        s._suppress_watcher=False
+        s._self_hashes={}  # sha512 digest -> True for content we wrote ourselves
         s.read()
-    @staticmethod
-    def _atomic_write(content):
+    def _record_self(s,content):
+        """Remember the hash of content we wrote so the tamper watcher can tell
+        our own writes apart from external modifications."""
+        h=hashlib.sha512(content.encode('utf-8') if isinstance(content,str) else content).digest()
+        with s._lock:
+            s._self_hashes[h]=True
+            while len(s._self_hashes)>16: del s._self_hashes[next(iter(s._self_hashes))]
+    def is_self_change(s,h):
+        """Consume a pending self-write hash. Returns True if h matches content this
+        process wrote (i.e. the watcher-detected change was not external tampering)."""
+        if not h: return False
+        with s._lock:
+            if h in s._self_hashes: del s._self_hashes[h]; return True
+        return False
+    def _atomic_write(s,content):
         """Write hosts file via temp-file + os.replace() to prevent TOCTOU data loss."""
         hosts_dir=os.path.dirname(HOSTS_PATH)
         fd,tmp=tempfile.mkstemp(dir=hosts_dir,prefix='hosts_',suffix='.tmp')
         try:
             with os.fdopen(fd,'w',encoding='utf-8') as f: f.write(content)
+            # Hash the on-disk bytes (text mode translates \n -> \r\n on Windows,
+            # so hashing the in-memory string would never match the watcher's hash).
+            with open(tmp,'rb') as f: s._record_self(f.read())
             os.replace(tmp,HOSTS_PATH)
         except:
             try: os.unlink(tmp)
@@ -872,7 +909,8 @@ class HostsMgr:
                 s._atomic_write(''.join(new_lines))
                 s._blocked.add(d); s._lines=new_lines
             except Exception as e: log.warning(f"Hosts block {d}: {e}"); return False
-        if flush: s._flush(); return True
+        if flush: s._flush()
+        return True
     def block_bulk(s,domains,flush=True):
         with s._lock:
             new=[d.lower().strip() for d in domains if d.lower().strip() not in s._blocked and looks_like_domain(d.lower().strip())]
@@ -883,7 +921,8 @@ class HostsMgr:
                 for d in new: s._blocked.add(d)
                 s._lines=new_lines
             except Exception as e: log.warning(f"Hosts block_bulk: {e}"); return 0
-        if flush: s._flush(); return len(new)
+        if flush: s._flush()
+        return len(new)
     def unblock(s,d,flush=True):
         d=d.lower().strip()
         with s._lock:
@@ -900,26 +939,23 @@ class HostsMgr:
                 s._atomic_write(''.join(new))
                 s._blocked.discard(d); s._lines=new
             except Exception as e: log.warning(f"Hosts unblock {d}: {e}"); return False
-        if flush: s._flush(); return True
+        if flush: s._flush()
+        return True
     def save_raw(s,text):
         s.backup()
         with s._lock:
-            s._suppress_watcher=True
             try:
                 s._atomic_write(text)
                 s.read()
-            except Exception as e: s._suppress_watcher=False; return str(e)
-            finally: s._suppress_watcher=False
+            except Exception as e: return str(e)
         s._flush(); return None
     def save_clean(s,wl=None):
         with s._lock:
-            s._suppress_watcher=True
             try:
                 cleaned,stats=clean_hosts(list(s._lines),wl)
                 s._atomic_write('\n'.join(cleaned)+'\n')
                 s.read()
-            except Exception as e: s._suppress_watcher=False; return None,str(e)
-            finally: s._suppress_watcher=False
+            except Exception as e: return None,str(e)
         s._flush(); return stats,None
     def backup(s):
         ts=datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -932,23 +968,21 @@ class HostsMgr:
             if not bk: return False
             path=str(bk[-1])
         with s._lock:
-            s._suppress_watcher=True
             try:
+                with open(path,'rb') as f: s._record_self(f.read())
                 shutil.copy2(path,HOSTS_PATH)
                 s.read()
             except Exception as e: log.warning(f"Hosts restore failed: {e}"); return False
-            finally: s._suppress_watcher=False
         s._flush(); return True
     def _flush(s):
         if sys.platform=='win32': subprocess.Popen(['ipconfig','/flushdns'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=NOWIN)
     def emergency_unlock(s):
+        s.backup()
         with s._lock:
-            s._suppress_watcher=True
             try:
                 s._atomic_write('\n'.join(WINDOWS_HEADER)+'\n')
                 s.read()
-            except: return False
-            finally: s._suppress_watcher=False
+            except Exception as e: log.warning(f"Emergency reset failed: {e}"); return False
         s._flush(); return True
 
 # ─── Bandwidth ──────────────────────────────────────────────────────────────
@@ -1134,6 +1168,17 @@ class DNSMonitor(QThread):
         """PowerShell polling fallback — 3s interval."""
         s._scan(); s.updated.emit()
         while s.running: s._scan(); time.sleep(3)
+    def mark_seen(s,d):
+        """Thread-safe-enough suppression marker — _seen is an OrderedDict, not a set."""
+        s._seen[d]=True
+    def _trim_seen(s):
+        if len(s._seen)>10000:
+            hidden=s.db.get_hidden_set()
+            keep=OrderedDict()
+            for k in hidden: keep[k]=True
+            items=list(s._seen.items())
+            for k,v in items[-2000:]: keep[k]=True
+            s._seen=keep
     def _process_domain(s,d,proc=''):
         blocked=s.db.get_blocked_set()
         is_new=s.db.feed_upsert(d,proc)
@@ -1146,13 +1191,7 @@ class DNSMonitor(QThread):
                     s.db.log_event(d,'blocked',proc,'Blocked by hosts')
                     s.blocked_event.emit(ev)
                 s.updated.emit()
-        if len(s._seen)>10000:
-            hidden=s.db.get_hidden_set()
-            keep=OrderedDict()
-            for k in hidden: keep[k]=True
-            items=list(s._seen.items())
-            for k,v in items[-2000:]: keep[k]=True
-            s._seen=keep
+        s._trim_seen()
     def _scan(s):
         if not s._scan_lock.acquire(blocking=False): return
         try: s._do_scan()
@@ -1179,18 +1218,13 @@ class DNSMonitor(QThread):
                             s.db.log_event(d,'blocked','','Blocked by hosts')
                             s.blocked_event.emit(ev)
             if ct>0: s.updated.emit()
-            if len(s._seen)>10000:
-                hidden=s.db.get_hidden_set()
-                keep=OrderedDict()
-                for k in hidden: keep[k]=True
-                items=list(s._seen.items())
-                for k,v in items[-2000:]: keep[k]=True
-                s._seen=keep
+            s._trim_seen()
         except Exception as e: log.debug(f"DNS scan: {e}")
     def manual_scan(s):
-        if s.running:
-            if s._use_etw: pass
-            else: QTimer.singleShot(0,s._scan)
+        # Run in a worker thread — _scan blocks on a PowerShell roundtrip (up to 12s)
+        # and must never run on the GUI thread. _scan_lock already prevents overlap.
+        if s.running and not s._use_etw:
+            threading.Thread(target=s._scan,daemon=True).start()
     def stop(s):
         s.running=False
         if s._etw_sess:
@@ -1299,7 +1333,7 @@ class RuleScanWorker(QThread):
         except: s.ready.emit([])
 
 class HostsWatcher(QThread):
-    changed=pyqtSignal()
+    changed=pyqtSignal(bytes)
     registry_tamper=pyqtSignal(str)
     def __init__(s):
         super().__init__(); s._stop=TEvent(); s._hash=b''
@@ -1315,7 +1349,7 @@ class HostsWatcher(QThread):
         s._hash=s._file_hash()
         while not s._stop.is_set():
             new_hash=s._file_hash()
-            if new_hash and new_hash!=s._hash: s._hash=new_hash; s.changed.emit()
+            if new_hash and new_hash!=s._hash: s._hash=new_hash; s.changed.emit(new_hash)
             try:
                 import winreg
                 k=winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,r'SYSTEM\CurrentControlSet\Services\Tcpip\Parameters')
@@ -1563,7 +1597,7 @@ class DNSInspectDlg(QDialog):
         latency=int((time.time()-t0)*1000)
         blocked='(BLOCKED by hosts)' if domain.lower() in (s.parent().db.get_blocked_set() if hasattr(s.parent(),'db') else set()) else ''
         header=f"Query: {domain} {blocked}\nResolver latency: {latency}ms\n{'─'*60}\n"
-        QTimer.singleShot(0,lambda:s._result.setPlainText(header+('\n'.join(lines) if lines else 'No records found')))
+        ui_call(lambda:s._result.setPlainText(header+('\n'.join(lines) if lines else 'No records found')))
     @staticmethod
     def _dns_query(domain,qtype):
         import struct as _st
@@ -1869,22 +1903,38 @@ class HostsActivityTab(QWidget):
     def _act_temp_allow(s,d,mins):
         s.db.add_domain(d,'whitelisted','temp_allow'); s.hm.unblock(d)
         s.db.log_event(d,'whitelisted','',f'Temp allow {mins}m')
+        cfg=load_cfg(); ta=cfg.get('temp_allows',{}); ta[d]=time.time()+mins*60
+        cfg['temp_allows']=ta; save_cfg(cfg)
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d} for {mins}m",C['green'])
         QTimer.singleShot(mins*60*1000,lambda:s._revert_temp(d))
     def _revert_temp(s,d):
+        cfg=load_cfg(); ta=cfg.get('temp_allows',{})
+        ta.pop(d,None); cfg['temp_allows']=ta; save_cfg(cfg)
+        # Only revert if the domain is still in temp-allow state — if the user made
+        # the allow permanent (or removed the domain) in the meantime, respect that.
+        r=s.db._q("SELECT source FROM domains WHERE domain=?",(d,))
+        if not r or r[0][0]!='temp_allow': return
         s.db.add_domain(d,'blocked','temp_reverted'); s.hm.block(d)
         s.db.log_event(d,'blocked','','Temp allow expired')
         s._last_hash=0; s._refresh(); s._toast(f"Temp allow expired: {d}",C['red'])
+    def resume_temp_allows(s):
+        """Re-arm temp-allow expiry timers after restart; revert already-expired ones."""
+        ta=load_cfg().get('temp_allows',{})
+        now=time.time()
+        for d,exp in list(ta.items()):
+            remaining=exp-now
+            if remaining<=0: s._revert_temp(d)
+            else: QTimer.singleShot(int(remaining*1000),lambda _d=d:s._revert_temp(_d))
     def _act_hide(s,d):
         s.db.feed_hide(d)
         w=s.window()
-        if hasattr(w,'_dns_mon') and w._dns_mon: w._dns_mon._seen.add(d.lower())
+        if hasattr(w,'_dns_mon') and w._dns_mon: w._dns_mon.mark_seen(d.lower())
         s.tbl.setRowCount(0); s._last_hash=0; s._refresh(); s._toast(f"Hidden {d}",C['dim'])
     def _act_hide_root(s,d):
         s.db.feed_hide_root(d); root=get_root(d)
         w=s.window()
         if hasattr(w,'_dns_mon') and w._dns_mon:
-            for dom in s.db.get_hidden_set(): w._dns_mon._seen.add(dom)
+            for dom in s.db.get_hidden_set(): w._dns_mon.mark_seen(dom)
         s.tbl.setRowCount(0); s._last_hash=0; s._refresh(); s._toast(f"Hidden *{root}",C['dim'])
     def resizeEvent(s,e): super().resizeEvent(e); s._overlay._update_geom()
     def _toast(s,msg,color):
@@ -2217,7 +2267,7 @@ class FWActivityTab(QWidget):
             ok,_=_ps(f'Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction {action}',10)
             cfg=load_cfg(); cfg['lockdown']=on; save_cfg(cfg)
             msg=f"Lockdown {'ON — all outbound blocked' if on else 'OFF — outbound allowed'}"
-            QTimer.singleShot(0,lambda:s._toast(msg,C['red'] if on else C['green']))
+            ui_call(lambda:s._toast(msg,C['red'] if on else C['green']))
         threading.Thread(target=_bg,daemon=True).start()
     def resizeEvent(s,e): super().resizeEvent(e); s._overlay._update_geom()
     def _toast(s,msg,color):
@@ -2321,8 +2371,8 @@ class HostsTab(QWidget):
             s.hm.read()
             s.db.sync_hosts_to_db(s.hm)
         except Exception as e: log.warning(f"Hosts sync: {e}")
-        QTimer.singleShot(0,s._load_d)
-        QTimer.singleShot(0,s._d_overlay.hide_loading)
+        ui_call(s._load_d)
+        ui_call(s._d_overlay.hide_loading)
 
     def _sync_and_load(s):
         """Manual refresh — re-read hosts file, sync to DB, reload table."""
@@ -2588,7 +2638,7 @@ class FirewallTab(QWidget):
     def _load_prof(s):
         profs=fw.get_profiles()
         parts=[f"{n}: {'ON' if e else 'OFF'}" for n,e in profs.items()]
-        QTimer.singleShot(0,lambda:s.prof.setText("Profiles: "+' \u00B7 '.join(parts)))
+        ui_call(lambda:s.prof.setText("Profiles: "+' \u00B7 '.join(parts)))
     def _apply(s):
         try:
             q=s.fw_s.text().strip().lower(); f=s.fw_f.currentText(); rules=list(s._rules)
@@ -2702,7 +2752,7 @@ class FirewallTab(QWidget):
             for n in hg:
                 try: fw.delete(n)
                 except: pass
-            QTimer.singleShot(0,lambda:(setattr(s,'_rules',[r for r in s._rules if r.source!="hostsguard"]),fw.set_cache([r for r in fw.get_cached() if r.source!="hostsguard"]),s._apply(),s._toast(f"Deleted {len(hg)} HG rules",C['red'])))
+            ui_call(lambda:(setattr(s,'_rules',[r for r in s._rules if r.source!="hostsguard"]),fw.set_cache([r for r in fw.get_cached() if r.source!="hostsguard"]),s._apply(),s._toast(f"Deleted {len(hg)} HG rules",C['red'])))
         threading.Thread(target=_bg,daemon=True).start()
     def _toggle_local(s,name,enabled):
         for r in s._rules:
@@ -2872,13 +2922,13 @@ class ToolsTab(QWidget):
                     if mode and mode!='off': findings.append(f"Chrome preferences: DoH mode={mode}")
                 except Exception: pass
             if findings:
-                QTimer.singleShot(0,lambda:QMessageBox.warning(s,"Browser DoH Detected",
+                ui_call(lambda:QMessageBox.warning(s,"Browser DoH Detected",
                     "The following browsers have DNS-over-HTTPS enabled, which bypasses "
                     "HostsGuard's DNS monitoring and hosts file blocking:\n\n"+'\n'.join(findings)+
                     "\n\nTo disable: set DnsOverHttpsMode to 'off' via group policy or "
                     "browser settings (chrome://settings/security)."))
             else:
-                QTimer.singleShot(0,lambda:s._toast("No browser DoH detected",C['green']))
+                ui_call(lambda:s._toast("No browser DoH detected",C['green']))
         threading.Thread(target=_bg,daemon=True).start()
     def _apply_dns(s):
         dns_map={"System Default":None,"Cloudflare (1.1.1.1)":("1.1.1.1","1.0.0.1"),
@@ -2891,19 +2941,19 @@ class ToolsTab(QWidget):
             else:
                 ok,_=_ps(f"Get-NetAdapter|Where-Object{{$_.Status -eq 'Up'}}|Set-DnsClientServerAddress -ServerAddresses {_ps_esc(addrs[0]+','+addrs[1])}",10)
             _ps("ipconfig /flushdns",5)
-            QTimer.singleShot(0,lambda:s._toast(f"DNS set to {sel}" if ok else "DNS change failed",C['green'] if ok else C['red']))
+            ui_call(lambda:s._toast(f"DNS set to {sel}" if ok else "DNS change failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _flush(s): ok,_=_ps("ipconfig /flushdns",5); s._toast("DNS flushed" if ok else "DNS flush failed",C['green'] if ok else C['red'])
     def _winsock(s):
         def _bg():
             ok,_=_ps("netsh winsock reset",10)
-            QTimer.singleShot(0,lambda:s._toast("Winsock reset (reboot needed)" if ok else "Winsock reset failed",C['green'] if ok else C['red']))
+            ui_call(lambda:s._toast("Winsock reset (reboot needed)" if ok else "Winsock reset failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _renew(s):
         s._toast("Renewing...",C['blue'])
         def _bg():
             ok,_=_ps("ipconfig /release && ipconfig /renew",15)
-            QTimer.singleShot(0,lambda:s._toast("IP renewed" if ok else "Renew failed",C['green'] if ok else C['red']))
+            ui_call(lambda:s._toast("IP renewed" if ok else "Renew failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _export(s):
         data={'version':VER,'schema':SCHEMA_VER,'domains':[{'domain':r[0],'status':r[1],'source':r[3]} for r in s.db.get_domains()],
@@ -2980,7 +3030,7 @@ class ToolsTab(QWidget):
         def _bg():
             ok1,_=_ps(f'icacls {_ps_esc(HOSTS_PATH)} /inheritance:r /grant:r "NT AUTHORITY\\SYSTEM:(F)" "BUILTIN\\Administrators:(F)" /deny "BUILTIN\\Users:(W,D)"',10)
             ok2,_=_ps(f'auditpol /set /subcategory:"File System" /success:enable /failure:enable',10)
-            QTimer.singleShot(0,lambda:s._toast("Hosts ACL hardened + audit enabled" if ok1 else "ACL hardening failed",C['green'] if ok1 else C['red']))
+            ui_call(lambda:s._toast("Hosts ACL hardened + audit enabled" if ok1 else "ACL hardening failed",C['green'] if ok1 else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _restore_upstream(s):
         def _bg():
@@ -2991,13 +3041,13 @@ class ToolsTab(QWidget):
                     content=resp.read().decode('utf-8',errors='replace')
                 s.hm.backup()
                 err=s.hm.save_raw(content)
-                if err: QTimer.singleShot(0,lambda:s._toast(f"Restore failed: {err}",C['red']))
+                if err: ui_call(lambda:s._toast(f"Restore failed: {err}",C['red']))
                 else:
                     s.db.sync_hosts_to_db(s.hm)
                     w=s.window()
                     if hasattr(w,'_watcher'): w._watcher.update_hash()
-                    QTimer.singleShot(0,lambda:s._toast("Restored from StevenBlack upstream",C['green']))
-            except Exception as e: QTimer.singleShot(0,lambda:s._toast(f"Download failed: {e}",C['red']))
+                    ui_call(lambda:s._toast("Restored from StevenBlack upstream",C['green']))
+            except Exception as e: ui_call(lambda:s._toast(f"Download failed: {e}",C['red']))
         if QMessageBox.question(s,"Restore from Upstream",
             "Replace your hosts file with the StevenBlack unified hosts list?\n"
             "A backup of the current file will be created first.",
@@ -3057,6 +3107,8 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(200,s._start_conns)
         # Lazy-load favicons after UI is visible
         QTimer.singleShot(500,_init_fav)
+        # Re-arm temp-allow expirations that were pending when the app last closed
+        QTimer.singleShot(1000,s._hosts_act.resume_temp_allows)
         # Scheduled blocklist refresh
         cfg=load_cfg(); interval_h=cfg.get('blocklist_refresh_hours',0)
         if interval_h>0:
@@ -3222,9 +3274,8 @@ class MainWindow(QMainWindow):
                 for c in live[:5]:
                     s._tools.record_event('conn',{'proto':c.proto,'remote':c.ra,'port':c.rp,'host':c.host,'proc':c.proc})
 
-    def _on_hosts_changed(s):
-        if s.hm._suppress_watcher:
-            s.hm._suppress_watcher=False; s._watcher.update_hash(); return
+    def _on_hosts_changed(s,new_hash=b''):
+        if s.hm.is_self_change(new_hash): return
         s.hm.read()
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
         s._toasts.toast("Hosts file changed externally",C['peach'])
@@ -3372,23 +3423,26 @@ def _service():
             except Exception: pass
             stop_evt.wait(2)
     def _watcher_loop():
-        watcher_hash=hashlib.sha512()
-        try:
-            with open(HOSTS_PATH,'rb') as f:
-                for chunk in iter(lambda:f.read(65536),b''): watcher_hash.update(chunk)
-        except: pass
-        last=watcher_hash.digest()
-        while not stop_evt.is_set():
+        def _fhash():
+            h=hashlib.sha512()
             try:
-                h=hashlib.sha512()
                 with open(HOSTS_PATH,'rb') as f:
                     for chunk in iter(lambda:f.read(65536),b''): h.update(chunk)
-                if h.digest()!=last:
-                    last=h.digest(); hm.read(); db.sync_hosts_to_db(hm)
-                    _evt_log("Hosts file modified externally")
-                    cfg=load_cfg()
-                    if cfg.get('auto_restore_on_tamper',False): hm.restore()
-            except: pass
+            except OSError: return b''
+            return h.digest()
+        last=_fhash()
+        while not stop_evt.is_set():
+            try:
+                d=_fhash()
+                if d and d!=last:
+                    last=d
+                    if not hm.is_self_change(d):
+                        hm.read(); db.sync_hosts_to_db(hm)
+                        _evt_log("Hosts file modified externally")
+                        cfg=load_cfg()
+                        if cfg.get('auto_restore_on_tamper',False):
+                            hm.restore(); last=_fhash()  # accept restored content, no re-trigger
+            except Exception: pass
             stop_evt.wait(5)
     threads=[]
     for fn in [_dns_loop,_conn_loop,_watcher_loop]:
@@ -3446,6 +3500,7 @@ def main():
         except: pass
     try:
         app=QApplication(sys.argv)
+        _init_ui_bridge()
         branding_icon = QIcon(str(_branding_icon_path()))
         app.setWindowIcon(branding_icon)
         app.setStyle("Fusion"); app.setApplicationName(APP); app.setStyleSheet(STYLE)
