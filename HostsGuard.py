@@ -164,9 +164,15 @@ SOURCES={
 _DEFENDER_WARN={"Windows/Office","HaGezi Ultimate","StevenBlack Unified","Windows Spy Blocker"}
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
-C={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
+_DARK={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
    "text":"#e4e6f0","sub":"#9ea0b8","dim":"#6a6c88","blue":"#7aa2f7","green":"#9ece6a","red":"#f7768e",
    "peach":"#ff9e64","yellow":"#e0af68","mauve":"#bb9af7","teal":"#73daca","sky":"#7dcfff","sel":"rgba(122,162,247,0.12)"}
+_LIGHT={"bg":"#eff1f5","base":"#e6e9ef","mantle":"#dce0e8","crust":"#ccd0da","s0":"#bcc0cc","s1":"#acb0be","s2":"#9ca0b0",
+   "text":"#4c4f69","sub":"#5c5f77","dim":"#7c7f93","blue":"#1e66f5","green":"#40a02b","red":"#d20f39",
+   "peach":"#fe640b","yellow":"#df8e1d","mauve":"#8839ef","teal":"#179299","sky":"#04a5e5","sel":"rgba(30,102,245,0.12)"}
+def _load_theme():
+    cfg=load_cfg(); return dict(_LIGHT) if cfg.get('theme')=='light' else dict(_DARK)
+C=_load_theme()
 
 def _dp(px):
     try:
@@ -2396,6 +2402,11 @@ class MainWindow(QMainWindow):
         s._mbtn.setCursor(Qt.PointingHandCursor); s._mbtn.setFixedHeight(_dp(24))
         s._mbtn.setToolTip("Toggle desktop notifications for blocked domains")
         s._upd_mute_btn(); s._mbtn.clicked.connect(s._toggle_mute); tb.addWidget(s._mbtn)
+        s._tbtn=QPushButton("LIGHT" if load_cfg().get('theme')=='light' else "DARK")
+        s._tbtn.setCursor(Qt.PointingHandCursor); s._tbtn.setFixedHeight(_dp(24))
+        s._tbtn.setToolTip("Switch between dark and light theme (requires restart)")
+        s._tbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        s._tbtn.clicked.connect(s._toggle_theme); tb.addWidget(s._tbtn)
         root.addWidget(top)
         # Tabs
         s._tabs=QTabWidget(); s._tabs.setDocumentMode(True)
@@ -2436,6 +2447,11 @@ class MainWindow(QMainWindow):
         s._mbtn.setText("NOTIF: ON" if on else "NOTIF: OFF")
         if on: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['green']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
         else: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+    def _toggle_theme(s):
+        cfg=load_cfg(); cur=cfg.get('theme','dark')
+        new='light' if cur!='light' else 'dark'; cfg['theme']=new; save_cfg(cfg)
+        s._tbtn.setText(new.upper())
+        s._toasts.toast(f"Theme set to {new} — restart to apply",C['blue'])
 
     def _start_conns(s):
         s._conn_w=ConnWorker(s.db)
