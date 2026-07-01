@@ -307,6 +307,28 @@ class LRU:
     def clear(s):
         with s._lock: s._d.clear()
 dns_c=LRU(); who_c=LRU(); geo_c=LRU(); proc_c=LRU(2000); sig_c=LRU(500)
+_threat_ips=set(); _threat_domains=set(); _threat_lock=Lock()
+THREAT_FEEDS=[
+    ("URLhaus","https://urlhaus.abuse.ch/downloads/hostfile/"),
+    ("Feodo","https://feodotracker.abuse.ch/downloads/ipblocklist.txt"),
+]
+def _load_threat_intel():
+    global _threat_ips,_threat_domains
+    ips=set(); doms=set()
+    for name,url in THREAT_FEEDS:
+        try:
+            req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+            with urllib.request.urlopen(req,timeout=30) as resp:
+                for line in resp.read().decode('utf-8',errors='replace').splitlines():
+                    line=line.strip()
+                    if not line or line.startswith('#'): continue
+                    parts=line.split()
+                    if len(parts)>=2 and parts[0] in ('0.0.0.0','127.0.0.1'):
+                        doms.add(parts[1].lower())
+                    elif IPV4_RE.match(line): ips.add(line)
+        except Exception as e: log.warning(f"Threat feed {name}: {e}")
+    with _threat_lock: _threat_ips=ips; _threat_domains=doms
+    log.info(f"Threat intel loaded: {len(ips)} IPs, {len(doms)} domains")
 
 # ─── Data Structures ───────────────────────────────────────────────────────
 @dataclass
@@ -314,7 +336,7 @@ class CI:
     key:str="";ts:str="";src:str="";dir:str="";proto:str=""
     la:str="";lp:str="";ra:str="";rp:str=""
     host:str="-";proc:str="?";pid:int=0;state:str=""
-    path:str="";org:str="-";stat:str="-";country:str="-";cc:str="";category:str="";sig:str=""
+    path:str="";org:str="-";stat:str="-";country:str="-";cc:str="";category:str="";sig:str="";ppid:int=0;pproc:str=""
 @dataclass
 class FWR:
     name:str="";direction:str="Out";action:str="Block";enabled:bool=True
@@ -1182,9 +1204,15 @@ class ConnWorker(QThread):
                     cached_sig=sig_c.get(ppath)
                     if cached_sig is not None: sig_status=cached_sig
                     elif ppath: s.need_sig.emit(ppath)
+                ppid=0; pproc=""
+                if pid:
+                    try:
+                        pp=psutil.Process(pid).parent()
+                        if pp: ppid=pp.pid; pproc=pp.name()
+                    except Exception: pass
                 ci=CI(key=f"{proto}:{la}:{lp}-{ra}:{rp}",ts=now,dir="Out" if c.status!="LISTEN" else "Listen",
                     proto=proto,la=la,lp=lp,ra=ra,rp=rp,host=host,proc=pname,pid=pid,state=state,
-                    path=ppath,stat=stat,country=country,cc=cc,category=cat,sig=sig_status)
+                    path=ppath,stat=stat,country=country,cc=cc,category=cat,sig=sig_status,ppid=ppid,pproc=pproc)
                 out.append(ci)
                 if host=="-": s.need_dns.emit(ra)
                 if not geo: s.need_geo.emit(ra)
@@ -1781,12 +1809,17 @@ class FWActivityTab(QWidget):
             host=c.host if c.host not in ('-','') else c.ra
             _icon_item(s.tbl,i,0,host,c.host if c.host not in ('-','') else None)
             proc_label=f"{c.sig} {c.proc} ({c.pid})" if c.sig else f"{c.proc} ({c.pid})"
-            s.tbl.setItem(i,1,QTableWidgetItem(proc_label))
+            pi=QTableWidgetItem(proc_label)
+            if c.pproc: pi.setToolTip(f"Parent: {c.pproc} (PID {c.ppid})")
+            s.tbl.setItem(i,1,pi)
             it_port=QTableWidgetItem(); it_port.setData(Qt.DisplayRole,int(c.rp) if c.rp.isdigit() else 0); it_port.setText(c.rp)
             s.tbl.setItem(i,2,it_port)
             f_blocked=c.ra in s._fw_blocked_ips
             h_blocked=c.host in blocked_hosts if c.host not in ('-','') else False
-            if f_blocked: s.tbl.setCellWidget(i,3,_pill("FW BLOCK",C['mauve']))
+            t_ip=c.ra in _threat_ips
+            t_dom=c.host.lower() in _threat_domains if c.host not in ('-','') else False
+            if t_ip or t_dom: s.tbl.setCellWidget(i,3,_pill("THREAT",C['peach']))
+            elif f_blocked: s.tbl.setCellWidget(i,3,_pill("FW BLOCK",C['mauve']))
             elif h_blocked: s.tbl.setCellWidget(i,3,_pill("HOSTS",C['red']))
             else: s.tbl.setCellWidget(i,3,_pill("\u2014",C['dim']))
             s.tbl.setItem(i,4,QTableWidgetItem(c.cc or ""))
@@ -2671,10 +2704,12 @@ class MainWindow(QMainWindow):
         if sources: s._hosts_tab._run_imp(sources)
 
     def _startup_sync(s):
-        """Run at startup: backup hosts, sync hosts entries to DB."""
+        """Run at startup: backup hosts, sync hosts entries to DB, load threat intel."""
         try: s.hm.backup()
         except: pass
         try: s.db.sync_hosts_to_db(s.hm)
+        except: pass
+        try: _load_threat_intel()
         except: pass
 
     def _build_ui(s):
