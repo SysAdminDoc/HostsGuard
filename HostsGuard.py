@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HostsGuard v3.7.0 — Network Privacy Manager
+HostsGuard v3.8.0 — Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io
@@ -83,7 +83,7 @@ QApplication.setAttribute(Qt.AA_EnableHighDpiScaling,True)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps,True)
 
 # ─── Constants ──────────────────────────────────────────────────────────────
-APP="HostsGuard"; VER="3.7.0"; FW_PFX="HG_"
+APP="HostsGuard"; VER="3.8.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
 DB_PATH=os.path.join(CONFIG_DIR,"hostsguard.db")
