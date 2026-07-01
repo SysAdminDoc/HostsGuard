@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-3.8.0-blue)
+![Version](https://img.shields.io/badge/version-3.9.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
@@ -92,9 +92,11 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | Event Log | Chronological log of all block, allow, and firewall actions |
 | Statistics Dashboard | Blocked count, allowed count, feed total, today's hits, top blocked domains |
 | DNS Flush | One-click `ipconfig /flushdns` |
+| DNS Resolver Switcher | One-click switch to Cloudflare, Google, Quad9, AdGuard DNS, or NextDNS |
 | Network Reset | Winsock reset, IP release/renew |
 | Database Sync | Manual hosts-to-DB synchronization |
-| Export | Export connection history and domain lists to CSV |
+| Session Recording | Record DNS + connection events to JSONL for analysis |
+| Export | Export connections as CSV/JSONL, config as JSON |
 
 ### System Features
 
@@ -107,6 +109,19 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | DPI Aware | Scales all UI elements for high-DPI displays |
 | Auto-Elevation | Requests UAC admin privileges on launch (required for hosts file and firewall access) |
 | File Logging | Errors logged to `%APPDATA%\HostsGuard\hostsguard.log` (500KB rotating) |
+| Portable Mode | `--portable` stores all data next to the exe instead of `%APPDATA%` |
+| Dark/Light Theme | Toggle between dark (Tokyo Night) and light (Catppuccin Latte) themes |
+| Observe Mode | Allow all connections silently for onboarding — review and create rules later |
+| Lockdown Mode | Block all outbound by default, whitelist programs individually |
+| Threat Intel | URLhaus + Feodo tracker overlay — flags connections to known-bad IPs/domains |
+| Signed Binary Badge | Authenticode verification badge on processes (✔ signed / ✘ unsigned) |
+| Offline GeoIP + ASN | Country and ASN resolution via local DB-IP Lite MMDB — works offline |
+| Temp Allow | Allow a domain for 5/15/30/60 minutes, automatically revert to blocked |
+| Scheduled Blocklist Refresh | Auto-update subscribed blocklists on configurable interval |
+| Rule Groups | Filter and bulk-manage domains by source (blocklist, manual, etc.) |
+| Firewall Drift Detection | Save baseline, detect added/removed/changed rules |
+| CLI Interface | `block/allow/unblock/status/export` commands without launching GUI |
+| ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
 
 ## Blocklist Sources
 
