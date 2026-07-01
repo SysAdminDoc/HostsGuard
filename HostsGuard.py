@@ -3148,16 +3148,22 @@ class ToolsTab(QWidget):
         p,_=QFileDialog.getOpenFileName(s,"Import","","JSON (*.json)")
         if not p: return
         try:
-            with open(p) as f: data=json.load(f)
-            ct=0
-            for d in data.get('domains',[]): s.db.add_domain(d['domain'],d.get('status','blocked'),d.get('source','import')); ct+=1
+            with open(p,encoding='utf-8') as f: data=json.load(f)
+            if not isinstance(data,dict): raise ValueError("not a HostsGuard config file")
+            # Skip malformed entries instead of aborting the whole import on one.
+            rows=[(str(d['domain']).lower(),d.get('status','blocked'),d.get('source','import'))
+                  for d in data.get('domains',[]) if isinstance(d,dict) and d.get('domain')]
+            ct=s.db.add_domains_bulk(rows)
             for r in data.get('fw_state',[]):
-                s.db.save_fw_rule(r.get('name',''),r.get('direction',''),r.get('action','Block'),r.get('remote_addr',''),r.get('protocol',''),r.get('program',''))
-            for proc in data.get('trusted',[]): s.learn.trust(proc)
-            for proc in data.get('untrusted',[]): s.learn.untrust(proc)
+                if isinstance(r,dict) and r.get('name'):
+                    s.db.save_fw_rule(r.get('name',''),r.get('direction',''),r.get('action','Block'),r.get('remote_addr',''),r.get('protocol',''),r.get('program',''))
+            for proc in data.get('trusted',[]):
+                if isinstance(proc,str): s.learn.trust(proc)
+            for proc in data.get('untrusted',[]):
+                if isinstance(proc,str): s.learn.untrust(proc)
             fwct=len(data.get('fw_state',[]))
-            s._toast(f"Imported {ct} domains, {fwct} FW rules",C['green']); s._upd_learn()
-        except Exception as e: s._toast(f"Error: {e}",C['red'])
+            s._toast(f"Imported {ct} domains, {fwct} FW rules — use Restore buttons to apply",C['green']); s._upd_learn()
+        except Exception as e: s._toast(f"Import failed: {e}",C['red'])
     def _export_conns(s):
         p,_=QFileDialog.getSaveFileName(s,"Export Connections",os.path.join(CONFIG_DIR,f"connections_{datetime.datetime.now():%Y%m%d_%H%M}"),"CSV (*.csv);;JSONL (*.jsonl)")
         if not p: return
