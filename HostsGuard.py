@@ -1477,6 +1477,91 @@ def _tbl(cols,stretch=0,row_h=32):
     t.setSortingEnabled(True); t.setContextMenuPolicy(Qt.CustomContextMenu)
     return t
 
+# ─── DNS Inspection Dialog ─────────────────────────────────────────────────
+class DNSInspectDlg(QDialog):
+    def __init__(s,domain,parent=None):
+        super().__init__(parent); s.setWindowTitle(f"DNS: {domain}"); s.setFixedWidth(_dp(520))
+        s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
+        lo=QVBoxLayout(s); lo.setSpacing(_dp(8)); lo.setContentsMargins(_dp(20),_dp(14),_dp(20),_dp(14))
+        hdr=QLabel(domain); hdr.setStyleSheet(f"font-size:{_dp(15)}px;font-weight:800;color:{C['text']};"); lo.addWidget(hdr)
+        s._result=QPlainTextEdit(); s._result.setReadOnly(True); s._result.setMaximumHeight(_dp(300))
+        s._result.setFont(QFont("Cascadia Code,Consolas",_dp(9)))
+        s._result.setStyleSheet(f"background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:{_dp(8)}px;padding:{_dp(6)}px;")
+        lo.addWidget(s._result,1)
+        br=QHBoxLayout(); br.addWidget(_btn("Copy","dim",lambda:QApplication.clipboard().setText(s._result.toPlainText())))
+        br.addStretch(); br.addWidget(_btn("Close","dim",lambda:s.reject())); lo.addLayout(br)
+        threading.Thread(target=s._resolve,args=(domain,),daemon=True).start()
+    def _resolve(s,domain):
+        import struct as _st
+        lines=[]; t0=time.time()
+        for qtype,label in [(1,'A'),(28,'AAAA'),(5,'CNAME')]:
+            try:
+                resp=s._dns_query(domain,qtype)
+                if resp:
+                    for name,rtype,ttl,rdata in resp:
+                        if rtype==1 and len(rdata)==4: val='.'.join(str(b) for b in rdata)
+                        elif rtype==28 and len(rdata)==16: val=socket.inet_ntop(socket.AF_INET6,rdata)
+                        elif rtype==5: val=s._parse_name_from(rdata,b'')
+                        else: val=rdata.hex()
+                        lines.append(f"{label:6s}  {name:40s}  TTL={ttl:<6d}  {val}")
+            except Exception as e: lines.append(f"{label:6s}  Error: {e}")
+        latency=int((time.time()-t0)*1000)
+        blocked='(BLOCKED by hosts)' if domain.lower() in (s.parent().db.get_blocked_set() if hasattr(s.parent(),'db') else set()) else ''
+        header=f"Query: {domain} {blocked}\nResolver latency: {latency}ms\n{'─'*60}\n"
+        QTimer.singleShot(0,lambda:s._result.setPlainText(header+('\n'.join(lines) if lines else 'No records found')))
+    @staticmethod
+    def _dns_query(domain,qtype):
+        import struct as _st
+        tid=os.urandom(2)
+        qname=b''
+        for part in domain.encode().split(b'.'): qname+=bytes([len(part)])+part
+        qname+=b'\x00'
+        pkt=tid+b'\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00'+qname+_st.pack('!HH',qtype,1)
+        sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        sock.settimeout(3)
+        try:
+            sock.sendto(pkt,('8.8.8.8',53))
+            data,_=sock.recvfrom(4096)
+        finally: sock.close()
+        if len(data)<12: return []
+        _,flags,qdcount,ancount=_st.unpack('!HHHH',data[:8])
+        off=12
+        for _ in range(qdcount):
+            while off<len(data) and data[off]!=0:
+                if data[off]&0xc0==0xc0: off+=2; break
+                off+=data[off]+1
+            else: off+=1
+            off+=4
+        results=[]
+        for _ in range(ancount):
+            name,off=DNSInspectDlg._read_name(data,off)
+            if off+10>len(data): break
+            rtype,_,ttl,rdlen=_st.unpack('!HHIH',data[off:off+10]); off+=10
+            rdata=data[off:off+rdlen]; off+=rdlen
+            results.append((name,rtype,ttl,rdata))
+        return results
+    @staticmethod
+    def _read_name(data,off):
+        parts=[]; jumped=False; save_off=off
+        while off<len(data):
+            l=data[off]
+            if l==0: off+=1; break
+            if l&0xc0==0xc0:
+                if not jumped: save_off=off+2
+                import struct as _st
+                off=_st.unpack('!H',data[off:off+2])[0]&0x3fff; jumped=True; continue
+            off+=1; parts.append(data[off:off+l].decode('ascii','replace')); off+=l
+        return '.'.join(parts), save_off if jumped else off
+    @staticmethod
+    def _parse_name_from(rdata,full_pkt):
+        parts=[]; off=0
+        while off<len(rdata):
+            l=rdata[off]
+            if l==0: break
+            if l&0xc0==0xc0: parts.append('(ptr)'); break
+            off+=1; parts.append(rdata[off:off+l].decode('ascii','replace')); off+=l
+        return '.'.join(parts) if parts else rdata.hex()
+
 # ─── Connection Detail Dialog ───────────────────────────────────────────────
 class ConnDetailDlg(QDialog):
     def __init__(s,ci,db,hm,learn,parent=None):
@@ -1706,6 +1791,7 @@ class HostsActivityTab(QWidget):
                 m.addAction("Hide").triggered.connect(lambda:s._act_hide(d))
                 m.addAction(f"Hide root ({root})").triggered.connect(lambda:s._act_hide_root(d))
             m.addSeparator()
+            m.addAction("DNS Inspect").triggered.connect(lambda:DNSInspectDlg(d,s).exec_())
             m.addAction("Research \u2192").triggered.connect(lambda:open_research(d))
             m.addAction("Copy").triggered.connect(lambda:QApplication.clipboard().setText(d))
         m.exec_(s.tbl.viewport().mapToGlobal(pos))
@@ -1921,6 +2007,7 @@ class FWActivityTab(QWidget):
         lm.addAction(f"Untrust {c.proc}").triggered.connect(lambda:(s.learn.untrust(c.proc),s._toast(f"Untrusted {c.proc}",C['red'])))
         m.addSeparator()
         if c.pid>0: m.addAction(f"Kill (PID {c.pid})").triggered.connect(lambda:s._kill(c.pid,c.proc))
+        if c.host not in ('-','','...'): m.addAction("DNS Inspect").triggered.connect(lambda:DNSInspectDlg(c.host,s).exec_())
         m.addAction("Research \u2192").triggered.connect(lambda:open_research(c.host if c.host not in ('-','') else c.ra))
         m.addAction("Copy IP").triggered.connect(lambda:QApplication.clipboard().setText(c.ra))
         m.exec_(s.tbl.viewport().mapToGlobal(pos))
