@@ -2669,6 +2669,9 @@ class ToolsTab(QWidget):
         l4.addWidget(_tbtn("Restore FW Rules from DB","primary",s._restore_fw))
         l4.addWidget(_tbtn("Sync Hosts File to DB","dim",s._sync_hosts_db))
         l4.addWidget(_tbtn("Backup Hosts Now","dim",lambda:(s.hm.backup(),s._toast("Backed up",C['green']))))
+        s._ar_cb=QCheckBox("Auto-restore on tamper"); s._ar_cb.setChecked(load_cfg().get('auto_restore_on_tamper',False))
+        s._ar_cb.toggled.connect(s._toggle_auto_restore)
+        s._ar_cb.setToolTip("Automatically restore hosts file from backup if externally modified"); l4.addWidget(s._ar_cb)
         l4.addStretch(); grid.addWidget(g4)
         lo.addLayout(grid)
         lg=QGroupBox("Event Log"); ll=QVBoxLayout(lg)
@@ -2846,6 +2849,9 @@ class ToolsTab(QWidget):
         s.hm.read()  # Fresh read
         added=s.db.sync_hosts_to_db(s.hm)
         s._toast(f"Synced {added} new entries from hosts file to DB",C['green']); s._upd_rec()
+    def _toggle_auto_restore(s,v):
+        cfg=load_cfg(); cfg['auto_restore_on_tamper']=v; save_cfg(cfg)
+        s._toast(f"Auto-restore {'ON' if v else 'OFF'}",C['green'] if v else C['dim'])
     def _toast(s,msg,color):
         w=s.window()
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
@@ -3025,6 +3031,9 @@ class MainWindow(QMainWindow):
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
         s._toasts.toast("Hosts file changed externally",C['peach'])
         threading.Thread(target=lambda:_evt_log("Hosts file modified externally"),daemon=True).start()
+        cfg=load_cfg()
+        if cfg.get('auto_restore_on_tamper',False):
+            if s.hm.restore(): s._toasts.toast("Auto-restored hosts from backup",C['green']); s._watcher.update_hash()
     def _on_registry_tamper(s,val):
         QMessageBox.critical(s,"Registry Tamper Detected",
             f"The hosts file DataBasePath registry key has been redirected!\n\n"
