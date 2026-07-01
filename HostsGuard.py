@@ -246,6 +246,17 @@ def save_cfg(c):
     with open(tmp,'w') as f: json.dump(c,f,indent=2)
     os.replace(tmp,CFG_PATH)
 
+def _evt_log(msg,level='Warning'):
+    """Write structured event to Windows Application event log."""
+    if sys.platform!='win32': return
+    try:
+        evt_json=json.dumps({'app':APP,'ver':VER,'ts':datetime.datetime.now().isoformat(),'msg':msg},ensure_ascii=False)
+        esc_msg="'"+evt_json.replace("'","''")+"'"
+        esc_src="'"+APP.replace("'","''")+"'"
+        cmd=f"Write-EventLog -LogName Application -Source {esc_src} -EventId 1000 -EntryType {level} -Message {esc_msg}"
+        subprocess.run(['powershell','-NoProfile','-Command',cmd],capture_output=True,timeout=5,creationflags=NOWIN)
+    except Exception: pass
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 def looks_like_domain(d): return bool(d and '.' in d and DOMAIN_RE.match(d) and not IPV4_RE.match(d) and d not in IGNORED)
 def get_root(d):
@@ -3013,6 +3024,7 @@ class MainWindow(QMainWindow):
         s.hm.read()
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
         s._toasts.toast("Hosts file changed externally",C['peach'])
+        threading.Thread(target=lambda:_evt_log("Hosts file modified externally"),daemon=True).start()
     def _on_registry_tamper(s,val):
         QMessageBox.critical(s,"Registry Tamper Detected",
             f"The hosts file DataBasePath registry key has been redirected!\n\n"
@@ -3020,6 +3032,7 @@ class MainWindow(QMainWindow):
             f"Found: {val}\n\n"
             "This may indicate malware has redirected DNS resolution to a different hosts file. "
             "Check HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\DataBasePath.")
+        threading.Thread(target=lambda:_evt_log(f"CRITICAL: DataBasePath registry tamper detected: {val}",'Error'),daemon=True).start()
     def _set_st(s,msg):
         on=s._monitoring or s._conn_on; c=C['green'] if on else C['red']
         s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(3)}px;")
