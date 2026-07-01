@@ -1209,6 +1209,13 @@ class ConnWorker(QThread):
                                     for j,a in enumerate(cl):
                                         if a=='-k' and j+1<len(cl): pname=f"svchost [{cl[j+1]}]"; break
                                 except: pass
+                            elif 'windowsapps' in ppath.lower():
+                                try:
+                                    parts=ppath.split(os.sep)
+                                    for idx,pt in enumerate(parts):
+                                        if pt.lower()=='windowsapps' and idx+1<len(parts):
+                                            pkg=parts[idx+1]; pname=f"{pname} [{pkg.split('_')[0]}]"; break
+                                except: pass
                             proc_c.put(pid,(pname,ppath))
                         except: pass
                 host=dns_c.get(ra) or "-"
