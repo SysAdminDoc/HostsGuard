@@ -53,22 +53,35 @@ def _kill_remnants():
             except: continue
     except: pass
 
+CLI_CMDS=('block','allow','unblock','status','export','help')
+def _is_cli_invocation():
+    args=[a for a in sys.argv[1:] if not a.startswith('--')]
+    return bool(args and args[0] in CLI_CMDS)
+
 def _bootstrap():
-    if sys.platform=='win32':
+    is_cli=_is_cli_invocation()
+    # CLI commands never auto-elevate (elevation would spawn a new console and
+    # lose both arguments and output) and never kill a running GUI instance.
+    if sys.platform=='win32' and not is_cli:
         import ctypes
         if not ctypes.windll.shell32.IsUserAnAdmin():
             try:
                 h=ctypes.windll.kernel32.GetConsoleWindow()
-                if h: ctypes.windll.user32.ShowWindow(h,0)
+                if h:
+                    # Only hide the console if this process owns it — never the user's terminal
+                    pid=ctypes.c_ulong(); ctypes.windll.user32.GetWindowThreadProcessId(h,ctypes.byref(pid))
+                    if pid.value==os.getpid(): ctypes.windll.user32.ShowWindow(h,0)
             except: pass
-            args='' if getattr(sys,'frozen',False) else f'"{os.path.abspath(__file__)}"'
+            # Preserve argv on relaunch — dropping it silently lost --portable/--service
+            params=([] if getattr(sys,'frozen',False) else [os.path.abspath(__file__)])+list(sys.argv[1:])
+            args=' '.join(f'"{a}"' for a in params)
             ctypes.windll.shell32.ShellExecuteW(None,"runas",sys.executable,args,None,1)
             os._exit(0)
-    _kill_remnants()
+    if not is_cli and '--service' not in sys.argv: _kill_remnants()
     if sys.version_info<(3,8): print("Python 3.8+ required"); sys.exit(1)
     _cf={'creationflags':NOWIN} if sys.platform=='win32' else {}
-    for pkg in ['PyQt5','psutil']:
-        try: __import__(pkg if pkg=='psutil' else 'PyQt5')
+    for pkg in ['PyQt5','psutil','maxminddb']:
+        try: __import__(pkg)
         except ImportError:
             for f in [[],['--user']]:
                 try: subprocess.check_call([sys.executable,'-m','pip','install',pkg,'-q']+f,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,**_cf); break
@@ -172,6 +185,19 @@ SOURCES={
         ("Samsung","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.samsung.txt")]}
 _DEFENDER_WARN={"Windows/Office","HaGezi Ultimate","StevenBlack Unified","Windows Spy Blocker"}
 
+# ─── Config ─────────────────────────────────────────────────────────────────
+# Defined before the Theme section: _load_theme() runs at import time and
+# reads the config — v3.7.0..v3.11.0 crashed at import (NameError) because
+# load_cfg was defined further down the module.
+def load_cfg():
+    try:
+        with open(CFG_PATH) as f: return json.load(f)
+    except: return {}
+def save_cfg(c):
+    tmp=CFG_PATH+'.tmp'
+    with open(tmp,'w') as f: json.dump(c,f,indent=2)
+    os.replace(tmp,CFG_PATH)
+
 # ─── Theme ──────────────────────────────────────────────────────────────────
 _DARK={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
    "text":"#e4e6f0","sub":"#9ea0b8","dim":"#6a6c88","blue":"#7aa2f7","green":"#9ece6a","red":"#f7768e",
@@ -250,16 +276,6 @@ def _init_ui_bridge():
 def ui_call(f):
     if _ui_bridge: _ui_bridge.call.emit(f)
     else: QTimer.singleShot(0,f)
-
-# ─── Config ─────────────────────────────────────────────────────────────────
-def load_cfg():
-    try:
-        with open(CFG_PATH) as f: return json.load(f)
-    except: return {}
-def save_cfg(c):
-    tmp=CFG_PATH+'.tmp'
-    with open(tmp,'w') as f: json.dump(c,f,indent=2)
-    os.replace(tmp,CFG_PATH)
 
 _evt_src_ok=False
 def _evt_log(msg,level='Warning'):
@@ -435,8 +451,29 @@ class DB:
             if r and r[0]!='ok': log.warning(f"DB integrity issue: {r[0]}")
         except Exception as e: log.warning(f"DB integrity check failed: {e}")
         s._migrate(); s._blocked_cache=None; s._blocked_ts=0
+    def _rename_legacy(s):
+        """Pre-versioning DBs used date_added/date_modified/hit_count (domains) and
+        timestamp/process_name (log). CREATE TABLE IF NOT EXISTS silently kept those
+        shapes while schema_version was stamped current, so every domains/log query
+        failed and returned empty. Rename in place — data is preserved."""
+        def cols(t):
+            try: return {r[1] for r in s.conn.execute(f"PRAGMA table_info({t})").fetchall()}
+            except Exception: return set()
+        renames={'domains':(('date_added','added'),('date_modified','modified'),('hit_count','hits')),
+                 'log':(('timestamp','ts'),('process_name','process'))}
+        for table,pairs in renames.items():
+            have=cols(table)
+            if not have: continue
+            for old,new in pairs:
+                if old in have and new not in have:
+                    try: s.conn.execute(f'ALTER TABLE {table} RENAME COLUMN "{old}" TO "{new}"')
+                    except Exception as e: log.warning(f"Legacy rename {table}.{old}: {e}")
+        try: s.conn.execute("CREATE INDEX IF NOT EXISTS idx_log_ts ON log(ts)")
+        except Exception: pass
+        s.conn.commit()
     def _migrate(s):
         s.conn.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT)")
+        s._rename_legacy()
         try:
             v=int(s.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0])
         except: v=0
@@ -3368,16 +3405,30 @@ class MainWindow(QMainWindow):
 # ═════════════════════════════════════════════════════════════════════════════
 #  CLI — headless commands without GUI
 # ═════════════════════════════════════════════════════════════════════════════
+def _is_admin():
+    if sys.platform!='win32': return True
+    try:
+        import ctypes; return ctypes.windll.shell32.IsUserAnAdmin()!=0
+    except Exception: return False
+
 def _cli(args):
     cmd=args[0] if args else ''
+    if cmd in ('block','allow','unblock') and not _is_admin():
+        print("This command modifies the hosts file and requires an elevated terminal.")
+        print("Re-run from an Administrator prompt."); return 2
     db=DB(); hm=HostsMgr()
     if cmd=='block' and len(args)>1:
         d=args[1].lower().strip()
         if not looks_like_domain(d): print(f"Invalid domain: {d}"); return 1
-        db.add_domain(d,'blocked','cli'); hm.block(d)
-        db.log_event(d,'blocked','','CLI block'); print(f"Blocked: {d}"); return 0
+        already=d in hm.get_blocked()
+        ok=already or hm.block(d)
+        db.add_domain(d,'blocked','cli')
+        if not ok: print(f"Failed to write hosts file (see {os.path.join(CONFIG_DIR,'hostsguard.log')})"); return 1
+        db.log_event(d,'blocked','','CLI block')
+        print(f"Already blocked: {d}" if already else f"Blocked: {d}"); return 0
     elif cmd=='allow' and len(args)>1:
         d=args[1].lower().strip()
+        if not looks_like_domain(d): print(f"Invalid domain: {d}"); return 1
         db.add_domain(d,'whitelisted','cli'); hm.unblock(d)
         db.log_event(d,'whitelisted','','CLI allow'); print(f"Allowed: {d}"); return 0
     elif cmd=='unblock' and len(args)>1:
@@ -3392,8 +3443,9 @@ def _cli(args):
         print(f"Today: {st['today_hits']} blocks")
         return 0
     elif cmd=='export':
-        domains=db.get_domains()
-        for r in domains: print(f"{r[1]}\t{r[0]}\t{r[3] or ''}")
+        try:
+            for r in db.get_domains(): print(f"{r[1]}\t{r[0]}\t{r[3] or ''}")
+        except (BrokenPipeError,OSError): pass  # piped into head/findstr that exited early
         return 0
     else:
         print(f"{APP} v{VER} — CLI")
@@ -3608,6 +3660,6 @@ if __name__=="__main__":
         _service()
     else:
         cli_args=[a for a in sys.argv[1:] if not a.startswith('--')]
-        if cli_args and cli_args[0] in ('block','allow','unblock','status','export','help'):
+        if cli_args and cli_args[0] in CLI_CMDS:
             sys.exit(_cli(cli_args))
         main()
