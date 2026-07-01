@@ -106,7 +106,7 @@ try:
     log.addHandler(_fh)
 except: pass
 log.setLevel(logging.WARNING)
-SCHEMA_VER=4
+SCHEMA_VER=5
 WINDOWS_HEADER=["# Copyright (c) 1993-2009 Microsoft Corp.","#","# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.","#",
     "# localhost name resolution is handled within DNS itself.","#    127.0.0.1       localhost","#    ::1             localhost",""]
 IGNORED={'localhost','broadcasthost','local','ip6-localhost','ip6-loopback','ip6-localnet','ip6-mcastprefix','ip6-allnodes',
@@ -120,6 +120,10 @@ MULTI_TLDS={'co.uk','co.jp','co.kr','co.in','co.nz','co.za','co.il','co.th','co.
 PORTS={80:'HTTP',443:'HTTPS',22:'SSH',21:'FTP',25:'SMTP',53:'DNS',110:'POP3',143:'IMAP',993:'IMAPS',
     995:'POP3S',3389:'RDP',8080:'HTTP-Alt',8443:'HTTPS-Alt',5060:'SIP',5222:'XMPP',3306:'MySQL',
     5432:'Postgres',27017:'MongoDB',6379:'Redis',11211:'Memcached'}
+DOH_IPS={'1.1.1.1','1.0.0.1','8.8.8.8','8.8.4.4','9.9.9.9','149.112.112.112',
+    '94.140.14.14','94.140.15.15','45.90.28.0','45.90.30.0','208.67.222.222','208.67.220.220',
+    '185.228.168.168','185.228.169.168','76.76.2.0','76.76.10.0',
+    '2606:4700:4700::1111','2606:4700:4700::1001','2001:4860:4860::8888','2001:4860:4860::8844'}
 RESEARCH=[("Google","https://www.google.com/search?q={d}"),("VirusTotal","https://www.virustotal.com/gui/domain/{d}"),("who.is","https://who.is/whois/{d}"),
     ("URLScan","https://urlscan.io/search/#{d}"),("Shodan","https://www.shodan.io/search?query={d}"),
     ("SecurityTrails","https://securitytrails.com/domain/{d}"),("MXToolbox","https://mxtoolbox.com/SuperTool.aspx?action=mx:{d}"),
@@ -412,6 +416,9 @@ class DB:
             s.conn.execute("CREATE TABLE IF NOT EXISTS fw_state(name TEXT PRIMARY KEY,direction TEXT,action TEXT,remote_addr TEXT,protocol TEXT,program TEXT,created TEXT)")
         if v<4:
             s.conn.execute("CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY,added TEXT)")
+        if v<5:
+            s.conn.execute("CREATE TABLE IF NOT EXISTS proc_rules(id INTEGER PRIMARY KEY,process TEXT,domain TEXT,action TEXT DEFAULT 'block',added TEXT)")
+            s.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_rules ON proc_rules(process,domain)")
         s.conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)",(str(SCHEMA_VER),))
         s.conn.commit()
     def _x(s,sql,p=(),many=False):
@@ -464,6 +471,18 @@ class DB:
             if s._blocked_cache and now-s._blocked_ts<5: return s._blocked_cache
             s._blocked_cache={r[0] for r in s.conn.execute("SELECT domain FROM domains WHERE status='blocked'").fetchall()}
             s._blocked_ts=now; return s._blocked_cache
+    # Per-process rules
+    def add_proc_rule(s,process,domain,action='block'):
+        now=datetime.datetime.now().isoformat()
+        s._x("INSERT OR REPLACE INTO proc_rules(process,domain,action,added)VALUES(?,?,?,?)",(process.lower(),domain.lower(),action,now))
+    def get_proc_rules(s,process=None):
+        if process: return s._q("SELECT process,domain,action FROM proc_rules WHERE process=?",(process.lower(),))
+        return s._q("SELECT process,domain,action FROM proc_rules ORDER BY process,domain")
+    def remove_proc_rule(s,process,domain):
+        s._x("DELETE FROM proc_rules WHERE process=? AND domain=?",(process.lower(),domain.lower()))
+    def check_proc_rule(s,process,domain):
+        r=s._q("SELECT action FROM proc_rules WHERE process=? AND domain=?",(process.lower(),domain.lower()))
+        return r[0][0] if r else None
     # Feed
     def feed_upsert(s,d,proc=''):
         now=datetime.datetime.now().isoformat()
@@ -1197,7 +1216,9 @@ class ConnWorker(QThread):
                 if host!="-" and host in blocked: stat="BLOCKED"
                 elif ra in blocked: stat="BLOCKED"
                 state=c.status if hasattr(c,'status') else ""
-                cat=categorize(host,rp); geo=geo_c.get(ra)
+                cat=categorize(host,rp)
+                if ra in DOH_IPS and rp in ('443','853'): cat='DoH/DoT'
+                geo=geo_c.get(ra)
                 country=geo[1] if geo else "-"; cc=geo[0] if geo else ""
                 sig_status=''
                 if ppath:
@@ -1884,6 +1905,10 @@ class FWActivityTab(QWidget):
             fm.addAction(f"Block {c.proc} In+Out").triggered.connect(lambda:s._fw_prog_both(c.path))
             fm.addAction(f"Allow {c.proc} Out").triggered.connect(lambda:s._fw_allow_prog(c.path))
         fm.addAction("Custom Rule \u2192").triggered.connect(lambda:s._fw_custom(c))
+        if c.host not in ('-','','...') and c.proc not in ('?','System'):
+            pm=m.addMenu("Per-Process Rules"); pm.setStyleSheet(CTX)
+            pm.addAction(f"Block {c.host} for {c.proc}").triggered.connect(lambda:(s.db.add_proc_rule(c.proc,c.host,'block'),s._toast(f"Blocked {c.host} for {c.proc}",C['red'])))
+            pm.addAction(f"Allow {c.host} for {c.proc}").triggered.connect(lambda:(s.db.add_proc_rule(c.proc,c.host,'allow'),s._toast(f"Allowed {c.host} for {c.proc}",C['green'])))
         lm=m.addMenu("Learning"); lm.setStyleSheet(CTX)
         lm.addAction(f"Trust {c.proc}").triggered.connect(lambda:(s.learn.trust(c.proc),s._toast(f"Trusted {c.proc}",C['green'])))
         lm.addAction(f"Untrust {c.proc}").triggered.connect(lambda:(s.learn.untrust(c.proc),s._toast(f"Untrusted {c.proc}",C['red'])))
