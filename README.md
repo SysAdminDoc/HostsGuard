@@ -122,6 +122,9 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | Firewall Drift Detection | Save baseline, detect added/removed/changed rules |
 | CLI Interface | `block/allow/unblock/status/export` commands without launching GUI |
 | ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
+| Per-App Bandwidth Chart | Stacked area chart showing connection activity per process over time |
+| Network Profiles | Save/switch named rule sets — different blocking for home/work/public |
+| Headless Service Mode | `--service` runs monitoring without GUI, exposes HTTP JSON-RPC on port 7847 |
 | DNS Inspection | Right-click any domain to see A/AAAA/CNAME chains, TTLs, resolver latency |
 | SHA-512 Integrity | Hash-based hosts file tamper detection (catches time-preserved modifications) |
 | Registry Monitor | Detects DataBasePath registry redirection by malware |
@@ -215,7 +218,7 @@ Run `ipconfig /flushdns` (available in the Tools tab) or wait for the DNS cache 
 Hosts File tab → **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. FW Rules tab → **Delete All HG** removes all HostsGuard-created firewall rules.
 
 **Q: Can I run this headless / via CLI?**
-Not currently — HostsGuard is a GUI application. For automation, consider using the hosts file and firewall PowerShell commands directly.
+Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export`. For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `POST /domains` (with `{action, domain}` body).
 
 **Q: Windows Defender flags HostsGuard as a threat**
 Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive — HostsGuard is modifying the hosts file intentionally. To resolve: Settings → Virus & Threat Protection → Manage settings → Exclusions → Add an exclusion → File → `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.

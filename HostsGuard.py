@@ -3297,6 +3297,119 @@ def _cli(args):
         print("GUI: run without arguments"); return 0
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  HEADLESS SERVICE MODE — monitoring without GUI
+# ═════════════════════════════════════════════════════════════════════════════
+def _service():
+    """Run HostsGuard as a headless background service with HTTP JSON-RPC."""
+    import http.server,json as _json
+    print(f"{APP} v{VER} — Headless Service Mode")
+    db=DB(); hm=HostsMgr(); cdb=ConnDB()
+    hm.backup(); db.sync_hosts_to_db(hm)
+    threading.Thread(target=_load_threat_intel,daemon=True).start()
+    dns_cache_cmd='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
+    stop_evt=TEvent()
+    def _dns_loop():
+        seen=set()
+        while not stop_evt.is_set():
+            try:
+                ok,out=_pps.run(dns_cache_cmd,12)
+                if ok and out.strip():
+                    data=_json.loads(out)
+                    if isinstance(data,dict): data=[data]
+                    blocked=db.get_blocked_set()
+                    for e in data:
+                        d=(e.get('Entry') or e.get('RecordName') or '').lower().strip().rstrip('.')
+                        if not d or d in IGNORED or '.' not in d: continue
+                        db.feed_upsert(d)
+                        if d not in seen:
+                            seen.add(d)
+                            if d in blocked: db.log_event(d,'blocked','','Blocked by hosts'); _evt_log(f"Blocked: {d}")
+            except Exception: pass
+            stop_evt.wait(3)
+    def _conn_loop():
+        while not stop_evt.is_set():
+            try:
+                conns=psutil.net_connections(kind='all'); bw.update()
+                live=[]
+                for c in conns:
+                    try:
+                        ra=c.raddr.ip if c.raddr else ""
+                        if not ra or ra in ('','*','0.0.0.0','::','::1') or PRIV_RE.match(ra): continue
+                        pid=c.pid or 0; pname="?"
+                        if pid:
+                            try: pname=psutil.Process(pid).name()
+                            except: pass
+                        host=dns_c.get(ra) or "-"; rp=str(c.raddr.port) if c.raddr else ""
+                        ci=CI(key="",ts=datetime.datetime.now().strftime("%H:%M:%S"),proto="TCP" if c.type==socket.SOCK_STREAM else "UDP",
+                            la=c.laddr.ip if c.laddr else "",lp=str(c.laddr.port) if c.laddr else "",
+                            ra=ra,rp=rp,host=host,proc=pname,pid=pid)
+                        live.append(ci)
+                    except: continue
+                if live: cdb.insert_batch(live)
+            except Exception: pass
+            stop_evt.wait(2)
+    def _watcher_loop():
+        watcher_hash=hashlib.sha512()
+        try:
+            with open(HOSTS_PATH,'rb') as f:
+                for chunk in iter(lambda:f.read(65536),b''): watcher_hash.update(chunk)
+        except: pass
+        last=watcher_hash.digest()
+        while not stop_evt.is_set():
+            try:
+                h=hashlib.sha512()
+                with open(HOSTS_PATH,'rb') as f:
+                    for chunk in iter(lambda:f.read(65536),b''): h.update(chunk)
+                if h.digest()!=last:
+                    last=h.digest(); hm.read(); db.sync_hosts_to_db(hm)
+                    _evt_log("Hosts file modified externally")
+                    cfg=load_cfg()
+                    if cfg.get('auto_restore_on_tamper',False): hm.restore()
+            except: pass
+            stop_evt.wait(5)
+    threads=[]
+    for fn in [_dns_loop,_conn_loop,_watcher_loop]:
+        t=threading.Thread(target=fn,daemon=True); t.start(); threads.append(t)
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(s):
+            if s.path=='/status':
+                st=db.get_stats(); blocked=hm.get_blocked(); up,dn=bw.rates()
+                body=_json.dumps({'app':APP,'version':VER,'blocked':len(blocked),'db_blocked':st['blocked'],
+                    'db_allowed':st['whitelisted'],'feed_total':st['feed_total'],'today_hits':st['today_hits'],
+                    'bw_up':up,'bw_dn':dn})
+                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
+                s.wfile.write(body.encode())
+            elif s.path=='/domains':
+                domains=[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()]
+                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
+                s.wfile.write(_json.dumps(domains).encode())
+            else:
+                s.send_response(404); s.end_headers()
+        def do_POST(s):
+            length=int(s.headers.get('Content-Length',0))
+            body=_json.loads(s.rfile.read(length)) if length else {}
+            action=body.get('action',''); domain=body.get('domain','').lower().strip()
+            if action=='block' and domain and looks_like_domain(domain):
+                db.add_domain(domain,'blocked','rpc'); hm.block(domain); db.log_event(domain,'blocked','','RPC block')
+                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
+                s.wfile.write(b'{"ok":true}')
+            elif action=='allow' and domain:
+                db.add_domain(domain,'whitelisted','rpc'); hm.unblock(domain)
+                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
+                s.wfile.write(b'{"ok":true}')
+            else:
+                s.send_response(400); s.end_headers()
+        def log_message(s,*a): pass
+    port=int(os.environ.get('HG_PORT','7847'))
+    srv=http.server.HTTPServer(('127.0.0.1',port),Handler)
+    print(f"JSON-RPC listening on http://127.0.0.1:{port}")
+    print("Endpoints: GET /status, GET /domains, POST /domains (action+domain)")
+    print("Press Ctrl+C to stop")
+    try: srv.serve_forever()
+    except KeyboardInterrupt: print("\nShutting down...")
+    finally: stop_evt.set(); _pps.close()
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  ENTRY — Splash -> StartupLoader -> MainWindow
 # ═════════════════════════════════════════════════════════════════════════════
 def main():
@@ -3351,7 +3464,10 @@ def main():
 
 if __name__=="__main__":
     multiprocessing.freeze_support()
-    cli_args=[a for a in sys.argv[1:] if not a.startswith('--')]
-    if cli_args and cli_args[0] in ('block','allow','unblock','status','export','help'):
-        sys.exit(_cli(cli_args))
-    main()
+    if '--service' in sys.argv:
+        _service()
+    else:
+        cli_args=[a for a in sys.argv[1:] if not a.startswith('--')]
+        if cli_args and cli_args[0] in ('block','allow','unblock','status','export','help'):
+            sys.exit(_cli(cli_args))
+        main()
