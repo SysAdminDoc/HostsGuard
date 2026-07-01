@@ -333,10 +333,13 @@ def clean_hosts(lines,wl=None):
     return header+kept,st
 def categorize(host,port=0):
     h=host.lower() if host else ""
-    for cat,kws in _CAT.items():
-        for kw in kws:
-            if kw in h: return cat
-    if PRIV_RE.match(h) or h in ('-','','*','...'): return 'LAN'
+    # Placeholder hosts ('-' = unresolved) are NOT LAN — public connections without
+    # reverse DNS were all mislabeled LAN. Fall through to port classification.
+    if h and h not in ('-','*','...'):
+        for cat,kws in _CAT.items():
+            for kw in kws:
+                if kw in h: return cat
+        if PRIV_RE.match(h): return 'LAN'
     p=int(port) if port else 0
     if p in (80,443,8080,8443): return 'Web'
     if p==53: return 'DNS'
@@ -408,8 +411,7 @@ class FaviconCache(QObject):
         s._img_ready.connect(s._on_img)
     def _on_img(s,domain,data):
         px=QPixmap(); px.loadFromData(data)
-        if not px.isNull():
-            with s._lock: s._mem[domain]=px
+        with s._lock: s._mem[domain]=px  # null pixmap = negative cache, stops refetch loops
         s.ready.emit(domain)
     def get(s,domain):
         with s._lock:
@@ -417,13 +419,13 @@ class FaviconCache(QObject):
         h=hashlib.md5(domain.encode()).hexdigest(); p=os.path.join(FAV_DIR,f"{h}.png")
         if os.path.exists(p):
             px=QPixmap(p)
-            if not px.isNull():
-                with s._lock: s._mem[domain]=px
-                return px
+            with s._lock: s._mem[domain]=px
+            return px if not px.isNull() else None
         with s._lock:
             if domain not in s._pending: s._pending.add(domain); threading.Thread(target=s._fetch,args=(domain,h,p),daemon=True).start()
         return None
     def _fetch(s,domain,h,p):
+        got=False
         try:
             r=get_root(domain)
             url=f"https://{r}/favicon.ico"
@@ -432,10 +434,14 @@ class FaviconCache(QObject):
                 data=resp.read()
                 if len(data)>100:
                     with open(p,'wb') as f: f.write(data)
-                    s._img_ready.emit(domain,data)
+                    s._img_ready.emit(domain,data); got=True
         except Exception as e: log.debug(f"Favicon {domain}: {e}")
         finally:
-            with s._lock: s._pending.discard(domain)
+            with s._lock:
+                s._pending.discard(domain)
+                # Negative-cache failures (blocked/offline domains) — every table
+                # refresh used to spawn a fresh fetch thread per unfetchable domain.
+                if not got: s._mem.setdefault(domain,QPixmap())
 _fav=None
 def _init_fav():
     global _fav
@@ -800,6 +806,45 @@ def _ps_esc(v):
     """Escape a value for safe PowerShell single-quote interpolation."""
     return "'" + str(v).replace("'","''") + "'"
 
+def valid_fw_addr(v):
+    """Accept the address forms New-NetFirewallRule takes: single IP, CIDR subnet,
+    or dash range. The Block IP dialogs advertise ranges but block_ip previously
+    rejected everything except a bare IP."""
+    v=(v or "").strip()
+    if not v: return False
+    try:
+        if '/' in v: ipaddress.ip_network(v,strict=False); return True
+        if '-' in v:
+            a,b=v.split('-',1); ipaddress.ip_address(a.strip()); ipaddress.ip_address(b.strip()); return True
+        ipaddress.ip_address(v); return True
+    except ValueError: return False
+
+def _parse_fw_rules(text):
+    """Parse the Get-NetFirewallRule JSON dump into FWR records (shared by the
+    engine and the background loader — previously duplicated)."""
+    rules=[]
+    if not text: return rules
+    try:
+        data=json.loads(text)
+        if isinstance(data,dict): data=[data]
+        def _j(v):
+            if v is None: return ""
+            if isinstance(v,list): return ",".join(str(x) for x in v)
+            return str(v)
+        for r in data:
+            try:
+                n=_j(r.get('N',''))
+                rules.append(FWR(name=n,direction="In" if r.get('Dir') in (1,'1') else "Out",
+                    action="Block" if r.get('Act') in (4,'4') else "Allow",
+                    enabled=r.get('En') in (1,'1',True),remote_addr=_j(r.get('RA','')),
+                    protocol=_j(r.get('Proto','Any')) or "Any",program=_j(r.get('Prog','')),
+                    source="hostsguard" if n.startswith(FW_PFX) else "system"))
+            except Exception: continue
+    except Exception as e: log.warning(f"FW parse: {e}")
+    return rules
+_FW_DUMP_CMD=('Get-NetFirewallRule -EA SilentlyContinue|ForEach-Object{$af=$_|Get-NetFirewallAddressFilter -EA SilentlyContinue;$pf=$_|Get-NetFirewallPortFilter -EA SilentlyContinue;$ap=$_|Get-NetFirewallApplicationFilter -EA SilentlyContinue;'
+    '[PSCustomObject]@{N=$_.DisplayName;Dir=[int]$_.Direction;Act=[int]$_.Action;En=[int]$_.Enabled;RA=$af.RemoteAddress;Proto=$pf.Protocol;Prog=$ap.Program}}|ConvertTo-Json -Compress')
+
 # ─── Firewall Engine (background-loadable) ──────────────────────────────────
 class FWEngine:
     def __init__(s): s._cache=[]; s._lock=Lock(); s._ts=0; s._ttl=180; s._loading=False; s._db=None
@@ -837,9 +882,10 @@ class FWEngine:
         if action not in ("Block","Allow"): return
         _ps(f'Set-NetFirewallRule -DisplayName {_ps_esc(name)} -Action {action} -EA SilentlyContinue',10); s._inv()
     def block_ip(s,ip,direction="Outbound"):
-        try: ipaddress.ip_address(ip)
-        except ValueError: log.warning(f"Invalid IP for FW rule: {ip}"); return None
-        name=f"{FW_PFX}Block_{ip.replace('.','_')}_{direction[:2]}"
+        ip=ip.strip()
+        if not valid_fw_addr(ip): log.warning(f"Invalid address for FW rule: {ip}"); return None
+        safe=re.sub(r'[^0-9A-Za-z]','_',ip)
+        name=f"{FW_PFX}Block_{safe}_{direction[:2]}"
         if not s.exists(name):
             s.create(name,direction,"Block",remote_addr=ip,desc=f"HostsGuard {datetime.datetime.now():%Y-%m-%d %H:%M}")
             return name
@@ -864,33 +910,10 @@ class FWEngine:
     def load_all(s):
         """Load all rules — designed to run in a background thread."""
         s._loading=True
-        cmd=('Get-NetFirewallRule -EA SilentlyContinue|ForEach-Object{$af=$_|Get-NetFirewallAddressFilter -EA SilentlyContinue;$pf=$_|Get-NetFirewallPortFilter -EA SilentlyContinue;$ap=$_|Get-NetFirewallApplicationFilter -EA SilentlyContinue;'
-            '[PSCustomObject]@{N=$_.DisplayName;Dir=[int]$_.Direction;Act=[int]$_.Action;En=[int]$_.Enabled;RA=$af.RemoteAddress;Proto=$pf.Protocol;Prog=$ap.Program}}|ConvertTo-Json -Compress')
-        ok,out=_ps(cmd,120); rules=[]
-        if ok and out:
-            try:
-                data=json.loads(out)
-                if isinstance(data,dict): data=[data]
-                def _j(v):
-                    if v is None: return ""
-                    if isinstance(v,list): return ",".join(str(x) for x in v)
-                    return str(v)
-                for r in data:
-                    try:
-                        n=_j(r.get('N',''))
-                        rules.append(FWR(name=n,direction="In" if r.get('Dir') in (1,'1') else "Out",
-                            action="Block" if r.get('Act') in (4,'4') else "Allow",
-                            enabled=r.get('En') in (1,'1',True),remote_addr=_j(r.get('RA','')),
-                            protocol=_j(r.get('Proto','Any')) or "Any",program=_j(r.get('Prog','')),
-                            source="hostsguard" if n.startswith(FW_PFX) else "system"))
-                    except: continue
-            except Exception as e: log.warning(f"FW parse: {e}")
+        ok,out=_ps(_FW_DUMP_CMD,120)
+        rules=_parse_fw_rules(out) if ok else []
         with s._lock: s._cache=rules; s._ts=time.time()
         s._loading=False; return rules
-    def get_all(s,force=False):
-        with s._lock:
-            if not force and s._cache and time.time()-s._ts<s._ttl: return list(s._cache)
-        return s.load_all()
     def get_cached(s):
         with s._lock: return list(s._cache)
     def set_cache(s,rules):
@@ -1082,16 +1105,19 @@ GEOASN_PATH=os.path.join(CONFIG_DIR,"geoasn.mmdb")
 def _ensure_geoip():
     """Download DB-IP Lite MMDB files if not present (CC BY 4.0, no account needed)."""
     import gzip
-    month=datetime.datetime.now().strftime('%Y-%m')
+    now=datetime.datetime.now()
+    months=[now.strftime('%Y-%m'),(now.replace(day=1)-datetime.timedelta(days=1)).strftime('%Y-%m')]
     for path,slug in [(GEOIP_PATH,'dbip-country-lite'),(GEOASN_PATH,'dbip-asn-lite')]:
         if os.path.exists(path): continue
-        try:
-            url=f"https://download.db-ip.com/free/{slug}-{month}.mmdb.gz"
-            req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
-            with urllib.request.urlopen(req,timeout=60) as resp:
-                with open(path,'wb') as f: f.write(gzip.decompress(resp.read()))
-            log.info(f"Downloaded {slug} to {path}")
-        except Exception as e: log.warning(f"GeoIP download failed ({slug}): {e}")
+        for month in months:  # current month may not be published yet on the 1st
+            try:
+                url=f"https://download.db-ip.com/free/{slug}-{month}.mmdb.gz"
+                req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+                with urllib.request.urlopen(req,timeout=60) as resp:
+                    with open(path,'wb') as f: f.write(gzip.decompress(resp.read()))
+                log.info(f"Downloaded {slug} to {path}")
+                break
+            except Exception as e: log.warning(f"GeoIP download failed ({slug}-{month}): {e}")
     return os.path.exists(GEOIP_PATH)
 
 class GeoWorker(QThread):
@@ -1140,9 +1166,9 @@ class GeoWorker(QThread):
                 if s._mmdb:
                     for ip in batch:
                         result=s._lookup_local(ip)
-                        if result:
-                            geo_c.put(ip,result)
-                            s.resolved.emit(ip,result[0],result[1])
+                        # Cache misses too — otherwise every scan re-queues unknown IPs forever
+                        geo_c.put(ip,result or ('',''))
+                        if result: s.resolved.emit(ip,result[0],result[1])
                 else:
                     batch_set=set(batch)
                     try:
@@ -1150,11 +1176,14 @@ class GeoWorker(QThread):
                         req=urllib.request.Request("http://ip-api.com/batch?fields=query,country,countryCode",data=data,
                             headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
                         with urllib.request.urlopen(req,timeout=10) as resp:
+                            got=set()
                             for item in json.loads(resp.read()):
                                 q=item.get("query","")
                                 if q in batch_set and item.get("countryCode"):
+                                    got.add(q)
                                     geo_c.put(q,(item["countryCode"],item["country"]))
                                     s.resolved.emit(q,item["countryCode"],item["country"])
+                            for q in batch_set-got: geo_c.put(q,('',''))  # negative cache
                         s._backoff=2
                     except urllib.error.HTTPError as e:
                         if e.code==429:
@@ -1360,7 +1389,7 @@ class ConnWorker(QThread):
                 cat=categorize(host,rp)
                 if ra in DOH_IPS and rp in ('443','853'): cat='DoH/DoT'
                 geo=geo_c.get(ra)
-                country=geo[1] if geo else "-"; cc=geo[0] if geo else ""
+                country=(geo[1] or "-") if geo else "-"; cc=geo[0] if geo else ""
                 sig_status=''
                 if ppath:
                     cached_sig=sig_c.get(ppath)
@@ -1381,16 +1410,6 @@ class ConnWorker(QThread):
             except Exception: continue
         return out
     def stop(s): s._stop.set()
-
-class RuleScanWorker(QThread):
-    ready=pyqtSignal(list)
-    def __init__(s,force=False): super().__init__(); s.force=force
-    def run(s):
-        try:
-            if s.force or not fw.cached: rules=fw.load_all()
-            else: rules=fw.get_cached()
-            s.ready.emit(rules)
-        except: s.ready.emit([])
 
 class HostsWatcher(QThread):
     changed=pyqtSignal(bytes)
@@ -1448,28 +1467,11 @@ class FWLoadWorker(QThread):
     Uses dedicated subprocess (not PPS) so it never blocks the persistent session."""
     ready=pyqtSignal(list)
     def run(s):
-        cmd=('Get-NetFirewallRule -EA SilentlyContinue|ForEach-Object{$af=$_|Get-NetFirewallAddressFilter -EA SilentlyContinue;$pf=$_|Get-NetFirewallPortFilter -EA SilentlyContinue;$ap=$_|Get-NetFirewallApplicationFilter -EA SilentlyContinue;'
-            '[PSCustomObject]@{N=$_.DisplayName;Dir=[int]$_.Direction;Act=[int]$_.Action;En=[int]$_.Enabled;RA=$af.RemoteAddress;Proto=$pf.Protocol;Prog=$ap.Program}}|ConvertTo-Json -Compress')
         rules=[]
         try:
-            r=subprocess.run(['powershell','-NoProfile','-Command',cmd],capture_output=True,text=True,timeout=120,creationflags=NOWIN)
-            if r.returncode==0 and r.stdout.strip():
-                data=json.loads(r.stdout)
-                if isinstance(data,dict): data=[data]
-                def _j(v):
-                    if v is None: return ""
-                    if isinstance(v,list): return ",".join(str(x) for x in v)
-                    return str(v)
-                for rec in data:
-                    try:
-                        n=_j(rec.get('N',''))
-                        rules.append(FWR(name=n,direction="In" if rec.get('Dir') in (1,'1') else "Out",
-                            action="Block" if rec.get('Act') in (4,'4') else "Allow",
-                            enabled=rec.get('En') in (1,'1',True),remote_addr=_j(rec.get('RA','')),
-                            protocol=_j(rec.get('Proto','Any')) or "Any",program=_j(rec.get('Prog','')),
-                            source="hostsguard" if n.startswith(FW_PFX) else "system"))
-                    except Exception: continue
-        except Exception as e: log.warning(f"FWLoadWorker parse: {e}")
+            r=subprocess.run(['powershell','-NoProfile','-Command',_FW_DUMP_CMD],capture_output=True,text=True,timeout=120,creationflags=NOWIN)
+            if r.returncode==0: rules=_parse_fw_rules(r.stdout.strip())
+        except Exception as e: log.warning(f"FWLoadWorker: {e}")
         fw.set_cache(rules)
         # Track existing HG rules in DB (if DB wired)
         if fw._db:
@@ -2325,9 +2327,16 @@ class FWActivityTab(QWidget):
         action="Block" if on else "Allow"
         def _bg():
             ok,_=_ps(f'Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction {action}',10)
-            cfg=load_cfg(); cfg['lockdown']=on; save_cfg(cfg)
-            msg=f"Lockdown {'ON — all outbound blocked' if on else 'OFF — outbound allowed'}"
-            ui_call(lambda:s._toast(msg,C['red'] if on else C['green']))
+            if ok:
+                cfg=load_cfg(); cfg['lockdown']=on; save_cfg(cfg)
+                msg=f"Lockdown {'ON — all outbound blocked' if on else 'OFF — outbound allowed'}"
+                ui_call(lambda:s._toast(msg,C['red'] if on else C['green']))
+            else:
+                # Don't pretend: revert the checkbox and say the policy change failed.
+                def _revert():
+                    s.lock_cb.blockSignals(True); s.lock_cb.setChecked(not on); s.lock_cb.blockSignals(False)
+                    s._toast("Failed to change firewall outbound policy",C['red'])
+                ui_call(_revert)
         threading.Thread(target=_bg,daemon=True).start()
     def resizeEvent(s,e): super().resizeEvent(e); s._overlay._update_geom()
     def _toast(s,msg,color):
@@ -2756,37 +2765,44 @@ class FirewallTab(QWidget):
             rule=next((r for r in s._rules if r.name==ni.text()),None)
             if rule: s._dup(rule)
 
+    def _create_from_dialog(s,d):
+        """Validate + create a rule from NewRuleDlg data. Shared by _new/_dup."""
+        if not d['name'][len(FW_PFX):].strip(): s._toast("Rule name is required",C['peach']); return
+        if d.get('addr') and not valid_fw_addr(d['addr']) and d['addr'][0].isdigit():
+            s._toast(f"Invalid remote address: {d['addr']}",C['peach']); return
+        fw.create(d['name'],d['dir'],d['action'],d.get('addr',''),d.get('proto',''),d.get('prog',''))
+        dr="In" if d['dir']=="Inbound" else "Out"
+        s._inject_rule(d['name'],dr,d['action'],d.get('addr',''),d.get('prog','')); s._toast(f"Created {d['name']}",C['green'])
+
     def _dup(s,r):
         pf={'name':r.name,'dir':{'In':'Inbound','Out':'Outbound'}.get(r.direction,'Outbound'),
             'action':r.action,'proto':r.protocol,'addr':r.remote_addr if r.remote_addr!='Any' else '','prog':r.program}
         dlg=NewRuleDlg(s,pf)
-        if dlg.exec_()==QDialog.Accepted:
-            d=dlg.data(); fw.create(d['name'],d['dir'],d['action'],d.get('addr',''),d.get('proto',''),d.get('prog',''))
-            dr="In" if d['dir']=="Inbound" else "Out"
-            s._inject_rule(d['name'],dr,d['action'],d.get('addr',''),d.get('prog','')); s._toast(f"Created {d['name']}",C['green'])
+        if dlg.exec_()==QDialog.Accepted: s._create_from_dialog(dlg.data())
 
     def _new(s):
         dlg=NewRuleDlg(s)
-        if dlg.exec_()==QDialog.Accepted:
-            d=dlg.data(); fw.create(d['name'],d['dir'],d['action'],d.get('addr',''),d.get('proto',''),d.get('prog',''))
-            dr="In" if d['dir']=="Inbound" else "Out"
-            s._inject_rule(d['name'],dr,d['action'],d.get('addr',''),d.get('prog','')); s._toast(f"Created {d['name']}",C['green'])
+        if dlg.exec_()==QDialog.Accepted: s._create_from_dialog(dlg.data())
 
     def _qblock_ip(s):
-        ip,ok=QInputDialog.getText(s,"Block IP","IP address or range:")
+        ip,ok=QInputDialog.getText(s,"Block IP","IP address, CIDR subnet, or range:")
         if ok and ip.strip():
-            n=fw.block_ip(ip.strip())
-            if n: s._inject_rule(n,"Out","Block",remote_addr=ip.strip()); s._toast(f"Blocked {ip.strip()} outbound",C['red'])
+            ip=ip.strip()
+            if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
+            n=fw.block_ip(ip)
+            if n: s._inject_rule(n,"Out","Block",remote_addr=ip); s._toast(f"Blocked {ip} outbound",C['red'])
             else: s._toast("Rule already exists",C['dim'])
     def _qblock_ip_both(s):
-        ip,ok=QInputDialog.getText(s,"Block IP In+Out","IP address or range:")
+        ip,ok=QInputDialog.getText(s,"Block IP In+Out","IP address, CIDR subnet, or range:")
         if ok and ip.strip():
-            created=fw.block_ip_both(ip.strip())
+            ip=ip.strip()
+            if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
+            created=fw.block_ip_both(ip)
             if created:
                 for n in created:
                     d="In" if "_In" in n else "Out"
-                    s._inject_rule(n,d,"Block",remote_addr=ip.strip())
-                s._toast(f"Blocked {ip.strip()} in+out ({len(created)} rules)",C['red'])
+                    s._inject_rule(n,d,"Block",remote_addr=ip)
+                s._toast(f"Blocked {ip} in+out ({len(created)} rules)",C['red'])
             else: s._toast("Rules already exist",C['dim'])
     def _qblock_prog(s):
         p,_=QFileDialog.getOpenFileName(s,"Block Program","","Executables (*.exe);;All (*)")
@@ -3012,7 +3028,8 @@ class ToolsTab(QWidget):
     def _renew(s):
         s._toast("Renewing...",C['blue'])
         def _bg():
-            ok,_=_ps("ipconfig /release && ipconfig /renew",15)
+            # '&&' is a parse error in Windows PowerShell 5.1 — the command silently did nothing
+            ok,_=_ps("ipconfig /release; ipconfig /renew",30)
             ui_call(lambda:s._toast("IP renewed" if ok else "Renew failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _export(s):
@@ -3058,7 +3075,9 @@ class ToolsTab(QWidget):
     def _prune(s): s.cdb.prune(30); s._toast("Pruned",C['green'])
     def _clear_fav(s):
         ct=sum(1 for f in Path(FAV_DIR).glob("*.png") if (f.unlink() or True))
-        if _fav: _fav._mem.clear(); s._toast(f"Cleared {ct}",C['green'])
+        if _fav:
+            with _fav._lock: _fav._mem.clear()
+        s._toast(f"Cleared {ct} cached favicons",C['green'])
     def _open(s):
         if sys.platform=='win32': os.startfile(CONFIG_DIR)
     def _show_t(s): QMessageBox.information(s,"Trusted",'\n'.join(sorted(s.learn._trusted) or ["(none)"]))
@@ -3174,6 +3193,10 @@ class MainWindow(QMainWindow):
         if interval_h>0:
             s._bl_tmr=QTimer(s); s._bl_tmr.timeout.connect(s._auto_refresh_lists)
             s._bl_tmr.start(interval_h*3600*1000)
+        # Threat intel feeds go stale on long-running sessions — refresh every 6h
+        s._ti_tmr=QTimer(s)
+        s._ti_tmr.timeout.connect(lambda:threading.Thread(target=_load_threat_intel,daemon=True).start())
+        s._ti_tmr.start(6*3600*1000)
 
     def _auto_refresh_lists(s):
         cfg=load_cfg(); lists=cfg.get('blocklist_subscriptions',[])
