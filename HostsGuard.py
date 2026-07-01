@@ -201,13 +201,19 @@ def save_cfg(c):
 # ─── Theme ──────────────────────────────────────────────────────────────────
 _DARK={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
    "text":"#e4e6f0","sub":"#9ea0b8","dim":"#6a6c88","blue":"#7aa2f7","green":"#9ece6a","red":"#f7768e",
-   "peach":"#ff9e64","yellow":"#e0af68","mauve":"#bb9af7","teal":"#73daca","sky":"#7dcfff","sel":"rgba(122,162,247,0.12)"}
+   "peach":"#ff9e64","yellow":"#e0af68","mauve":"#bb9af7","teal":"#73daca","sky":"#7dcfff",
+   "sel":"rgba(122,162,247,0.12)","onsel":"#111"}
 _LIGHT={"bg":"#eff1f5","base":"#e6e9ef","mantle":"#dce0e8","crust":"#ccd0da","s0":"#bcc0cc","s1":"#acb0be","s2":"#9ca0b0",
    "text":"#4c4f69","sub":"#5c5f77","dim":"#7c7f93","blue":"#1e66f5","green":"#40a02b","red":"#d20f39",
-   "peach":"#fe640b","yellow":"#df8e1d","mauve":"#8839ef","teal":"#179299","sky":"#04a5e5","sel":"rgba(30,102,245,0.12)"}
+   "peach":"#fe640b","yellow":"#df8e1d","mauve":"#8839ef","teal":"#179299","sky":"#04a5e5",
+   "sel":"rgba(30,102,245,0.12)","onsel":"#fff"}
+_IS_LIGHT=load_cfg().get('theme')=='light'
 def _load_theme():
-    cfg=load_cfg(); return dict(_LIGHT) if cfg.get('theme')=='light' else dict(_DARK)
+    return dict(_LIGHT) if _IS_LIGHT else dict(_DARK)
 C=_load_theme()
+def _rgb(hexc):
+    """'#rrggbb' -> 'r,g,b' for rgba() in stylesheets."""
+    return ','.join(str(int(hexc.lstrip('#')[i:i+2],16)) for i in (0,2,4))
 
 def _dp(px):
     try:
@@ -231,21 +237,21 @@ QPushButton[class="danger"]:hover{{background:#ff8ea5;}}
 QPushButton[class="success"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #7ab85a,stop:1 {C['green']});color:#111;border:none;}}
 QPushButton[class="dim"]{{background:{C['s0']};color:{C['dim']};border:1px solid {C['s1']};}}
 QPushButton[class="dim"]:hover{{color:{C['text']};background:{C['s1']};}}
-QLineEdit,QTextEdit,QPlainTextEdit{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:8px 12px;selection-background-color:{C['blue']};selection-color:#111;}}
+QLineEdit,QTextEdit,QPlainTextEdit{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:8px 12px;selection-background-color:{C['blue']};selection-color:{C['onsel']};}}
 QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus{{border-color:{C['blue']};}}
 QComboBox{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:7px 12px;min-width:80px;}}
 QComboBox::drop-down{{border:none;width:24px;}}QComboBox::down-arrow{{image:none;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid {C['sub']};margin-right:8px;}}
-QComboBox QAbstractItemView{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};selection-background-color:{C['blue']};selection-color:#111;outline:none;border-radius:6px;padding:4px;}}
+QComboBox QAbstractItemView{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};selection-background-color:{C['blue']};selection-color:{C['onsel']};outline:none;border-radius:6px;padding:4px;}}
 QTabWidget::pane{{border:none;background:{C['base']};}}
 QTabBar{{background:{C['crust']};qproperty-drawBase:0;}}
 QTabBar::tab{{background:transparent;color:{C['dim']};padding:12px 24px;border:none;border-bottom:2px solid transparent;font-weight:700;font-size:12px;}}
-QTabBar::tab:selected{{color:{C['blue']};border-bottom-color:{C['blue']};background:rgba(122,162,247,0.05);}}
+QTabBar::tab:selected{{color:{C['blue']};border-bottom-color:{C['blue']};background:rgba({_rgb(C['blue'])},0.05);}}
 QTabBar::tab:hover:!selected{{color:{C['text']};}}
 QTabBar::tab:first{{margin-left:12px;}}
-QTableWidget{{background:{C['mantle']};alternate-background-color:rgba(19,19,31,0.5);color:{C['text']};border:1px solid {C['s0']};border-radius:10px;gridline-color:rgba(51,51,85,0.3);selection-background-color:{C['sel']};selection-color:{C['text']};outline:none;}}
+QTableWidget{{background:{C['mantle']};alternate-background-color:rgba({_rgb(C['mantle'])},0.5);color:{C['text']};border:1px solid {C['s0']};border-radius:10px;gridline-color:rgba({_rgb(C['s1'])},0.3);selection-background-color:{C['sel']};selection-color:{C['text']};outline:none;}}
 QTableWidget::item{{padding:5px 10px;border:none;}}QTableWidget::item:selected{{background:{C['sel']};}}
 QHeaderView{{background:transparent;}}
-QHeaderView::section{{background:{C['crust']};color:{C['dim']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba(51,51,85,0.2);padding:8px 12px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;}}
+QHeaderView::section{{background:{C['crust']};color:{C['dim']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba({_rgb(C['s1'])},0.2);padding:8px 12px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;}}
 QScrollBar:vertical{{background:transparent;width:6px;margin:4px 0;}}QScrollBar::handle:vertical{{background:{C['s1']};border-radius:3px;min-height:40px;}}
 QScrollBar::handle:vertical:hover{{background:{C['s2']};}}QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}
 QScrollBar:horizontal{{background:transparent;height:6px;}}QScrollBar::handle:horizontal{{background:{C['s1']};border-radius:3px;}}
@@ -259,6 +265,7 @@ QCheckBox::indicator:checked{{background:{C['blue']};border-color:{C['blue']};}}
 QToolTip{{background:{C['s0']};color:{C['text']};border:1px solid {C['s1']};padding:6px 10px;border-radius:8px;}}
 QSplitter::handle{{background:{C['s0']};width:2px;}}QLabel{{color:{C['text']};background:transparent;}}
 QScrollArea{{background:transparent;border:none;}}
+QTableWidget:focus{{border:1px solid {C['blue']};}}
 """
 CTX=f"QMenu{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};border-radius:10px;padding:6px;}}QMenu::item{{padding:7px 20px;border-radius:5px;}}QMenu::item:selected{{background:{C['s0']};}}QMenu::separator{{height:1px;background:{C['s0']};margin:4px 8px;}}"
 
@@ -1004,6 +1011,33 @@ class HostsMgr:
             except Exception as e: log.warning(f"Hosts block_bulk: {e}"); return 0
         if flush: s._flush()
         return len(new)
+    def reconcile(s,target_blocked,flush=True):
+        """Rewrite the hosts file so exactly `target_blocked` are 0.0.0.0-blocked,
+        preserving all comment/non-0.0.0.0 lines. Used when switching profiles so
+        domains dropped by the new profile are actually unblocked (not just left in
+        place). Returns (added, removed)."""
+        target={d.lower().strip() for d in target_blocked if looks_like_domain(d.lower().strip())}
+        with s._lock:
+            kept=[]; present=set()
+            for l in s._lines:
+                line=l.strip()
+                if not line or line.startswith('#'): kept.append(l); continue
+                parts=line.split()
+                if len(parts)>=2 and parts[0] in ('0.0.0.0','127.0.0.1','::','::1'):
+                    d=parts[1].lower().rstrip('.')
+                    if looks_like_domain(d):
+                        if d in target: present.add(d); kept.append(l)  # keep wanted block
+                        # else: drop — domain no longer blocked by active profile
+                        continue
+                kept.append(l)
+            additions=[f"0.0.0.0 {d}\n" for d in sorted(target-present)]
+            new_lines=kept+additions
+            try:
+                s._atomic_write(''.join(new_lines))
+                s.read()
+            except Exception as e: log.warning(f"Hosts reconcile: {e}"); return 0,0
+        if flush: s._flush()
+        return len(additions),len(target)  # (newly added, total target)
     def unblock(s,d,flush=True):
         d=d.lower().strip()
         with s._lock:
@@ -1524,7 +1558,7 @@ class LoadingOverlay(QWidget):
         if s.parent(): s.setGeometry(s.parent().rect()); s._label.setGeometry(s.rect())
     def resizeEvent(s,e): super().resizeEvent(e); s._update_geom()
     def paintEvent(s,e):
-        p=QPainter(s); p.fillRect(s.rect(),QColor(15,15,23,180)); p.end()
+        p=QPainter(s); sc=QColor(C['bg']); sc.setAlpha(180); p.fillRect(s.rect(),sc); p.end()
 
 # ─── Learning Mode ──────────────────────────────────────────────────────────
 class LearnDB:
@@ -1599,11 +1633,17 @@ def _tbtn(text,cls="dim",cb=None,w=None):
 
 def _pill(text,color):
     l=QLabel(text); l.setAlignment(Qt.AlignCenter)
-    l.setStyleSheet(f"background:rgba({','.join(str(int(color.lstrip('#')[i:i+2],16)) for i in (0,2,4))},0.15);color:{color};font-size:{_dp(9)}px;font-weight:700;border-radius:{_dp(10)}px;padding:{_dp(2)}px {_dp(8)}px;letter-spacing:0.3px;")
+    l.setStyleSheet(f"background:rgba({_rgb(color)},0.15);color:{color};font-size:{_dp(9)}px;font-weight:700;border-radius:{_dp(10)}px;padding:{_dp(2)}px {_dp(8)}px;letter-spacing:0.3px;")
     return l
+def _row_tint():
+    """Subtle blocked-row background that reads in both themes (was a fixed dark-red RGBA)."""
+    c=QColor(C['red']); c.setAlpha(28 if _IS_LIGHT else 16); return c
+def _num_item(n):
+    """Table cell that sorts numerically — plain str items sort '9' after '100'."""
+    it=QTableWidgetItem(); it.setData(Qt.DisplayRole,int(n)); return it
 
 def _stat(label,value="0",color=C['blue'],icon=""):
-    f=QFrame(); f.setStyleSheet(f"QFrame{{background:rgba(24,24,36,0.85);border:1px solid rgba(51,51,85,0.4);border-radius:{_dp(12)}px;}}")
+    f=QFrame(); f.setStyleSheet(f"QFrame{{background:rgba({_rgb(C['base'])},0.85);border:1px solid rgba({_rgb(C['s1'])},0.4);border-radius:{_dp(12)}px;}}")
     f.setMinimumWidth(_dp(130)); f.setMinimumHeight(_dp(72)); f.setMaximumHeight(_dp(84))
     f.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Fixed)
     lo=QVBoxLayout(f); lo.setContentsMargins(_dp(14),_dp(8),_dp(14),_dp(8)); lo.setSpacing(_dp(1))
@@ -1840,7 +1880,10 @@ class HostsActivityTab(QWidget):
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
         s.search=QLineEdit(); s.search.setPlaceholderText("Search domains..."); s.search.setFixedHeight(_dp(30))
-        s.search.textChanged.connect(s._on_search); tb.addWidget(s.search,1)
+        s.search.setClearButtonEnabled(True)
+        s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
+        s._search_debounce.timeout.connect(s._on_search)
+        s.search.textChanged.connect(lambda:s._search_debounce.start()); tb.addWidget(s.search,1)
         s.filt=QComboBox(); s.filt.addItems(["All","Blocked","Allowed","Unmanaged","Hidden"])
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         tb.addWidget(_tbtn("Scan","primary",s._scan,55)); lo.addLayout(tb)
@@ -1901,12 +1944,12 @@ class HostsActivityTab(QWidget):
             ht={'blocked':'BLOCKED','whitelisted':'ALLOWED'}.get(status,'\u2014')
             s.tbl.setCellWidget(i,1,_pill(ht,hc))
             s.tbl.setItem(i,2,QTableWidgetItem(proc or ""))
-            s.tbl.setItem(i,3,QTableWidgetItem(str(hits)))
+            s.tbl.setItem(i,3,_num_item(hits))
             s.tbl.setItem(i,4,QTableWidgetItem((ls or "")[:19]))
             if status=='blocked':
                 for col in [0,2,3,4]:
                     it=s.tbl.item(i,col)
-                    if it: it.setBackground(QColor(247,118,142,10))
+                    if it: it.setBackground(_row_tint())
         s.tbl.setSortingEnabled(True); s._restore_sel(saved)
         hidden_ct=s.db.feed_count(hidden=True)
         s.info.setText(f"{len(rows)} domains \u00B7 {hidden_ct} hidden")
@@ -2004,7 +2047,7 @@ class HostsActivityTab(QWidget):
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
 
 # ─── Per-App Bandwidth Chart ───────────────────────────────────────────────
-_BW_COLORS=['#7aa2f7','#9ece6a','#f7768e','#ff9e64','#bb9af7','#73daca','#7dcfff','#e0af68']
+_BW_COLORS=[C['blue'],C['green'],C['red'],C['peach'],C['mauve'],C['teal'],C['sky'],C['yellow']]
 
 class BWPerApp:
     """Track per-process connection counts and system bandwidth over time."""
@@ -2113,7 +2156,10 @@ class FWActivityTab(QWidget):
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
         s.search=QLineEdit(); s.search.setPlaceholderText("Search connections, IPs, processes...")
-        s.search.setFixedHeight(_dp(30)); s.search.textChanged.connect(s._on_search); tb.addWidget(s.search,1)
+        s.search.setFixedHeight(_dp(30)); s.search.setClearButtonEnabled(True)
+        s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
+        s._search_debounce.timeout.connect(s._on_search)
+        s.search.textChanged.connect(lambda:s._search_debounce.start()); tb.addWidget(s.search,1)
         s.filt=QComboBox(); s.filt.addItems(["All Connections","FW Blocked","Outbound","Inbound/Listen"])
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         lo.addLayout(tb)
@@ -2201,7 +2247,7 @@ class FWActivityTab(QWidget):
             if f_blocked or h_blocked:
                 for col in [0,1,2,4,5]:
                     it=s.tbl.item(i,col)
-                    if it: it.setBackground(QColor(247,118,142,10))
+                    if it: it.setBackground(_row_tint())
         s.tbl.setSortingEnabled(True); s.tbl.setUpdatesEnabled(True)
         s._restore_sel(saved); s.tbl.verticalScrollBar().setValue(vscroll)
         s.info.setText(f"{len(conns)} connections")
@@ -2465,7 +2511,7 @@ class HostsTab(QWidget):
             _icon_item(s.d_tbl,i,0,domain,domain)
             s.d_tbl.setCellWidget(i,1,_pill(status.upper(),C['red'] if status=='blocked' else C['green']))
             s.d_tbl.setItem(i,2,QTableWidgetItem((source or "")[:20]))
-            s.d_tbl.setItem(i,3,QTableWidgetItem(str(hits))); s.d_tbl.setItem(i,4,QTableWidgetItem((mod or "")[:19]))
+            s.d_tbl.setItem(i,3,_num_item(hits)); s.d_tbl.setItem(i,4,QTableWidgetItem((mod or "")[:19]))
         s.d_tbl.setSortingEnabled(True)
         bl=sum(1 for r in rows if r[1]=='blocked'); wl=sum(1 for r in rows if r[1]=='whitelisted')
         s.d_info.setText(f"{len(rows)} domains \u00B7 {bl} blocked \u00B7 {wl} allowed")
@@ -3234,8 +3280,8 @@ class MainWindow(QMainWindow):
         try: adm=ctypes.windll.shell32.IsUserAnAdmin()!=0
         except: adm=False
         ac=C['green'] if adm else C['peach']
-        rgb=','.join(str(int(ac.lstrip('#')[i:i+2],16)) for i in (0,2,4))
-        ab=QLabel("ADMIN" if adm else "USER"); ab.setStyleSheet(f"color:{ac};font-size:{_dp(8)}px;font-weight:700;background:rgba({rgb},0.12);border-radius:{_dp(3)}px;padding:1px 5px;"); tb.addWidget(ab)
+        ab=QLabel("ADMIN" if adm else "USER"); ab.setToolTip("Running elevated — hosts file and firewall changes are available" if adm else "Not elevated — hosts/firewall changes will fail. Relaunch as Administrator.")
+        ab.setStyleSheet(f"color:{ac};font-size:{_dp(8)}px;font-weight:700;background:rgba({_rgb(ac)},0.12);border-radius:{_dp(3)}px;padding:1px 5px;"); tb.addWidget(ab)
         tb.addStretch()
         s._bw_up=QLabel("\u25B2 --"); s._bw_up.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_up)
         s._bw_dn=QLabel("\u25BC --"); s._bw_dn.setStyleSheet(f"color:{C['teal']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_dn)
@@ -3303,7 +3349,26 @@ class MainWindow(QMainWindow):
         cfg=load_cfg(); cur=cfg.get('theme','dark')
         new='light' if cur!='light' else 'dark'; cfg['theme']=new; save_cfg(cfg)
         s._tbtn.setText(new.upper())
-        s._toasts.toast(f"Theme set to {new} — restart to apply",C['blue'])
+        # The stylesheet is baked at import time, so offer an immediate restart
+        # rather than leaving the user with a half-applied theme.
+        if QMessageBox.question(s,"Restart to apply theme",
+                f"Theme set to {new}. Restart HostsGuard now to apply it?",
+                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)==QMessageBox.Yes:
+            s._restart()
+        else:
+            s._toasts.toast(f"Theme set to {new} — applies on next start",C['blue'])
+    def _restart(s):
+        """Relaunch the app and quit this instance."""
+        try:
+            args=([] if getattr(sys,'frozen',False) else [os.path.abspath(__file__)])+[a for a in sys.argv[1:]]
+            if sys.platform=='win32':
+                import ctypes
+                params=' '.join(f'"{a}"' for a in args)
+                ctypes.windll.shell32.ShellExecuteW(None,"runas" if not ctypes.windll.shell32.IsUserAnAdmin() else "open",sys.executable,params,None,1)
+            else:
+                os.execv(sys.executable,[sys.executable]+args)
+        except Exception as e: log.warning(f"Restart failed: {e}"); s._toasts.toast("Restart failed — please reopen manually",C['red']); return
+        s._quit()
     def _refresh_profiles(s):
         s._prof_cb.blockSignals(True)
         cur=s._prof_cb.currentText() or load_cfg().get('active_profile','Default')
@@ -3326,9 +3391,11 @@ class MainWindow(QMainWindow):
             ct=s.db.load_profile(name)
             if ct:
                 s.hm.read()
-                blocked=s.db.get_domains(status='blocked')
-                for r in blocked: s.hm.block(r[0],flush=False)
-                s.hm._flush()
+                # Rewrite the hosts file to match the new profile exactly — domains the
+                # previous profile blocked but this one doesn't must be unblocked, not
+                # left stranded in the hosts file.
+                blocked=[r[0] for r in s.db.get_domains(status='blocked')]
+                s.hm.reconcile(blocked)
                 cfg=load_cfg(); cfg['active_profile']=name; save_cfg(cfg)
                 s._toasts.toast(f"Switched to '{name}' ({ct} rules)",C['blue'])
 
