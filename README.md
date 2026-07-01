@@ -23,6 +23,15 @@ python HostsGuard.py  # Auto-installs dependencies, requests admin elevation
 
 Dependencies (`PyQt5`, `psutil`) are auto-installed on first run. No manual setup needed.
 
+### Building
+
+```bash
+pip install pyinstaller
+pyinstaller HostsGuard.spec          # Builds to dist/HostsGuard/
+# Optional: build installer with Inno Setup
+iscc installer.iss                    # Produces installer_output/HostsGuard_Setup.exe
+```
+
 ## Features
 
 ### Hosts Activity Tab
@@ -187,6 +196,9 @@ Hosts File tab → **Restore** restores the most recent backup. **Emergency Rese
 
 **Q: Can I run this headless / via CLI?**
 Not currently — HostsGuard is a GUI application. For automation, consider using the hosts file and firewall PowerShell commands directly.
+
+**Q: Windows Defender flags HostsGuard as a threat**
+Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive — HostsGuard is modifying the hosts file intentionally. To resolve: Settings → Virus & Threat Protection → Manage settings → Exclusions → Add an exclusion → File → `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.
 
 ## License
 

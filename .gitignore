@@ -5,11 +5,11 @@ __pycache__/
 dist/
 build/
 *.egg
-*.spec
 .env
 .venv/
 venv/
 *.bak
+installer_output/
 CLAUDE.md
 
 # Markdown files local-only (except README)
