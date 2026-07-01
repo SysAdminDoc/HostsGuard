@@ -343,7 +343,7 @@ class FaviconCache(QObject):
                 if len(data)>100:
                     with open(p,'wb') as f: f.write(data)
                     s._img_ready.emit(domain,data)
-        except: pass
+        except Exception as e: log.debug(f"Favicon {domain}: {e}")
         finally:
             with s._lock: s._pending.discard(domain)
 _fav=None
@@ -534,7 +534,7 @@ class ConnDB:
             for c in conns:
                 try: s.conn.execute("INSERT OR IGNORE INTO conns(ts,proto,la,lp,ra,rp,host,proc,pid,state,org,country,cc,category)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (c.ts,c.proto,c.la,c.lp,c.ra,c.rp,c.host,c.proc,c.pid,c.state,c.org,c.country,c.cc,c.category))
-                except: pass
+                except Exception as e: log.debug(f"ConnDB insert: {e}")
             try: s.conn.commit()
             except Exception as e: log.warning(f"ConnDB commit: {e}")
     def search(s,q='',limit=500,offset=0):
@@ -572,7 +572,7 @@ class PersistentPS:
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
                 text=True,creationflags=NOWIN,bufsize=1)
             s._alive=True; return True
-        except: s._alive=False; return False
+        except Exception as e: log.warning(f"PS session start failed: {e}"); s._alive=False; return False
     def run(s,cmd,timeout=20):
         delim=f"---HG_END_{uuid.uuid4().hex[:8]}---"
         with s._lock:
@@ -589,16 +589,16 @@ class PersistentPS:
                             line=line.rstrip('\n\r')
                             if line==delim: result[0]=True; break
                             lines.append(line)
-                    except: pass
+                    except Exception: pass
                 t=threading.Thread(target=_reader,daemon=True); t.start(); t.join(timeout)
                 if result[0]:
                     return True,'\n'.join(lines)
                 s._alive=False
                 try: s._proc.kill()
-                except: pass
+                except OSError: pass
                 return False,'\n'.join(lines)
-            except:
-                s._alive=False; return False,""
+            except Exception as e:
+                log.debug(f"PS run failed: {e}"); s._alive=False; return False,""
     def close(s):
         with s._lock:
             if s._proc:
@@ -826,7 +826,7 @@ class HostsMgr:
         ts=datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         dst=os.path.join(CONFIG_DIR,"backups",f"hosts_{ts}.bak")
         try: shutil.copy2(HOSTS_PATH,dst); return dst
-        except: return None
+        except Exception as e: log.warning(f"Hosts backup failed: {e}"); return None
     def restore(s,path=None):
         if not path:
             bk=sorted(Path(os.path.join(CONFIG_DIR,"backups")).glob("hosts_*.bak"))
@@ -837,7 +837,7 @@ class HostsMgr:
             try:
                 shutil.copy2(path,HOSTS_PATH)
                 s.read()
-            except: return False
+            except Exception as e: log.warning(f"Hosts restore failed: {e}"); return False
             finally: s._suppress_watcher=False
         s._flush(); return True
     def _flush(s):
@@ -998,6 +998,12 @@ class ConnWorker(QThread):
                     else:
                         try:
                             p=psutil.Process(pid); pname=p.name(); ppath=p.exe()
+                            if pname.lower()=='svchost.exe':
+                                try:
+                                    cl=p.cmdline()
+                                    for j,a in enumerate(cl):
+                                        if a=='-k' and j+1<len(cl): pname=f"svchost [{cl[j+1]}]"; break
+                                except: pass
                             proc_c.put(pid,(pname,ppath))
                         except: pass
                 host=dns_c.get(ra) or "-"
@@ -1013,7 +1019,7 @@ class ConnWorker(QThread):
                 out.append(ci)
                 if host=="-": s.need_dns.emit(ra)
                 if not geo: s.need_geo.emit(ra)
-            except: continue
+            except Exception: continue
         return out
     def stop(s): s._stop.set()
 
@@ -1088,8 +1094,8 @@ class FWLoadWorker(QThread):
                             enabled=rec.get('En') in (1,'1',True),remote_addr=_j(rec.get('RA','')),
                             protocol=_j(rec.get('Proto','Any')) or "Any",program=_j(rec.get('Prog','')),
                             source="hostsguard" if n.startswith(FW_PFX) else "system"))
-                    except: continue
-        except: pass
+                    except Exception: continue
+        except Exception as e: log.warning(f"FWLoadWorker parse: {e}")
         fw.set_cache(rules)
         # Track existing HG rules in DB (if DB wired)
         if fw._db:
@@ -1147,16 +1153,19 @@ class LoadingOverlay(QWidget):
 # ─── Learning Mode ──────────────────────────────────────────────────────────
 class LearnDB:
     def __init__(s,db):
-        s.db=db; s._trusted=set(); s._untrusted=set(); s._prompted=set(); s._enabled=False; s._load()
+        s.db=db; s._trusted=set(); s._untrusted=set(); s._prompted=set(); s._enabled=False; s._observe=False; s._load()
     def _load(s):
-        cfg=load_cfg(); s._enabled=cfg.get('learning_mode',False)
+        cfg=load_cfg(); s._enabled=cfg.get('learning_mode',False); s._observe=cfg.get('observe_mode',False)
         s._trusted=set(cfg.get('trusted_procs',[])); s._untrusted=set(cfg.get('untrusted_procs',[]))
     def save(s):
-        cfg=load_cfg(); cfg['learning_mode']=s._enabled
+        cfg=load_cfg(); cfg['learning_mode']=s._enabled; cfg['observe_mode']=s._observe
         cfg['trusted_procs']=list(s._trusted); cfg['untrusted_procs']=list(s._untrusted); save_cfg(cfg)
     @property
     def enabled(s): return s._enabled
     def set_enabled(s,v): s._enabled=v; s.save()
+    @property
+    def observe(s): return s._observe
+    def set_observe(s,v): s._observe=v; s.save()
     def is_trusted(s,proc): return proc.lower() in s._trusted
     def is_untrusted(s,proc): return proc.lower() in s._untrusted
     def trust(s,proc): s._trusted.add(proc.lower()); s._untrusted.discard(proc.lower()); s.save()
@@ -1534,7 +1543,10 @@ class FWActivityTab(QWidget):
         ib=QHBoxLayout()
         s.info=QLabel(""); s.info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); ib.addWidget(s.info)
         ib.addStretch()
-        s.learn_cb=QCheckBox("Learning Mode"); s.learn_cb.setChecked(s.learn.enabled)
+        s.obs_cb=QCheckBox("Observe"); s.obs_cb.setChecked(s.learn.observe)
+        s.obs_cb.toggled.connect(lambda v:s.learn.set_observe(v))
+        s.obs_cb.setToolTip("Allow all, log silently — review and create rules later"); ib.addWidget(s.obs_cb)
+        s.learn_cb=QCheckBox("Learning"); s.learn_cb.setChecked(s.learn.enabled)
         s.learn_cb.toggled.connect(lambda v:s.learn.set_enabled(v))
         s.learn_cb.setToolTip("Prompt when new processes connect"); ib.addWidget(s.learn_cb)
         lo.addLayout(ib)
@@ -1608,7 +1620,7 @@ class FWActivityTab(QWidget):
             if c.host and c.host not in ('-','','...'): s._conn_map[c.host]=c
         s._last_hash=0; s._load_conns()
         _sv(s.c_live,len(conns))
-        if s.learn.enabled:
+        if s.learn.enabled and not s.learn.observe:
             for c in conns:
                 if c.proc in ('?','System','svchost.exe'): continue
                 key=f"{c.proc}:{c.ra}"
