@@ -106,7 +106,7 @@ try:
     log.addHandler(_fh)
 except: pass
 log.setLevel(logging.WARNING)
-SCHEMA_VER=5
+SCHEMA_VER=6
 WINDOWS_HEADER=["# Copyright (c) 1993-2009 Microsoft Corp.","#","# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.","#",
     "# localhost name resolution is handled within DNS itself.","#    127.0.0.1       localhost","#    ::1             localhost",""]
 IGNORED={'localhost','broadcasthost','local','ip6-localhost','ip6-loopback','ip6-localnet','ip6-mcastprefix','ip6-allnodes',
@@ -430,6 +430,10 @@ class DB:
         if v<5:
             s.conn.execute("CREATE TABLE IF NOT EXISTS proc_rules(id INTEGER PRIMARY KEY,process TEXT,domain TEXT,action TEXT DEFAULT 'block',added TEXT)")
             s.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_rules ON proc_rules(process,domain)")
+        if v<6:
+            s.conn.execute("CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY,created TEXT)")
+            s.conn.execute("CREATE TABLE IF NOT EXISTS profile_rules(id INTEGER PRIMARY KEY,profile TEXT,domain TEXT,status TEXT DEFAULT 'blocked',source TEXT)")
+            s.conn.execute("INSERT OR IGNORE INTO profiles(name,created)VALUES('Default',?)",(datetime.datetime.now().isoformat(),))
         s.conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)",(str(SCHEMA_VER),))
         s.conn.commit()
     def _x(s,sql,p=(),many=False):
@@ -494,6 +498,31 @@ class DB:
     def check_proc_rule(s,process,domain):
         r=s._q("SELECT action FROM proc_rules WHERE process=? AND domain=?",(process.lower(),domain.lower()))
         return r[0][0] if r else None
+    # Profiles
+    def get_profiles(s): return [r[0] for r in s._q("SELECT name FROM profiles ORDER BY name")]
+    def create_profile(s,name):
+        s._x("INSERT OR IGNORE INTO profiles(name,created)VALUES(?,?)",(name,datetime.datetime.now().isoformat()))
+    def delete_profile(s,name):
+        if name=='Default': return
+        s._x("DELETE FROM profile_rules WHERE profile=?",(name,))
+        s._x("DELETE FROM profiles WHERE name=?",(name,))
+    def save_profile_snapshot(s,name):
+        """Save current domains table state as a profile snapshot."""
+        s._x("DELETE FROM profile_rules WHERE profile=?",(name,))
+        rows=s._q("SELECT domain,status,source FROM domains")
+        s._x("INSERT INTO profile_rules(profile,domain,status,source)VALUES(?,?,?,?)",
+            [(name,r[0],r[1],r[2]) for r in rows],many=True)
+    def load_profile(s,name):
+        """Restore domains table from a profile snapshot."""
+        rows=s._q("SELECT domain,status,source FROM profile_rules WHERE profile=?",(name,))
+        if not rows: return 0
+        now=datetime.datetime.now().isoformat()
+        with s._lock:
+            s.conn.execute("DELETE FROM domains")
+            s.conn.executemany("INSERT INTO domains(domain,status,source,added,modified,hits)VALUES(?,?,?,?,?,0)",
+                [(r[0],r[1],r[2] or '',now,now) for r in rows])
+            s.conn.commit()
+        s._blocked_cache=None; return len(rows)
     # Feed
     def feed_upsert(s,d,proc=''):
         now=datetime.datetime.now().isoformat()
@@ -2763,6 +2792,7 @@ class ToolsTab(QWidget):
         l4.addWidget(_tbtn("Restore FW Rules from DB","primary",s._restore_fw))
         l4.addWidget(_tbtn("Sync Hosts File to DB","dim",s._sync_hosts_db))
         l4.addWidget(_tbtn("Backup Hosts Now","dim",lambda:(s.hm.backup(),s._toast("Backed up",C['green']))))
+        l4.addWidget(_tbtn("Save Current to Profile","dim",s._save_profile))
         l4.addWidget(_tbtn("Re-baseline (accept current)","dim",s._rebaseline))
         l4.addWidget(_tbtn("Harden Hosts ACL","dim",s._harden_acl))
         s._ar_cb=QCheckBox("Auto-restore on tamper"); s._ar_cb.setChecked(load_cfg().get('auto_restore_on_tamper',False))
@@ -2951,6 +2981,11 @@ class ToolsTab(QWidget):
             ok2,_=_ps(f'auditpol /set /subcategory:"File System" /success:enable /failure:enable',10)
             QTimer.singleShot(0,lambda:s._toast("Hosts ACL hardened + audit enabled" if ok1 else "ACL hardening failed",C['green'] if ok1 else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
+    def _save_profile(s):
+        w=s.window(); name=w._prof_cb.currentText() if hasattr(w,'_prof_cb') else 'Default'
+        if name=="+ New Profile...": name='Default'
+        s.db.save_profile_snapshot(name)
+        s._toast(f"Saved current rules to profile '{name}'",C['green'])
     def _rebaseline(s):
         s.hm.backup(); s.hm.read(); s.db.sync_hosts_to_db(s.hm)
         w=s.window()
@@ -2985,6 +3020,8 @@ class MainWindow(QMainWindow):
         s._sig_w=SigWorker(); s._sig_w.start()
         s._conn_w=None; s._dns_mon=None
         s._build_ui()
+        s._refresh_profiles()
+        s._prof_cb.currentTextChanged.connect(s._switch_profile)
         s._build_tray()
         # Launch FW rule loading in background (dedicated subprocess, not PPS)
         s._fw_tab._overlay.show_loading("Loading firewall rules")
@@ -3052,6 +3089,10 @@ class MainWindow(QMainWindow):
         s._mbtn.setCursor(Qt.PointingHandCursor); s._mbtn.setFixedHeight(_dp(24))
         s._mbtn.setToolTip("Toggle desktop notifications for blocked domains")
         s._upd_mute_btn(); s._mbtn.clicked.connect(s._toggle_mute); tb.addWidget(s._mbtn)
+        s._prof_cb=QComboBox(); s._prof_cb.setFixedHeight(_dp(24)); s._prof_cb.setFixedWidth(_dp(100))
+        s._prof_cb.setToolTip("Network profile — different rule sets per network")
+        s._prof_cb.setStyleSheet(f"background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(5)}px;font-size:{_dp(8)}px;padding:0 {_dp(4)}px;")
+        tb.addWidget(s._prof_cb)
         s._tbtn=QPushButton("LIGHT" if load_cfg().get('theme')=='light' else "DARK")
         s._tbtn.setCursor(Qt.PointingHandCursor); s._tbtn.setFixedHeight(_dp(24))
         s._tbtn.setToolTip("Switch between dark and light theme (requires restart)")
@@ -3103,6 +3144,33 @@ class MainWindow(QMainWindow):
         new='light' if cur!='light' else 'dark'; cfg['theme']=new; save_cfg(cfg)
         s._tbtn.setText(new.upper())
         s._toasts.toast(f"Theme set to {new} — restart to apply",C['blue'])
+    def _refresh_profiles(s):
+        s._prof_cb.blockSignals(True)
+        cur=s._prof_cb.currentText() or load_cfg().get('active_profile','Default')
+        s._prof_cb.clear()
+        for p in s.db.get_profiles(): s._prof_cb.addItem(p)
+        s._prof_cb.addItem("+ New Profile...")
+        idx=s._prof_cb.findText(cur)
+        if idx>=0: s._prof_cb.setCurrentIndex(idx)
+        s._prof_cb.blockSignals(False)
+    def _switch_profile(s,name):
+        if name=="+ New Profile...":
+            n,ok=QInputDialog.getText(s,"New Profile","Profile name:")
+            if ok and n.strip():
+                n=n.strip(); s.db.create_profile(n); s.db.save_profile_snapshot(n)
+                s._refresh_profiles(); s._prof_cb.setCurrentText(n)
+                s._toasts.toast(f"Profile '{n}' created from current rules",C['green'])
+            else: s._refresh_profiles()
+            return
+        if name:
+            ct=s.db.load_profile(name)
+            if ct:
+                s.hm.read()
+                blocked=s.db.get_domains(status='blocked')
+                for r in blocked: s.hm.block(r[0],flush=False)
+                s.hm._flush()
+                cfg=load_cfg(); cfg['active_profile']=name; save_cfg(cfg)
+                s._toasts.toast(f"Switched to '{name}' ({ct} rules)",C['blue'])
 
     def _start_conns(s):
         s._conn_w=ConnWorker(s.db)
