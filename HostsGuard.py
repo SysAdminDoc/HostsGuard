@@ -2669,6 +2669,8 @@ class ToolsTab(QWidget):
         l4.addWidget(_tbtn("Restore FW Rules from DB","primary",s._restore_fw))
         l4.addWidget(_tbtn("Sync Hosts File to DB","dim",s._sync_hosts_db))
         l4.addWidget(_tbtn("Backup Hosts Now","dim",lambda:(s.hm.backup(),s._toast("Backed up",C['green']))))
+        l4.addWidget(_tbtn("Re-baseline (accept current)","dim",s._rebaseline))
+        l4.addWidget(_tbtn("Harden Hosts ACL","dim",s._harden_acl))
         s._ar_cb=QCheckBox("Auto-restore on tamper"); s._ar_cb.setChecked(load_cfg().get('auto_restore_on_tamper',False))
         s._ar_cb.toggled.connect(s._toggle_auto_restore)
         s._ar_cb.setToolTip("Automatically restore hosts file from backup if externally modified"); l4.addWidget(s._ar_cb)
@@ -2849,6 +2851,17 @@ class ToolsTab(QWidget):
         s.hm.read()  # Fresh read
         added=s.db.sync_hosts_to_db(s.hm)
         s._toast(f"Synced {added} new entries from hosts file to DB",C['green']); s._upd_rec()
+    def _harden_acl(s):
+        def _bg():
+            ok1,_=_ps(f'icacls {_ps_esc(HOSTS_PATH)} /inheritance:r /grant:r "NT AUTHORITY\\SYSTEM:(F)" "BUILTIN\\Administrators:(F)" /deny "BUILTIN\\Users:(W,D)"',10)
+            ok2,_=_ps(f'auditpol /set /subcategory:"File System" /success:enable /failure:enable',10)
+            QTimer.singleShot(0,lambda:s._toast("Hosts ACL hardened + audit enabled" if ok1 else "ACL hardening failed",C['green'] if ok1 else C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
+    def _rebaseline(s):
+        s.hm.backup(); s.hm.read(); s.db.sync_hosts_to_db(s.hm)
+        w=s.window()
+        if hasattr(w,'_watcher'): w._watcher.update_hash()
+        s._toast("Baseline updated — current hosts file accepted as known-good",C['green']); s._upd_rec()
     def _toggle_auto_restore(s,v):
         cfg=load_cfg(); cfg['auto_restore_on_tamper']=v; save_cfg(cfg)
         s._toast(f"Auto-restore {'ON' if v else 'OFF'}",C['green'] if v else C['dim'])
