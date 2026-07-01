@@ -1260,17 +1260,32 @@ class RuleScanWorker(QThread):
 
 class HostsWatcher(QThread):
     changed=pyqtSignal()
-    def __init__(s): super().__init__(); s._stop=TEvent(); s._mtime=0
+    registry_tamper=pyqtSignal(str)
+    def __init__(s):
+        super().__init__(); s._stop=TEvent(); s._hash=b''
+        s._expected_dbpath=r'%SystemRoot%\System32\drivers\etc'
+    def _file_hash(s):
+        try:
+            h=hashlib.sha512()
+            with open(HOSTS_PATH,'rb') as f:
+                for chunk in iter(lambda:f.read(65536),b''): h.update(chunk)
+            return h.digest()
+        except Exception: return b''
     def run(s):
-        try: s._mtime=os.path.getmtime(HOSTS_PATH)
-        except: pass
+        s._hash=s._file_hash()
         while not s._stop.is_set():
+            new_hash=s._file_hash()
+            if new_hash and new_hash!=s._hash: s._hash=new_hash; s.changed.emit()
             try:
-                mt=os.path.getmtime(HOSTS_PATH)
-                if mt!=s._mtime: s._mtime=mt; s.changed.emit()
-            except: pass
-            s._stop.wait(3)
+                import winreg
+                k=winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,r'SYSTEM\CurrentControlSet\Services\Tcpip\Parameters')
+                val,_=winreg.QueryValueEx(k,'DataBasePath'); winreg.CloseKey(k)
+                if val.lower().rstrip('\\')!=s._expected_dbpath.lower():
+                    s.registry_tamper.emit(val)
+            except Exception: pass
+            s._stop.wait(5)
     def stop(s): s._stop.set()
+    def update_hash(s): s._hash=s._file_hash()
 
 # ─── Startup Loader (parallel) ──────────────────────────────────────────────
 class StartupLoader(QThread):
@@ -2851,7 +2866,8 @@ class MainWindow(QMainWindow):
         s._fw_tab._overlay.show_loading("Loading firewall rules")
         s._fw_loader=FWLoadWorker(); s._fw_loader.ready.connect(s._fw_tab.set_rules); s._fw_loader.start()
         # Hosts watcher
-        s._watcher=HostsWatcher(); s._watcher.changed.connect(s._on_hosts_changed); s._watcher.start()
+        s._watcher=HostsWatcher(); s._watcher.changed.connect(s._on_hosts_changed)
+        s._watcher.registry_tamper.connect(s._on_registry_tamper); s._watcher.start()
         # Start monitors — no delay needed, data already loaded
         QTimer.singleShot(100,s._start_dns)
         QTimer.singleShot(200,s._start_conns)
@@ -2993,10 +3009,17 @@ class MainWindow(QMainWindow):
 
     def _on_hosts_changed(s):
         if s.hm._suppress_watcher:
-            s.hm._suppress_watcher=False; return  # Internal save, already up to date
+            s.hm._suppress_watcher=False; s._watcher.update_hash(); return
         s.hm.read()
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
         s._toasts.toast("Hosts file changed externally",C['peach'])
+    def _on_registry_tamper(s,val):
+        QMessageBox.critical(s,"Registry Tamper Detected",
+            f"The hosts file DataBasePath registry key has been redirected!\n\n"
+            f"Expected: %SystemRoot%\\System32\\drivers\\etc\n"
+            f"Found: {val}\n\n"
+            "This may indicate malware has redirected DNS resolution to a different hosts file. "
+            "Check HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\DataBasePath.")
     def _set_st(s,msg):
         on=s._monitoring or s._conn_on; c=C['green'] if on else C['red']
         s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(3)}px;")
