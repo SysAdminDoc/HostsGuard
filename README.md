@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-3.9.0-blue)
+![Version](https://img.shields.io/badge/version-3.10.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
@@ -122,6 +122,11 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | Firewall Drift Detection | Save baseline, detect added/removed/changed rules |
 | CLI Interface | `block/allow/unblock/status/export` commands without launching GUI |
 | ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
+| DNS Inspection | Right-click any domain to see A/AAAA/CNAME chains, TTLs, resolver latency |
+| SHA-512 Integrity | Hash-based hosts file tamper detection (catches time-preserved modifications) |
+| Registry Monitor | Detects DataBasePath registry redirection by malware |
+| Windows Event Log | Tamper events written to Application log as structured JSON for SIEM ingestion |
+| Auto-Restore | Optional automatic hosts file restoration from backup on tamper detection |
 
 ## Blocklist Sources
 
