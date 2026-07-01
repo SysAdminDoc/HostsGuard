@@ -891,40 +891,88 @@ class DNSResolveWorker(QThread):
             except Empty: pass
     def stop(s): s._stop.set()
 
+GEOIP_PATH=os.path.join(CONFIG_DIR,"geoip.mmdb")
+
+def _ensure_geoip():
+    """Download DB-IP Lite MMDB if not present (CC BY 4.0, no account needed)."""
+    if os.path.exists(GEOIP_PATH): return True
+    try:
+        import gzip
+        month=datetime.datetime.now().strftime('%Y-%m')
+        url=f"https://download.db-ip.com/free/dbip-country-lite-{month}.mmdb.gz"
+        req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+        with urllib.request.urlopen(req,timeout=60) as resp:
+            with open(GEOIP_PATH,'wb') as f: f.write(gzip.decompress(resp.read()))
+        log.info(f"Downloaded GeoIP database to {GEOIP_PATH}")
+        return True
+    except Exception as e: log.warning(f"GeoIP download failed: {e}"); return False
+
 class GeoWorker(QThread):
     resolved=pyqtSignal(str,str,str)
-    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2
+    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2; s._mmdb=None
     def add(s,ip):
         if ip not in geo_c:
             with s._lock:
                 if ip not in s._batch: s._batch.append(ip)
+    def _open_mmdb(s):
+        if s._mmdb: return True
+        try:
+            import maxminddb
+            if _ensure_geoip():
+                s._mmdb=maxminddb.open_database(GEOIP_PATH)
+                return True
+        except ImportError: log.debug("maxminddb not installed, using API fallback")
+        except Exception as e: log.warning(f"MMDB open failed: {e}")
+        return False
+    def _lookup_local(s,ip):
+        if not s._mmdb: return None
+        try:
+            r=s._mmdb.get(ip)
+            if r:
+                cc=r.get('country',{}).get('iso_code','')
+                cn=r.get('country',{}).get('names',{}).get('en','')
+                if cc: return (cc,cn)
+        except Exception: pass
+        return None
     def run(s):
+        s._open_mmdb()
         while not s._stop.is_set():
             batch=[]
             with s._lock:
                 if s._batch: batch,s._batch=s._batch[:100],s._batch[100:]
             if batch:
-                batch_set=set(batch)
-                try:
-                    data=json.dumps([{"query":ip} for ip in batch]).encode()
-                    req=urllib.request.Request("http://ip-api.com/batch?fields=query,country,countryCode",data=data,
-                        headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
-                    with urllib.request.urlopen(req,timeout=10) as resp:
-                        for item in json.loads(resp.read()):
-                            q=item.get("query","")
-                            if q in batch_set and item.get("countryCode"):
-                                geo_c.put(q,(item["countryCode"],item["country"]))
-                                s.resolved.emit(q,item["countryCode"],item["country"])
-                    s._backoff=2
-                except urllib.error.HTTPError as e:
-                    if e.code==429:
-                        s._backoff=min(s._backoff*2,60)
-                        log.warning(f"GeoIP rate-limited, backing off {s._backoff}s")
-                    with s._lock: s._batch=batch+s._batch
-                except Exception:
-                    with s._lock: s._batch=batch+s._batch
-            s._stop.wait(s._backoff)
-    def stop(s): s._stop.set()
+                if s._mmdb:
+                    for ip in batch:
+                        result=s._lookup_local(ip)
+                        if result:
+                            geo_c.put(ip,result)
+                            s.resolved.emit(ip,result[0],result[1])
+                else:
+                    batch_set=set(batch)
+                    try:
+                        data=json.dumps([{"query":ip} for ip in batch]).encode()
+                        req=urllib.request.Request("http://ip-api.com/batch?fields=query,country,countryCode",data=data,
+                            headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
+                        with urllib.request.urlopen(req,timeout=10) as resp:
+                            for item in json.loads(resp.read()):
+                                q=item.get("query","")
+                                if q in batch_set and item.get("countryCode"):
+                                    geo_c.put(q,(item["countryCode"],item["country"]))
+                                    s.resolved.emit(q,item["countryCode"],item["country"])
+                        s._backoff=2
+                    except urllib.error.HTTPError as e:
+                        if e.code==429:
+                            s._backoff=min(s._backoff*2,60)
+                            log.warning(f"GeoIP rate-limited, backing off {s._backoff}s")
+                        with s._lock: s._batch=batch+s._batch
+                    except Exception:
+                        with s._lock: s._batch=batch+s._batch
+            s._stop.wait(s._backoff if not s._mmdb else 0.5)
+    def stop(s):
+        s._stop.set()
+        if s._mmdb:
+            try: s._mmdb.close()
+            except: pass
 
 class DNSMonitor(QThread):
     """Uses persistent PS session — no process spawn per scan."""
