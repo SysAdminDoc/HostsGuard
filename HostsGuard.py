@@ -408,12 +408,19 @@ class DB:
         now=datetime.datetime.now().isoformat()
         s._x("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(d,status,cat,source,now,now,d))
         s._blocked_cache=None
-    def get_domains(s,status=None,search=None):
+    def get_domains(s,status=None,search=None,source=None):
         q="SELECT domain,status,category,source,added,modified,hits,notes FROM domains WHERE 1=1"
         p=[]
         if status: q+=" AND status=?"; p.append(status)
+        if source: q+=" AND source=?"; p.append(source)
         if search: q+=" AND domain LIKE ?"; p.append(f"%{search}%")
         return s._q(q+" ORDER BY modified DESC",p)
+    def get_sources(s):
+        return [r[0] for r in s._q("SELECT DISTINCT source FROM domains WHERE source!='' ORDER BY source")]
+    def toggle_source(s,source,new_status):
+        now=datetime.datetime.now().isoformat()
+        s._x("UPDATE domains SET status=?,modified=? WHERE source=?",(new_status,now,source))
+        s._blocked_cache=None
     def remove_domain(s,d): s._x("DELETE FROM domains WHERE domain=?",((d,))); s._blocked_cache=None
     def update_status(s,d,st):
         s._x("UPDATE domains SET status=?,modified=? WHERE domain=?",(st,datetime.datetime.now().isoformat(),d))
@@ -1933,6 +1940,7 @@ class HostsTab(QWidget):
         s.d_search=QLineEdit(); s.d_search.setPlaceholderText("Search..."); s.d_search.setFixedHeight(_dp(30))
         s.d_search.textChanged.connect(s._load_d); tr.addWidget(s.d_search,1)
         s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
+        s.d_src=QComboBox(); s.d_src.addItem("All Sources"); s.d_src.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_src)
         tr.addWidget(_tbtn("Refresh","dim",s._sync_and_load,65))
         tr.addWidget(_tbtn("+ Add","primary",s._add,60)); tr.addWidget(_tbtn("Sync > Hosts","dim",s._sync,100))
         dl.addLayout(tr)
@@ -2023,7 +2031,15 @@ class HostsTab(QWidget):
     def _load_d(s):
         q=s.d_search.text().strip() or None; f=s.d_filt.currentText().lower()
         st=None if f=='all' else f.replace('allowed','whitelisted')
-        rows=s.db.get_domains(status=st,search=q)
+        src=s.d_src.currentText() if s.d_src.currentIndex()>0 else None
+        rows=s.db.get_domains(status=st,search=q,source=src)
+        srcs=s.db.get_sources()
+        s.d_src.blockSignals(True)
+        cur=s.d_src.currentText(); s.d_src.clear(); s.d_src.addItem("All Sources")
+        for src_name in srcs: s.d_src.addItem(src_name)
+        idx=s.d_src.findText(cur)
+        if idx>=0: s.d_src.setCurrentIndex(idx)
+        s.d_src.blockSignals(False)
         s.d_tbl.setSortingEnabled(False); s.d_tbl.setRowCount(len(rows))
         for i,(domain,status,cat,source,added,mod,hits,notes) in enumerate(rows):
             _icon_item(s.d_tbl,i,0,domain,domain)
@@ -2048,6 +2064,11 @@ class HostsTab(QWidget):
             m.addAction("Allow" if st=='blocked' else "Block").triggered.connect(lambda:s._tog(d,st))
             m.addAction(f"Block root ({root})").triggered.connect(lambda:(s.db.add_root(d,'blocked','manual'),s.hm.block(root),s._load_d()))
             m.addSeparator(); m.addAction("Delete").triggered.connect(lambda:s._del(d))
+            src_val=(cur[0][3] if cur and cur[0][3] else None)
+            if src_val:
+                sm=m.addMenu(f"Source: {src_val[:20]}"); sm.setStyleSheet(CTX)
+                sm.addAction("Allow all from this source").triggered.connect(lambda:s._toggle_src(src_val,'whitelisted'))
+                sm.addAction("Block all from this source").triggered.connect(lambda:s._toggle_src(src_val,'blocked'))
             m.addSeparator(); m.addAction("Research \u2192").triggered.connect(lambda:open_research(d))
             m.addAction("Copy").triggered.connect(lambda:QApplication.clipboard().setText(d))
         m.exec_(s.d_tbl.viewport().mapToGlobal(pos))
@@ -2066,6 +2087,14 @@ class HostsTab(QWidget):
     def _del_multi(s,ds):
         for d in ds: s.db.remove_domain(d); s.hm.unblock(d)
         s._load_d()
+    def _toggle_src(s,source,new_status):
+        s.db.toggle_source(source,new_status)
+        domains=s.db.get_domains(source=source)
+        for r in domains:
+            if new_status=='blocked': s.hm.block(r[0],flush=False)
+            else: s.hm.unblock(r[0],flush=False)
+        s.hm._flush(); s._load_d()
+        s._toast(f"{'Blocked' if new_status=='blocked' else 'Allowed'} all from {source}",C['red'] if new_status=='blocked' else C['green'])
     def _add(s):
         d,ok=QInputDialog.getText(s,"Add Domain","Domain:"); d=d.strip().lower()
         if ok and d:
@@ -2438,7 +2467,10 @@ class ToolsTab(QWidget):
         grid=QHBoxLayout(); grid.setSpacing(_dp(10))
         g1=QGroupBox("DNS & Network"); l1=QVBoxLayout(g1); l1.setSpacing(_dp(4))
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
-        l1.addWidget(_tbtn("DHCP Renew","dim",s._renew)); l1.addStretch(); grid.addWidget(g1)
+        l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
+        s._rec_btn=_tbtn("Record Session","dim",s._toggle_rec); l1.addWidget(s._rec_btn)
+        s._recording=False; s._rec_data=[]
+        l1.addStretch(); grid.addWidget(g1)
         g2=QGroupBox("Config & Data"); l2=QVBoxLayout(g2); l2.setSpacing(_dp(4))
         l2.addWidget(_tbtn("Export Config","primary",s._export)); l2.addWidget(_tbtn("Import Config","dim",s._import))
         l2.addWidget(_tbtn("Export Connections","dim",s._export_conns))
@@ -2490,6 +2522,19 @@ class ToolsTab(QWidget):
             ai=QTableWidgetItem(action or ""); ai.setForeground(QColor({'blocked':C['red'],'whitelisted':C['green'],'fw_blocked':C['mauve']}.get(action,C['dim'])))
             s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,4,QTableWidgetItem(det or ""))
         s.log_tbl.setSortingEnabled(True)
+    def _toggle_rec(s):
+        if s._recording:
+            s._recording=False; s._rec_btn.setText("Record Session")
+            p=os.path.join(CONFIG_DIR,f"session_{datetime.datetime.now():%Y%m%d_%H%M%S}.jsonl")
+            with open(p,'w',encoding='utf-8') as f:
+                for ev in s._rec_data: f.write(json.dumps(ev,ensure_ascii=False)+'\n')
+            s._toast(f"Saved {len(s._rec_data)} events: {Path(p).name}",C['green']); s._rec_data=[]
+        else:
+            s._recording=True; s._rec_data=[]; s._rec_btn.setText("Stop Recording")
+            s._toast("Recording started",C['blue'])
+    def record_event(s,ev_type,data):
+        if s._recording:
+            s._rec_data.append({'ts':datetime.datetime.now().isoformat(),'type':ev_type,**data})
     def _flush(s): ok,_=_ps("ipconfig /flushdns",5); s._toast("DNS flushed" if ok else "DNS flush failed",C['green'] if ok else C['red'])
     def _winsock(s):
         def _bg():
@@ -2684,6 +2729,7 @@ class MainWindow(QMainWindow):
         s._dns_mon=DNSMonitor(s.hm,s.db)
         s._dns_mon.status.connect(lambda m:s._set_st(m))
         s._dns_mon.blocked_event.connect(s._on_blocked)
+        s._dns_mon.dns_event.connect(lambda ev:s._tools.record_event('dns',ev))
         s._dns_mon.updated.connect(s._hosts_act._refresh)
         s._hosts_act.set_monitor(s._dns_mon)
         s._dns_mon.start(); s._monitoring=True; s._set_st("DNS Active")
@@ -2735,7 +2781,11 @@ class MainWindow(QMainWindow):
     def _on_conns(s,conns):
         s._fw_act.update_conns(conns)
         live=[c for c in conns if c.ra and c.ra!="*" and c.dir!="Listen"]
-        if live: s.cdb.insert_batch(live)
+        if live:
+            s.cdb.insert_batch(live)
+            if s._tools._recording:
+                for c in live[:5]:
+                    s._tools.record_event('conn',{'proto':c.proto,'remote':c.ra,'port':c.rp,'host':c.host,'proc':c.proc})
 
     def _on_hosts_changed(s):
         if s.hm._suppress_watcher:
