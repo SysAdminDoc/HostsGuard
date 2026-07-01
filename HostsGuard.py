@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-HostsGuard v3.6.0 — Network Privacy Manager
+HostsGuard v3.7.0 — Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io
-import tempfile,webbrowser,socket,datetime,logging
+import tempfile,webbrowser,socket,datetime,logging,multiprocessing,ipaddress,uuid
 from pathlib import Path
 from collections import OrderedDict,defaultdict
 from dataclasses import dataclass,field
@@ -13,7 +13,6 @@ from threading import Lock,Event as TEvent
 import urllib.request,urllib.error
 
 
-# codex-branding:start
 def _branding_icon_path() -> Path:
     candidates = []
     if getattr(sys, "frozen", False):
@@ -28,7 +27,6 @@ def _branding_icon_path() -> Path:
         if candidate.exists():
             return candidate
     return Path("icon.png")
-# codex-branding:end
 
 
 # ─── DPI ────────────────────────────────────────────────────────────────────
@@ -51,7 +49,7 @@ def _kill_remnants():
                 if p.info['pid']==pid: continue
                 n=(p.info['name'] or '').lower(); cl=' '.join(p.info['cmdline'] or []).lower()
                 if 'python' in n and script in cl: p.kill()
-                elif 'powershell' in n and ('hostsguard' in cl or 'get-dnsclientcache' in cl or 'get-netfirewallrule' in cl): p.kill()
+                elif 'powershell' in n and 'hostsguard' in cl: p.kill()
             except: continue
     except: pass
 
@@ -61,30 +59,31 @@ def _bootstrap():
         if not ctypes.windll.shell32.IsUserAnAdmin():
             try:
                 h=ctypes.windll.kernel32.GetConsoleWindow()
-                h.setWindowIcon(branding_icon)
                 if h: ctypes.windll.user32.ShowWindow(h,0)
             except: pass
-            ctypes.windll.shell32.ShellExecuteW(None,"runas",sys.executable,f'"{os.path.abspath(__file__)}"',None,1)
+            args='' if getattr(sys,'frozen',False) else f'"{os.path.abspath(__file__)}"'
+            ctypes.windll.shell32.ShellExecuteW(None,"runas",sys.executable,args,None,1)
             os._exit(0)
     _kill_remnants()
     if sys.version_info<(3,8): print("Python 3.8+ required"); sys.exit(1)
+    _cf={'creationflags':NOWIN} if sys.platform=='win32' else {}
     for pkg in ['PyQt5','psutil']:
         try: __import__(pkg if pkg=='psutil' else 'PyQt5')
         except ImportError:
-            for f in [[],['--user'],['--break-system-packages']]:
-                try: subprocess.check_call([sys.executable,'-m','pip','install',pkg,'-q']+f,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=NOWIN); break
+            for f in [[],['--user']]:
+                try: subprocess.check_call([sys.executable,'-m','pip','install',pkg,'-q']+f,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,**_cf); break
                 except: continue
 _bootstrap()
 
 import psutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-from PyQt5.QtGui import *, QIcon
+from PyQt5.QtGui import *
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling,True)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps,True)
 
 # ─── Constants ──────────────────────────────────────────────────────────────
-APP="HostsGuard"; VER="3.6.0"; FW_PFX="HG_"
+APP="HostsGuard"; VER="3.7.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
 DB_PATH=os.path.join(CONFIG_DIR,"hostsguard.db")
@@ -227,7 +226,9 @@ def load_cfg():
         with open(CFG_PATH) as f: return json.load(f)
     except: return {}
 def save_cfg(c):
-    with open(CFG_PATH,'w') as f: json.dump(c,f,indent=2)
+    tmp=CFG_PATH+'.tmp'
+    with open(tmp,'w') as f: json.dump(c,f,indent=2)
+    os.replace(tmp,CFG_PATH)
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
 def looks_like_domain(d): return bool(d and '.' in d and DOMAIN_RE.match(d) and not IPV4_RE.match(d) and d not in IGNORED)
@@ -278,12 +279,6 @@ def open_research(d):
     m.addSeparator(); a2=m.addAction(f"  VirusTotal (exact)"); a2.setData(f"https://www.virustotal.com/gui/domain/{d}")
     ch=m.exec_(QCursor.pos())
     if ch and ch.data(): webbrowser.open(ch.data())
-def _ps(cmd,t=20):
-    try:
-        r=subprocess.run(['powershell','-NoProfile','-Command',cmd],capture_output=True,text=True,timeout=t,creationflags=NOWIN)
-        return r.returncode==0,r.stdout.strip()
-    except: return False,""
-
 # ─── LRU Cache ──────────────────────────────────────────────────────────────
 class LRU:
     def __init__(s,cap=5000): s._d=OrderedDict(); s._cap=cap; s._lock=Lock()
@@ -316,14 +311,24 @@ class FWR:
 # ─── FaviconCache ───────────────────────────────────────────────────────────
 class FaviconCache(QObject):
     ready=pyqtSignal(str)
+    _img_ready=pyqtSignal(str,bytes)
     def __init__(s):
         super().__init__(); s._mem={}; s._pending=set(); s._lock=Lock()
+        s._img_ready.connect(s._on_img)
+    def _on_img(s,domain,data):
+        px=QPixmap(); px.loadFromData(data)
+        if not px.isNull():
+            with s._lock: s._mem[domain]=px
+        s.ready.emit(domain)
     def get(s,domain):
-        if domain in s._mem: return s._mem[domain]
+        with s._lock:
+            if domain in s._mem: return s._mem[domain]
         h=hashlib.md5(domain.encode()).hexdigest(); p=os.path.join(FAV_DIR,f"{h}.png")
         if os.path.exists(p):
             px=QPixmap(p)
-            if not px.isNull(): s._mem[domain]=px; return px
+            if not px.isNull():
+                with s._lock: s._mem[domain]=px
+                return px
         with s._lock:
             if domain not in s._pending: s._pending.add(domain); threading.Thread(target=s._fetch,args=(domain,h,p),daemon=True).start()
         return None
@@ -335,12 +340,10 @@ class FaviconCache(QObject):
                 data=resp.read()
                 if len(data)>100:
                     with open(p,'wb') as f: f.write(data)
-                    px=QPixmap(); px.loadFromData(data)
-                    if not px.isNull(): s._mem[domain]=px
+                    s._img_ready.emit(domain,data)
         except: pass
         finally:
             with s._lock: s._pending.discard(domain)
-            s.ready.emit(domain)
 _fav=None
 def _init_fav():
     global _fav
@@ -399,10 +402,16 @@ class DB:
         s._x("UPDATE domains SET status=?,modified=? WHERE domain=?",(st,datetime.datetime.now().isoformat(),d))
         s._blocked_cache=None
     def add_root(s,d,status,source):
-        root=get_root(d); ct=0
-        for r in s._q("SELECT domain FROM feed WHERE domain LIKE ?",(f"%{root}",)):
-            s.add_domain(r[0],status,source); ct+=1
-        s.add_domain(root,status,source); return ct
+        root=get_root(d); now=datetime.datetime.now().isoformat()
+        with s._lock:
+            try:
+                rows=s.conn.execute("SELECT domain FROM feed WHERE domain=? OR domain LIKE ?",(root,f"%.{root}")).fetchall()
+                for r in rows:
+                    s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(r[0],status,'',source,now,now,r[0]))
+                s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(root,status,'',source,now,now,root))
+                s.conn.commit(); s._blocked_cache=None
+            except Exception as e: log.warning(f"add_root: {e}"); return 0
+        return len(rows)+1
     def get_blocked_set(s):
         now=time.time()
         with s._lock:
@@ -443,11 +452,11 @@ class DB:
     def feed_delete(s,d): s._x("DELETE FROM feed WHERE domain=?",(d,))
     def feed_hide_bulk(s,ds): s._x("UPDATE feed SET hidden=1 WHERE domain=?",[(d,) for d in ds],many=True)
     def feed_hide_root(s,d):
-        root=get_root(d); s._x("UPDATE feed SET hidden=1 WHERE domain LIKE ?",(f"%{root}",))
+        root=get_root(d); s._x("UPDATE feed SET hidden=1 WHERE domain=? OR domain LIKE ?",(root,f"%.{root}"))
         now=datetime.datetime.now().isoformat()
         s._x("INSERT OR IGNORE INTO hidden_roots(root,added)VALUES(?,?)",(root,now))
     def feed_unhide_root(s,d):
-        root=get_root(d); s._x("UPDATE feed SET hidden=0 WHERE domain LIKE ?",(f"%{root}",))
+        root=get_root(d); s._x("UPDATE feed SET hidden=0 WHERE domain=? OR domain LIKE ?",(root,f"%.{root}"))
         s._x("DELETE FROM hidden_roots WHERE root=?",(root,))
     def get_hidden_roots(s):
         return {r[0] for r in s._q("SELECT root FROM hidden_roots")}
@@ -491,7 +500,7 @@ class DB:
         if domain_filter: q+=" AND domain LIKE ?"; p.append(f"%{domain_filter}%")
         if action_filter and action_filter!='all': q+=" AND action=?"; p.append(action_filter)
         if since: q+=" AND ts>=?"; p.append(since)
-        return s._q(q+f" ORDER BY ts DESC LIMIT {limit}",p)
+        p.append(limit); return s._q(q+" ORDER BY ts DESC LIMIT ?",p)
     def clear_log(s): s._x("DELETE FROM log")
     def get_stats(s):
         b=s._q("SELECT COUNT(*) FROM domains WHERE status='blocked'"); bl=b[0][0] if b else 0
@@ -516,7 +525,8 @@ class ConnDB:
                 try: s.conn.execute("INSERT OR IGNORE INTO conns(ts,proto,la,lp,ra,rp,host,proc,pid,state,org,country,cc,category)VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (c.ts,c.proto,c.la,c.lp,c.ra,c.rp,c.host,c.proc,c.pid,c.state,c.org,c.country,c.cc,c.category))
                 except: pass
-            s.conn.commit()
+            try: s.conn.commit()
+            except Exception as e: log.warning(f"ConnDB commit: {e}")
     def search(s,q='',limit=500,offset=0):
         with s._lock:
             sql="SELECT ts,proto,la,lp,ra,rp,host,proc,pid,state,org,country,cc,category FROM conns"
@@ -542,7 +552,6 @@ class ConnDB:
 class PersistentPS:
     """Keep a single PowerShell process alive — send commands via stdin, read stdout.
     Eliminates ~200ms process-spawn overhead per command."""
-    _DELIM="---HG_END---"
     def __init__(s):
         s._proc=None; s._lock=Lock(); s._alive=False
     def _ensure(s):
@@ -550,24 +559,34 @@ class PersistentPS:
         try:
             s._proc=subprocess.Popen(
                 ['powershell','-NoProfile','-NoLogo','-NonInteractive','-Command','-'],
-                stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
                 text=True,creationflags=NOWIN,bufsize=1)
             s._alive=True; return True
         except: s._alive=False; return False
     def run(s,cmd,timeout=20):
+        delim=f"---HG_END_{uuid.uuid4().hex[:8]}---"
         with s._lock:
             if not s._ensure(): return False,""
             try:
-                full=f"{cmd}\nWrite-Output '{s._DELIM}'\n"
+                full=f"{cmd}\nWrite-Output '{delim}'\n"
                 s._proc.stdin.write(full); s._proc.stdin.flush()
-                lines=[]; deadline=time.time()+timeout
-                while time.time()<deadline:
-                    line=s._proc.stdout.readline()
-                    if not line: break
-                    line=line.rstrip('\n\r')
-                    if line==s._DELIM: break
-                    lines.append(line)
-                return True,'\n'.join(lines)
+                lines=[]; matched=False; result=[None]
+                def _reader():
+                    try:
+                        while True:
+                            line=s._proc.stdout.readline()
+                            if not line: break
+                            line=line.rstrip('\n\r')
+                            if line==delim: result[0]=True; break
+                            lines.append(line)
+                    except: pass
+                t=threading.Thread(target=_reader,daemon=True); t.start(); t.join(timeout)
+                if result[0]:
+                    return True,'\n'.join(lines)
+                s._alive=False
+                try: s._proc.kill()
+                except: pass
+                return False,'\n'.join(lines)
             except:
                 s._alive=False; return False,""
     def close(s):
@@ -589,6 +608,10 @@ def _ps(cmd,t=20):
         return r.returncode==0,r.stdout.strip()
     except: return False,""
 
+def _ps_esc(v):
+    """Escape a value for safe PowerShell single-quote interpolation."""
+    return "'" + str(v).replace("'","''") + "'"
+
 # ─── Firewall Engine (background-loadable) ──────────────────────────────────
 class FWEngine:
     def __init__(s): s._cache=[]; s._lock=Lock(); s._ts=0; s._ttl=180; s._loading=False; s._db=None
@@ -607,23 +630,27 @@ class FWEngine:
     def exists(s,name):
         with s._lock:
             if s._cache: return any(r.name==name for r in s._cache)
-        ok,out=_ps(f'(Get-NetFirewallRule -DisplayName "{name}" -EA SilentlyContinue) -ne $null',8)
+        ok,out=_ps(f'(Get-NetFirewallRule -DisplayName {_ps_esc(name)} -EA SilentlyContinue) -ne $null',8)
         return ok and out.strip().lower()=="true"
     def create(s,name,direction="Outbound",action="Block",remote_addr="",protocol="",program="",desc=""):
-        p=[f'New-NetFirewallRule -DisplayName "{name}" -Direction {direction} -Action {action} -Enabled True -Profile Any']
-        if remote_addr and remote_addr not in ("*","Any"): p.append(f'-RemoteAddress "{remote_addr}"')
-        if protocol and protocol not in ("","Any"): p.append(f'-Protocol {protocol}')
-        if program: p.append(f'-Program "{program}"')
-        if desc: p.append(f'-Description "{desc}"')
+        if direction not in ("Outbound","Inbound"): direction="Outbound"
+        if action not in ("Block","Allow"): action="Block"
+        p=[f'New-NetFirewallRule -DisplayName {_ps_esc(name)} -Direction {direction} -Action {action} -Enabled True -Profile Any']
+        if remote_addr and remote_addr not in ("*","Any"): p.append(f'-RemoteAddress {_ps_esc(remote_addr)}')
+        if protocol and protocol not in ("","Any"): p.append(f'-Protocol {_ps_esc(protocol)}')
+        if program: p.append(f'-Program {_ps_esc(program)}')
+        if desc: p.append(f'-Description {_ps_esc(desc)}')
         ok,_=_ps(' '.join(p),15); s._inv()
         if ok: s._track(name,direction,action,remote_addr,protocol,program)
         return ok
-    def delete(s,name): ok,_=_ps(f'Remove-NetFirewallRule -DisplayName "{name}" -EA SilentlyContinue',10); s._inv(); s._untrack(name); return ok
-    def enable(s,name,on=True): _ps(f'{"Enable" if on else "Disable"}-NetFirewallRule -DisplayName "{name}" -EA SilentlyContinue',10); s._inv()
+    def delete(s,name): ok,_=_ps(f'Remove-NetFirewallRule -DisplayName {_ps_esc(name)} -EA SilentlyContinue',10); s._inv(); s._untrack(name); return ok
+    def enable(s,name,on=True): _ps(f'{"Enable" if on else "Disable"}-NetFirewallRule -DisplayName {_ps_esc(name)} -EA SilentlyContinue',10); s._inv()
     def set_action(s,name,action):
-        """Change rule action to Block or Allow."""
-        _ps(f'Set-NetFirewallRule -DisplayName "{name}" -Action {action} -EA SilentlyContinue',10); s._inv()
+        if action not in ("Block","Allow"): return
+        _ps(f'Set-NetFirewallRule -DisplayName {_ps_esc(name)} -Action {action} -EA SilentlyContinue',10); s._inv()
     def block_ip(s,ip,direction="Outbound"):
+        try: ipaddress.ip_address(ip)
+        except ValueError: log.warning(f"Invalid IP for FW rule: {ip}"); return None
         name=f"{FW_PFX}Block_{ip.replace('.','_')}_{direction[:2]}"
         if not s.exists(name):
             s.create(name,direction,"Block",remote_addr=ip,desc=f"HostsGuard {datetime.datetime.now():%Y-%m-%d %H:%M}")
@@ -678,6 +705,9 @@ class FWEngine:
         return s.load_all()
     def get_cached(s):
         with s._lock: return list(s._cache)
+    def set_cache(s,rules):
+        with s._lock: s._cache=rules; s._ts=time.time()
+        s._loading=False
     def get_profiles(s):
         ok,out=_ps("Get-NetFirewallProfile|Select Name,Enabled|ConvertTo-Json -Compress",10)
         if ok and out:
@@ -713,6 +743,7 @@ class HostsMgr:
         with s._lock: return list(s._lines)
     def block(s,d,flush=True):
         d=d.lower().strip()
+        if not looks_like_domain(d): return False
         with s._lock:
             if d in s._blocked: return False
             try:
@@ -721,12 +752,13 @@ class HostsMgr:
             except Exception as e: log.warning(f"Hosts block {d}: {e}"); return False
         if flush: s._flush(); return True
     def block_bulk(s,domains,flush=True):
-        new=[d.lower().strip() for d in domains if d.lower().strip() not in s._blocked and looks_like_domain(d.lower().strip())]
-        if not new: return 0
         with s._lock:
+            new=[d.lower().strip() for d in domains if d.lower().strip() not in s._blocked and looks_like_domain(d.lower().strip())]
+            if not new: return 0
             try:
-                with open(HOSTS_PATH,'a',encoding='utf-8') as f:
-                    for d in new: f.write(f"0.0.0.0 {d}\n"); s._blocked.add(d); s._lines.append(f"0.0.0.0 {d}\n")
+                payload=''.join(f"0.0.0.0 {d}\n" for d in new)
+                with open(HOSTS_PATH,'a',encoding='utf-8') as f: f.write(payload)
+                for d in new: s._blocked.add(d); s._lines.append(f"0.0.0.0 {d}\n")
             except Exception as e: log.warning(f"Hosts block_bulk: {e}"); return 0
         if flush: s._flush(); return len(new)
     def unblock(s,d,flush=True):
@@ -738,7 +770,7 @@ class HostsMgr:
                 if not line or line.startswith('#'):
                     new.append(l); continue
                 parts=line.split()
-                if len(parts)>=2 and parts[1].lower().strip()==d:
+                if len(parts)>=2 and d in [p.lower().strip() for p in parts[1:]]:
                     continue
                 new.append(l)
             try:
@@ -747,13 +779,14 @@ class HostsMgr:
             except Exception as e: log.warning(f"Hosts unblock {d}: {e}"); return False
         if flush: s._flush(); return True
     def save_raw(s,text):
+        s.backup()
         with s._lock:
             s._suppress_watcher=True
             try:
                 with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write(text)
-                # Re-parse in-memory (reentrant lock, so read() is safe here)
                 s.read()
             except Exception as e: s._suppress_watcher=False; return str(e)
+            finally: s._suppress_watcher=False
         s._flush(); return None
     def save_clean(s,wl=None):
         with s._lock:
@@ -763,6 +796,7 @@ class HostsMgr:
                 with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write('\n'.join(cleaned)+'\n')
                 s.read()
             except Exception as e: s._suppress_watcher=False; return None,str(e)
+            finally: s._suppress_watcher=False
         s._flush(); return stats,None
     def backup(s):
         ts=datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -779,7 +813,8 @@ class HostsMgr:
             try:
                 shutil.copy2(path,HOSTS_PATH)
                 s.read()
-            except: s._suppress_watcher=False; return False
+            except: return False
+            finally: s._suppress_watcher=False
         s._flush(); return True
     def _flush(s):
         if sys.platform=='win32': subprocess.Popen(['ipconfig','/flushdns'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=NOWIN)
@@ -789,17 +824,20 @@ class HostsMgr:
             try:
                 with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write('\n'.join(WINDOWS_HEADER)+'\n')
                 s.read()
-            except: s._suppress_watcher=False; return False
+            except: return False
+            finally: s._suppress_watcher=False
         s._flush(); return True
 
 # ─── Bandwidth ──────────────────────────────────────────────────────────────
 class BWTracker:
-    def __init__(s): io=psutil.net_io_counters(); s._s,s._r,s._t=io.bytes_sent,io.bytes_recv,time.time(); s._us,s._ds=0,0
+    def __init__(s): io=psutil.net_io_counters(); s._s,s._r,s._t=io.bytes_sent,io.bytes_recv,time.time(); s._us,s._ds=0,0; s._lock=Lock()
     def update(s):
         io=psutil.net_io_counters(); n=time.time(); dt=max(n-s._t,0.1)
-        s._us=(io.bytes_sent-s._s)/dt; s._ds=(io.bytes_recv-s._r)/dt
-        s._s,s._r,s._t=io.bytes_sent,io.bytes_recv,n
-    def rates(s): return s._us,s._ds
+        with s._lock:
+            s._us=(io.bytes_sent-s._s)/dt; s._ds=(io.bytes_recv-s._r)/dt
+            s._s,s._r,s._t=io.bytes_sent,io.bytes_recv,n
+    def rates(s):
+        with s._lock: return s._us,s._ds
     @staticmethod
     def fmt(r):
         if r<1024: return f"{r:.0f} B/s"
@@ -819,13 +857,13 @@ class DNSResolveWorker(QThread):
                 ip=s._q.get(timeout=1)
                 if ip in dns_c: continue
                 try: host=socket.gethostbyaddr(ip)[0]; dns_c.put(ip,host); s.resolved.emit(ip,host)
-                except: dns_c.put(ip,'')
+                except (socket.herror,socket.gaierror,OSError): dns_c.put(ip,'')
             except Empty: pass
     def stop(s): s._stop.set()
 
 class GeoWorker(QThread):
     resolved=pyqtSignal(str,str,str)
-    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock()
+    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2
     def add(s,ip):
         if ip not in geo_c:
             with s._lock:
@@ -836,17 +874,26 @@ class GeoWorker(QThread):
             with s._lock:
                 if s._batch: batch,s._batch=s._batch[:100],s._batch[100:]
             if batch:
+                batch_set=set(batch)
                 try:
                     data=json.dumps([{"query":ip} for ip in batch]).encode()
-                    req=urllib.request.Request("http://ip-api.com/batch?fields=query,country,countryCode",data=data,
-                        headers={'Content-Type':'application/json','User-Agent':'HostsGuard/3.1'})
+                    req=urllib.request.Request("https://pro.ip-api.com/batch?fields=query,country,countryCode",data=data,
+                        headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
                     with urllib.request.urlopen(req,timeout=10) as resp:
                         for item in json.loads(resp.read()):
-                            if item.get("countryCode"):
-                                geo_c.put(item["query"],(item["countryCode"],item["country"]))
-                                s.resolved.emit(item["query"],item["countryCode"],item["country"])
-                except: pass
-            s._stop.wait(2)
+                            q=item.get("query","")
+                            if q in batch_set and item.get("countryCode"):
+                                geo_c.put(q,(item["countryCode"],item["country"]))
+                                s.resolved.emit(q,item["countryCode"],item["country"])
+                    s._backoff=2
+                except urllib.error.HTTPError as e:
+                    if e.code==429:
+                        s._backoff=min(s._backoff*2,60)
+                        log.warning(f"GeoIP rate-limited, backing off {s._backoff}s")
+                    with s._lock: s._batch=batch+s._batch
+                except Exception:
+                    with s._lock: s._batch=batch+s._batch
+            s._stop.wait(s._backoff)
     def stop(s): s._stop.set()
 
 class DNSMonitor(QThread):
@@ -855,15 +902,18 @@ class DNSMonitor(QThread):
     status=pyqtSignal(str); updated=pyqtSignal()
     CMD='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
     def __init__(s,hm,db):
-        super().__init__(); s.hm,s.db=hm,db; s.running=False
-        # Pre-populate _seen with hidden domains so they never resurface
-        s._seen=s.db.get_hidden_set()
+        super().__init__(); s.hm,s.db=hm,db; s.running=False; s._scan_lock=Lock()
+        s._seen=OrderedDict.fromkeys(s.db.get_hidden_set())
     def run(s):
         s.running=True; s.status.emit("Monitoring")
         if sys.platform!='win32': s.status.emit("Requires Windows"); return
         s._scan(); s.updated.emit()
         while s.running: s._scan(); time.sleep(3)
     def _scan(s):
+        if not s._scan_lock.acquire(blocking=False): return
+        try: s._do_scan()
+        finally: s._scan_lock.release()
+    def _do_scan(s):
         blocked=s.db.get_blocked_set()
         try:
             ok,out=_pps.run(s.CMD,12)
@@ -877,8 +927,8 @@ class DNSMonitor(QThread):
                 is_new=s.db.feed_upsert(d)
                 if is_new: ct+=1
                 if d not in s._seen:
-                    s._seen.add(d)
-                    if is_new:  # Only emit events for domains that were actually inserted as visible
+                    s._seen[d]=True
+                    if is_new:
                         ev={'domain':d,'ts':datetime.datetime.now().isoformat()}
                         s.dns_event.emit(ev)
                         if d in blocked:
@@ -886,12 +936,15 @@ class DNSMonitor(QThread):
                             s.blocked_event.emit(ev)
             if ct>0: s.updated.emit()
             if len(s._seen)>10000:
-                hidden=s.db.get_hidden_set()  # Always preserve hidden
-                trimmed=set(list(s._seen)[-2000:])
-                s._seen=trimmed|hidden
+                hidden=s.db.get_hidden_set()
+                keep=OrderedDict()
+                for k in hidden: keep[k]=True
+                items=list(s._seen.items())
+                for k,v in items[-2000:]: keep[k]=True
+                s._seen=keep
         except Exception as e: log.debug(f"DNS scan: {e}")
     def manual_scan(s):
-        if s.running: threading.Thread(target=s._scan,daemon=True).start()
+        if s.running: QTimer.singleShot(0,s._scan)
     def stop(s): s.running=False
 
 class ConnWorker(QThread):
@@ -905,7 +958,9 @@ class ConnWorker(QThread):
     def _scan(s):
         out=[]; now=datetime.datetime.now().strftime("%H:%M:%S")
         blocked=s._db.get_blocked_set()
-        for c in psutil.net_connections(kind='all'):
+        try: conns=psutil.net_connections(kind='all')
+        except psutil.AccessDenied: return out
+        for c in conns:
             try:
                 proto="TCP" if c.type==socket.SOCK_STREAM else "UDP"
                 la=c.laddr.ip if c.laddr else ""; lp=str(c.laddr.port) if c.laddr else ""
@@ -1011,9 +1066,7 @@ class FWLoadWorker(QThread):
                             source="hostsguard" if n.startswith(FW_PFX) else "system"))
                     except: continue
         except: pass
-        # Update FW engine cache
-        with fw._lock: fw._cache=rules; fw._ts=time.time()
-        fw._loading=False
+        fw.set_cache(rules)
         # Track existing HG rules in DB (if DB wired)
         if fw._db:
             for r in rules:
@@ -1270,7 +1323,9 @@ class LearnPopup(QDialog):
         lo.addLayout(br)
         QTimer.singleShot(0,s._pos)
     def _pos(s):
-        scr=QApplication.primaryScreen()
+        scr=None
+        if s.parent(): scr=s.parent().screen() or QApplication.primaryScreen()
+        else: scr=QApplication.primaryScreen()
         if scr: g=scr.availableGeometry(); s.move(g.right()-s.width()-_dp(16),g.bottom()-s.height()-_dp(16))
     def _a(s,a): s.result_action=a; s.accept()
 
@@ -1333,7 +1388,7 @@ class HostsActivityTab(QWidget):
         show_hidden=f=="Hidden"
         sf={'Blocked':'blocked','Allowed':'whitelisted','Unmanaged':'unmanaged'}.get(f,None)
         rows=s.db.feed_get(search=q,show_hidden=show_hidden,status_filter=sf)
-        h=hash(tuple((m[0],m[3],m[6]) for m in rows[:300]))
+        h=hash(tuple((m[0],m[2],m[3],m[4],m[5],m[6]) for m in rows))
         if h==s._last_hash: s._overlay.hide_loading(); return
         s._last_hash=h
         saved=s._sel_domain()
@@ -1398,7 +1453,7 @@ class HostsActivityTab(QWidget):
         s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d}",C['green'])
     def _act_allow_root(s,d):
-        root=get_root(d); s.db.add_root(d,'whitelisted','manual'); s.hm.unblock(root)
+        root=get_root(d); s.db.add_root(d,'whitelisted','manual'); s.hm.unblock(root); s.db.log_event(root,'whitelisted','','Allowed root')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {root}",C['green'])
     def _act_hide(s,d):
         s.db.feed_hide(d)
@@ -1486,17 +1541,19 @@ class FWActivityTab(QWidget):
             s._rebuild_fw_cache(); conns=[c for c in conns if c.ra in s._fw_blocked_ips]
         elif f=="Outbound": conns=[c for c in conns if c.dir=="Out"]
         elif f=="Inbound/Listen": conns=[c for c in conns if c.dir!="Out"]
-        h=hash(tuple(c.key for c in conns[:200]))
+        h=hash(tuple(c.key for c in conns))
         if h==s._last_hash: s._overlay.hide_loading(); return
-        s._last_hash=h
+        s._last_hash=h; s._filtered_conns=conns
         saved=s._sel_domain()
         s._rebuild_fw_cache(); blocked_hosts=s.db.get_blocked_set()
-        s.tbl.setSortingEnabled(False); s.tbl.setRowCount(len(conns))
+        vscroll=s.tbl.verticalScrollBar().value()
+        s.tbl.setUpdatesEnabled(False); s.tbl.setSortingEnabled(False); s.tbl.setRowCount(len(conns))
         for i,c in enumerate(conns):
             host=c.host if c.host not in ('-','') else c.ra
             _icon_item(s.tbl,i,0,host,c.host if c.host not in ('-','') else None)
             s.tbl.setItem(i,1,QTableWidgetItem(f"{c.proc} ({c.pid})"))
-            s.tbl.setItem(i,2,QTableWidgetItem(c.rp))
+            it_port=QTableWidgetItem(); it_port.setData(Qt.DisplayRole,int(c.rp) if c.rp.isdigit() else 0); it_port.setText(c.rp)
+            s.tbl.setItem(i,2,it_port)
             f_blocked=c.ra in s._fw_blocked_ips
             h_blocked=c.host in blocked_hosts if c.host not in ('-','') else False
             if f_blocked: s.tbl.setCellWidget(i,3,_pill("FW BLOCK",C['mauve']))
@@ -1508,7 +1565,8 @@ class FWActivityTab(QWidget):
                 for col in [0,1,2,4,5]:
                     it=s.tbl.item(i,col)
                     if it: it.setBackground(QColor(247,118,142,10))
-        s.tbl.setSortingEnabled(True); s._restore_sel(saved)
+        s.tbl.setSortingEnabled(True); s.tbl.setUpdatesEnabled(True)
+        s._restore_sel(saved); s.tbl.verticalScrollBar().setValue(vscroll)
         s.info.setText(f"{len(conns)} connections")
         s._overlay.hide_loading()
     def update_conns(s,conns):
@@ -1532,12 +1590,20 @@ class FWActivityTab(QWidget):
         if a=='trust': s.learn.trust(ci.proc); s._toast(f"Trusted {ci.proc}",C['green'])
         elif a=='untrust': s.learn.untrust(ci.proc); s._toast(f"Untrusted {ci.proc}",C['red'])
         elif a=='details': s._open_detail(ci)
+    def _get_conn_at_row(s,row):
+        if row<0: return None
+        it=s.tbl.item(row,0)
+        if not it: return None
+        display=it.text()
+        fc=getattr(s,'_filtered_conns',[])
+        for c in fc:
+            host=c.host if c.host not in ('-','') else c.ra
+            if host==display: return c
+        return None
     def _ctx(s,pos):
-        q=s.search.text().strip().lower(); conns=list(s._conns)
-        if q: conns=[c for c in conns if q in c.host.lower() or q in c.proc.lower() or q in c.ra.lower() or q in c.category.lower()]
-        row=s.tbl.currentRow()
-        if row<0 or row>=len(conns): return
-        c=conns[row]; m=QMenu(s); m.setStyleSheet(CTX)
+        row=s.tbl.currentRow(); c=s._get_conn_at_row(row)
+        if not c: return
+        m=QMenu(s); m.setStyleSheet(CTX)
         m.addAction("\u2139 Connection Details...").triggered.connect(lambda:s._open_detail(c))
         m.addSeparator()
         hm=m.addMenu("Hosts File"); hm.setStyleSheet(CTX)
@@ -1563,9 +1629,8 @@ class FWActivityTab(QWidget):
         m.addAction("Copy IP").triggered.connect(lambda:QApplication.clipboard().setText(c.ra))
         m.exec_(s.tbl.viewport().mapToGlobal(pos))
     def _dbl(s,idx):
-        q=s.search.text().strip().lower(); conns=list(s._conns)
-        if q: conns=[c for c in conns if q in c.host.lower() or q in c.proc.lower() or q in c.ra.lower() or q in c.category.lower()]
-        if 0<=idx.row()<len(conns): s._open_detail(conns[idx.row()])
+        c=s._get_conn_at_row(idx.row())
+        if c: s._open_detail(c)
     def _open_detail(s,ci):
         dlg=ConnDetailDlg(ci,s.db,s.hm,s.learn,s)
         if dlg.exec_()==QDialog.Accepted and dlg.result_action:
@@ -1582,10 +1647,10 @@ class FWActivityTab(QWidget):
         s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s.db.log_event(d,'blocked','','Hosts block')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {d}",C['red'])
     def _act_block_root(s,d):
-        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root)
+        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root); s.db.log_event(root,'blocked','','Hosts block root')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {root}",C['red'])
     def _act_allow(s,d):
-        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d)
+        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d}",C['green'])
     # Actions — Firewall
     def _fw_ip(s,ip):
@@ -1743,8 +1808,12 @@ class HostsTab(QWidget):
         new='whitelisted' if cur=='blocked' else 'blocked'; s.db.update_status(d,new)
         (s.hm.block if new=='blocked' else s.hm.unblock)(d); s._load_d(); s._toast(f"{'Blocked' if new=='blocked' else 'Allowed'} {d}",C['red'] if new=='blocked' else C['green'])
     def _tog_multi(s,ds):
+        ct=0
         for d in ds:
-            cur=s.db.get_domains(search=d); st=cur[0][1] if cur else 'blocked'; s._tog(d,st)
+            cur=s.db._q("SELECT status FROM domains WHERE domain=?",(d,)); st=cur[0][0] if cur else 'blocked'
+            new='whitelisted' if st=='blocked' else 'blocked'; s.db.update_status(d,new)
+            (s.hm.block if new=='blocked' else s.hm.unblock)(d,flush=False); ct+=1
+        s.hm._flush(); s._load_d(); s._toast(f"Toggled {ct} domains",C['blue'])
     def _del(s,d): s.db.remove_domain(d); s.hm.unblock(d); s._load_d()
     def _del_multi(s,ds):
         for d in ds: s.db.remove_domain(d); s.hm.unblock(d)
@@ -2015,15 +2084,19 @@ class FirewallTab(QWidget):
         s._rules.append(r)
         with fw._lock: fw._cache.append(r); fw._ts=time.time()
         s._apply()
-    def _profiles(s): _ps("Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True",10); s._toast("Enabled all profiles",C['green'])
+    def _profiles(s):
+        ok,_=_ps("Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True",10)
+        s._toast("Enabled all profiles" if ok else "Failed to enable profiles",C['green'] if ok else C['red'])
     def _del_all_hg(s):
         hg=[r.name for r in s._rules if r.source=="hostsguard" and r.name]
-        for n in hg:
-            try: fw.delete(n)
-            except: pass
-        s._rules=[r for r in s._rules if r.source!="hostsguard"]
-        with fw._lock: fw._cache=[r for r in fw._cache if r.source!="hostsguard"]; fw._ts=time.time()
-        s._apply(); s._toast(f"Deleted {len(hg)} HG rules",C['red'])
+        if not hg: s._toast("No HG rules to delete",C['dim']); return
+        if QMessageBox.question(s,"Delete All HG Rules",f"Delete {len(hg)} HostsGuard firewall rules?",QMessageBox.Yes|QMessageBox.No)!=QMessageBox.Yes: return
+        def _bg():
+            for n in hg:
+                try: fw.delete(n)
+                except: pass
+            QTimer.singleShot(0,lambda:(setattr(s,'_rules',[r for r in s._rules if r.source!="hostsguard"]),fw.set_cache([r for r in fw.get_cached() if r.source!="hostsguard"]),s._apply(),s._toast(f"Deleted {len(hg)} HG rules",C['red'])))
+        threading.Thread(target=_bg,daemon=True).start()
     def _toggle_local(s,name,enabled):
         for r in s._rules:
             if r.name==name: r.enabled=enabled; break
@@ -2117,16 +2190,29 @@ class ToolsTab(QWidget):
             ai=QTableWidgetItem(action or ""); ai.setForeground(QColor({'blocked':C['red'],'whitelisted':C['green'],'fw_blocked':C['mauve']}.get(action,C['dim'])))
             s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,4,QTableWidgetItem(det or ""))
         s.log_tbl.setSortingEnabled(True)
-    def _flush(s): subprocess.Popen(['ipconfig','/flushdns'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,creationflags=NOWIN); s._toast("DNS flushed",C['green'])
-    def _winsock(s): threading.Thread(target=lambda:_ps("netsh winsock reset",10),daemon=True).start(); s._toast("Winsock reset (reboot needed)",C['green'])
-    def _renew(s): threading.Thread(target=lambda:_ps("ipconfig /release && ipconfig /renew",15),daemon=True).start(); s._toast("Renewing...",C['blue'])
+    def _flush(s): ok,_=_ps("ipconfig /flushdns",5); s._toast("DNS flushed" if ok else "DNS flush failed",C['green'] if ok else C['red'])
+    def _winsock(s):
+        def _bg():
+            ok,_=_ps("netsh winsock reset",10)
+            QTimer.singleShot(0,lambda:s._toast("Winsock reset (reboot needed)" if ok else "Winsock reset failed",C['green'] if ok else C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
+    def _renew(s):
+        s._toast("Renewing...",C['blue'])
+        def _bg():
+            ok,_=_ps("ipconfig /release && ipconfig /renew",15)
+            QTimer.singleShot(0,lambda:s._toast("IP renewed" if ok else "Renew failed",C['green'] if ok else C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
     def _export(s):
         data={'version':VER,'schema':SCHEMA_VER,'domains':[{'domain':r[0],'status':r[1],'source':r[3]} for r in s.db.get_domains()],
             'fw_rules':[r.name for r in fw.get_cached() if r.source=='hostsguard'],
             'fw_state':[{'name':r[0],'direction':r[1],'action':r[2],'remote_addr':r[3],'protocol':r[4],'program':r[5]} for r in s.db.get_fw_state()],
             'trusted':list(s.learn._trusted),'untrusted':list(s.learn._untrusted)}
         p=os.path.join(CONFIG_DIR,f"hg_export_{datetime.datetime.now():%Y%m%d_%H%M}.json")
-        with open(p,'w') as f: json.dump(data,f,indent=2); s._toast(f"Exported: {Path(p).name}",C['green'])
+        tmp=p+'.tmp'
+        try:
+            with open(tmp,'w') as f: json.dump(data,f,indent=2)
+            os.replace(tmp,p); s._toast(f"Exported: {Path(p).name}",C['green'])
+        except Exception as e: s._toast(f"Export failed: {e}",C['red'])
     def _import(s):
         p,_=QFileDialog.getOpenFileName(s,"Import","","JSON (*.json)")
         if not p: return
@@ -2273,6 +2359,9 @@ class MainWindow(QMainWindow):
         d=ev.get('domain',''); now=time.time()
         if d in s._notif_cd and now-s._notif_cd[d]<60: return
         s._notif_cd[d]=now
+        if len(s._notif_cd)>5000:
+            cutoff=now-60
+            s._notif_cd={k:v for k,v in s._notif_cd.items() if v>cutoff}
         s._tray.showMessage(APP,f"Blocked: {d}",QSystemTrayIcon.Warning,2000)
 
     def _toggle_mute(s):
@@ -2344,10 +2433,13 @@ class MainWindow(QMainWindow):
 
     def _quit(s):
         try:
-            if s._dns_mon: s._dns_mon.stop()
-            if s._conn_w: s._conn_w.stop()
-            if s._watcher: s._watcher.stop()
-            s._dns_w.stop(); s._geo_w.stop()
+            workers=[]
+            if s._dns_mon: s._dns_mon.stop(); workers.append(s._dns_mon)
+            if s._conn_w: s._conn_w.stop(); workers.append(s._conn_w)
+            if s._watcher: s._watcher.stop(); workers.append(s._watcher)
+            s._dns_w.stop(); workers.append(s._dns_w)
+            s._geo_w.stop(); workers.append(s._geo_w)
+            for w in workers: w.wait(3000)
             _pps.close()
         except: pass
         QApplication.quit()
@@ -2407,4 +2499,6 @@ def main():
         except: pass
         print(f"CRASH: {e}\n{tb}",file=sys.stderr); sys.exit(1)
 
-if __name__=="__main__": main()
+if __name__=="__main__":
+    multiprocessing.freeze_support()
+    main()
