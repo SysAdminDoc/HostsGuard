@@ -261,15 +261,20 @@ def save_cfg(c):
     with open(tmp,'w') as f: json.dump(c,f,indent=2)
     os.replace(tmp,CFG_PATH)
 
+_evt_src_ok=False
 def _evt_log(msg,level='Warning'):
     """Write structured event to Windows Application event log."""
+    global _evt_src_ok
     if sys.platform!='win32': return
     try:
         evt_json=json.dumps({'app':APP,'ver':VER,'ts':datetime.datetime.now().isoformat(),'msg':msg},ensure_ascii=False)
         esc_msg="'"+evt_json.replace("'","''")+"'"
         esc_src="'"+APP.replace("'","''")+"'"
-        cmd=f"Write-EventLog -LogName Application -Source {esc_src} -EventId 1000 -EntryType {level} -Message {esc_msg}"
+        # Write-EventLog fails silently if the source was never registered — create it once.
+        pre="" if _evt_src_ok else f"try{{if(-not [System.Diagnostics.EventLog]::SourceExists({esc_src})){{New-EventLog -LogName Application -Source {esc_src}}}}}catch{{}};"
+        cmd=pre+f"Write-EventLog -LogName Application -Source {esc_src} -EventId 1000 -EntryType {level} -Message {esc_msg}"
         subprocess.run(['powershell','-NoProfile','-Command',cmd],capture_output=True,timeout=5,creationflags=NOWIN)
+        _evt_src_ok=True
     except Exception: pass
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
@@ -564,6 +569,28 @@ class DB:
                     s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process)VALUES(?,?,?,1,?)",(d,now,now,proc))
                 s.conn.commit(); return r is None
             except Exception as e: log.warning(f"feed_upsert {d}: {e}"); return False
+    def feed_upsert_batch(s,domains):
+        """Upsert a whole DNS-cache scan in ONE transaction (a scan can carry
+        hundreds of entries; per-domain commits caused constant WAL fsync churn).
+        Returns the list of brand-new, non-hidden domains."""
+        if not domains: return []
+        now=datetime.datetime.now().isoformat(); new=[]
+        with s._lock:
+            try:
+                hidden_roots={r[0] for r in s.conn.execute("SELECT root FROM hidden_roots").fetchall()}
+                for d in domains:
+                    r=s.conn.execute("SELECT hidden FROM feed WHERE domain=?",(d,)).fetchone()
+                    if r:
+                        if r[0]==1: continue
+                        s.conn.execute("UPDATE feed SET last_seen=?,hits=hits+1 WHERE domain=?",(now,d))
+                    elif get_root(d) in hidden_roots:
+                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden)VALUES(?,?,?,1,'',1)",(d,now,now))
+                    else:
+                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process)VALUES(?,?,?,1,'')",(d,now,now))
+                        new.append(d)
+                s.conn.commit()
+            except Exception as e: log.warning(f"feed_upsert_batch: {e}")
+        return new
     def feed_get(s,search=None,show_hidden=False,status_filter=None):
         q="""SELECT f.domain,f.first_seen,f.last_seen,f.hits,f.process,f.hidden,
             COALESCE(d.status,'unmanaged'),d.source FROM feed f LEFT JOIN domains d ON f.domain=d.domain WHERE 1=1"""
@@ -628,6 +655,8 @@ class DB:
         if since: q+=" AND ts>=?"; p.append(since)
         p.append(limit); return s._q(q+" ORDER BY ts DESC LIMIT ?",p)
     def clear_log(s): s._x("DELETE FROM log")
+    def prune_log(s,keep=20000):
+        s._x("DELETE FROM log WHERE id NOT IN (SELECT id FROM log ORDER BY id DESC LIMIT ?)",(keep,))
     def get_stats(s):
         b=s._q("SELECT COUNT(*) FROM domains WHERE status='blocked'"); bl=b[0][0] if b else 0
         w=s._q("SELECT COUNT(*) FROM domains WHERE status='whitelisted'"); wl=w[0][0] if w else 0
@@ -663,17 +692,9 @@ class ConnDB:
             p=[]
             if q: sql+=" WHERE host LIKE ? OR proc LIKE ? OR ra LIKE ?"; p=[f"%{q}%"]*3
             return s.conn.execute(sql+" ORDER BY ts DESC LIMIT ? OFFSET ?",[*p,limit,offset]).fetchall()
-    def get_stats(s):
-        with s._lock:
-            t=s.conn.execute("SELECT COUNT(*) FROM conns").fetchone()[0]
-            today=datetime.datetime.now().strftime('%Y-%m-%d')
-            b=s.conn.execute("SELECT COUNT(*) FROM conns WHERE ts>=?",(today,)).fetchone()[0]
-            return {'total':t,'blocked':b}
     def prune(s,days=30):
         cut=(datetime.datetime.now()-datetime.timedelta(days=days)).isoformat()
         with s._lock: s.conn.execute("DELETE FROM conns WHERE ts<?",(cut,)); s.conn.commit()
-    def count(s):
-        with s._lock: return s.conn.execute("SELECT COUNT(*) FROM conns").fetchone()[0]
 
 
 # ─── Firewall Engine ────────────────────────────────────────────────────────
@@ -1203,21 +1224,21 @@ class DNSMonitor(QThread):
             if not ok or not out.strip(): return
             data=json.loads(out)
             if isinstance(data,dict): data=[data]
-            ct=0
+            domains=[]
             for e in data:
                 d=(e.get('Entry') or e.get('RecordName') or '').lower().strip().rstrip('.')
                 if not d or d in IGNORED or '.' not in d: continue
-                is_new=s.db.feed_upsert(d)
-                if is_new: ct+=1
-                if d not in s._seen:
-                    s._seen[d]=True
-                    if is_new:
-                        ev={'domain':d,'ts':datetime.datetime.now().isoformat()}
-                        s.dns_event.emit(ev)
-                        if d in blocked:
-                            s.db.log_event(d,'blocked','','Blocked by hosts')
-                            s.blocked_event.emit(ev)
-            if ct>0: s.updated.emit()
+                domains.append(d)
+            new=s.db.feed_upsert_batch(domains)
+            fresh=[d for d in new if d not in s._seen]
+            for d in domains: s._seen[d]=True
+            for d in fresh:
+                ev={'domain':d,'ts':datetime.datetime.now().isoformat()}
+                s.dns_event.emit(ev)
+                if d in blocked:
+                    s.db.log_event(d,'blocked','','Blocked by hosts')
+                    s.blocked_event.emit(ev)
+            if new: s.updated.emit()
             s._trim_seen()
         except Exception as e: log.debug(f"DNS scan: {e}")
     def manual_scan(s):
@@ -1259,7 +1280,9 @@ class ConnWorker(QThread):
             except Exception as e: log.debug(f"ConnWorker scan: {e}")
             s._stop.wait(2.0)
     def _scan(s):
-        out=[]; now=datetime.datetime.now().strftime("%H:%M:%S")
+        # Full ISO timestamp — time-of-day-only values broke history pruning,
+        # cross-day ordering, and made the UNIQUE index collide across days.
+        out=[]; now=datetime.datetime.now().isoformat(timespec='seconds')
         blocked=s._db.get_blocked_set()
         try: conns=psutil.net_connections(kind='all')
         except psutil.AccessDenied: return out
@@ -3078,7 +3101,7 @@ class MainWindow(QMainWindow):
     def __init__(s,results):
         super().__init__(); s.setWindowTitle(f"{APP} v{VER}")
         s.setMinimumSize(_dp(1200),_dp(720)); s.resize(_dp(1440),_dp(860))
-        s._launch_time=time.time(); s._notif_cd={}
+        s._launch_time=time.time(); s._notif_cd={}; s._live_keys=set()
         s._monitoring=False; s._conn_on=False
         # Use pre-loaded data from StartupLoader
         s.db=results['db']; s.hm=results['hm']; s.cdb=results['cdb']
@@ -3125,10 +3148,12 @@ class MainWindow(QMainWindow):
         if sources: s._hosts_tab._run_imp(sources)
 
     def _startup_sync(s):
-        """Run at startup: backup hosts, sync hosts entries to DB, load threat intel."""
+        """Run at startup: backup hosts, sync hosts entries to DB, prune old data, load threat intel."""
         try: s.hm.backup()
         except: pass
         try: s.db.sync_hosts_to_db(s.hm)
+        except: pass
+        try: s.cdb.prune(30); s.db.prune_log()
         except: pass
         try: _load_threat_intel()
         except: pass
@@ -3269,9 +3294,14 @@ class MainWindow(QMainWindow):
         s._fw_act.update_conns(conns)
         live=[c for c in conns if c.ra and c.ra!="*" and c.dir!="Listen"]
         if live:
-            s.cdb.insert_batch(live)
+            # Record each connection once when it is first observed — inserting
+            # every 2s scan bloated connections.db with duplicate rows.
+            cur_keys={c.key for c in live}
+            new=[c for c in live if c.key not in s._live_keys]
+            s._live_keys=cur_keys
+            if new: s.cdb.insert_batch(new)
             if s._tools._recording:
-                for c in live[:5]:
+                for c in new[:20]:
                     s._tools.record_event('conn',{'proto':c.proto,'remote':c.ra,'port':c.rp,'host':c.host,'proc':c.proc})
 
     def _on_hosts_changed(s,new_hash=b''):
@@ -3375,10 +3405,11 @@ def _cli(args):
 # ═════════════════════════════════════════════════════════════════════════════
 def _service():
     """Run HostsGuard as a headless background service with HTTP JSON-RPC."""
-    import http.server,json as _json
+    import http.server,json as _json,hmac as _hmac
     print(f"{APP} v{VER} — Headless Service Mode")
     db=DB(); hm=HostsMgr(); cdb=ConnDB()
     hm.backup(); db.sync_hosts_to_db(hm)
+    cdb.prune(30); db.prune_log()
     threading.Thread(target=_load_threat_intel,daemon=True).start()
     dns_cache_cmd='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
     stop_evt=TEvent()
@@ -3391,16 +3422,23 @@ def _service():
                     data=_json.loads(out)
                     if isinstance(data,dict): data=[data]
                     blocked=db.get_blocked_set()
+                    domains=[]
                     for e in data:
                         d=(e.get('Entry') or e.get('RecordName') or '').lower().strip().rstrip('.')
                         if not d or d in IGNORED or '.' not in d: continue
-                        db.feed_upsert(d)
+                        domains.append(d)
+                    db.feed_upsert_batch(domains)
+                    for d in domains:
                         if d not in seen:
                             seen.add(d)
-                            if d in blocked: db.log_event(d,'blocked','','Blocked by hosts'); _evt_log(f"Blocked: {d}")
+                            if d in blocked:
+                                db.log_event(d,'blocked','','Blocked by hosts')
+                                threading.Thread(target=_evt_log,args=(f"Blocked: {d}",),daemon=True).start()
+                    if len(seen)>20000: seen.clear()
             except Exception: pass
             stop_evt.wait(3)
     def _conn_loop():
+        prev_keys=set()
         while not stop_evt.is_set():
             try:
                 conns=psutil.net_connections(kind='all'); bw.update()
@@ -3414,12 +3452,16 @@ def _service():
                             try: pname=psutil.Process(pid).name()
                             except: pass
                         host=dns_c.get(ra) or "-"; rp=str(c.raddr.port) if c.raddr else ""
-                        ci=CI(key="",ts=datetime.datetime.now().strftime("%H:%M:%S"),proto="TCP" if c.type==socket.SOCK_STREAM else "UDP",
-                            la=c.laddr.ip if c.laddr else "",lp=str(c.laddr.port) if c.laddr else "",
-                            ra=ra,rp=rp,host=host,proc=pname,pid=pid)
+                        la=c.laddr.ip if c.laddr else ""; lp=str(c.laddr.port) if c.laddr else ""
+                        proto="TCP" if c.type==socket.SOCK_STREAM else "UDP"
+                        ci=CI(key=f"{proto}:{la}:{lp}-{ra}:{rp}",ts=datetime.datetime.now().isoformat(timespec='seconds'),
+                            proto=proto,la=la,lp=lp,ra=ra,rp=rp,host=host,proc=pname,pid=pid)
                         live.append(ci)
                     except: continue
-                if live: cdb.insert_batch(live)
+                cur_keys={c.key for c in live}
+                new=[c for c in live if c.key not in prev_keys]
+                prev_keys=cur_keys
+                if new: cdb.insert_batch(new)
             except Exception: pass
             stop_evt.wait(2)
     def _watcher_loop():
@@ -3447,40 +3489,60 @@ def _service():
     threads=[]
     for fn in [_dns_loop,_conn_loop,_watcher_loop]:
         t=threading.Thread(target=fn,daemon=True); t.start(); threads.append(t)
+    token=os.environ.get('HG_TOKEN','')
     class Handler(http.server.BaseHTTPRequestHandler):
+        def _authed(s):
+            """Optional bearer auth: set HG_TOKEN to require X-HG-Token on every request.
+            The service runs elevated — without a token any local process can mutate
+            the hosts file through this endpoint."""
+            if not token: return True
+            if _hmac.compare_digest(s.headers.get('X-HG-Token',''),token): return True
+            s._json_reply(401,{'ok':False,'error':'missing or invalid X-HG-Token'})
+            return False
+        def _json_reply(s,code,obj):
+            body=_json.dumps(obj).encode()
+            s.send_response(code); s.send_header('Content-Type','application/json')
+            s.send_header('Content-Length',str(len(body))); s.end_headers()
+            s.wfile.write(body)
         def do_GET(s):
+            if not s._authed(): return
             if s.path=='/status':
                 st=db.get_stats(); blocked=hm.get_blocked(); up,dn=bw.rates()
-                body=_json.dumps({'app':APP,'version':VER,'blocked':len(blocked),'db_blocked':st['blocked'],
+                s._json_reply(200,{'app':APP,'version':VER,'blocked':len(blocked),'db_blocked':st['blocked'],
                     'db_allowed':st['whitelisted'],'feed_total':st['feed_total'],'today_hits':st['today_hits'],
                     'bw_up':up,'bw_dn':dn})
-                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
-                s.wfile.write(body.encode())
             elif s.path=='/domains':
-                domains=[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()]
-                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
-                s.wfile.write(_json.dumps(domains).encode())
+                s._json_reply(200,[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()])
             else:
-                s.send_response(404); s.end_headers()
+                s._json_reply(404,{'ok':False,'error':'unknown endpoint'})
         def do_POST(s):
-            length=int(s.headers.get('Content-Length',0))
-            body=_json.loads(s.rfile.read(length)) if length else {}
-            action=body.get('action',''); domain=body.get('domain','').lower().strip()
-            if action=='block' and domain and looks_like_domain(domain):
+            if not s._authed(): return
+            if s.path!='/domains':
+                s._json_reply(404,{'ok':False,'error':'unknown endpoint'}); return
+            try:
+                length=min(int(s.headers.get('Content-Length',0) or 0),1_000_000)
+                body=_json.loads(s.rfile.read(length)) if length else {}
+                if not isinstance(body,dict): raise ValueError("body must be a JSON object")
+                action=str(body.get('action','')); domain=str(body.get('domain','')).lower().strip()
+            except Exception as e:
+                s._json_reply(400,{'ok':False,'error':f'bad request: {e}'}); return
+            if not looks_like_domain(domain):
+                s._json_reply(400,{'ok':False,'error':'invalid domain'}); return
+            if action=='block':
                 db.add_domain(domain,'blocked','rpc'); hm.block(domain); db.log_event(domain,'blocked','','RPC block')
-                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
-                s.wfile.write(b'{"ok":true}')
-            elif action=='allow' and domain:
+                s._json_reply(200,{'ok':True})
+            elif action=='allow':
                 db.add_domain(domain,'whitelisted','rpc'); hm.unblock(domain)
-                s.send_response(200); s.send_header('Content-Type','application/json'); s.end_headers()
-                s.wfile.write(b'{"ok":true}')
+                db.log_event(domain,'whitelisted','','RPC allow')
+                s._json_reply(200,{'ok':True})
             else:
-                s.send_response(400); s.end_headers()
+                s._json_reply(400,{'ok':False,'error':'action must be block or allow'})
         def log_message(s,*a): pass
     port=int(os.environ.get('HG_PORT','7847'))
-    srv=http.server.HTTPServer(('127.0.0.1',port),Handler)
+    srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
     print("Endpoints: GET /status, GET /domains, POST /domains (action+domain)")
+    if not token: print("Note: set HG_TOKEN to require X-HG-Token auth on the endpoint")
     print("Press Ctrl+C to stop")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nShutting down...")
