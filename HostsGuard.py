@@ -2526,6 +2526,7 @@ class ToolsTab(QWidget):
         g1=QGroupBox("DNS & Network"); l1=QVBoxLayout(g1); l1.setSpacing(_dp(4))
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
+        l1.addWidget(_tbtn("Check Browser DoH","dim",s._check_browser_doh))
         dr=QHBoxLayout(); dr.setSpacing(_dp(3))
         s._dns_cb=QComboBox(); s._dns_cb.addItems(["System Default","Cloudflare (1.1.1.1)","Google (8.8.8.8)","Quad9 (9.9.9.9)","AdGuard (94.140.14.14)","NextDNS (45.90.28.0)"])
         dr.addWidget(s._dns_cb,1); dr.addWidget(_btn("Apply","primary",s._apply_dns)); l1.addLayout(dr)
@@ -2596,6 +2597,39 @@ class ToolsTab(QWidget):
     def record_event(s,ev_type,data):
         if s._recording:
             s._rec_data.append({'ts':datetime.datetime.now().isoformat(),'type':ev_type,**data})
+    def _check_browser_doh(s):
+        findings=[]
+        def _bg():
+            import winreg
+            checks=[
+                (winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\Policies\Google\Chrome","DnsOverHttpsMode","Chrome (Policy)"),
+                (winreg.HKEY_CURRENT_USER,r"SOFTWARE\Policies\Google\Chrome","DnsOverHttpsMode","Chrome (User Policy)"),
+                (winreg.HKEY_LOCAL_MACHINE,r"SOFTWARE\Policies\Microsoft\Edge","DnsOverHttpsMode","Edge (Policy)"),
+                (winreg.HKEY_CURRENT_USER,r"SOFTWARE\Policies\Microsoft\Edge","DnsOverHttpsMode","Edge (User Policy)"),
+            ]
+            for hive,path,val,label in checks:
+                try:
+                    k=winreg.OpenKey(hive,path)
+                    v,_=winreg.QueryValueEx(k,val); winreg.CloseKey(k)
+                    if v and v.lower()!='off': findings.append(f"{label}: {v}")
+                except (FileNotFoundError,OSError): pass
+            chrome_prefs=os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences")
+            if os.path.exists(chrome_prefs):
+                try:
+                    with open(chrome_prefs,'r',encoding='utf-8') as f: prefs=json.load(f)
+                    doh=prefs.get('dns_over_https',{})
+                    mode=doh.get('mode','')
+                    if mode and mode!='off': findings.append(f"Chrome preferences: DoH mode={mode}")
+                except Exception: pass
+            if findings:
+                QTimer.singleShot(0,lambda:QMessageBox.warning(s,"Browser DoH Detected",
+                    "The following browsers have DNS-over-HTTPS enabled, which bypasses "
+                    "HostsGuard's DNS monitoring and hosts file blocking:\n\n"+'\n'.join(findings)+
+                    "\n\nTo disable: set DnsOverHttpsMode to 'off' via group policy or "
+                    "browser settings (chrome://settings/security)."))
+            else:
+                QTimer.singleShot(0,lambda:s._toast("No browser DoH detected",C['green']))
+        threading.Thread(target=_bg,daemon=True).start()
     def _apply_dns(s):
         dns_map={"System Default":None,"Cloudflare (1.1.1.1)":("1.1.1.1","1.0.0.1"),
             "Google (8.8.8.8)":("8.8.8.8","8.8.4.4"),"Quad9 (9.9.9.9)":("9.9.9.9","149.112.112.112"),
