@@ -1662,6 +1662,9 @@ class FWActivityTab(QWidget):
         ib=QHBoxLayout()
         s.info=QLabel(""); s.info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); ib.addWidget(s.info)
         ib.addStretch()
+        s.lock_cb=QCheckBox("Lockdown"); s.lock_cb.setChecked(load_cfg().get('lockdown',False))
+        s.lock_cb.toggled.connect(s._toggle_lockdown)
+        s.lock_cb.setToolTip("Block all outbound — whitelist programs via right-click"); ib.addWidget(s.lock_cb)
         s.obs_cb=QCheckBox("Observe"); s.obs_cb.setChecked(s.learn.observe)
         s.obs_cb.toggled.connect(lambda v:s.learn.set_observe(v))
         s.obs_cb.setToolTip("Allow all, log silently — review and create rules later"); ib.addWidget(s.obs_cb)
@@ -1782,6 +1785,7 @@ class FWActivityTab(QWidget):
         if c.path:
             fm.addAction(f"Block {c.proc} Out").triggered.connect(lambda:s._fw_prog(c.path))
             fm.addAction(f"Block {c.proc} In+Out").triggered.connect(lambda:s._fw_prog_both(c.path))
+            fm.addAction(f"Allow {c.proc} Out").triggered.connect(lambda:s._fw_allow_prog(c.path))
         fm.addAction("Custom Rule \u2192").triggered.connect(lambda:s._fw_custom(c))
         lm=m.addMenu("Learning"); lm.setStyleSheet(CTX)
         lm.addAction(f"Trust {c.proc}").triggered.connect(lambda:(s.learn.trust(c.proc),s._toast(f"Trusted {c.proc}",C['green'])))
@@ -1828,6 +1832,12 @@ class FWActivityTab(QWidget):
     def _fw_prog_both(s,path):
         created=fw.block_program_both(path); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
         s._toast(f"Blocked {Path(path).name} in+out ({len(created)} rules)" if created else "Exists",C['red'] if created else C['dim'])
+    def _fw_allow_prog(s,path):
+        name=f"{FW_PFX}Allow_{Path(path).stem}"
+        if not fw.exists(name):
+            fw.create(name,"Outbound","Allow",program=path,desc=f"HostsGuard whitelist {datetime.datetime.now():%Y-%m-%d %H:%M}")
+            s._toast(f"Allowed {Path(path).name} outbound",C['green'])
+        else: s._toast("Allow rule already exists",C['dim'])
     def _fw_custom(s,ci):
         pf={'addr':ci.ra,'prog':ci.path or '','proto':ci.proto,'name':f'{FW_PFX}Block_{ci.proc.replace(".exe","")}'}
         dlg=NewRuleDlg(s,pf)
@@ -1836,6 +1846,14 @@ class FWActivityTab(QWidget):
             s._rebuild_fw_cache(); s._last_hash=0; s._refresh(); s._toast(f"Created {dd['name']}",C['green'])
     def _kill(s,pid,name):
         if pid>0 and fw.kill_conn(pid): s._toast(f"Killed {name}",C['peach'])
+    def _toggle_lockdown(s,on):
+        action="Block" if on else "Allow"
+        def _bg():
+            ok,_=_ps(f'Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction {action}',10)
+            cfg=load_cfg(); cfg['lockdown']=on; save_cfg(cfg)
+            msg=f"Lockdown {'ON — all outbound blocked' if on else 'OFF — outbound allowed'}"
+            QTimer.singleShot(0,lambda:s._toast(msg,C['red'] if on else C['green']))
+        threading.Thread(target=_bg,daemon=True).start()
     def resizeEvent(s,e): super().resizeEvent(e); s._overlay._update_geom()
     def _toast(s,msg,color):
         w=s.window()
