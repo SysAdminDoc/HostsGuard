@@ -2501,6 +2501,9 @@ class ToolsTab(QWidget):
         g1=QGroupBox("DNS & Network"); l1=QVBoxLayout(g1); l1.setSpacing(_dp(4))
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
+        dr=QHBoxLayout(); dr.setSpacing(_dp(3))
+        s._dns_cb=QComboBox(); s._dns_cb.addItems(["System Default","Cloudflare (1.1.1.1)","Google (8.8.8.8)","Quad9 (9.9.9.9)","AdGuard (94.140.14.14)","NextDNS (45.90.28.0)"])
+        dr.addWidget(s._dns_cb,1); dr.addWidget(_btn("Apply","primary",s._apply_dns)); l1.addLayout(dr)
         s._rec_btn=_tbtn("Record Session","dim",s._toggle_rec); l1.addWidget(s._rec_btn)
         s._recording=False; s._rec_data=[]
         l1.addStretch(); grid.addWidget(g1)
@@ -2568,6 +2571,19 @@ class ToolsTab(QWidget):
     def record_event(s,ev_type,data):
         if s._recording:
             s._rec_data.append({'ts':datetime.datetime.now().isoformat(),'type':ev_type,**data})
+    def _apply_dns(s):
+        dns_map={"System Default":None,"Cloudflare (1.1.1.1)":("1.1.1.1","1.0.0.1"),
+            "Google (8.8.8.8)":("8.8.8.8","8.8.4.4"),"Quad9 (9.9.9.9)":("9.9.9.9","149.112.112.112"),
+            "AdGuard (94.140.14.14)":("94.140.14.14","94.140.15.15"),"NextDNS (45.90.28.0)":("45.90.28.0","45.90.30.0")}
+        sel=s._dns_cb.currentText(); addrs=dns_map.get(sel)
+        def _bg():
+            if addrs is None:
+                ok,_=_ps("Get-NetAdapter|Where-Object{$_.Status -eq 'Up'}|Set-DnsClientServerAddress -ResetServerAddresses",10)
+            else:
+                ok,_=_ps(f"Get-NetAdapter|Where-Object{{$_.Status -eq 'Up'}}|Set-DnsClientServerAddress -ServerAddresses {_ps_esc(addrs[0]+','+addrs[1])}",10)
+            _ps("ipconfig /flushdns",5)
+            QTimer.singleShot(0,lambda:s._toast(f"DNS set to {sel}" if ok else "DNS change failed",C['green'] if ok else C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
     def _flush(s): ok,_=_ps("ipconfig /flushdns",5); s._toast("DNS flushed" if ok else "DNS flush failed",C['green'] if ok else C['red'])
     def _winsock(s):
         def _bg():
@@ -2873,6 +2889,41 @@ class MainWindow(QMainWindow):
     def resizeEvent(s,e): super().resizeEvent(e); s._toasts._place()
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  CLI — headless commands without GUI
+# ═════════════════════════════════════════════════════════════════════════════
+def _cli(args):
+    cmd=args[0] if args else ''
+    db=DB(); hm=HostsMgr()
+    if cmd=='block' and len(args)>1:
+        d=args[1].lower().strip()
+        if not looks_like_domain(d): print(f"Invalid domain: {d}"); return 1
+        db.add_domain(d,'blocked','cli'); hm.block(d)
+        db.log_event(d,'blocked','','CLI block'); print(f"Blocked: {d}"); return 0
+    elif cmd=='allow' and len(args)>1:
+        d=args[1].lower().strip()
+        db.add_domain(d,'whitelisted','cli'); hm.unblock(d)
+        db.log_event(d,'whitelisted','','CLI allow'); print(f"Allowed: {d}"); return 0
+    elif cmd=='unblock' and len(args)>1:
+        d=args[1].lower().strip(); db.remove_domain(d); hm.unblock(d)
+        print(f"Unblocked: {d}"); return 0
+    elif cmd=='status':
+        st=db.get_stats(); blocked=hm.get_blocked()
+        print(f"{APP} v{VER}")
+        print(f"Hosts: {len(blocked)} blocked")
+        print(f"DB: {st['blocked']} blocked, {st['whitelisted']} allowed")
+        print(f"Feed: {st['feed_total']} domains seen")
+        print(f"Today: {st['today_hits']} blocks")
+        return 0
+    elif cmd=='export':
+        domains=db.get_domains()
+        for r in domains: print(f"{r[1]}\t{r[0]}\t{r[3] or ''}")
+        return 0
+    else:
+        print(f"{APP} v{VER} — CLI")
+        print("Commands: block <domain>, allow <domain>, unblock <domain>, status, export")
+        print("GUI: run without arguments"); return 0
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  ENTRY — Splash -> StartupLoader -> MainWindow
 # ═════════════════════════════════════════════════════════════════════════════
 def main():
@@ -2927,4 +2978,7 @@ def main():
 
 if __name__=="__main__":
     multiprocessing.freeze_support()
+    cli_args=[a for a in sys.argv[1:] if not a.startswith('--')]
+    if cli_args and cli_args[0] in ('block','allow','unblock','status','export','help'):
+        sys.exit(_cli(cli_args))
     main()
