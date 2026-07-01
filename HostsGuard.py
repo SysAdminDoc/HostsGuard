@@ -526,8 +526,31 @@ class DB:
     # Domains
     def add_domain(s,d,status='blocked',source='',cat=''):
         now=datetime.datetime.now().isoformat()
-        s._x("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(d,status,cat,source,now,now,d))
+        # UPSERT that preserves original added-date, hits, notes, and existing
+        # category — the old INSERT OR REPLACE reset added and wiped notes/category
+        # on every re-block.
+        s._x("""INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,0)
+                ON CONFLICT(domain) DO UPDATE SET status=excluded.status,modified=excluded.modified,
+                source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END,
+                category=CASE WHEN excluded.category!='' THEN excluded.category ELSE domains.category END""",
+              (d,status,cat,source,now,now))
         s._blocked_cache=None
+    def add_domains_bulk(s,rows):
+        """Bulk UPSERT (domain,status,source) tuples in ONE transaction. Blocklist
+        imports of 100k+ domains previously committed once per domain."""
+        if not rows: return 0
+        now=datetime.datetime.now().isoformat()
+        with s._lock:
+            try:
+                s.conn.executemany(
+                    """INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,'',?,?,?,0)
+                       ON CONFLICT(domain) DO UPDATE SET status=excluded.status,modified=excluded.modified,
+                       source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END""",
+                    [(d,st,src,now,now) for d,st,src in rows])
+                s.conn.commit()
+            except Exception as e: log.warning(f"add_domains_bulk: {e}"); return 0
+        s._blocked_cache=None
+        return len(rows)
     def get_domains(s,status=None,search=None,source=None):
         q="SELECT domain,status,category,source,added,modified,hits,notes FROM domains WHERE 1=1"
         p=[]
@@ -559,9 +582,15 @@ class DB:
     def get_blocked_set(s):
         now=time.time()
         with s._lock:
-            if s._blocked_cache and now-s._blocked_ts<5: return s._blocked_cache
+            # 'is not None' — an empty blocked set is valid and cacheable; the old
+            # truthiness test re-ran this per-connection query on all-allowed setups.
+            if s._blocked_cache is not None and now-s._blocked_ts<5: return s._blocked_cache
             s._blocked_cache={r[0] for r in s.conn.execute("SELECT domain FROM domains WHERE status='blocked'").fetchall()}
             s._blocked_ts=now; return s._blocked_cache
+    def close(s):
+        try:
+            with s._lock: s.conn.close()
+        except Exception: pass
     # Per-process rules
     def add_proc_rule(s,process,domain,action='block'):
         now=datetime.datetime.now().isoformat()
@@ -589,14 +618,16 @@ class DB:
         s._x("INSERT INTO profile_rules(profile,domain,status,source)VALUES(?,?,?,?)",
             [(name,r[0],r[1],r[2]) for r in rows],many=True)
     def load_profile(s,name):
-        """Restore domains table from a profile snapshot."""
+        """Restore domains table from a profile snapshot. An empty snapshot is a
+        valid profile (block nothing) — it must still clear the domains table, or
+        switching to it silently leaves the previous profile applied."""
         rows=s._q("SELECT domain,status,source FROM profile_rules WHERE profile=?",(name,))
-        if not rows: return 0
         now=datetime.datetime.now().isoformat()
         with s._lock:
             s.conn.execute("DELETE FROM domains")
-            s.conn.executemany("INSERT INTO domains(domain,status,source,added,modified,hits)VALUES(?,?,?,?,?,0)",
-                [(r[0],r[1],r[2] or '',now,now) for r in rows])
+            if rows:
+                s.conn.executemany("INSERT INTO domains(domain,status,source,added,modified,hits)VALUES(?,?,?,?,?,0)",
+                    [(r[0],r[1],r[2] or '',now,now) for r in rows])
             s.conn.commit()
         s._blocked_cache=None; return len(rows)
     # Feed
@@ -745,6 +776,10 @@ class ConnDB:
     def prune(s,days=30):
         cut=(datetime.datetime.now()-datetime.timedelta(days=days)).isoformat()
         with s._lock: s.conn.execute("DELETE FROM conns WHERE ts<?",(cut,)); s.conn.commit()
+    def close(s):
+        try:
+            with s._lock: s.conn.close()
+        except Exception: pass
 
 
 # ─── Firewall Engine ────────────────────────────────────────────────────────
@@ -1243,6 +1278,7 @@ class DNSMonitor(QThread):
     CMD='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
     def __init__(s,hm,db):
         super().__init__(); s.hm,s.db=hm,db; s.running=False; s._scan_lock=Lock()
+        s._seen_lock=Lock()
         s._seen=OrderedDict.fromkeys(s.db.get_hidden_set()); s._etw_sess=None; s._use_etw=False
     def _try_etw(s):
         try:
@@ -1290,10 +1326,14 @@ class DNSMonitor(QThread):
         s._scan(); s.updated.emit()
         while s.running: s._scan(); time.sleep(3)
     def mark_seen(s,d):
-        """Thread-safe-enough suppression marker — _seen is an OrderedDict, not a set."""
-        s._seen[d]=True
+        """Suppression marker set from the GUI thread when a domain is hidden.
+        _seen is shared with the monitor thread, so guard every access with a lock."""
+        with s._seen_lock: s._seen[d]=True
+    def _seen_contains(s,d):
+        with s._seen_lock: return d in s._seen
     def _trim_seen(s):
-        if len(s._seen)>10000:
+        with s._seen_lock:
+            if len(s._seen)<=10000: return
             hidden=s.db.get_hidden_set()
             keep=OrderedDict()
             for k in hidden: keep[k]=True
@@ -1303,15 +1343,16 @@ class DNSMonitor(QThread):
     def _process_domain(s,d,proc=''):
         blocked=s.db.get_blocked_set()
         is_new=s.db.feed_upsert(d,proc)
-        if d not in s._seen:
-            s._seen[d]=True
-            if is_new:
-                ev={'domain':d,'ts':datetime.datetime.now().isoformat(),'process':proc}
-                s.dns_event.emit(ev)
-                if d in blocked:
-                    s.db.log_event(d,'blocked',proc,'Blocked by hosts')
-                    s.blocked_event.emit(ev)
-                s.updated.emit()
+        with s._seen_lock:
+            first=d not in s._seen
+            if first: s._seen[d]=True
+        if first and is_new:
+            ev={'domain':d,'ts':datetime.datetime.now().isoformat(),'process':proc}
+            s.dns_event.emit(ev)
+            if d in blocked:
+                s.db.log_event(d,'blocked',proc,'Blocked by hosts')
+                s.blocked_event.emit(ev)
+            s.updated.emit()
         s._trim_seen()
     def _scan(s):
         if not s._scan_lock.acquire(blocking=False): return
@@ -1330,8 +1371,9 @@ class DNSMonitor(QThread):
                 if not d or d in IGNORED or '.' not in d: continue
                 domains.append(d)
             new=s.db.feed_upsert_batch(domains)
-            fresh=[d for d in new if d not in s._seen]
-            for d in domains: s._seen[d]=True
+            with s._seen_lock:
+                fresh=[d for d in new if d not in s._seen]
+                for d in domains: s._seen[d]=True
             for d in fresh:
                 ev={'domain':d,'ts':datetime.datetime.now().isoformat()}
                 s.dns_event.emit(ev)
@@ -1363,7 +1405,9 @@ class SigWorker(QThread):
                 path=s._q.get(timeout=2)
                 if path in sig_c: continue
                 try:
-                    ok,out=_ps(f"(Get-AuthenticodeSignature {_ps_esc(path)}).Status",5)
+                    # -LiteralPath: paths with [ ] (WindowsApps, some versioned dirs)
+                    # are otherwise treated as wildcards and fail to resolve.
+                    ok,out=_ps(f"(Get-AuthenticodeSignature -LiteralPath {_ps_esc(path)}).Status",5)
                     status=out.strip() if ok else 'Unknown'
                     label={'Valid':'✔','NotSigned':'✘','HashMismatch':'⚠'}.get(status,'?')
                     sig_c.put(path,label); s.resolved.emit(path,label)
@@ -1733,14 +1777,18 @@ class DNSInspectDlg(QDialog):
         return results
     @staticmethod
     def _read_name(data,off):
-        parts=[]; jumped=False; save_off=off
+        parts=[]; jumped=False; save_off=off; hops=0
         while off<len(data):
             l=data[off]
             if l==0: off+=1; break
             if l&0xc0==0xc0:
+                if off+2>len(data): break
                 if not jumped: save_off=off+2
                 import struct as _st
-                off=_st.unpack('!H',data[off:off+2])[0]&0x3fff; jumped=True; continue
+                off=_st.unpack('!H',data[off:off+2])[0]&0x3fff; jumped=True
+                hops+=1
+                if hops>128: break  # guard against self-referential compression pointer loops
+                continue
             off+=1; parts.append(data[off:off+l].decode('ascii','replace')); off+=l
         return '.'.join(parts), save_off if jumped else off
     @staticmethod
@@ -2630,6 +2678,10 @@ class HostsTab(QWidget):
         s._run_imp(sel)
     def _imp_one(s,n,u): s._run_imp([(n,u)])
     def _run_imp(s,sources):
+        if getattr(s,'_importing',False):
+            # A scheduled auto-refresh must not clobber an in-flight manual import
+            # (they share _iq/_ii/_cw; reassigning _cw drops a running QThread).
+            s._toast("An import is already running",C['peach']); return
         warn=[n for n,_ in sources if n in _DEFENDER_WARN]
         if warn:
             r=QMessageBox.warning(s,"Windows Defender Warning",
@@ -2641,12 +2693,14 @@ class HostsTab(QWidget):
                 f"Path: {HOSTS_PATH}\n\nContinue importing?",
                 QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if r!=QMessageBox.Yes: return
+        s._importing=True
         s.bl_prog.setVisible(True); s.bl_prog.setRange(0,len(sources)); s.bl_prog.setValue(0)
         s._iq=list(sources); s._ii=0; s._it=0; s._do_next()
     def _do_next(s):
         if s._ii>=len(s._iq):
+            s._importing=False
             s.bl_prog.setVisible(False); s.bl_st.setText(f"Done! {s._it} domains")
-            s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); return
+            s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); s._sync_and_load(); return
         name,url=s._iq[s._ii]; s.bl_st.setText(f"{name}...")
         if name in s._chk: s._chk[name][2].setText("\u2026")
         s._cw=ImpWorker(name,url,s.hm,s.db); s._cw.done.connect(s._on_imp); s._cw.start()
@@ -2664,14 +2718,15 @@ class HostsTab(QWidget):
         s._it+=ct; s._ii+=1; s.bl_prog.setValue(s._ii); s._do_next()
     def _paste_h(s):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
-        if not ds: return
+        if not ds: s._toast("No valid domains to add",C['peach']); return
         ct=s.hm.block_bulk(ds)
-        for d in ds: s.db.add_domain(d,'blocked','paste')
-        s._toast(f"Added {ct}",C['green']); s.paste.clear()
+        s.db.add_domains_bulk([(d,'blocked','paste') for d in ds])
+        s._toast(f"Added {ct} to hosts file",C['green']); s.paste.clear(); s._load_d()
     def _paste_db(s):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
-        for d in ds: s.db.add_domain(d,'blocked','paste')
-        s._toast(f"DB: {len(ds)}",C['green']); s.paste.clear()
+        if not ds: s._toast("No valid domains to add",C['peach']); return
+        s.db.add_domains_bulk([(d,'blocked','paste') for d in ds])
+        s._toast(f"Added {len(ds)} to database",C['green']); s.paste.clear(); s._load_d()
     def _save_refresh(s,idx):
         hours=[0,6,12,24,48][idx]
         cfg=load_cfg(); cfg['blocklist_refresh_hours']=hours; save_cfg(cfg)
@@ -2695,7 +2750,7 @@ class ImpWorker(QThread):
             domains=[d for l in lines if (d:=norm_line(l,False)) and looks_like_domain(d)]
             total=len(domains)
             ct=s.hm.block_bulk(domains,flush=False)
-            for d in domains: s.db.add_domain(d,'blocked',f'list:{s.name}')
+            s.db.add_domains_bulk([(d,'blocked',f'list:{s.name}') for d in domains])
             s.hm._flush(); s.done.emit(s.name,ct,total,"")
         except Exception as e: s.done.emit(s.name,0,0,str(e)[:40])
 
@@ -3120,7 +3175,10 @@ class ToolsTab(QWidget):
         except Exception as e: s._toast(f"Export failed: {e}",C['red'])
     def _prune(s): s.cdb.prune(30); s._toast("Pruned",C['green'])
     def _clear_fav(s):
-        ct=sum(1 for f in Path(FAV_DIR).glob("*.png") if (f.unlink() or True))
+        ct=0
+        for f in Path(FAV_DIR).glob("*.png"):
+            try: f.unlink(); ct+=1
+            except OSError: pass  # locked/in-use file shouldn't abort the whole clear
         if _fav:
             with _fav._lock: _fav._mem.clear()
         s._toast(f"Cleared {ct} cached favicons",C['green'])
@@ -3387,17 +3445,22 @@ class MainWindow(QMainWindow):
                 s._toasts.toast(f"Profile '{n}' created from current rules",C['green'])
             else: s._refresh_profiles()
             return
-        if name:
-            ct=s.db.load_profile(name)
-            if ct:
-                s.hm.read()
-                # Rewrite the hosts file to match the new profile exactly — domains the
-                # previous profile blocked but this one doesn't must be unblocked, not
-                # left stranded in the hosts file.
-                blocked=[r[0] for r in s.db.get_domains(status='blocked')]
-                s.hm.reconcile(blocked)
-                cfg=load_cfg(); cfg['active_profile']=name; save_cfg(cfg)
-                s._toasts.toast(f"Switched to '{name}' ({ct} rules)",C['blue'])
+        if not name: return
+        # Persist the outgoing profile's current rules before switching away, so
+        # edits made since the last save aren't silently discarded by load_profile's
+        # DELETE FROM domains. Profiles behave like auto-saved workspaces.
+        prev=load_cfg().get('active_profile','Default')
+        if prev and prev!=name and prev in s.db.get_profiles():
+            s.db.save_profile_snapshot(prev)
+        s.db.load_profile(name)
+        s.hm.read()
+        # Rewrite the hosts file to match the new profile exactly — domains the
+        # previous profile blocked but this one doesn't must be unblocked, not
+        # left stranded in the hosts file. Runs even for an empty profile.
+        blocked=[r[0] for r in s.db.get_domains(status='blocked')]
+        s.hm.reconcile(blocked)
+        cfg=load_cfg(); cfg['active_profile']=name; save_cfg(cfg)
+        s._toasts.toast(f"Switched to '{name}' ({len(blocked)} blocked)",C['blue'])
 
     def _start_conns(s):
         s._conn_w=ConnWorker(s.db)
@@ -3688,7 +3751,10 @@ def _service():
     print("Press Ctrl+C to stop")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nShutting down...")
-    finally: stop_evt.set(); _pps.close()
+    finally:
+        stop_evt.set()
+        for t in threads: t.join(3)
+        _pps.close(); db.close(); cdb.close()
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  ENTRY — Splash -> StartupLoader -> MainWindow
