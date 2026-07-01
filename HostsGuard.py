@@ -1862,6 +1862,97 @@ class HostsActivityTab(QWidget):
         w=s.window()
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
 
+# ─── Per-App Bandwidth Chart ───────────────────────────────────────────────
+_BW_COLORS=['#7aa2f7','#9ece6a','#f7768e','#ff9e64','#bb9af7','#73daca','#7dcfff','#e0af68']
+
+class BWPerApp:
+    """Track per-process connection counts and system bandwidth over time."""
+    def __init__(s,max_pts=120):
+        s._max=max_pts; s._lock=Lock()
+        s._sys_up=[]; s._sys_dn=[]; s._ts=[]
+        s._proc_conns=defaultdict(list)
+        s._procs_order=[]
+    def update(s,conns):
+        up,dn=bw.rates(); now=time.time()
+        proc_count=defaultdict(int)
+        for c in conns:
+            if c.proc and c.proc!='?': proc_count[c.proc]+=1
+        with s._lock:
+            s._sys_up.append(up); s._sys_dn.append(dn); s._ts.append(now)
+            for proc in list(s._proc_conns.keys()):
+                if proc not in proc_count: s._proc_conns[proc].append(0)
+                else: s._proc_conns[proc].append(proc_count[proc])
+            for proc,cnt in proc_count.items():
+                if proc not in s._proc_conns:
+                    s._proc_conns[proc]=[0]*(len(s._ts)-1)+[cnt]
+            if len(s._ts)>s._max:
+                trim=len(s._ts)-s._max
+                s._sys_up=s._sys_up[trim:]; s._sys_dn=s._sys_dn[trim:]; s._ts=s._ts[trim:]
+                for p in list(s._proc_conns): s._proc_conns[p]=s._proc_conns[p][trim:]
+            active={p for p,vals in s._proc_conns.items() if any(v>0 for v in vals[-10:])}
+            s._procs_order=sorted(active,key=lambda p:sum(s._proc_conns[p][-10:]),reverse=True)[:8]
+    def snapshot(s):
+        with s._lock:
+            return {'sys_up':list(s._sys_up),'sys_dn':list(s._sys_dn),'ts':list(s._ts),
+                'procs':{p:list(s._proc_conns[p]) for p in s._procs_order}}
+
+class BWChartWidget(QWidget):
+    """Stacked area chart of per-process connection activity + system bandwidth."""
+    def __init__(s,parent=None):
+        super().__init__(parent); s._data=None; s.setMinimumHeight(_dp(160)); s.setMaximumHeight(_dp(220))
+    def set_data(s,data): s._data=data; s.update()
+    def paintEvent(s,e):
+        if not s._data or not s._data['ts']: return
+        p=QPainter(s); p.setRenderHint(QPainter.Antialiasing)
+        w,h=s.width(),s.height()
+        p.fillRect(s.rect(),QColor(C['mantle']))
+        p.setPen(QPen(QColor(C['s0']),1)); p.drawRect(0,0,w-1,h-1)
+        margin_l,margin_r,margin_t,margin_b=_dp(50),_dp(8),_dp(8),_dp(20)
+        cw=w-margin_l-margin_r; ch=h-margin_t-margin_b
+        if cw<10 or ch<10: p.end(); return
+        pts=len(s._data['ts']); procs=s._data.get('procs',{})
+        if not procs and not s._data['sys_up']:
+            p.setPen(QColor(C['dim'])); p.drawText(s.rect(),Qt.AlignCenter,"No data yet")
+            p.end(); return
+        max_conns=max(max((sum(procs[pr][i] for pr in procs) for i in range(pts)),default=1),1)
+        for gi in range(5):
+            y=margin_t+int(ch*(gi/4)); p.setPen(QPen(QColor(C['s0']),1,Qt.DotLine))
+            p.drawLine(margin_l,y,w-margin_r,y)
+            p.setPen(QColor(C['dim'])); p.setFont(QFont("Segoe UI",_dp(7)))
+            val=int(max_conns*(1-gi/4)); p.drawText(0,y-_dp(5),margin_l-_dp(4),_dp(12),Qt.AlignRight|Qt.AlignVCenter,str(val))
+        proc_names=list(procs.keys())
+        for pi,pname in enumerate(reversed(proc_names)):
+            color=QColor(_BW_COLORS[pi%len(_BW_COLORS)])
+            vals=procs[pname]; base=[0]*pts
+            for pp in proc_names[proc_names.index(pname)+1:]:
+                for i in range(pts): base[i]+=procs[pp][i]
+            poly=QPolygonF()
+            for i in range(pts):
+                x=margin_l+int(cw*i/(max(pts-1,1))); y=margin_t+ch-int(ch*(base[i]+vals[i])/max_conns)
+                poly.append(QPointF(x,y))
+            for i in range(pts-1,-1,-1):
+                x=margin_l+int(cw*i/(max(pts-1,1))); y=margin_t+ch-int(ch*base[i]/max_conns)
+                poly.append(QPointF(x,y))
+            color.setAlpha(100); p.setBrush(color); p.setPen(Qt.NoPen); p.drawPolygon(poly)
+            color.setAlpha(200); p.setPen(QPen(color,_dp(1.5)))
+            for i in range(1,pts):
+                x0=margin_l+int(cw*(i-1)/(max(pts-1,1))); y0=margin_t+ch-int(ch*(base[i-1]+vals[i-1])/max_conns)
+                x1=margin_l+int(cw*i/(max(pts-1,1))); y1=margin_t+ch-int(ch*(base[i]+vals[i])/max_conns)
+                p.drawLine(x0,y0,x1,y1)
+        p.setPen(QColor(C['dim'])); p.setFont(QFont("Segoe UI",_dp(7)))
+        p.drawText(margin_l,h-margin_b,cw,margin_b,Qt.AlignLeft|Qt.AlignTop,"oldest")
+        p.drawText(margin_l,h-margin_b,cw,margin_b,Qt.AlignRight|Qt.AlignTop,"now")
+        lx=margin_l+_dp(5); ly=margin_t+_dp(3)
+        for pi,pname in enumerate(proc_names[:8]):
+            color=QColor(_BW_COLORS[pi%len(_BW_COLORS)])
+            p.setBrush(color); p.setPen(Qt.NoPen); p.drawRoundedRect(lx,ly,_dp(8),_dp(8),2,2)
+            p.setPen(QColor(C['text'])); p.drawText(lx+_dp(11),ly,_dp(120),_dp(10),Qt.AlignLeft|Qt.AlignVCenter,pname[:20])
+            ly+=_dp(12)
+        up,dn=bw.rates()
+        p.setPen(QColor(C['blue'])); p.drawText(w-_dp(140),margin_t+_dp(3),_dp(130),_dp(10),Qt.AlignRight,f"▲ {bw.fmt(up)}")
+        p.setPen(QColor(C['teal'])); p.drawText(w-_dp(140),margin_t+_dp(15),_dp(130),_dp(10),Qt.AlignRight,f"▼ {bw.fmt(dn)}")
+        p.end()
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  TAB 1B: FW ACTIVITY — Live connections, firewall monitoring
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1869,7 +1960,8 @@ class FWActivityTab(QWidget):
     def __init__(s,db,hm,cdb,learn):
         super().__init__(); s.db=db; s.hm=hm; s.cdb=cdb; s.learn=learn
         s._conns=[]; s._conn_map={}; s._fw_blocked_ips=set()
-        s._last_hash=0; s._first_load=True; s._build()
+        s._last_hash=0; s._first_load=True; s._bw_app=BWPerApp()
+        s._build()
         s._tmr=QTimer(s); s._tmr.timeout.connect(s._auto_refresh); s._tmr.start(3000)
     def _build(s):
         lo=QVBoxLayout(s); lo.setContentsMargins(_dp(16),_dp(12),_dp(16),_dp(8)); lo.setSpacing(_dp(8))
@@ -1890,6 +1982,7 @@ class FWActivityTab(QWidget):
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
         lo.addWidget(s.tbl,1)
         s._overlay=LoadingOverlay(s.tbl)
+        s._chart=BWChartWidget(s); lo.addWidget(s._chart)
         ib=QHBoxLayout()
         s.info=QLabel(""); s.info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); ib.addWidget(s.info)
         ib.addStretch()
@@ -1979,6 +2072,7 @@ class FWActivityTab(QWidget):
             if c.host and c.host not in ('-','','...'): s._conn_map[c.host]=c
         s._last_hash=0; s._load_conns()
         _sv(s.c_live,len(conns))
+        s._bw_app.update(conns); s._chart.set_data(s._bw_app.snapshot())
         if s.learn.enabled and not s.learn.observe:
             for c in conns:
                 if c.proc in ('?','System','svchost.exe'): continue
