@@ -897,24 +897,26 @@ class DNSResolveWorker(QThread):
     def stop(s): s._stop.set()
 
 GEOIP_PATH=os.path.join(CONFIG_DIR,"geoip.mmdb")
+GEOASN_PATH=os.path.join(CONFIG_DIR,"geoasn.mmdb")
 
 def _ensure_geoip():
-    """Download DB-IP Lite MMDB if not present (CC BY 4.0, no account needed)."""
-    if os.path.exists(GEOIP_PATH): return True
-    try:
-        import gzip
-        month=datetime.datetime.now().strftime('%Y-%m')
-        url=f"https://download.db-ip.com/free/dbip-country-lite-{month}.mmdb.gz"
-        req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
-        with urllib.request.urlopen(req,timeout=60) as resp:
-            with open(GEOIP_PATH,'wb') as f: f.write(gzip.decompress(resp.read()))
-        log.info(f"Downloaded GeoIP database to {GEOIP_PATH}")
-        return True
-    except Exception as e: log.warning(f"GeoIP download failed: {e}"); return False
+    """Download DB-IP Lite MMDB files if not present (CC BY 4.0, no account needed)."""
+    import gzip
+    month=datetime.datetime.now().strftime('%Y-%m')
+    for path,slug in [(GEOIP_PATH,'dbip-country-lite'),(GEOASN_PATH,'dbip-asn-lite')]:
+        if os.path.exists(path): continue
+        try:
+            url=f"https://download.db-ip.com/free/{slug}-{month}.mmdb.gz"
+            req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+            with urllib.request.urlopen(req,timeout=60) as resp:
+                with open(path,'wb') as f: f.write(gzip.decompress(resp.read()))
+            log.info(f"Downloaded {slug} to {path}")
+        except Exception as e: log.warning(f"GeoIP download failed ({slug}): {e}")
+    return os.path.exists(GEOIP_PATH)
 
 class GeoWorker(QThread):
     resolved=pyqtSignal(str,str,str)
-    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2; s._mmdb=None
+    def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2; s._mmdb=None; s._asndb=None
     def add(s,ip):
         if ip not in geo_c:
             with s._lock:
@@ -925,6 +927,9 @@ class GeoWorker(QThread):
             import maxminddb
             if _ensure_geoip():
                 s._mmdb=maxminddb.open_database(GEOIP_PATH)
+                if os.path.exists(GEOASN_PATH):
+                    try: s._asndb=maxminddb.open_database(GEOASN_PATH)
+                    except Exception: pass
                 return True
         except ImportError: log.debug("maxminddb not installed, using API fallback")
         except Exception as e: log.warning(f"MMDB open failed: {e}")
@@ -936,6 +941,12 @@ class GeoWorker(QThread):
             if r:
                 cc=r.get('country',{}).get('iso_code','')
                 cn=r.get('country',{}).get('names',{}).get('en','')
+                if s._asndb:
+                    ar=s._asndb.get(ip)
+                    if ar:
+                        asn=ar.get('autonomous_system_number','')
+                        asorg=ar.get('autonomous_system_organization','')
+                        if asn: cn=f"{cn} (AS{asn})" if cn else f"AS{asn}"
                 if cc: return (cc,cn)
         except Exception: pass
         return None
@@ -977,6 +988,9 @@ class GeoWorker(QThread):
         s._stop.set()
         if s._mmdb:
             try: s._mmdb.close()
+            except: pass
+        if s._asndb:
+            try: s._asndb.close()
             except: pass
 
 class DNSMonitor(QThread):
@@ -2212,7 +2226,9 @@ class FirewallTab(QWidget):
         qa.addWidget(_tbtn("Block IP Out","danger",s._qblock_ip,85))
         qa.addWidget(_tbtn("Block IP In+Out","danger",s._qblock_ip_both,105))
         qa.addWidget(_tbtn("Block Program","danger",s._qblock_prog,110))
-        qa.addWidget(_tbtn("Enable Profiles","dim",s._profiles,110)); qa.addStretch()
+        qa.addWidget(_tbtn("Enable Profiles","dim",s._profiles,110))
+        qa.addWidget(_tbtn("Save Baseline","dim",s._save_baseline,95))
+        qa.addWidget(_tbtn("Show Drift","dim",s._show_drift,80)); qa.addStretch()
         qa.addWidget(_tbtn("Delete All HG","danger",s._del_all_hg,115)); lo.addLayout(qa)
         s.tbl=_tbl(["","Name","Dir","Action","Proto","Remote","Program","Src"],1,row_h=28)
         s.tbl.setColumnWidth(0,_dp(28)); s.tbl.setColumnWidth(2,_dp(38)); s.tbl.setColumnWidth(3,_dp(48))
@@ -2384,6 +2400,28 @@ class FirewallTab(QWidget):
                 d="In" if "_In" in n else "Out"
                 s._inject_rule(n,d,"Block",program=prog)
             s._toast(f"Blocked {Path(prog).name} in+out ({len(created)} rules)",C['red'])
+    def _save_baseline(s):
+        bl={r.name:(r.direction,r.action,r.enabled,r.remote_addr,r.protocol,r.program) for r in s._rules}
+        cfg=load_cfg(); cfg['fw_baseline']=bl; cfg['fw_baseline_ts']=datetime.datetime.now().isoformat(); save_cfg(cfg)
+        s._toast(f"Baseline saved: {len(bl)} rules",C['green'])
+    def _show_drift(s):
+        cfg=load_cfg(); bl=cfg.get('fw_baseline')
+        if not bl: s._toast("No baseline saved",C['peach']); return
+        current={r.name:(r.direction,r.action,r.enabled,r.remote_addr,r.protocol,r.program) for r in s._rules}
+        added=[n for n in current if n not in bl]; removed=[n for n in bl if n not in current]
+        changed=[n for n in current if n in bl and current[n]!=bl[n]]
+        if not added and not removed and not changed: s._toast("No drift from baseline",C['green']); return
+        parts=[]
+        if added: parts.append(f"+{len(added)} new")
+        if removed: parts.append(f"-{len(removed)} removed")
+        if changed: parts.append(f"~{len(changed)} changed")
+        ts=cfg.get('fw_baseline_ts','?')[:19]
+        msg=f"Drift from {ts}: {', '.join(parts)}"
+        detail=[]
+        for n in added[:10]: detail.append(f"+ {n}")
+        for n in removed[:10]: detail.append(f"- {n}")
+        for n in changed[:10]: detail.append(f"~ {n}")
+        QMessageBox.information(s,"Firewall Drift",f"{msg}\n\n"+'\n'.join(detail))
     def resizeEvent(s,e): super().resizeEvent(e); s._overlay._update_geom()
     def _toast(s,msg,color):
         w=s.window()
