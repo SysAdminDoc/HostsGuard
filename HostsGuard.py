@@ -334,9 +334,10 @@ class FaviconCache(QObject):
         return None
     def _fetch(s,domain,h,p):
         try:
-            r=get_root(domain); url=f"https://www.google.com/s2/favicons?domain={r}&sz=32"
-            req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
-            with urllib.request.urlopen(req,timeout=8) as resp:
+            r=get_root(domain)
+            url=f"https://{r}/favicon.ico"
+            req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+            with urllib.request.urlopen(req,timeout=5) as resp:
                 data=resp.read()
                 if len(data)>100:
                     with open(p,'wb') as f: f.write(data)
@@ -725,9 +726,21 @@ fw=FWEngine()
 # ─── Hosts File Manager ────────────────────────────────────────────────────
 class HostsMgr:
     def __init__(s):
-        s._blocked=set(); s._lines=[]; s._lock=threading.RLock()  # RLock = reentrant, deadlock-proof
-        s._suppress_watcher=False  # Flag to suppress HostsWatcher cascade during internal saves
+        s._blocked=set(); s._lines=[]; s._lock=threading.RLock()
+        s._suppress_watcher=False
         s.read()
+    @staticmethod
+    def _atomic_write(content):
+        """Write hosts file via temp-file + os.replace() to prevent TOCTOU data loss."""
+        hosts_dir=os.path.dirname(HOSTS_PATH)
+        fd,tmp=tempfile.mkstemp(dir=hosts_dir,prefix='hosts_',suffix='.tmp')
+        try:
+            with os.fdopen(fd,'w',encoding='utf-8') as f: f.write(content)
+            os.replace(tmp,HOSTS_PATH)
+        except:
+            try: os.unlink(tmp)
+            except OSError: pass
+            raise
     def read(s):
         with s._lock:
             try:
@@ -747,8 +760,9 @@ class HostsMgr:
         with s._lock:
             if d in s._blocked: return False
             try:
-                with open(HOSTS_PATH,'a',encoding='utf-8') as f: f.write(f"0.0.0.0 {d}\n")
-                s._blocked.add(d); s._lines.append(f"0.0.0.0 {d}\n")
+                new_lines=list(s._lines)+[f"0.0.0.0 {d}\n"]
+                s._atomic_write(''.join(new_lines))
+                s._blocked.add(d); s._lines=new_lines
             except Exception as e: log.warning(f"Hosts block {d}: {e}"); return False
         if flush: s._flush(); return True
     def block_bulk(s,domains,flush=True):
@@ -756,9 +770,10 @@ class HostsMgr:
             new=[d.lower().strip() for d in domains if d.lower().strip() not in s._blocked and looks_like_domain(d.lower().strip())]
             if not new: return 0
             try:
-                payload=''.join(f"0.0.0.0 {d}\n" for d in new)
-                with open(HOSTS_PATH,'a',encoding='utf-8') as f: f.write(payload)
-                for d in new: s._blocked.add(d); s._lines.append(f"0.0.0.0 {d}\n")
+                new_lines=list(s._lines)+[f"0.0.0.0 {d}\n" for d in new]
+                s._atomic_write(''.join(new_lines))
+                for d in new: s._blocked.add(d)
+                s._lines=new_lines
             except Exception as e: log.warning(f"Hosts block_bulk: {e}"); return 0
         if flush: s._flush(); return len(new)
     def unblock(s,d,flush=True):
@@ -774,7 +789,7 @@ class HostsMgr:
                     continue
                 new.append(l)
             try:
-                with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.writelines(new)
+                s._atomic_write(''.join(new))
                 s._blocked.discard(d); s._lines=new
             except Exception as e: log.warning(f"Hosts unblock {d}: {e}"); return False
         if flush: s._flush(); return True
@@ -783,7 +798,7 @@ class HostsMgr:
         with s._lock:
             s._suppress_watcher=True
             try:
-                with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write(text)
+                s._atomic_write(text)
                 s.read()
             except Exception as e: s._suppress_watcher=False; return str(e)
             finally: s._suppress_watcher=False
@@ -793,7 +808,7 @@ class HostsMgr:
             s._suppress_watcher=True
             try:
                 cleaned,stats=clean_hosts(list(s._lines),wl)
-                with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write('\n'.join(cleaned)+'\n')
+                s._atomic_write('\n'.join(cleaned)+'\n')
                 s.read()
             except Exception as e: s._suppress_watcher=False; return None,str(e)
             finally: s._suppress_watcher=False
@@ -822,7 +837,7 @@ class HostsMgr:
         with s._lock:
             s._suppress_watcher=True
             try:
-                with open(HOSTS_PATH,'w',encoding='utf-8') as f: f.write('\n'.join(WINDOWS_HEADER)+'\n')
+                s._atomic_write('\n'.join(WINDOWS_HEADER)+'\n')
                 s.read()
             except: return False
             finally: s._suppress_watcher=False
@@ -877,7 +892,7 @@ class GeoWorker(QThread):
                 batch_set=set(batch)
                 try:
                     data=json.dumps([{"query":ip} for ip in batch]).encode()
-                    req=urllib.request.Request("https://pro.ip-api.com/batch?fields=query,country,countryCode",data=data,
+                    req=urllib.request.Request("http://ip-api.com/batch?fields=query,country,countryCode",data=data,
                         headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
                     with urllib.request.urlopen(req,timeout=10) as resp:
                         for item in json.loads(resp.read()):
@@ -1920,7 +1935,7 @@ class ImpWorker(QThread):
     def __init__(s,name,url,hm,db): super().__init__(); s.name,s.url,s.hm,s.db=name,url,hm,db
     def run(s):
         try:
-            req=urllib.request.Request(s.url,headers={'User-Agent':'HostsGuard/3.1'})
+            req=urllib.request.Request(s.url,headers={'User-Agent':f'HostsGuard/{VER}'})
             with urllib.request.urlopen(req,timeout=30) as resp:
                 lines=resp.read().decode('utf-8',errors='replace').splitlines()
             domains=[d for l in lines if (d:=norm_line(l,False)) and looks_like_domain(d)]
