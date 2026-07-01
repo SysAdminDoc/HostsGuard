@@ -2795,6 +2795,7 @@ class ToolsTab(QWidget):
         l4.addWidget(_tbtn("Save Current to Profile","dim",s._save_profile))
         l4.addWidget(_tbtn("Re-baseline (accept current)","dim",s._rebaseline))
         l4.addWidget(_tbtn("Harden Hosts ACL","dim",s._harden_acl))
+        l4.addWidget(_tbtn("Restore from StevenBlack","dim",s._restore_upstream))
         s._ar_cb=QCheckBox("Auto-restore on tamper"); s._ar_cb.setChecked(load_cfg().get('auto_restore_on_tamper',False))
         s._ar_cb.toggled.connect(s._toggle_auto_restore)
         s._ar_cb.setToolTip("Automatically restore hosts file from backup if externally modified"); l4.addWidget(s._ar_cb)
@@ -2980,6 +2981,28 @@ class ToolsTab(QWidget):
             ok1,_=_ps(f'icacls {_ps_esc(HOSTS_PATH)} /inheritance:r /grant:r "NT AUTHORITY\\SYSTEM:(F)" "BUILTIN\\Administrators:(F)" /deny "BUILTIN\\Users:(W,D)"',10)
             ok2,_=_ps(f'auditpol /set /subcategory:"File System" /success:enable /failure:enable',10)
             QTimer.singleShot(0,lambda:s._toast("Hosts ACL hardened + audit enabled" if ok1 else "ACL hardening failed",C['green'] if ok1 else C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
+    def _restore_upstream(s):
+        def _bg():
+            try:
+                url="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
+                req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+                with urllib.request.urlopen(req,timeout=30) as resp:
+                    content=resp.read().decode('utf-8',errors='replace')
+                s.hm.backup()
+                err=s.hm.save_raw(content)
+                if err: QTimer.singleShot(0,lambda:s._toast(f"Restore failed: {err}",C['red']))
+                else:
+                    s.db.sync_hosts_to_db(s.hm)
+                    w=s.window()
+                    if hasattr(w,'_watcher'): w._watcher.update_hash()
+                    QTimer.singleShot(0,lambda:s._toast("Restored from StevenBlack upstream",C['green']))
+            except Exception as e: QTimer.singleShot(0,lambda:s._toast(f"Download failed: {e}",C['red']))
+        if QMessageBox.question(s,"Restore from Upstream",
+            "Replace your hosts file with the StevenBlack unified hosts list?\n"
+            "A backup of the current file will be created first.",
+            QMessageBox.Yes|QMessageBox.No)!=QMessageBox.Yes: return
+        s._toast("Downloading StevenBlack hosts...",C['blue'])
         threading.Thread(target=_bg,daemon=True).start()
     def _save_profile(s):
         w=s.window(); name=w._prof_cb.currentText() if hasattr(w,'_prof_cb') else 'Default'
