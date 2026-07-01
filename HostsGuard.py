@@ -161,6 +161,7 @@ SOURCES={
         ("Windows/Office","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.winoffice.txt"),
         ("TikTok","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.tiktok.extended.txt"),
         ("Samsung","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.samsung.txt")]}
+_DEFENDER_WARN={"Windows/Office","HaGezi Ultimate","StevenBlack Unified","Windows Spy Blocker"}
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
 C={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
@@ -354,8 +355,12 @@ def _init_fav():
 class DB:
     def __init__(s):
         s.conn=sqlite3.connect(DB_PATH,check_same_thread=False); s.conn.execute("PRAGMA journal_mode=WAL")
-        s.conn.execute("PRAGMA busy_timeout=5000"); s._lock=Lock(); s._migrate()
-        s._blocked_cache=None; s._blocked_ts=0
+        s.conn.execute("PRAGMA busy_timeout=5000"); s._lock=Lock()
+        try:
+            r=s.conn.execute("PRAGMA integrity_check").fetchone()
+            if r and r[0]!='ok': log.warning(f"DB integrity issue: {r[0]}")
+        except Exception as e: log.warning(f"DB integrity check failed: {e}")
+        s._migrate(); s._blocked_cache=None; s._blocked_ts=0
     def _migrate(s):
         s.conn.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT)")
         try:
@@ -441,7 +446,7 @@ class DB:
             except Exception as e: log.warning(f"feed_upsert {d}: {e}"); return False
     def feed_get(s,search=None,show_hidden=False,status_filter=None):
         q="""SELECT f.domain,f.first_seen,f.last_seen,f.hits,f.process,f.hidden,
-            COALESCE(d.status,'unmanaged') FROM feed f LEFT JOIN domains d ON f.domain=d.domain WHERE 1=1"""
+            COALESCE(d.status,'unmanaged'),d.source FROM feed f LEFT JOIN domains d ON f.domain=d.domain WHERE 1=1"""
         p=[]
         if not show_hidden: q+=" AND f.hidden=0"
         else: q+=" AND f.hidden=1"
@@ -516,6 +521,10 @@ class ConnDB:
     def __init__(s):
         s.conn=sqlite3.connect(CONN_DB,check_same_thread=False); s.conn.execute("PRAGMA journal_mode=WAL")
         s.conn.execute("PRAGMA busy_timeout=5000"); s._lock=Lock()
+        try:
+            r=s.conn.execute("PRAGMA integrity_check").fetchone()
+            if r and r[0]!='ok': log.warning(f"ConnDB integrity issue: {r[0]}")
+        except Exception as e: log.warning(f"ConnDB integrity check failed: {e}")
         s.conn.execute("""CREATE TABLE IF NOT EXISTS conns(id INTEGER PRIMARY KEY,ts TEXT,proto TEXT,la TEXT,lp TEXT,
             ra TEXT,rp TEXT,host TEXT,proc TEXT,pid INTEGER,state TEXT,org TEXT,country TEXT,cc TEXT,category TEXT,
             UNIQUE(ts,proto,la,lp,ra,rp,pid))""")
@@ -1408,8 +1417,16 @@ class HostsActivityTab(QWidget):
         s._last_hash=h
         saved=s._sel_domain()
         s.tbl.setSortingEnabled(False); s.tbl.setRowCount(len(rows))
-        for i,(domain,fs,ls,hits,proc,hidden,status) in enumerate(rows):
-            _icon_item(s.tbl,i,0,domain,domain)
+        for i,row in enumerate(rows):
+            domain,fs,ls,hits,proc,hidden,status=row[:7]
+            source=row[7] if len(row)>7 else None
+            it0=QTableWidgetItem(domain)
+            if domain and _fav:
+                px=_fav.get(domain)
+                if px and not px.isNull(): it0.setIcon(QIcon(px))
+            if source and status in ('blocked','whitelisted'):
+                it0.setToolTip(f"{'Blocked' if status=='blocked' else 'Allowed'} by: {source}")
+            s.tbl.setItem(i,0,it0)
             hc={'blocked':C['red'],'whitelisted':C['green']}.get(status,C['dim'])
             ht={'blocked':'BLOCKED','whitelisted':'ALLOWED'}.get(status,'\u2014')
             s.tbl.setCellWidget(i,1,_pill(ht,hc))
@@ -1902,6 +1919,17 @@ class HostsTab(QWidget):
         s._run_imp(sel)
     def _imp_one(s,n,u): s._run_imp([(n,u)])
     def _run_imp(s,sources):
+        warn=[n for n,_ in sources if n in _DEFENDER_WARN]
+        if warn:
+            r=QMessageBox.warning(s,"Windows Defender Warning",
+                f"These lists block Microsoft telemetry domains:\n{', '.join(warn)}\n\n"
+                "Windows Defender may flag your hosts file as "
+                "'SettingsModifier:Win32/HostsFileHijack' (Severe).\n\n"
+                "To prevent this, add the hosts file path to Defender exclusions:\n"
+                "Settings → Virus & Threat Protection → Exclusions → Add\n"
+                f"Path: {HOSTS_PATH}\n\nContinue importing?",
+                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if r!=QMessageBox.Yes: return
         s.bl_prog.setVisible(True); s.bl_prog.setRange(0,len(sources)); s.bl_prog.setValue(0)
         s._iq=list(sources); s._ii=0; s._it=0; s._do_next()
     def _do_next(s):
@@ -1911,10 +1939,17 @@ class HostsTab(QWidget):
         name,url=s._iq[s._ii]; s.bl_st.setText(f"{name}...")
         if name in s._chk: s._chk[name][2].setText("\u2026")
         s._cw=ImpWorker(name,url,s.hm,s.db); s._cw.done.connect(s._on_imp); s._cw.start()
-    def _on_imp(s,name,ct,err):
+    def _on_imp(s,name,ct,total,err):
         if name in s._chk:
-            s._chk[name][2].setText(f"\u2713 {ct}" if not err else "\u2717")
-            s._chk[name][2].setStyleSheet(f"color:{C['green'] if not err else C['red']};font-size:{_dp(10)}px;min-width:{_dp(45)}px;")
+            if err:
+                s._chk[name][2].setText("\u2717")
+                s._chk[name][2].setStyleSheet(f"color:{C['red']};font-size:{_dp(10)}px;min-width:{_dp(45)}px;")
+            else:
+                existing=total-ct
+                lbl=f"\u2713 +{ct}" if ct else f"\u2713 {total}"
+                if existing>0 and ct>0: lbl+=f" ({existing} dup)"
+                s._chk[name][2].setText(lbl)
+                s._chk[name][2].setStyleSheet(f"color:{C['green']};font-size:{_dp(10)}px;min-width:{_dp(45)}px;")
         s._it+=ct; s._ii+=1; s.bl_prog.setValue(s._ii); s._do_next()
     def _paste_h(s):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
@@ -1931,7 +1966,7 @@ class HostsTab(QWidget):
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
 
 class ImpWorker(QThread):
-    done=pyqtSignal(str,int,str)
+    done=pyqtSignal(str,int,int,str)
     def __init__(s,name,url,hm,db): super().__init__(); s.name,s.url,s.hm,s.db=name,url,hm,db
     def run(s):
         try:
@@ -1939,10 +1974,11 @@ class ImpWorker(QThread):
             with urllib.request.urlopen(req,timeout=30) as resp:
                 lines=resp.read().decode('utf-8',errors='replace').splitlines()
             domains=[d for l in lines if (d:=norm_line(l,False)) and looks_like_domain(d)]
+            total=len(domains)
             ct=s.hm.block_bulk(domains,flush=False)
             for d in domains: s.db.add_domain(d,'blocked',f'list:{s.name}')
-            s.hm._flush(); s.done.emit(s.name,ct,"")
-        except Exception as e: s.done.emit(s.name,0,str(e)[:40])
+            s.hm._flush(); s.done.emit(s.name,ct,total,"")
+        except Exception as e: s.done.emit(s.name,0,0,str(e)[:40])
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  TAB 3: FIREWALL — with loading overlay
