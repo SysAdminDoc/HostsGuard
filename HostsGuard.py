@@ -208,6 +208,21 @@ BLOCK_SERVICES={
     "LinkedIn":["linkedin.com","www.linkedin.com","licdn.com","lnkd.in"],
     "Pinterest":["pinterest.com","www.pinterest.com","pinimg.com"],
 }
+
+# Curated Microsoft telemetry endpoints for a one-click privacy preset. Blocking
+# these will trip Defender's SettingsModifier:Win32/HostsFileHijack (that's the
+# whole telemetry-block scenario) — the toggle warns before applying.
+MS_TELEMETRY=[
+    "vortex.data.microsoft.com","vortex-win.data.microsoft.com","telecommand.telemetry.microsoft.com",
+    "telemetry.microsoft.com","watson.telemetry.microsoft.com","watson.microsoft.com",
+    "settings-win.data.microsoft.com","v10.vortex-win.data.microsoft.com","v10.events.data.microsoft.com",
+    "v20.events.data.microsoft.com","functional.events.data.microsoft.com","self.events.data.microsoft.com",
+    "browser.events.data.msn.com","oca.telemetry.microsoft.com","sqm.telemetry.microsoft.com",
+    "df.telemetry.microsoft.com","reports.wes.df.telemetry.microsoft.com","services.wes.df.telemetry.microsoft.com",
+    "redir.metaservices.microsoft.com","choice.microsoft.com","statsfe2.ws.microsoft.com","statsfe1.ws.microsoft.com",
+    "diagnostics.support.microsoft.com","feedback.windows.com","feedback.search.microsoft.com",
+    "feedback.microsoft-hohm.com","corp.sts.microsoft.com","compatexchange.cloudapp.net",
+]
 # Lists large enough to bloat the hosts file to the point the Windows DNS Client
 # (svchost) spikes CPU and resolution slows. Warn before importing these.
 _LARGE_LISTS={"HaGezi Ultimate","OISD Full","StevenBlack Unified","HOSTShield Combined"}
@@ -3272,6 +3287,10 @@ class ToolsTab(QWidget):
                              "can't tunnel DNS past hosts blocking. Your own DNS resolver is exempt.\n"
                              "Note: per-app DoH can't be fully closed without a driver/proxy.")
         s._doh_cb.toggled.connect(s._toggle_doh); l1.addWidget(s._doh_cb)
+        s._tel_cb=QCheckBox("Block Windows Telemetry")
+        s._tel_cb.setToolTip("One-click block ~28 Microsoft telemetry endpoints via the hosts file.\n"
+                             "Note: this trips Defender's HostsFileHijack alert (add a hosts exclusion).")
+        s._tel_cb.toggled.connect(s._toggle_telemetry); l1.addWidget(s._tel_cb)
         dr=QHBoxLayout(); dr.setSpacing(_dp(3))
         s._dns_cb=QComboBox(); s._dns_cb.addItems(["System Default","Cloudflare (1.1.1.1)","Google (8.8.8.8)","Quad9 (9.9.9.9)","AdGuard (94.140.14.14)","NextDNS (45.90.28.0)"])
         dr.addWidget(s._dns_cb,1); dr.addWidget(_btn("Apply","primary",s._apply_dns)); l1.addLayout(dr)
@@ -3319,8 +3338,28 @@ class ToolsTab(QWidget):
         super().showEvent(e); s._log(); s._upd_learn(); s._upd_rec()
         # Reflect actual firewall state (rules persist across restarts) without re-toggling.
         s._doh_cb.blockSignals(True); s._doh_cb.setChecked(load_cfg().get('block_doh',False)); s._doh_cb.blockSignals(False)
+        # Telemetry preset reflects actual hosts state (checked only if all blocked)
+        tb=s.hm.get_blocked(); tel_on=all(d.lower() in tb for d in MS_TELEMETRY)
+        s._tel_cb.blockSignals(True); s._tel_cb.setChecked(tel_on); s._tel_cb.blockSignals(False)
     def _open_schedules(s):
         ScheduleDlg(s.window()).exec_()
+    def _toggle_telemetry(s,on):
+        if on:
+            r=QMessageBox.warning(s,"Windows Defender Warning",
+                f"Blocking Microsoft telemetry endpoints ({len(MS_TELEMETRY)} domains) will likely "
+                "trip Windows Defender's 'SettingsModifier:Win32/HostsFileHijack' (Severe).\n\n"
+                "Add a Defender exclusion for the hosts file first:\n"
+                "Settings → Virus & Threat Protection → Exclusions → Add\n"
+                f"Path: {HOSTS_PATH}\n\nContinue?",
+                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if r!=QMessageBox.Yes:
+                s._tel_cb.blockSignals(True); s._tel_cb.setChecked(False); s._tel_cb.blockSignals(False); return
+            ct=s.hm.block_bulk(MS_TELEMETRY)
+            s.db.add_domains_bulk([(d.lower(),'blocked','telemetry') for d in MS_TELEMETRY])
+            s._toast(f"Blocked Windows telemetry ({ct} new)",C['red'])
+        else:
+            for d in MS_TELEMETRY: s.hm.unblock(d,flush=False); s.db.remove_domain(d.lower())
+            s.hm._flush(); s._toast("Unblocked Windows telemetry",C['green'])
     def _toggle_doh(s,on):
         def _bg():
             if on:
