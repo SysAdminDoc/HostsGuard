@@ -499,6 +499,35 @@
                                         </TextBox>
                                     </DockPanel>
                                     <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0" />
+
+                                    <Separator Margin="0,10" Background="{DynamicResource Hg.S0}" />
+                                    <DockPanel LastChildFill="False">
+                                        <Button DockPanel.Dock="Left" Margin="0,0,10,0"
+                                                Command="{Binding ToggleEncryptedDnsCommand}"
+                                                ToolTip="Firewall-block known DoH resolver IPs + DoT/DoQ port 853 so apps and browsers can't tunnel DNS past hosts blocking. Your own resolvers stay exempt.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Block encrypted DNS" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DohBlockingActive}" Value="True">
+                                                            <Setter Property="Content" Value="Unblock encrypted DNS" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBox DockPanel.Dock="Left" Width="240" Margin="0,0,8,0"
+                                                 Text="{Binding DohUrl, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Optional remote resolver-list URL (https)" />
+                                        <TextBox DockPanel.Dock="Left" Width="200" Margin="0,0,8,0"
+                                                 Text="{Binding DohSha256, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Expected SHA-256 of the remote list (required with a URL)" />
+                                        <Button DockPanel.Dock="Left" Content="Refresh DoH intelligence"
+                                                Command="{Binding RefreshDohCommand}" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding DohStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>
 

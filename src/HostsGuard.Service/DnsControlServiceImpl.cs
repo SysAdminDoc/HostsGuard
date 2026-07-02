@@ -91,6 +91,56 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         return result;
     }
 
+    public override Task<DohStatus> GetDohStatus(Empty request, ServerCallContext context)
+    {
+        var state = _state.Doh.Load();
+        var extras = Core.DohResolvers.NormalizeIpSet(state.Ips);
+        extras.ExceptWith(Core.DohResolvers.NormalizeIpSet(Core.DohResolvers.BuiltIn));
+        return Task.FromResult(new DohStatus
+        {
+            ResolverIps = _state.Doh.CurrentIps().Count,
+            ExtraIps = extras.Count,
+            Updated = state.Updated,
+            Source = state.Source,
+            Sha256 = state.Sha256,
+            BlockingActive = _state.Firewall?.RuleExists("HG_DoT_TCP") ?? false,
+        });
+    }
+
+    public override async Task<Ack> RefreshDohIntelligence(DohRefreshRequest request, ServerCallContext context)
+    {
+        var url = (request.Url ?? string.Empty).Trim();
+        if (url.Length != 0 &&
+            (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Error("invalid_source", "DoH resolver list URL must be https://");
+        }
+
+        if (url.Length != 0 && _state.ListFetcher is null)
+        {
+            return Error("lists_unavailable", "no fetcher attached to this service instance");
+        }
+
+        try
+        {
+            var state = await _state.Doh.RefreshAsync(url, request.Sha256, _state.ListFetcher ?? NullFetcher.Instance, context.CancellationToken);
+            return Ok($"DoH intelligence refreshed: {state.Ips.Count} learned IPs ({state.Source})");
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            // The prior doh_resolvers.json is untouched on any failure.
+            return Error("refresh_failed", ex.Message);
+        }
+    }
+
+    private sealed class NullFetcher : IListFetcher
+    {
+        public static readonly NullFetcher Instance = new();
+
+        public Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
+            => throw new InvalidOperationException("no fetcher attached");
+    }
+
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 
     private static Ack Error(string code, string message) =>

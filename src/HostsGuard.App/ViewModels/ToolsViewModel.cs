@@ -179,6 +179,59 @@ public sealed partial class ToolsViewModel : ObservableObject
         StatusText = ack.Message;
     }
 
+    // ─── Encrypted DNS (DoH/DoT) ──────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string _dohStatusText = string.Empty;
+
+    [ObservableProperty]
+    private bool _dohBlockingActive;
+
+    [ObservableProperty]
+    private string _dohUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _dohSha256 = string.Empty;
+
+    [RelayCommand]
+    public async Task LoadDohStatusAsync()
+    {
+        var status = await _client.Dns.GetDohStatusAsync(new Empty());
+        DohBlockingActive = status.BlockingActive;
+        DohStatusText = status.Updated.Length != 0
+            ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
+            : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+    }
+
+    [RelayCommand]
+    public async Task ToggleEncryptedDnsAsync()
+    {
+        Ack ack;
+        if (DohBlockingActive)
+        {
+            ack = await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
+        }
+        else
+        {
+            ack = await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
+        }
+
+        StatusText = ack.Message;
+        await LoadDohStatusAsync();
+    }
+
+    [RelayCommand]
+    public async Task RefreshDohAsync()
+    {
+        var ack = await _client.Dns.RefreshDohIntelligenceAsync(new DohRefreshRequest
+        {
+            Url = DohUrl,
+            Sha256 = DohSha256,
+        });
+        StatusText = ack.Message;
+        await LoadDohStatusAsync();
+    }
+
     // ─── Blocked services ─────────────────────────────────────────────────────
 
     [RelayCommand]

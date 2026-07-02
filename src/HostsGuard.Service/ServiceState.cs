@@ -36,6 +36,8 @@ public sealed class ServiceState : IDisposable
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
         Schedules = new ScheduleEnforcer(hosts, db);
+        Doh = new DohIntelligence(DataDir);
+        ListFetcher = listFetcher;
         if (listFetcher is not null)
         {
             Lists = new ListImporter(hosts, db, listFetcher);
@@ -58,6 +60,10 @@ public sealed class ServiceState : IDisposable
     public ScheduleEnforcer Schedules { get; }
 
     public ListImporter? Lists { get; }
+
+    public DohIntelligence Doh { get; }
+
+    public IListFetcher? ListFetcher { get; }
 
     public EventBus Bus { get; }
 
@@ -92,6 +98,12 @@ public sealed class ServiceState : IDisposable
     public void PublishConnection(ConnectionInfo info)
     {
         ArgumentNullException.ThrowIfNull(info);
+        var category = string.Empty;
+        if (info.RemotePort is 443 or 853 && Doh.CurrentIps().Contains(info.RemoteAddress))
+        {
+            category = "DoH/DoT"; // browser/app DNS tunneling detection
+        }
+
         Bus.Publish(new ConnectionEvent
         {
             Protocol = info.Protocol,
@@ -102,6 +114,7 @@ public sealed class ServiceState : IDisposable
             Process = info.Process,
             Pid = info.Pid,
             State = info.State,
+            Category = category,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
     }

@@ -106,7 +106,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             remote.Length == 0 ? "Any" : remote,
             FwRuleMapper.MapProtocol(request.Protocol),
             (request.Program ?? string.Empty).Trim(),
-            "hostsguard");
+            "hostsguard",
+            FwRuleMapper.MapPorts(request.RemotePorts));
         var created = fw.CreateRule(rule);
         if (created)
         {
@@ -179,6 +180,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
                 Program = r.Program,
                 Source = r.Source,
                 Orphaned = FirewallIdentity.IsOrphaned(r),
+                RemotePorts = r.RemotePorts,
             });
         }
 
@@ -196,11 +198,79 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(list);
     }
 
+    /// <summary>HG_DoH_* rule names (kept in parity with the Python DOH_RULES).</summary>
+    public static readonly IReadOnlyList<string> DohRuleNames = new[] { "HG_DoH_IPs", "HG_DoT_TCP", "HG_DoT_UDP" };
+
     public override Task<Ack> BlockEncryptedDns(DohBlockRequest request, ServerCallContext context)
-        => Task.FromResult(Error("not_implemented", "DoH/DoT blocking arrives with the resolver-intelligence engine"));
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        // The user's own resolvers (request) plus the machine's current ones
+        // are never blocked, so their chosen DNS keeps working.
+        var exempt = new HashSet<string>(request.Exempt.Select(e => e.Trim()), StringComparer.Ordinal);
+        foreach (var resolver in Windows.DnsConfig.CurrentResolvers())
+        {
+            exempt.Add(resolver.ToString());
+        }
+
+        var ips = _state.Doh.CurrentIps().Where(ip => !exempt.Contains(ip))
+            .OrderBy(ip => ip, StringComparer.Ordinal).ToList();
+
+        // Recreate from scratch so a stale resolver set never lingers.
+        foreach (var name in DohRuleNames)
+        {
+            fw.DeleteRule(name);
+            _state.Db.RemoveFwState(name);
+        }
+
+        var created = new List<string>();
+        if (ips.Count != 0)
+        {
+            var addr = string.Join(",", ips);
+            if (fw.CreateRule(new FwRule("HG_DoH_IPs", "Out", "Block", true, addr, "Any", string.Empty, "hostsguard")))
+            {
+                _state.Db.UpsertFwState("HG_DoH_IPs", "Out", "Block", addr, "Any", string.Empty);
+                created.Add("HG_DoH_IPs");
+            }
+        }
+
+        foreach (var (proto, name) in new[] { ("TCP", "HG_DoT_TCP"), ("UDP", "HG_DoT_UDP") })
+        {
+            if (fw.CreateRule(new FwRule(name, "Out", "Block", true, "Any", proto, string.Empty, "hostsguard", RemotePorts: "853")))
+            {
+                _state.Db.UpsertFwState(name, "Out", "Block", "Any", proto, string.Empty);
+                created.Add(name);
+            }
+        }
+
+        _state.Db.LogEvent("doh", "fw_blocked", details: $"encrypted DNS blocked ({ips.Count} resolver IPs, port 853)", reason: "doh");
+        return Task.FromResult(Ok($"encrypted DNS blocked: {ips.Count} resolver IPs + DoT/DoQ port 853 ({string.Join(", ", created)})"));
+    }
 
     public override Task<Ack> UnblockEncryptedDns(Empty request, ServerCallContext context)
-        => Task.FromResult(Error("not_implemented", "DoH/DoT blocking arrives with the resolver-intelligence engine"));
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var removed = 0;
+        foreach (var name in DohRuleNames)
+        {
+            if (fw.DeleteRule(name))
+            {
+                removed++;
+            }
+
+            _state.Db.RemoveFwState(name);
+        }
+
+        _state.Db.LogEvent("doh", "fw_unblocked", details: "encrypted DNS unblocked", reason: "doh");
+        return Task.FromResult(Ok($"encrypted DNS unblocked ({removed} rules removed)"));
+    }
 
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);

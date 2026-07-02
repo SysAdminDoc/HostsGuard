@@ -53,7 +53,8 @@ public sealed class FirewallEngine : IFirewallEngine
                     (bool)comRule.Enabled,
                     (string?)comRule.RemoteAddresses,
                     (int)comRule.Protocol,
-                    SafeApplicationName(comRule)));
+                    SafeApplicationName(comRule),
+                    SafeRemotePorts(comRule)));
             }
             catch (COMException)
             {
@@ -88,6 +89,12 @@ public sealed class FirewallEngine : IFirewallEngine
         }
 
         com.Protocol = rule.Protocol switch { "TCP" => ProtoTcp, "UDP" => ProtoUdp, _ => ProtoAny };
+        // COM requires Protocol set BEFORE ports, and only TCP/UDP accept ports.
+        if (rule.RemotePorts is not ("" or "Any") && rule.Protocol is "TCP" or "UDP")
+        {
+            com.RemotePorts = rule.RemotePorts;
+        }
+
         if (rule.Program.Length != 0)
         {
             com.ApplicationName = rule.Program;
@@ -145,6 +152,18 @@ public sealed class FirewallEngine : IFirewallEngine
         }
 
         return false;
+    }
+
+    private static string SafeRemotePorts(dynamic comRule)
+    {
+        try
+        {
+            return (string?)comRule.RemotePorts ?? string.Empty;
+        }
+        catch (COMException)
+        {
+            return string.Empty;
+        }
     }
 
     private static string SafeApplicationName(dynamic comRule)

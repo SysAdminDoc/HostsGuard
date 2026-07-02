@@ -89,7 +89,17 @@ All notable changes to HostsGuard are documented in this file.
   blocks keep their identity, and manual whitelists always win. Tools tab
   gained the service toggle grid. (Scheduled blocking itself shipped with the
   NET-023 enforcement engine.)
-- 236 .NET tests; zero build warnings under warnings-as-errors.
+- DoH/DoT blocking (NET-033): BlockEncryptedDns now creates HG_DoH_IPs
+  (resolver-IP block from the built-in + learned set) and HG_DoT_TCP/UDP
+  (port 853) rules with the user's and the machine's own resolvers exempt;
+  FwRule/COM engine grew remote-port support (protocol set before ports).
+  DoH intelligence persists in doh_resolvers.json (schema parity with Python):
+  refresh merges the Windows known-DoH-server registry list with an optional
+  remote list gated on a required SHA-256 — any failure leaves prior state
+  intact. Connections to known DoH resolvers on 443/853 are categorized
+  "DoH/DoT" in the live feed (browser-DoH detection). Tools tab gained the
+  encrypted-DNS toggle + intelligence refresh.
+- 242 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

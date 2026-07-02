@@ -20,7 +20,9 @@ public class SchemaLockTests
           GetStatus(Empty) returns (ServiceStatus)
         service DnsControl
           FlushCache(Empty) returns (Ack)
+          GetDohStatus(Empty) returns (DohStatus)
           Inspect(DomainRequest) returns (DnsInspectResult)
+          RefreshDohIntelligence(DohRefreshRequest) returns (Ack)
           SetResolver(ResolverRequest) returns (Ack)
         service FirewallControl
           BlockEncryptedDns(DohBlockRequest) returns (Ack)

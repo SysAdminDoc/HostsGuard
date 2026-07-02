@@ -225,6 +225,7 @@ message FirewallRule {
   string source = 8;    // "hostsguard" | "system"
   bool orphaned = 9;    // program path no longer exists on disk
   bool drifted = 10;    // HG_ rule tracked in the DB but missing live (or vice versa)
+  string remote_ports = 11; // "Any" or a COM port list, e.g. "853" (TCP/UDP only)
 }
 
 message FirewallRuleList {
@@ -244,6 +245,23 @@ service DnsControl {
   rpc FlushCache(Empty) returns (Ack);
   rpc SetResolver(ResolverRequest) returns (Ack);
   rpc Inspect(DomainRequest) returns (DnsInspectResult);
+  // DoH resolver intelligence (doh_resolvers.json): status + gated refresh.
+  rpc GetDohStatus(Empty) returns (DohStatus);
+  rpc RefreshDohIntelligence(DohRefreshRequest) returns (Ack);
+}
+
+message DohStatus {
+  int32 resolver_ips = 1;   // built-in + learned
+  int32 extra_ips = 2;      // learned beyond the built-in set
+  string updated = 3;
+  string source = 4;
+  string sha256 = 5;
+  bool blocking_active = 6; // HG_DoH_* rules currently exist
+}
+
+message DohRefreshRequest {
+  string url = 1;      // optional remote list; requires sha256 when set
+  string sha256 = 2;   // expected hash of the remote payload
 }
 
 message ResolverRequest {

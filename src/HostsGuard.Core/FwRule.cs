@@ -11,7 +11,8 @@ public sealed record FwRule(
     string RemoteAddr,
     string Protocol,
     string Program,
-    string Source);   // "hostsguard" | "system"
+    string Source,    // "hostsguard" | "system"
+    string RemotePorts = "Any");
 
 /// <summary>
 /// Shape-tolerant mapping of raw firewall-rule scalar values into <see cref="FwRule"/>.
@@ -31,7 +32,8 @@ public static class FwRuleMapper
         object? enabled,
         object? remoteAddresses,
         object? protocol,
-        string? program)
+        string? program,
+        object? remotePorts = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -42,7 +44,14 @@ public static class FwRuleMapper
             RemoteAddr: MapRemote(remoteAddresses),
             Protocol: MapProtocol(protocol),
             Program: program ?? string.Empty,
-            Source: n.StartsWith(HostsGuardPrefix, StringComparison.Ordinal) ? "hostsguard" : "system");
+            Source: n.StartsWith(HostsGuardPrefix, StringComparison.Ordinal) ? "hostsguard" : "system",
+            RemotePorts: MapPorts(remotePorts));
+    }
+
+    public static string MapPorts(object? v)
+    {
+        var s = (v?.ToString() ?? string.Empty).Trim();
+        return s is "" or "*" or "Any" or "any" ? "Any" : s;
     }
 
     public static string MapDirection(object? v)
