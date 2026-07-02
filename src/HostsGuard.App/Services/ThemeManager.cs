@@ -21,9 +21,11 @@ public sealed class ThemeManager
             return;
         }
 
+        // Assembly-qualified so the URI resolves even when the entry assembly
+        // is not HostsGuard.App (headless WPF smoke).
         var replacement = new ResourceDictionary
         {
-            Source = new Uri($"pack://application:,,,/Themes/{(Current == "light" ? "Light" : "Dark")}.xaml"),
+            Source = new Uri($"pack://application:,,,/HostsGuard.App;component/Themes/{(Current == "light" ? "Light" : "Dark")}.xaml"),
         };
 
         var dicts = app.Resources.MergedDictionaries;

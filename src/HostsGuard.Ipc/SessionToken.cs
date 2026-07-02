@@ -32,7 +32,13 @@ public static class SessionToken
         return CryptographicOperations.FixedTimeEquals(ba, bb);
     }
 
-    /// <summary>Write the token to a file with an ACL limited to the current user + Administrators.</summary>
+    /// <summary>
+    /// Write the token to a file with a protected ACL: current user +
+    /// Administrators full control; when minted by the LocalSystem service,
+    /// Authenticated Users additionally get read so the unelevated user-session
+    /// UI can complete the handshake (WFCP-000b — the pipe ACL admits them,
+    /// this token is what authorizes them).
+    /// </summary>
     [SupportedOSPlatform("windows")]
     public static void WriteHandshake(string path, string token)
     {
@@ -46,7 +52,8 @@ public static class SessionToken
 
         File.WriteAllText(path, token);
 
-        var currentUser = WindowsIdentity.GetCurrent().User
+        var identity = WindowsIdentity.GetCurrent();
+        var currentUser = identity.User
             ?? throw new InvalidOperationException("Cannot determine current user SID.");
         var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
 
@@ -54,6 +61,14 @@ public static class SessionToken
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.AddAccessRule(new FileSystemAccessRule(currentUser, FileSystemRights.FullControl, AccessControlType.Allow));
         security.AddAccessRule(new FileSystemAccessRule(admins, FileSystemRights.FullControl, AccessControlType.Allow));
+        if (identity.IsSystem)
+        {
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+                FileSystemRights.Read,
+                AccessControlType.Allow));
+        }
+
         new FileInfo(path).SetAccessControl(security);
     }
 

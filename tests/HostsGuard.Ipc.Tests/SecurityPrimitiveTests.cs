@@ -26,6 +26,43 @@ public class SecurityPrimitiveTests
     }
 
     [Fact]
+    public void CrossSession_acl_lets_authenticated_users_connect_but_not_own()
+    {
+        // WFCP-000b: the LocalSystem service and the unelevated user-session UI
+        // share the pipe — SYSTEM/Admins keep full control, Authenticated Users
+        // get read-write only, nobody else appears.
+        var security = NamedPipeSecurity.CreateCrossSession();
+        var rules = security.GetAccessRules(true, true, typeof(SecurityIdentifier))
+            .Cast<System.IO.Pipes.PipeAccessRule>()
+            .ToDictionary(r => (SecurityIdentifier)r.IdentityReference, r => r.PipeAccessRights);
+
+        var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        var authenticated = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
+        var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+
+        rules.Should().HaveCount(3);
+        rules[system].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.FullControl);
+        rules[admins].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.FullControl);
+        // The ACL layer appends Synchronize to usable grants — assert the
+        // contract: connectable, but no ownership/permission rights.
+        rules[authenticated].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.ReadWrite);
+        rules[authenticated].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.ChangePermissions);
+        rules[authenticated].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.TakeOwnership);
+        rules.Should().NotContainKey(everyone);
+    }
+
+    [Fact]
+    public void Default_acl_is_per_user_outside_the_service_context()
+    {
+        // Test processes never run as LocalSystem, so the default must be the
+        // per-user shape here.
+        WindowsIdentity.GetCurrent().IsSystem.Should().BeFalse();
+        NamedPipeSecurity.GrantedSids(NamedPipeSecurity.CreateDefault())
+            .Should().Contain(WindowsIdentity.GetCurrent().User!);
+    }
+
+    [Fact]
     public void Token_generate_is_256bit_hex_and_unique()
     {
         var a = SessionToken.Generate();

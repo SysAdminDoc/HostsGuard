@@ -30,10 +30,11 @@ public static class NamedPipeServer
             options.ListenNamedPipe(pipeName, listen => listen.Protocols = HttpProtocols.Http2);
         });
 
-        // Restrict the pipe ACL to the current user + Administrators.
+        // ACL the pipe: per-user for console/dev runs, cross-session (SYSTEM +
+        // Admins own it, Authenticated Users connect) when hosted as a service.
         builder.WebHost.UseNamedPipes(opts =>
         {
-            opts.PipeSecurity = NamedPipeSecurity.CreateForCurrentUserAndAdmins();
+            opts.PipeSecurity = NamedPipeSecurity.CreateDefault();
             opts.CurrentUserOnly = false;
         });
 

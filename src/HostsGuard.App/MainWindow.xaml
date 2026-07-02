@@ -17,7 +17,7 @@
     </Window.Resources>
     <Grid>
         <tb:TaskbarIcon x:Name="Tray"
-                        IconSource="pack://application:,,,/Assets/icon.ico"
+                        IconSource="pack://application:,,,/HostsGuard.App;component/Assets/icon.ico"
                         ToolTipText="HostsGuard"
                         TrayMouseDoubleClick="OnTrayOpen">
             <tb:TaskbarIcon.ContextMenu>

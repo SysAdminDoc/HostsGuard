@@ -2,6 +2,8 @@ using System.Runtime.Versioning;
 using HostsGuard.Ipc;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 namespace HostsGuard.Service;
 
@@ -32,6 +34,15 @@ public static class ServiceHost
                 app.MapGrpcService<ConsentServiceImpl>();
             },
             pipeName,
-            services => services.AddSingleton(state));
+            services =>
+            {
+                services.AddSingleton(state);
+                if (WindowsServiceHelpers.IsWindowsService())
+                {
+                    // Hosted by the SCM (WFCP-000a): adopt the Windows Service
+                    // lifetime so start/stop/shutdown flow through cleanly.
+                    services.AddWindowsService(options => options.ServiceName = "HostsGuardSvc");
+                }
+            });
     }
 }
