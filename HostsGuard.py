@@ -571,14 +571,18 @@ class DB:
         s._blocked_cache=None
     def add_domains_bulk(s,rows):
         """Bulk UPSERT (domain,status,source) tuples in ONE transaction. Blocklist
-        imports of 100k+ domains previously committed once per domain."""
+        imports of 100k+ domains previously committed once per domain. A
+        whitelisted domain is NOT downgraded to blocked by a bulk block import, so
+        allowlist entries win over blocklists."""
         if not rows: return 0
         now=datetime.datetime.now().isoformat()
         with s._lock:
             try:
                 s.conn.executemany(
                     """INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,'',?,?,?,0)
-                       ON CONFLICT(domain) DO UPDATE SET status=excluded.status,modified=excluded.modified,
+                       ON CONFLICT(domain) DO UPDATE SET
+                       status=CASE WHEN domains.status='whitelisted' AND excluded.status='blocked' THEN 'whitelisted' ELSE excluded.status END,
+                       modified=excluded.modified,
                        source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END""",
                     [(d,st,src,now,now) for d,st,src in rows])
                 s.conn.commit()
@@ -2647,6 +2651,15 @@ class HostsTab(QWidget):
         sr.addWidget(s._ref_hours)
         sr.addWidget(_tbtn("Subscribe Checked","dim",s._subscribe,130)); sr.addStretch()
         sgl.addLayout(sr); bl.addWidget(sg)
+        ag=QGroupBox("Allowlist Subscriptions"); agl=QVBoxLayout(ag)
+        ad=QLabel("Domains from these URLs are whitelisted (never blocked), overriding blocklists. One URL per line.")
+        ad.setWordWrap(True); ad.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); agl.addWidget(ad)
+        s.allow_urls=QPlainTextEdit(); s.allow_urls.setMaximumHeight(_dp(54))
+        s.allow_urls.setPlaceholderText("https://…/allowlist.txt")
+        s.allow_urls.setPlainText("\n".join(load_cfg().get('allowlist_subscriptions',[]))); agl.addWidget(s.allow_urls)
+        ar=QHBoxLayout(); ar.addWidget(_tbtn("Save & Apply Now","primary",s._apply_allowlists,140))
+        s.allow_st=QLabel(""); s.allow_st.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); ar.addWidget(s.allow_st); ar.addStretch()
+        agl.addLayout(ar); bl.addWidget(ag)
         s._sub.addTab(bw,"Blocklists")
         # Services — one-click block toggles for popular services
         sw=QWidget(); svl=QVBoxLayout(sw); svl.setContentsMargins(0,_dp(6),0,0); svl.setSpacing(_dp(6))
@@ -2880,6 +2893,7 @@ class HostsTab(QWidget):
         if s._ii>=len(s._iq):
             s._importing=False
             s.bl_prog.setVisible(False); s.bl_st.setText(f"Done! {s._it} domains")
+            s._reapply_db_allowlist()  # keep allowlisted domains out of the hosts file
             s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); s._sync_and_load()
             total=len(s.hm.get_blocked())
             if total>=LARGE_HOSTS_WARN:
@@ -2919,6 +2933,24 @@ class HostsTab(QWidget):
         sel=[n for n,(cb,_,_) in s._chk.items() if cb.isChecked()]
         cfg=load_cfg(); cfg['blocklist_subscriptions']=sel; save_cfg(cfg)
         s._toast(f"Subscribed to {len(sel)} lists",C['green'])
+    def _apply_allowlists(s):
+        urls=[u.strip() for u in s.allow_urls.toPlainText().splitlines() if u.strip().startswith(('http://','https://'))]
+        cfg=load_cfg(); cfg['allowlist_subscriptions']=urls; save_cfg(cfg)
+        if not urls: s.allow_st.setText("No allowlist URLs"); return
+        s.allow_st.setText("Applying…")
+        s._aw=AllowWorker(urls,s.hm,s.db); s._aw.done.connect(s._on_allow); s._aw.start()
+    def _on_allow(s,count,err):
+        if err: s.allow_st.setText("✗ "+err); s._toast(f"Allowlist error: {err}",C['red']); return
+        s.allow_st.setText(f"✓ {count} allowed")
+        s._toast(f"Allowlisted {count} domains",C['green']); s._load_d()
+    def _reapply_db_allowlist(s):
+        """Remove any currently-blocked hosts entry whose DB status is whitelisted —
+        keeps allowlist entries out of the hosts file after a blocklist import (local,
+        no network refetch)."""
+        blocked=s.hm.get_blocked(); changed=False
+        for r in s.db.get_domains(status='whitelisted'):
+            if r[0] in blocked: s.hm.unblock(r[0],flush=False); changed=True
+        if changed: s.hm._flush()
     def _toast(s,msg,color):
         w=s.window()
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
@@ -2937,6 +2969,29 @@ class ImpWorker(QThread):
             s.db.add_domains_bulk([(d,'blocked',f'list:{s.name}') for d in domains])
             s.hm._flush(); s.done.emit(s.name,ct,total,"")
         except Exception as e: s.done.emit(s.name,0,0,str(e)[:40])
+
+class AllowWorker(QThread):
+    """Fetch allowlist URLs and whitelist their domains (unblock + mark whitelisted),
+    so blocklists never re-block them (add_domains_bulk preserves 'whitelisted')."""
+    done=Signal(int,str)
+    def __init__(s,urls,hm,db): super().__init__(); s.urls,s.hm,s.db=urls,hm,db
+    def run(s):
+        try:
+            doms=set()
+            for url in s.urls:
+                try:
+                    req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
+                    with urllib.request.urlopen(req,timeout=30) as resp:
+                        for l in resp.read().decode('utf-8',errors='replace').splitlines():
+                            d=norm_line(l,False)
+                            if d and looks_like_domain(d): doms.add(d)
+                except Exception as e: log.warning(f"allowlist {url}: {e}")
+            if doms:
+                s.db.add_domains_bulk([(d,'whitelisted','allowlist') for d in doms])
+                for d in doms: s.hm.unblock(d,flush=False)
+                s.hm._flush()
+            s.done.emit(len(doms),"")
+        except Exception as e: s.done.emit(0,str(e)[:60])
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  TAB 3: FIREWALL — with loading overlay
@@ -3550,6 +3605,9 @@ class MainWindow(QMainWindow):
         # Scheduled blocking — apply now and re-check every minute
         s._sched_tmr=QTimer(s); s._sched_tmr.timeout.connect(s._apply_schedules); s._sched_tmr.start(60000)
         QTimer.singleShot(1500,s._apply_schedules)
+        # Refresh allowlist subscriptions on launch (fetch + whitelist)
+        if load_cfg().get('allowlist_subscriptions'):
+            QTimer.singleShot(3000,s._hosts_tab._apply_allowlists)
         # Scheduled blocklist refresh
         cfg=load_cfg(); interval_h=cfg.get('blocklist_refresh_hours',0)
         if interval_h>0:
