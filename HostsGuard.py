@@ -380,6 +380,12 @@ def categorize(host,port=0):
     if p==53: return 'DNS'
     if p in (25,110,143,993,995,587): return 'Email'
     return ''
+_WEEKDAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+def _in_window(now_hhmm,start,end):
+    """True if HH:MM `now` falls in [start,end). Handles overnight windows (end<=start)."""
+    if start==end: return False
+    if start<end: return start<=now_hhmm<end
+    return now_hhmm>=start or now_hhmm<end
 def open_research(d):
     r=get_root(d); m=QMenu(); m.setStyleSheet(CTX)
     for name,url in RESEARCH: a=m.addAction(f"  {name}"); a.setData(url.replace('{d}',r))
@@ -1779,6 +1785,71 @@ def _tbl(cols,stretch=0,row_h=32):
     t.setSortingEnabled(True); t.setContextMenuPolicy(Qt.CustomContextMenu)
     return t
 
+# ─── Scheduled Blocking Dialog ─────────────────────────────────────────────
+class ScheduleDlg(QDialog):
+    """CRUD for time-based block windows. Each schedule targets a domain or a
+    service name (from BLOCK_SERVICES) and blocks it on selected weekdays between
+    a start and end time. Stored in config['schedules']."""
+    def __init__(s,parent=None):
+        super().__init__(parent); s.setWindowTitle("Scheduled Blocking"); s.setFixedWidth(_dp(560))
+        s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
+        lo=QVBoxLayout(s); lo.setSpacing(_dp(8)); lo.setContentsMargins(_dp(20),_dp(14),_dp(20),_dp(14))
+        hdr=QLabel("Scheduled Blocking"); hdr.setStyleSheet(f"font-size:{_dp(15)}px;font-weight:800;color:{C['text']};"); lo.addWidget(hdr)
+        desc=QLabel("Block a domain or service on a recurring weekly schedule. Windows may cross midnight.")
+        desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
+        s.tbl=_tbl(["Target","Days","Start","End"],0,row_h=26)
+        s.tbl.setColumnWidth(1,_dp(150)); s.tbl.setColumnWidth(2,_dp(60)); s.tbl.setColumnWidth(3,_dp(60))
+        s.tbl.setMaximumHeight(_dp(160)); lo.addWidget(s.tbl)
+        # Editor row
+        ed=QGroupBox("Add schedule"); el=QVBoxLayout(ed); el.setSpacing(_dp(6))
+        r1=QHBoxLayout(); r1.setSpacing(_dp(6))
+        r1.addWidget(QLabel("Target"))
+        s.target=QComboBox(); s.target.setEditable(True); s.target.addItems(list(BLOCK_SERVICES.keys()))
+        s.target.setCurrentText(""); s.target.setToolTip("A service name (YouTube…) or a domain (example.com)")
+        r1.addWidget(s.target,1)
+        r1.addWidget(QLabel("Start")); s.start=QTimeEdit(); s.start.setDisplayFormat("HH:mm"); r1.addWidget(s.start)
+        r1.addWidget(QLabel("End")); s.end=QTimeEdit(); s.end.setDisplayFormat("HH:mm")
+        s.end.setTime(QTime(6,0)); r1.addWidget(s.end)
+        el.addLayout(r1)
+        r2=QHBoxLayout(); r2.setSpacing(_dp(4)); s.day_cbs=[]
+        for i,d in enumerate(_WEEKDAYS):
+            cb=QCheckBox(d); cb.setChecked(i<5); r2.addWidget(cb); s.day_cbs.append(cb)
+        r2.addStretch(); r2.addWidget(_btn("Add","primary",s._add)); el.addLayout(r2)
+        lo.addWidget(ed)
+        br=QHBoxLayout(); br.addWidget(_btn("Remove Selected","danger",s._remove)); br.addStretch()
+        br.addWidget(_btn("Close","dim",lambda:s.accept())); lo.addLayout(br)
+        s._reload()
+    def _schedules(s): return load_cfg().get('schedules',[])
+    def _reload(s):
+        rows=s._schedules(); s.tbl.setRowCount(len(rows))
+        for i,sc in enumerate(rows):
+            days=",".join(_WEEKDAYS[d] for d in sc.get('days',[]) if 0<=d<7)
+            s.tbl.setItem(i,0,QTableWidgetItem(sc.get('target','')))
+            s.tbl.setItem(i,1,QTableWidgetItem(days))
+            s.tbl.setItem(i,2,QTableWidgetItem(sc.get('start','')))
+            s.tbl.setItem(i,3,QTableWidgetItem(sc.get('end','')))
+    def _add(s):
+        target=s.target.currentText().strip()
+        days=[i for i,cb in enumerate(s.day_cbs) if cb.isChecked()]
+        if not target or not days: return
+        # Accept a known service name as-is, else require a valid domain
+        if target not in BLOCK_SERVICES and not looks_like_domain(target.lower()):
+            QMessageBox.warning(s,"Invalid target","Enter a service name or a valid domain (example.com)."); return
+        sc={'target':target if target in BLOCK_SERVICES else target.lower(),
+            'days':days,'start':s.start.time().toString("HH:mm"),'end':s.end.time().toString("HH:mm")}
+        cfg=load_cfg(); sl=cfg.get('schedules',[]); sl.append(sc); cfg['schedules']=sl; save_cfg(cfg)
+        s._reload()
+        p=s.parent()
+        if hasattr(p,'_apply_schedules'): p._apply_schedules()
+    def _remove(s):
+        row=s.tbl.currentRow()
+        if row<0: return
+        cfg=load_cfg(); sl=cfg.get('schedules',[])
+        if 0<=row<len(sl):
+            del sl[row]; cfg['schedules']=sl; save_cfg(cfg); s._reload()
+            p=s.parent()
+            if hasattr(p,'_apply_schedules'): p._apply_schedules()
+
 # ─── DNS Inspection Dialog ─────────────────────────────────────────────────
 class DNSInspectDlg(QDialog):
     def __init__(s,domain,parent=None):
@@ -3125,6 +3196,7 @@ class ToolsTab(QWidget):
         dr=QHBoxLayout(); dr.setSpacing(_dp(3))
         s._dns_cb=QComboBox(); s._dns_cb.addItems(["System Default","Cloudflare (1.1.1.1)","Google (8.8.8.8)","Quad9 (9.9.9.9)","AdGuard (94.140.14.14)","NextDNS (45.90.28.0)"])
         dr.addWidget(s._dns_cb,1); dr.addWidget(_btn("Apply","primary",s._apply_dns)); l1.addLayout(dr)
+        l1.addWidget(_tbtn("Scheduled Blocking…","dim",s._open_schedules))
         s._rec_btn=_tbtn("Record Session","dim",s._toggle_rec); l1.addWidget(s._rec_btn)
         s._recording=False; s._rec_data=[]
         l1.addStretch(); grid.addWidget(g1)
@@ -3168,6 +3240,8 @@ class ToolsTab(QWidget):
         super().showEvent(e); s._log(); s._upd_learn(); s._upd_rec()
         # Reflect actual firewall state (rules persist across restarts) without re-toggling.
         s._doh_cb.blockSignals(True); s._doh_cb.setChecked(load_cfg().get('block_doh',False)); s._doh_cb.blockSignals(False)
+    def _open_schedules(s):
+        ScheduleDlg(s.window()).exec_()
     def _toggle_doh(s,on):
         def _bg():
             if on:
@@ -3449,6 +3523,9 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(500,_init_fav)
         # Re-arm temp-allow expirations that were pending when the app last closed
         QTimer.singleShot(1000,s._hosts_act.resume_temp_allows)
+        # Scheduled blocking — apply now and re-check every minute
+        s._sched_tmr=QTimer(s); s._sched_tmr.timeout.connect(s._apply_schedules); s._sched_tmr.start(60000)
+        QTimer.singleShot(1500,s._apply_schedules)
         # Scheduled blocklist refresh
         cfg=load_cfg(); interval_h=cfg.get('blocklist_refresh_hours',0)
         if interval_h>0:
@@ -3458,6 +3535,31 @@ class MainWindow(QMainWindow):
         s._ti_tmr=QTimer(s)
         s._ti_tmr.timeout.connect(lambda:threading.Thread(target=_load_threat_intel,daemon=True).start())
         s._ti_tmr.start(6*3600*1000)
+
+    def _apply_schedules(s):
+        """Block/unblock scheduled targets based on the current weekday+time.
+        Only unblocks domains it applied itself (source='schedule'), so it never
+        clobbers a manual/blocklist block on the same domain."""
+        scheds=load_cfg().get('schedules',[])
+        if not scheds: return
+        now=datetime.datetime.now(); wd=now.weekday(); tnow=now.strftime("%H:%M")
+        blocked=s.hm.get_blocked(); changed=False
+        for sc in scheds:
+            target=sc.get('target','');
+            if not target: continue
+            active=wd in sc.get('days',[]) and _in_window(tnow,sc.get('start','00:00'),sc.get('end','00:00'))
+            doms=BLOCK_SERVICES.get(target,[target])
+            for d in doms:
+                d=d.lower()
+                if active and d not in blocked:
+                    if s.hm.block(d,flush=False): s.db.add_domain(d,'blocked','schedule'); changed=True
+                elif not active and d in blocked:
+                    r=s.db._q("SELECT source FROM domains WHERE domain=?",(d,))
+                    if r and r[0][0]=='schedule':
+                        s.hm.unblock(d,flush=False); s.db.remove_domain(d); changed=True
+        if changed:
+            s.hm._flush()
+            s._hosts_act._last_hash=0
 
     def _auto_refresh_lists(s):
         cfg=load_cfg(); lists=cfg.get('blocklist_subscriptions',[])
