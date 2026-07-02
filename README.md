@@ -3,14 +3,14 @@
 ![Version](https://img.shields.io/badge/version-0.5.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
 ![Status](https://img.shields.io/badge/status-active-success)
 
 > Real-time network privacy manager for Windows. Monitor DNS activity, manage your hosts file, control Windows Firewall rules, consent-prompt on new outbound connections, and block unwanted traffic — all local, zero telemetry.
 
 ## Architecture
 
-HostsGuard is a **split-trust, two-process** application built on .NET 8:
+HostsGuard is a **split-trust, two-process** application built on .NET 10 (LTS):
 
 ```
 ┌───────────────────────────────┐      gRPC over Named Pipe        ┌────────────────────────────────────┐
@@ -143,7 +143,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 ```powershell
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
-dotnet build HostsGuard.sln          # requires .NET 8 SDK
+dotnet build HostsGuard.sln          # requires .NET 10 SDK
 dotnet test HostsGuard.sln           # 412 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
@@ -157,16 +157,15 @@ Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contra
 
 The .NET engine pins its runtime and dependency posture:
 
-- **Runtime servicing floor:** builds resolve the latest .NET 8 servicing patch
-  (`TargetLatestRuntimePatch`), so self-contained artifacts bundle a runtime
-  ≥ 8.0.10 (which carries the System.Text.Json DoS fix CVE-2024-43485 and the
-  HTTP/2 Rapid Reset fix CVE-2023-44487). .NET 8 is supported until 2026-11-10; a
-  move to .NET 10 LTS is planned.
+- **Runtime servicing floor:** the solution targets **.NET 10 (LTS, supported to
+  November 2028)** and builds resolve the latest servicing patch
+  (`TargetLatestRuntimePatch`), so self-contained artifacts bundle a current
+  runtime.
 - **Dependency CVEs:** `dotnet list package --vulnerable --include-transitive`
   is kept clean. The native SQLite bundle is pinned to `SQLitePCLRaw.bundle_e_sqlite3`
-  3.0.3 to clear GHSA-2m69-gcr7-jv3q (CVE-2025-6965); test-only 4.3.0 transitives
-  are floored via `tests/Directory.Build.props`; Google.Protobuf ≥ 3.35 carries
-  the recursion-depth fix.
+  3.0.3 to clear GHSA-2m69-gcr7-jv3q (CVE-2025-6965); Google.Protobuf ≥ 3.35
+  carries the recursion-depth fix; the .NET 10 SDK prunes framework-provided
+  transitives, retiring the old test-only 4.3.0 floors.
 - **Elevated surface:** the LocalSystem service's data directory
   (`%ProgramData%\HostsGuard`) is DACL-locked to SYSTEM+Admins before any state
   file is written; client blocklist URLs pass an SSRF guard (loopback/RFC1918/

@@ -42,7 +42,14 @@ public sealed class FirewallIdentity
         string? signer = null;
         try
         {
+            // SYSLIB0057 offers no managed replacement for extracting the
+            // Authenticode signer from a signed PE (the suggested
+            // X509CertificateLoader only loads raw cert data; the documented
+            // alternative is CryptQueryObject interop). The API still works and
+            // this is a best-effort display value, so keep it until removal.
+#pragma warning disable SYSLIB0057
             using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+#pragma warning restore SYSLIB0057
             signer = cert.Subject;
         }
         catch (CryptographicException)

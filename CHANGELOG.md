@@ -4,6 +4,18 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Changed — .NET 10 LTS migration (NET-081)
+- **Solution retargeted from .NET 8 to .NET 10 (LTS)** ahead of the .NET 8
+  end-of-support date (2026-11-10); .NET 10 is supported to November 2028. All
+  19 projects now target `net10.0(-windows)`, C# 14, SDK pinned to 10.0.301
+  (`rollForward: latestFeature`). The SDK's framework-provided package pruning
+  retires the test-only System.Net.Http/System.Text.RegularExpressions CVE
+  floors and the `System.IO.Pipes.AccessControl` reference (all in-box now).
+  `X509Certificate.CreateFromSignedFile` is obsolete (SYSLIB0057) with no
+  managed replacement for signed-PE signer extraction — suppressed locally at
+  its two best-effort call sites. Full suite green, publish + release-smoke
+  verified on runtime 10.0.9, vulnerable-package scan clean.
+
 ### Removed — Python implementation retired (v0.5.1)
 - **Python codebase removed (NET-055, cutover part 1)** — the v3.17.0
   Python/PySide6 implementation (`hostsguard/`, `HostsGuard.py`,

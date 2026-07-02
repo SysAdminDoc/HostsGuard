@@ -238,7 +238,11 @@ static async Task<int> ReleaseSmokeAsync()
     {
         try
         {
+            // SYSLIB0057 has no managed replacement for signed-file signer
+            // extraction (see FirewallIdentity.Compute) — suppress until removal.
+#pragma warning disable SYSLIB0057
             using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(exe));
+#pragma warning restore SYSLIB0057
             Console.WriteLine($"  signing:   signed by {cert.Subject}");
         }
         catch (CryptographicException)
