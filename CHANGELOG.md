@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Known-safe baseline (NET-068)** — essential Windows binaries (Update, Defender,
+  kernel, LSA) are auto-allowed silently so Notify mode targets interesting
+  traffic instead of burying the user in prompts for OS infrastructure.
+  Deliberately excludes svchost.exe (needs per-service attribution). The baseline
+  is inspectable and re-appliable over the pipe (GetBaseline/ApplyBaseline) and
+  from a Tools-tab "Apply known-safe baseline" button.
 - **Consent scope + duration selectors (NET-067)** — the prompt now offers scope
   checkboxes (this IP / this port / this protocol; whole-app by default) and a
   duration dropdown (Once 15 min / 1 hour / This session / Always). Rules are

@@ -16,7 +16,9 @@ public class SchemaLockTests
     private const string Expected = """
         package hostsguard.v1
         service Consent
+          ApplyBaseline(Empty) returns (Ack)
           Decide(ConnectionDecision) returns (Ack)
+          GetBaseline(Empty) returns (BaselineList)
           GetDecisionHistory(HistoryRequest) returns (DecisionHistory)
           GetMode(Empty) returns (FilteringMode)
           SetMode(FilteringMode) returns (Ack)

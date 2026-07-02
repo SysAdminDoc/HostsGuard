@@ -44,4 +44,27 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
 
     public override Task<DecisionHistory> GetDecisionHistory(HistoryRequest request, ServerCallContext context)
         => Task.FromResult(_state.Consent.History(request.Limit));
+
+    public override Task<BaselineList> GetBaseline(Empty request, ServerCallContext context)
+    {
+        var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var list = new BaselineList();
+        foreach (var entry in Core.KnownSafeBaseline.Entries)
+        {
+            list.Items.Add(new BaselineItem
+            {
+                FileName = entry.FileName,
+                Description = entry.Description,
+                Present = entry.FileName == "System" || System.IO.File.Exists(System.IO.Path.Combine(system32, entry.FileName)),
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> ApplyBaseline(Empty request, ServerCallContext context)
+    {
+        var created = _state.Consent.ApplyBaseline();
+        return Task.FromResult(new Ack { Ok = true, Message = $"applied {created} known-safe baseline allow rules" });
+    }
 }

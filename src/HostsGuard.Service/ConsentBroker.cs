@@ -38,6 +38,7 @@ public sealed class ConsentBroker : IDisposable
     private const string OncePrefix = "HG_Once_";
     private const string ConsentPrefix = "HG_Consent_";
     private const string LearnPrefix = "HG_Learn_";
+    private const string BasePrefix = "HG_Base_";
 
     private readonly IFirewallEngine? _firewall;
     private readonly FirewallIdentity? _identity;
@@ -235,6 +236,14 @@ public sealed class ConsentBroker : IDisposable
             return;
         }
 
+        // Essential OS binaries (Windows Update, Defender, kernel) are auto-
+        // allowed silently so Notify mode targets interesting traffic (NET-068).
+        if (KnownSafeBaseline.IsBaseline(blocked.Application))
+        {
+            AutoAllowBaseline(blocked.Application, blocked.Direction);
+            return;
+        }
+
         if (mode == ModeLearning)
         {
             AutoAllow(blocked);
@@ -320,6 +329,67 @@ public sealed class ConsentBroker : IDisposable
         }
 
         LogDecision(blocked.Application, blocked.Direction, blocked.RemoteAddress, blocked.Protocol, "learn", permanent: true);
+    }
+
+    /// <summary>Silently allow a known-safe OS binary (NET-068 baseline).</summary>
+    private void AutoAllowBaseline(string application, string direction)
+    {
+        if (_firewall is not { } fw)
+        {
+            return;
+        }
+
+        var name = $"{BasePrefix}{Path.GetFileNameWithoutExtension(application)}_{direction}";
+        if (fw.RuleExists(name))
+        {
+            return;
+        }
+
+        if (fw.CreateRule(new FwRule(name, direction, "Allow", true, "Any", "Any", application, "hostsguard")))
+        {
+            _db.UpsertFwState(name, direction, "Allow", "Any", "Any", application);
+            _db.LogEvent(application, "consent_baseline", details: $"{direction}|Any|Any|permanent", reason: "consent");
+        }
+    }
+
+    /// <summary>
+    /// Proactively write allow rules for every baseline binary present on this
+    /// machine (NET-068 "apply baseline now"). Returns the count created.
+    /// </summary>
+    public int ApplyBaseline()
+    {
+        if (_firewall is not { } fw)
+        {
+            return 0;
+        }
+
+        var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var created = 0;
+        foreach (var entry in KnownSafeBaseline.Entries)
+        {
+            var path = Path.Combine(system32, entry.FileName);
+            if (!File.Exists(path))
+            {
+                continue; // "System" and absent binaries are handled reactively
+            }
+
+            var name = $"{BasePrefix}{Path.GetFileNameWithoutExtension(entry.FileName)}_Out";
+            if (fw.RuleExists(name) ||
+                !fw.CreateRule(new FwRule(name, "Out", "Allow", true, "Any", "Any", path, "hostsguard")))
+            {
+                continue;
+            }
+
+            _db.UpsertFwState(name, "Out", "Allow", "Any", "Any", path);
+            created++;
+        }
+
+        if (created != 0)
+        {
+            _db.LogEvent("consent", "baseline_applied", details: $"{created} known-safe rules", reason: "consent");
+        }
+
+        return created;
     }
 
     /// <summary>Apply a decision from the UI (WFCP-012): rule write + identity + history.</summary>

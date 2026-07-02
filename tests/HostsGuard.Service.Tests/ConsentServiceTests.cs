@@ -83,6 +83,33 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Baseline_os_binary_is_auto_allowed_never_prompted()
+    {
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        _state.Consent.OnBlocked(Blocked(@"C:\Windows\System32\MoUsoCoreWorker.exe", DateTime.UtcNow));
+
+        _state.Consent.PendingCount.Should().Be(0); // never prompted
+        _fw.Rules.Keys.Should().Contain(k => k.StartsWith("HG_Base_MoUsoCoreWorker_"));
+        _fw.Rules.Values.Should().Contain(r => r.Action == "Allow" && r.Program.EndsWith("MoUsoCoreWorker.exe"));
+        sub.Reader.TryRead(out _).Should().BeFalse(); // no decision request published
+    }
+
+    [Fact]
+    public async Task Baseline_is_inspectable_and_appliable_over_the_pipe()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var consent = new Consent.ConsentClient(channel);
+
+        var list = await consent.GetBaselineAsync(new Empty());
+        list.Items.Should().HaveCount(HostsGuard.Core.KnownSafeBaseline.Entries.Count);
+        list.Items.Should().Contain(i => i.FileName == "System");
+
+        (await consent.ApplyBaselineAsync(new Empty())).Ok.Should().BeTrue();
+    }
+
+    [Fact]
     public void Apps_with_a_covering_rule_are_never_reprompted()
     {
         _state.Consent.SetMode("notify");

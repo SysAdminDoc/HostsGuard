@@ -422,6 +422,20 @@ service Consent {
   rpc GetMode(Empty) returns (FilteringMode);
   rpc SetMode(FilteringMode) returns (Ack);
   rpc GetDecisionHistory(HistoryRequest) returns (DecisionHistory);
+  // Known-safe baseline (NET-068): inspect the curated OS-essential binaries
+  // that never prompt, and proactively write their allow rules.
+  rpc GetBaseline(Empty) returns (BaselineList);
+  rpc ApplyBaseline(Empty) returns (Ack);
+}
+
+message BaselineItem {
+  string file_name = 1;
+  string description = 2;
+  bool present = 3;   // the binary exists on this machine
+}
+
+message BaselineList {
+  repeated BaselineItem items = 1;
 }
 
 message ConnectionDecisionRequest {

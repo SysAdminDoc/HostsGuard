@@ -388,6 +388,13 @@ public sealed partial class ToolsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ApplyBaselineAsync()
+    {
+        var ack = await _client.Consent.ApplyBaselineAsync(new Empty());
+        StatusText = ack.Message;
+    }
+
+    [RelayCommand]
     public async Task ToggleEncryptedDnsAsync()
     {
         Ack ack;

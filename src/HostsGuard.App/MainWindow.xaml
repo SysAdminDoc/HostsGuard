@@ -782,6 +782,9 @@
                                                 Command="{Binding HardenAclCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Export support bundle (redacted)"
                                                 Command="{Binding ExportBundleCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Apply known-safe baseline"
+                                                Command="{Binding ApplyBaselineCommand}" Margin="0,0,10,0"
+                                                ToolTip="Pre-allow essential Windows binaries (Update, Defender, kernel) so ask-to-connect targets interesting traffic instead of prompting for OS infrastructure." />
                                         <Button DockPanel.Dock="Left" Content="Refresh threat intel"
                                                 Command="{Binding RefreshThreatIntelCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Refresh GeoIP"
