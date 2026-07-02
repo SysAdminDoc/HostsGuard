@@ -179,6 +179,72 @@ public sealed partial class ToolsViewModel : ObservableObject
         StatusText = ack.Message;
     }
 
+    // ─── Network profiles ─────────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string _activeProfile = string.Empty;
+
+    [ObservableProperty]
+    private string? _selectedProfile;
+
+    [ObservableProperty]
+    private string _newProfileName = string.Empty;
+
+    public ObservableCollection<string> Profiles { get; } = new();
+
+    [RelayCommand]
+    public async Task LoadProfilesAsync()
+    {
+        var list = await _client.Policy.ListProfilesAsync(new Empty());
+        Profiles.Clear();
+        foreach (var name in list.Names)
+        {
+            Profiles.Add(name);
+        }
+
+        ActiveProfile = list.Active.Length != 0 ? $"Active: {list.Active}" : "No active profile";
+        SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
+    }
+
+    [RelayCommand]
+    public async Task SaveProfileAsync()
+    {
+        var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName });
+        StatusText = ack.Message;
+        if (ack.Ok)
+        {
+            NewProfileName = string.Empty;
+            await LoadProfilesAsync();
+        }
+    }
+
+    [RelayCommand]
+    public async Task SwitchProfileAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedProfile))
+        {
+            return;
+        }
+
+        var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });
+        StatusText = ack.Message;
+        await LoadProfilesAsync();
+    }
+
+    [RelayCommand]
+    public async Task DeleteProfileAsync()
+    {
+        if (string.IsNullOrEmpty(SelectedProfile) ||
+            !_confirm.Confirm("Delete profile", $"Delete profile '{SelectedProfile}'?"))
+        {
+            return;
+        }
+
+        var ack = await _client.Policy.DeleteProfileAsync(new ProfileRequest { Name = SelectedProfile });
+        StatusText = ack.Message;
+        await LoadProfilesAsync();
+    }
+
     // ─── Encrypted DNS (DoH/DoT) ──────────────────────────────────────────────
 
     [ObservableProperty]

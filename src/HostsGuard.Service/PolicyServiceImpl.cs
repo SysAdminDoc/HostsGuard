@@ -68,10 +68,61 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     }
 
     public override Task<ProfileList> ListProfiles(Empty request, ServerCallContext context)
-        => Task.FromResult(new ProfileList());
+    {
+        var list = new ProfileList { Active = _state.Db.GetMeta("active_profile") ?? string.Empty };
+        list.Names.AddRange(_state.Db.ListProfiles());
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> SaveProfile(ProfileRequest request, ServerCallContext context)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(Error("invalid_profile", "profile name is required"));
+        }
+
+        _state.Db.SaveProfile(name);
+        _state.Db.LogEvent(name, "profile_saved");
+        return Task.FromResult(Ok($"profile '{name}' saved"));
+    }
 
     public override Task<Ack> SwitchProfile(ProfileRequest request, ServerCallContext context)
-        => Task.FromResult(Error("not_implemented", "network profiles arrive with the profile engine"));
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (!_state.Db.ListProfiles().Contains(name))
+        {
+            return Task.FromResult(Error("unknown_profile", $"profile '{name}' does not exist"));
+        }
+
+        // Safety net: the pre-switch state is always recoverable.
+        _state.Db.SaveProfile("(previous)");
+
+        var rules = _state.Db.LoadProfile(name);
+        _state.Db.ReplaceDomains(rules);
+        var blocked = rules.Where(r => r.Status == "blocked").Select(r => r.Domain).ToList();
+        var (added, target) = _state.Hosts.Reconcile(blocked);
+        _state.Db.SetMeta("active_profile", name);
+        _state.Db.LogEvent(name, "profile_switched", details: $"reconciled +{added} to {target} blocked");
+        return Task.FromResult(Ok($"switched to '{name}': {target} blocked domains reconciled"));
+    }
+
+    public override Task<Ack> DeleteProfile(ProfileRequest request, ServerCallContext context)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (!_state.Db.ListProfiles().Contains(name))
+        {
+            return Task.FromResult(Error("unknown_profile", $"profile '{name}' does not exist"));
+        }
+
+        _state.Db.DeleteProfile(name);
+        if (_state.Db.GetMeta("active_profile") == name)
+        {
+            _state.Db.SetMeta("active_profile", string.Empty);
+        }
+
+        return Task.FromResult(Ok($"profile '{name}' deleted"));
+    }
 
     public override Task<Ack> ToggleService(ServiceToggleRequest request, ServerCallContext context)
     {

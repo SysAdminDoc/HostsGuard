@@ -358,6 +358,93 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    // ─── Profiles ─────────────────────────────────────────────────────────────
+
+    /// <summary>Snapshot the current managed-domain set as a named profile.</summary>
+    public void SaveProfile(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("INSERT OR REPLACE INTO profiles(name,created) VALUES(@name,@now)", new { name, now }, tx);
+            _conn.Execute("DELETE FROM profile_rules WHERE profile=@name", new { name }, tx);
+            _conn.Execute(
+                "INSERT INTO profile_rules(profile,domain,status,source) SELECT @name, domain, status, source FROM domains",
+                new { name }, tx);
+            tx.Commit();
+        }
+    }
+
+    public IReadOnlyList<(string Domain, string Status, string? Source)> LoadProfile(string name)
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string?)>(
+                "SELECT domain, status, source FROM profile_rules WHERE profile=@name", new { name }).ToList();
+        }
+    }
+
+    public void DeleteProfile(string name)
+    {
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM profile_rules WHERE profile=@name", new { name }, tx);
+            _conn.Execute("DELETE FROM profiles WHERE name=@name", new { name }, tx);
+            tx.Commit();
+        }
+    }
+
+    public IReadOnlyList<string> ListProfiles()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT name FROM profiles ORDER BY name").ToList();
+        }
+    }
+
+    /// <summary>Replace the managed-domain set wholesale (profile switch).</summary>
+    public void ReplaceDomains(IEnumerable<(string Domain, string Status, string? Source)> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM domains", transaction: tx);
+            foreach (var (domain, status, source) in rows)
+            {
+                _conn.Execute(
+                    """
+                    INSERT INTO domains(domain,status,category,source,added,modified,hits,reason)
+                    VALUES(@domain,@status,'',@source,@now,@now,0,@reason)
+                    """,
+                    new { domain = domain.ToLowerInvariant(), status, source = source ?? string.Empty, now, reason = Reasons.Canonical(null, source ?? string.Empty, status) },
+                    tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
+    public string? GetMeta(string key)
+    {
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>("SELECT value FROM meta WHERE key=@key", new { key });
+        }
+    }
+
+    public void SetMeta(string key, string value)
+    {
+        lock (_gate)
+        {
+            _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES(@key,@value)", new { key, value });
+        }
+    }
+
     // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
 
     public void UpsertBlocklistSub(string name, string url, long domainCount)

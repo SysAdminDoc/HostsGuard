@@ -332,6 +332,9 @@ service Policy {
   rpc ToggleService(ServiceToggleRequest) returns (Ack);
   // One-click service sets + the Windows telemetry preset, with block state.
   rpc ListServices(Empty) returns (ServiceStates);
+  // Named rule-set profiles: snapshot, switch (with hosts reconcile), delete.
+  rpc SaveProfile(ProfileRequest) returns (Ack);
+  rpc DeleteProfile(ProfileRequest) returns (Ack);
 }
 
 message BlockableService {

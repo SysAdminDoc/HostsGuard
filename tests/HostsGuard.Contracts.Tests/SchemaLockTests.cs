@@ -63,9 +63,11 @@ public class SchemaLockTests
           WatchDns(Empty) returns (stream DnsEvent)
           WatchEvents(Empty) returns (stream ActivityEvent)
         service Policy
+          DeleteProfile(ProfileRequest) returns (Ack)
           GetSchedules(Empty) returns (ScheduleList)
           ListProfiles(Empty) returns (ProfileList)
           ListServices(Empty) returns (ServiceStates)
+          SaveProfile(ProfileRequest) returns (Ack)
           SetSchedules(ScheduleList) returns (Ack)
           SwitchProfile(ProfileRequest) returns (Ack)
           ToggleService(ServiceToggleRequest) returns (Ack)

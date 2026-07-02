@@ -99,7 +99,13 @@ All notable changes to HostsGuard are documented in this file.
   intact. Connections to known DoH resolvers on 443/853 are categorized
   "DoH/DoT" in the live feed (browser-DoH detection). Tools tab gained the
   encrypted-DNS toggle + intelligence refresh.
-- 242 .NET tests; zero build warnings under warnings-as-errors.
+- Network profiles (NET-034): SaveProfile snapshots the managed-domain set,
+  SwitchProfile replaces it and reconciles the hosts file to the profile's
+  blocked set (an automatic "(previous)" snapshot is taken before every
+  switch), DeleteProfile guarded by confirm in the UI. The machine-policy half
+  of the old item is resolved by architecture: the service already owns all
+  state in %ProgramData%\HostsGuard.
+- 245 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 
