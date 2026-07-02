@@ -15,6 +15,7 @@ import datetime
 import time
 import json
 import hashlib
+import hmac
 import threading
 import types
 import urllib.request
@@ -35,11 +36,14 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
                "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
                "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text",
-               "canonical_reason", "reason_label"}
+               "canonical_reason", "reason_label", "_service_error", "_service_auth_ok",
+               "_service_parse_limit", "_service_validate_since", "_service_log_params",
+               "_service_parse_json_body", "_service_openapi"}
 _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS",
-                "REASON_LABELS", "_REASON_ALIASES"}
+                "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
+                "SERVICE_BODY_LIMIT", "SERVICE_LOG_ACTIONS"}
 
 
 def _extract():
@@ -64,7 +68,7 @@ def _extract():
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
-          "urllib": urllib, "hashlib": hashlib, "OrderedDict": OrderedDict}
+          "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -94,6 +98,11 @@ _parse_windows_doh_servers = _m["_parse_windows_doh_servers"]
 refresh_doh_intelligence = _m["refresh_doh_intelligence"]
 canonical_reason = _m["canonical_reason"]
 reason_label = _m["reason_label"]
+_service_error = _m["_service_error"]
+_service_auth_ok = _m["_service_auth_ok"]
+_service_log_params = _m["_service_log_params"]
+_service_parse_json_body = _m["_service_parse_json_body"]
+_service_openapi = _m["_service_openapi"]
 APP = _m["APP"]
 VER = _m["VER"]
 SCHEMA_VER = _m["SCHEMA_VER"]
@@ -306,6 +315,51 @@ class TestReasonTracking:
         rows = db.feed_get()
         assert rows[0][8] == "blocklist"
         db.close()
+
+
+class TestServiceContract:
+    def test_auth_requires_matching_token(self):
+        assert _service_auth_ok({"X-HG-Token": "secret"}, "secret") is True
+        assert _service_auth_ok({"X-HG-Token": "wrong"}, "secret") is False
+        assert _service_auth_ok({}, "secret") is False
+        assert _service_auth_ok({"X-HG-Token": "secret"}, "") is False
+
+    def test_consistent_error_body_shape(self):
+        err = _service_error("bad_request", "Invalid body", {"field": "domain"})
+        assert err["ok"] is False
+        assert err["schema"] == "hostsguard.error.v1"
+        assert err["error"] == {"code": "bad_request", "message": "Invalid body", "details": {"field": "domain"}}
+
+    def test_json_body_validation_and_size_limit(self):
+        assert _service_parse_json_body(b'{"action":"block","domain":"example.com"}', 41)["domain"] == "example.com"
+        with pytest.raises(ValueError, match="bad JSON"):
+            _service_parse_json_body(b"{", 1)
+        with pytest.raises(ValueError, match="JSON object"):
+            _service_parse_json_body(b'["not-object"]', 14)
+        with pytest.raises(OverflowError, match="exceeds"):
+            _service_parse_json_body(b"{}", _m["SERVICE_BODY_LIMIT"] + 1)
+
+    def test_log_query_param_validation(self):
+        params = _service_log_params({"limit": ["50"], "since": ["2026-07-02T12:00:00Z"],
+                                      "action": ["blocked"], "reason": ["firewall"]})
+        assert params == {"limit": 50, "since": "2026-07-02T12:00:00Z", "action": "blocked", "reason": "firewall"}
+        with pytest.raises(ValueError, match="limit"):
+            _service_log_params({"limit": ["0"]})
+        with pytest.raises(ValueError, match="since"):
+            _service_log_params({"since": ["not-a-date"]})
+        with pytest.raises(ValueError, match="action"):
+            _service_log_params({"action": ["delete"]})
+        with pytest.raises(ValueError, match="reason"):
+            _service_log_params({"reason": ["made-up"]})
+
+    def test_openapi_contract_lists_current_endpoints_and_schemas(self):
+        spec = _service_openapi()
+        assert spec["openapi"] == "3.1.0"
+        assert set(spec["paths"]) == {"/status", "/domains", "/stats", "/log", "/openapi.json"}
+        assert spec["components"]["securitySchemes"]["HgToken"]["name"] == "X-HG-Token"
+        assert "reason" in spec["components"]["schemas"]["Domain"]["required"]
+        log_params = {p["name"] for p in spec["paths"]["/log"]["get"]["parameters"]}
+        assert {"limit", "since", "action", "reason"} <= log_params
 
 
 class TestNormLine:

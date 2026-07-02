@@ -6,7 +6,7 @@ See what connects. Block what you don't want. Simple.
 import multiprocessing
 multiprocessing.freeze_support()
 
-import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html
+import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac
 import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid
 from pathlib import Path
 from collections import OrderedDict,defaultdict
@@ -4806,9 +4806,83 @@ def _cli(args):
 # ═════════════════════════════════════════════════════════════════════════════
 #  HEADLESS SERVICE MODE — monitoring without GUI
 # ═════════════════════════════════════════════════════════════════════════════
+SERVICE_API_VERSION="1.0.0"
+SERVICE_BODY_LIMIT=1_000_000
+SERVICE_LOG_ACTIONS={"all","blocked","whitelisted","fw_blocked","fw_allowed"}
+
+def _service_error(code,message,details=None):
+    err={"code":str(code),"message":str(message)}
+    if details is not None: err["details"]=details
+    return {"ok":False,"schema":"hostsguard.error.v1","error":err}
+
+def _service_auth_ok(headers,token):
+    if not token: return False
+    try: return hmac.compare_digest(headers.get('X-HG-Token',''),token)
+    except Exception: return False
+
+def _service_parse_limit(v,default=200,max_value=1000):
+    if v in (None,""): return default
+    try: n=int(str(v))
+    except Exception: raise ValueError("limit must be an integer")
+    if n<1 or n>max_value: raise ValueError(f"limit must be between 1 and {max_value}")
+    return n
+
+def _service_validate_since(v):
+    if not v: return None
+    s=str(v)
+    try: datetime.datetime.fromisoformat(s.replace("Z","+00:00"))
+    except Exception: raise ValueError("since must be an ISO-8601 timestamp")
+    return s
+
+def _service_log_params(qs):
+    get=lambda k,default=None: (qs.get(k) or [default])[0]
+    action=str(get("action","all") or "all").strip().lower()
+    if action not in SERVICE_LOG_ACTIONS: raise ValueError("action must be one of all, blocked, whitelisted, fw_blocked, fw_allowed")
+    reason=str(get("reason","all") or "all").strip().lower()
+    if reason!="all" and canonical_reason(reason)!=reason:
+        raise ValueError("reason must be a canonical reason value")
+    return {"limit":_service_parse_limit(get("limit",200)),
+            "since":_service_validate_since(get("since")),
+            "action":action,"reason":reason}
+
+def _service_parse_json_body(raw,length):
+    try: n=int(length or 0)
+    except Exception: raise ValueError("Content-Length must be an integer")
+    if n>SERVICE_BODY_LIMIT: raise OverflowError(f"request body exceeds {SERVICE_BODY_LIMIT} bytes")
+    if not raw: return {}
+    try: obj=json.loads(raw.decode("utf-8"))
+    except Exception as e: raise ValueError(f"bad JSON: {e}")
+    if not isinstance(obj,dict): raise ValueError("body must be a JSON object")
+    return obj
+
+def _service_openapi():
+    reasons=list(REASON_LABELS.keys())
+    return {
+        "openapi":"3.1.0",
+        "info":{"title":APP,"version":SERVICE_API_VERSION,"description":"Local token-authenticated HostsGuard service API"},
+        "servers":[{"url":"http://127.0.0.1:7847"}],
+        "components":{"securitySchemes":{"HgToken":{"type":"apiKey","in":"header","name":"X-HG-Token"}},
+            "schemas":{"Error":{"type":"object","required":["ok","schema","error"]},
+                "Domain":{"type":"object","required":["domain","status","source","reason"]},
+                "LogEntry":{"type":"object","required":["ts","domain","action","process","details","reason"]}}},
+        "security":[{"HgToken":[]}],
+        "paths":{
+            "/status":{"get":{"summary":"Runtime status","responses":{"200":{"description":"Status payload"}}}},
+            "/domains":{"get":{"summary":"Managed domains","responses":{"200":{"description":"Domain array"}}},
+                "post":{"summary":"Block or allow one domain","requestBody":{"required":True},"responses":{"200":{"description":"Mutation result"},"400":{"description":"Validation error"}}}},
+            "/stats":{"get":{"summary":"Aggregate counters","responses":{"200":{"description":"Stats payload"}}}},
+            "/log":{"get":{"summary":"Event log","parameters":[
+                {"name":"limit","in":"query","schema":{"type":"integer","minimum":1,"maximum":1000}},
+                {"name":"since","in":"query","schema":{"type":"string","format":"date-time"}},
+                {"name":"action","in":"query","schema":{"type":"string","enum":sorted(SERVICE_LOG_ACTIONS)}},
+                {"name":"reason","in":"query","schema":{"type":"string","enum":reasons}}],
+                "responses":{"200":{"description":"Log entry array"},"400":{"description":"Validation error"}}}},
+            "/openapi.json":{"get":{"summary":"OpenAPI contract","responses":{"200":{"description":"OpenAPI 3.1 document"}}}},
+        }}
+
 def _service():
     """Run HostsGuard as a headless background service with HTTP JSON-RPC."""
-    import http.server,json as _json,hmac as _hmac
+    import http.server,json as _json
     print(f"{APP} v{VER} - Headless Service Mode")
     db=DB(); hm=HostsMgr(); cdb=ConnDB()
     hm.backup(); db.sync_hosts_to_db(hm)
@@ -4913,12 +4987,13 @@ def _service():
     class Handler(http.server.BaseHTTPRequestHandler):
         def _authed(s):
             """Require a constant-time-matched X-HG-Token on every request."""
-            if token and _hmac.compare_digest(s.headers.get('X-HG-Token',''),token): return True
-            s._json_reply(401,{'ok':False,'error':'missing or invalid X-HG-Token'})
+            if _service_auth_ok(s.headers,token): return True
+            s._json_reply(401,_service_error('unauthorized','missing or invalid X-HG-Token'))
             return False
         def _json_reply(s,code,obj):
             body=_json.dumps(obj).encode()
             s.send_response(code); s.send_header('Content-Type','application/json')
+            s.send_header('Cache-Control','no-store')
             s.send_header('Content-Length',str(len(body))); s.end_headers()
             s.wfile.write(body)
         def do_GET(s):
@@ -4940,33 +5015,42 @@ def _service():
                     'connections_total':cdb.count() if hasattr(cdb,'count') else None})
             elif path=='/log':
                 qs=urllib.parse.parse_qs(parsed.query)
-                reason=(qs.get('reason') or ['all'])[0]
-                rows=db.get_log(limit=200,reason_filter=reason)
+                try: params=_service_log_params(qs)
+                except ValueError as e:
+                    s._json_reply(400,_service_error('invalid_query',str(e))); return
+                rows=db.get_log(limit=params['limit'],since=params['since'],action_filter=params['action'],reason_filter=params['reason'])
                 s._json_reply(200,[{'ts':r[1],'domain':r[2],'action':r[3],'process':r[4],'details':r[5],'reason':r[6]} for r in rows])
+            elif path=='/openapi.json':
+                s._json_reply(200,_service_openapi())
             else:
-                s._json_reply(404,{'ok':False,'error':'unknown endpoint'})
+                s._json_reply(404,_service_error('not_found','unknown endpoint'))
         def do_POST(s):
             if not s._authed(): return
-            if s.path!='/domains':
-                s._json_reply(404,{'ok':False,'error':'unknown endpoint'}); return
+            parsed=urllib.parse.urlparse(s.path)
+            if parsed.path!='/domains':
+                s._json_reply(404,_service_error('not_found','unknown endpoint')); return
             try:
-                length=min(int(s.headers.get('Content-Length',0) or 0),1_000_000)
-                body=_json.loads(s.rfile.read(length)) if length else {}
-                if not isinstance(body,dict): raise ValueError("body must be a JSON object")
+                length=int(s.headers.get('Content-Length',0) or 0)
+                if length>SERVICE_BODY_LIMIT:
+                    s._json_reply(413,_service_error('body_too_large',f'request body exceeds {SERVICE_BODY_LIMIT} bytes')); return
+                raw=s.rfile.read(length) if length else b''
+                body=_service_parse_json_body(raw,length)
                 action=str(body.get('action','')); domain=str(body.get('domain','')).lower().strip()
+            except OverflowError as e:
+                s._json_reply(413,_service_error('body_too_large',str(e))); return
             except Exception as e:
-                s._json_reply(400,{'ok':False,'error':f'bad request: {e}'}); return
+                s._json_reply(400,_service_error('bad_request',str(e))); return
             if not looks_like_domain(domain):
-                s._json_reply(400,{'ok':False,'error':'invalid domain'}); return
+                s._json_reply(400,_service_error('invalid_domain','domain must be a valid hostname')); return
             if action=='block':
                 db.add_domain(domain,'blocked','rpc'); hm.block(domain); db.log_event(domain,'blocked','','RPC block','service_api')
-                s._json_reply(200,{'ok':True})
+                s._json_reply(200,{'ok':True,'schema':'hostsguard.mutation.v1','domain':domain,'action':'block'})
             elif action=='allow':
                 db.add_domain(domain,'whitelisted','rpc'); hm.unblock(domain)
                 db.log_event(domain,'whitelisted','','RPC allow','service_api')
-                s._json_reply(200,{'ok':True})
+                s._json_reply(200,{'ok':True,'schema':'hostsguard.mutation.v1','domain':domain,'action':'allow'})
             else:
-                s._json_reply(400,{'ok':False,'error':'action must be block or allow'})
+                s._json_reply(400,_service_error('invalid_action','action must be block or allow'))
         def log_message(s,*a): pass
     port=int(os.environ.get('HG_PORT','7847'))
     srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)

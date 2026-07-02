@@ -24,6 +24,10 @@ All notable changes to HostsGuard are documented in this file.
   Domains and Event Log now expose reason filters, config/CLI/service exports
   include reason values, `/log?reason=<value>` filters service logs, and legacy
   rows are backfilled or rendered with inferred reasons.
+- Hardened the localhost service contract with `/openapi.json`, validated
+  `limit/since/action/reason` query parameters for `/log`, stable structured
+  error bodies, explicit 1 MB POST body rejection instead of truncation, and
+  schema-bearing mutation responses.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -47,6 +51,11 @@ All notable changes to HostsGuard are documented in this file.
 - Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
   passed `py -3.12 HostsGuard.py status`, and rebuilt the PyInstaller onedir
   artifact after the reason-tracking change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 99 tests after adding
+  service contract coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
+  passed `py -3.12 HostsGuard.py status`, and rebuilt the PyInstaller onedir
+  artifact after the service-contract change.
 
 ## [v3.15.0] - 2026-07-02
 
