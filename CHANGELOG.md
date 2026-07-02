@@ -10,6 +10,9 @@ All notable changes to HostsGuard are documented in this file.
   styling, and flatter status badges.
 - Added theme-aware table empty states and a clearer loading overlay so filtered,
   first-run, and background-loading states feel intentional instead of blank.
+- Tightened workflow microcopy and accessibility metadata across search/filter
+  controls, compact header controls, destructive confirmations, scheduled blocking,
+  and the custom firewall-rule dialog.
 
 ## [v3.13.0] - 2026-07-01
 

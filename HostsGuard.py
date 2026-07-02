@@ -1837,14 +1837,19 @@ def _btn(text,cls="dim",cb=None,tip=None):
     b.setSizePolicy(QSizePolicy.Preferred,QSizePolicy.Fixed)
     b.setStyleSheet(b.styleSheet()+f"font-size:{_dp(11)}px;padding:0 {_dp(8)}px;")
     if cb: b.clicked.connect(cb)
-    if tip: b.setToolTip(tip)
+    b.setAccessibleName(tip or text)
+    if tip:
+        b.setToolTip(tip); b.setAccessibleDescription(tip)
     return b
 
-def _tbtn(text,cls="dim",cb=None,w=None):
+def _tbtn(text,cls="dim",cb=None,w=None,tip=None):
     b=QPushButton(text); b.setProperty("class",cls); b.setCursor(Qt.PointingHandCursor)
     b.setFixedHeight(_dp(30))
     if w: b.setFixedWidth(_dp(w))
     if cb: b.clicked.connect(cb)
+    b.setAccessibleName(text)
+    if tip:
+        b.setToolTip(tip); b.setAccessibleDescription(tip)
     return b
 
 class PremiumTableWidget(QTableWidget):
@@ -1937,16 +1942,20 @@ class ScheduleDlg(QDialog):
         r1=QHBoxLayout(); r1.setSpacing(_dp(6))
         r1.addWidget(QLabel("Target"))
         s.target=QComboBox(); s.target.setEditable(True); s.target.addItems(list(BLOCK_SERVICES.keys()))
-        s.target.setCurrentText(""); s.target.setToolTip("A service name (YouTube…) or a domain (example.com)")
+        s.target.setCurrentText(""); s.target.setToolTip("A service name, such as YouTube, or a domain like example.com")
+        s.target.setAccessibleName("Schedule target")
         r1.addWidget(s.target,1)
-        r1.addWidget(QLabel("Start")); s.start=QTimeEdit(); s.start.setDisplayFormat("HH:mm"); r1.addWidget(s.start)
+        r1.addWidget(QLabel("Start")); s.start=QTimeEdit(); s.start.setAccessibleName("Schedule start time"); s.start.setDisplayFormat("HH:mm"); r1.addWidget(s.start)
         r1.addWidget(QLabel("End")); s.end=QTimeEdit(); s.end.setDisplayFormat("HH:mm")
+        s.end.setAccessibleName("Schedule end time")
         s.end.setTime(QTime(6,0)); r1.addWidget(s.end)
         el.addLayout(r1)
         r2=QHBoxLayout(); r2.setSpacing(_dp(4)); s.day_cbs=[]
         for i,d in enumerate(_WEEKDAYS):
             cb=QCheckBox(d); cb.setChecked(i<5); r2.addWidget(cb); s.day_cbs.append(cb)
         r2.addStretch(); r2.addWidget(_btn("Add","primary",s._add)); el.addLayout(r2)
+        s.err=QLabel(""); s.err.setWordWrap(True); s.err.setStyleSheet(f"color:{C['peach']};font-size:{_dp(10)}px;font-weight:700;")
+        el.addWidget(s.err)
         lo.addWidget(ed)
         br=QHBoxLayout(); br.addWidget(_btn("Remove Selected","danger",s._remove)); br.addStretch()
         br.addWidget(_btn("Close","dim",lambda:s.accept())); lo.addLayout(br)
@@ -1963,14 +1972,17 @@ class ScheduleDlg(QDialog):
     def _add(s):
         target=s.target.currentText().strip()
         days=[i for i,cb in enumerate(s.day_cbs) if cb.isChecked()]
-        if not target or not days: return
+        if not target:
+            s.err.setText("Choose a service or enter a domain to schedule."); s.target.setFocus(); return
+        if not days:
+            s.err.setText("Select at least one weekday for this schedule."); return
         # Accept a known service name as-is, else require a valid domain
         if target not in BLOCK_SERVICES and not looks_like_domain(target.lower()):
-            QMessageBox.warning(s,"Invalid target","Enter a service name or a valid domain (example.com)."); return
+            s.err.setText("Enter a known service name or a valid domain, such as example.com."); s.target.setFocus(); return
         sc={'target':target if target in BLOCK_SERVICES else target.lower(),
             'days':days,'start':s.start.time().toString("HH:mm"),'end':s.end.time().toString("HH:mm")}
         cfg=load_cfg(); sl=cfg.get('schedules',[]); sl.append(sc); cfg['schedules']=sl; save_cfg(cfg)
-        s._reload()
+        s.err.setText(""); s._reload()
         p=s.parent()
         if hasattr(p,'_apply_schedules'): p._apply_schedules()
     def _remove(s):
@@ -2114,12 +2126,19 @@ class ConnDetailDlg(QDialog):
 
 class NewRuleDlg(QDialog):
     def __init__(s,parent=None,prefill=None):
-        super().__init__(parent); s.setWindowTitle("New Firewall Rule"); s.setFixedWidth(_dp(440))
+        super().__init__(parent); s.setWindowTitle("Create Firewall Rule"); s.setFixedWidth(_dp(480))
         s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
-        lo=QVBoxLayout(s); lo.setSpacing(_dp(8)); lo.setContentsMargins(_dp(20),_dp(14),_dp(20),_dp(14))
+        lo=QVBoxLayout(s); lo.setSpacing(_dp(8)); lo.setContentsMargins(_dp(20),_dp(16),_dp(20),_dp(16))
+        hdr=QLabel("Create Firewall Rule"); hdr.setStyleSheet(f"font-size:{_dp(16)}px;font-weight:850;color:{C['text']};"); lo.addWidget(hdr)
+        desc=QLabel("Match a remote address, protocol, or program path, then choose whether Windows Firewall blocks or allows it.")
+        desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
         pf=prefill or {}
-        def _r(l,w): lo.addWidget(QLabel(l)); lo.addWidget(w)
-        s.name=QLineEdit(pf.get('name',FW_PFX)); _r("Name",s.name)
+        def _r(l,w,tip=""):
+            lab=QLabel(l); lab.setStyleSheet(f"color:{C['sub']};font-size:{_dp(10)}px;font-weight:700;")
+            if tip: lab.setToolTip(tip); w.setToolTip(tip); w.setAccessibleDescription(tip)
+            w.setAccessibleName(l)
+            lo.addWidget(lab); lo.addWidget(w)
+        s.name=QLineEdit(pf.get('name',FW_PFX)); _r("Rule name",s.name,"HostsGuard prefixes rule names with HG_ so they are easy to audit later.")
         s.dir_c=QComboBox(); s.dir_c.addItems(["Outbound","Inbound"])
         if pf.get('dir'): s.dir_c.setCurrentText(pf['dir'])
         _r("Direction",s.dir_c)
@@ -2129,16 +2148,34 @@ class NewRuleDlg(QDialog):
         s.proto_c=QComboBox(); s.proto_c.addItems(["Any","TCP","UDP","ICMPv4"])
         if pf.get('proto') and pf['proto'] not in ('Any',''): s.proto_c.setCurrentText(pf['proto'])
         _r("Protocol",s.proto_c)
-        s.addr=QLineEdit(pf.get('addr','')); s.addr.setPlaceholderText("IP / range / subnet (empty=any)"); _r("Remote Address",s.addr)
+        s.addr=QLineEdit(pf.get('addr','')); s.addr.setPlaceholderText("IP, CIDR, range, LocalSubnet, or blank for any")
+        _r("Remote address",s.addr,"Examples: 8.8.8.8, 10.0.0.0/8, 192.168.1.1-192.168.1.50, LocalSubnet.")
         pr=QHBoxLayout(); s.prog=QLineEdit(pf.get('prog',''))
-        s.prog.setPlaceholderText("Path to .exe (optional)"); pr.addWidget(s.prog,1)
-        pr.addWidget(_btn("\u2026","dim",s._browse)); lo.addWidget(QLabel("Program")); lo.addLayout(pr)
+        s.prog.setPlaceholderText("Optional path to an executable"); s.prog.setAccessibleName("Program path"); pr.addWidget(s.prog,1)
+        pr.addWidget(_btn("\u2026","dim",s._browse,"Choose an executable")); lo.addWidget(QLabel("Program")); lo.addLayout(pr)
+        s._err=QLabel(""); s._err.setWordWrap(True); s._err.setStyleSheet(f"color:{C['peach']};font-size:{_dp(10)}px;font-weight:700;")
+        lo.addWidget(s._err)
         lo.addSpacing(_dp(6))
         br=QHBoxLayout(); br.addStretch()
-        br.addWidget(_btn("Cancel","dim",lambda:s.reject())); br.addWidget(_btn("Create","primary",lambda:s.accept())); lo.addLayout(br)
+        br.addWidget(_btn("Cancel","dim",lambda:s.reject()))
+        br.addWidget(_btn("Create Rule","primary",s._try_accept))
+        lo.addLayout(br)
     def _browse(s):
         p,_=QFileDialog.getOpenFileName(s,"Select Program","","Executables (*.exe);;All (*)"); 
         if p: s.prog.setText(p)
+    @staticmethod
+    def _addr_ok(addr):
+        if not addr: return True
+        return valid_fw_addr(addr) or addr.lower() in {"any","localsubnet","dns","dhcp","wins","defaultgateway"}
+    def _try_accept(s):
+        name=s.name.text().strip()
+        addr=s.addr.text().strip()
+        if not name or name==FW_PFX:
+            s._err.setText("Enter a rule name after the HG_ prefix."); s.name.setFocus(); return
+        if not NewRuleDlg._addr_ok(addr):
+            s._err.setText("Remote address must be an IP, CIDR subnet, IP range, LocalSubnet, or blank for any.")
+            s.addr.setFocus(); return
+        s._err.setText(""); s.accept()
     def data(s):
         n=s.name.text().strip()
         if not n.startswith(FW_PFX): n=FW_PFX+n
@@ -2190,16 +2227,19 @@ class HostsActivityTab(QWidget):
         for c in [s.c_seen,s.c_blocked,s.c_wl,s.c_hidden]: sr.addWidget(c)
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.search=QLineEdit(); s.search.setPlaceholderText("Search domains..."); s.search.setFixedHeight(_dp(30))
+        s.search=QLineEdit(); s.search.setPlaceholderText("Search domain, process, or source..."); s.search.setFixedHeight(_dp(30))
+        s.search.setAccessibleName("Search DNS activity")
         s.search.setClearButtonEnabled(True)
         s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
         s._search_debounce.timeout.connect(s._on_search)
         s.search.textChanged.connect(lambda:s._search_debounce.start()); tb.addWidget(s.search,1)
         s.filt=QComboBox(); s.filt.addItems(["All","Blocked","Allowed","Unmanaged","Hidden"])
+        s.filt.setAccessibleName("Filter DNS activity by status")
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         tb.addWidget(_tbtn("Scan","primary",s._scan,55)); lo.addLayout(tb)
         s.tbl=_tbl(["Domain","Status","Process","Hits","Last Seen"],0,row_h=30)
         s.tbl.set_empty_state("No DNS activity shown","Start a scan, clear filters, or browse normally to populate this feed.")
+        s.tbl.setAccessibleName("DNS activity table")
         s.tbl.setColumnWidth(1,_dp(90)); s.tbl.setColumnWidth(2,_dp(130)); s.tbl.setColumnWidth(3,_dp(50)); s.tbl.setColumnWidth(4,_dp(140))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
         lo.addWidget(s.tbl,1)
@@ -2467,16 +2507,19 @@ class FWActivityTab(QWidget):
         for c in [s.c_live,s.c_fw,s.c_fwb,s.c_procs]: sr.addWidget(c)
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.search=QLineEdit(); s.search.setPlaceholderText("Search connections, IPs, processes...")
+        s.search=QLineEdit(); s.search.setPlaceholderText("Search host, IP, process, or category...")
+        s.search.setAccessibleName("Search live connections")
         s.search.setFixedHeight(_dp(30)); s.search.setClearButtonEnabled(True)
         s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
         s._search_debounce.timeout.connect(s._on_search)
         s.search.textChanged.connect(lambda:s._search_debounce.start()); tb.addWidget(s.search,1)
         s.filt=QComboBox(); s.filt.addItems(["All Connections","FW Blocked","Outbound","Inbound/Listen"])
+        s.filt.setAccessibleName("Filter live connections")
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         lo.addLayout(tb)
         s.tbl=_tbl(["Host / IP","Process","Port","FW Status","Country","Category"],0,row_h=30)
         s.tbl.set_empty_state("No live connections shown","Connection monitoring starts automatically. Clear filters if traffic is active.")
+        s.tbl.setAccessibleName("Live connections table")
         s.tbl.setColumnWidth(1,_dp(130)); s.tbl.setColumnWidth(2,_dp(55)); s.tbl.setColumnWidth(3,_dp(90))
         s.tbl.setColumnWidth(4,_dp(55)); s.tbl.setColumnWidth(5,_dp(100))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
@@ -2716,15 +2759,17 @@ class HostsTab(QWidget):
         desc=QLabel("Blocked domains are written to your hosts file as 0.0.0.0. Allowed domains are excluded from blocking.")
         desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); dl.addWidget(desc)
         tr=QHBoxLayout(); tr.setSpacing(_dp(5))
-        s.d_search=QLineEdit(); s.d_search.setPlaceholderText("Search..."); s.d_search.setFixedHeight(_dp(30))
+        s.d_search=QLineEdit(); s.d_search.setPlaceholderText("Search domain, source, or note..."); s.d_search.setFixedHeight(_dp(30))
+        s.d_search.setAccessibleName("Search managed domains"); s.d_search.setClearButtonEnabled(True)
         s.d_search.textChanged.connect(s._load_d); tr.addWidget(s.d_search,1)
-        s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
-        s.d_src=QComboBox(); s.d_src.addItem("All Sources"); s.d_src.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_src)
+        s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.setAccessibleName("Filter managed domains by status"); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
+        s.d_src=QComboBox(); s.d_src.addItem("All Sources"); s.d_src.setAccessibleName("Filter managed domains by source"); s.d_src.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_src)
         tr.addWidget(_tbtn("Refresh","dim",s._sync_and_load,65))
         tr.addWidget(_tbtn("+ Add","primary",s._add,60)); tr.addWidget(_tbtn("Sync > Hosts","dim",s._sync,100))
         dl.addLayout(tr)
         s.d_tbl=_tbl(["Domain","Status","Source","Hits","Modified"],0)
         s.d_tbl.set_empty_state("No managed domains","Add a domain, import a list, or sync the hosts file to build a policy.")
+        s.d_tbl.setAccessibleName("Managed domains table")
         s.d_tbl.setColumnWidth(1,_dp(85)); s.d_tbl.setColumnWidth(2,_dp(90)); s.d_tbl.setColumnWidth(3,_dp(50)); s.d_tbl.setColumnWidth(4,_dp(140))
         s.d_tbl.customContextMenuRequested.connect(s._d_ctx); dl.addWidget(s.d_tbl,1)
         s.d_info=QLabel(""); s.d_info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); dl.addWidget(s.d_info)
@@ -2769,7 +2814,7 @@ class HostsTab(QWidget):
         s._slo.addStretch()
         scroll.setWidget(inner); bl.addWidget(scroll,1)
         mg=QGroupBox("Paste Domains"); mgl=QVBoxLayout(mg)
-        s.paste=QPlainTextEdit(); s.paste.setPlaceholderText("Paste domains (one per line)..."); s.paste.setMaximumHeight(_dp(60)); mgl.addWidget(s.paste)
+        s.paste=QPlainTextEdit(); s.paste.setPlaceholderText("Paste domains, one per line"); s.paste.setAccessibleName("Paste domains"); s.paste.setMaximumHeight(_dp(60)); mgl.addWidget(s.paste)
         mr=QHBoxLayout(); mr.addWidget(_tbtn("Add to Hosts","primary",s._paste_h,100)); mr.addWidget(_tbtn("DB Only","dim",s._paste_db,70)); mr.addStretch()
         mgl.addLayout(mr); bl.addWidget(mg)
         sg=QGroupBox("Auto-Refresh"); sgl=QVBoxLayout(sg)
@@ -2786,7 +2831,8 @@ class HostsTab(QWidget):
         ad=QLabel("Domains from these URLs are whitelisted (never blocked), overriding blocklists. One URL per line.")
         ad.setWordWrap(True); ad.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); agl.addWidget(ad)
         s.allow_urls=QPlainTextEdit(); s.allow_urls.setMaximumHeight(_dp(54))
-        s.allow_urls.setPlaceholderText("https://…/allowlist.txt")
+        s.allow_urls.setPlaceholderText("https://example.com/allowlist.txt")
+        s.allow_urls.setAccessibleName("Allowlist subscription URLs")
         s.allow_urls.setPlainText("\n".join(load_cfg().get('allowlist_subscriptions',[]))); agl.addWidget(s.allow_urls)
         ar=QHBoxLayout(); ar.addWidget(_tbtn("Save & Apply Now","primary",s._apply_allowlists,140))
         s.allow_st=QLabel(""); s.allow_st.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); ar.addWidget(s.allow_st); ar.addStretch()
@@ -2920,7 +2966,7 @@ class HostsTab(QWidget):
         s.hm._flush(); s._load_d()
         s._toast(f"{'Blocked' if new_status=='blocked' else 'Allowed'} all from {source}",C['red'] if new_status=='blocked' else C['green'])
     def _add(s):
-        d,ok=QInputDialog.getText(s,"Add Domain","Domain:"); d=d.strip().lower()
+        d,ok=QInputDialog.getText(s,"Block Domain","Domain to block:"); d=d.strip().lower()
         if ok and d:
             if not looks_like_domain(d): s._toast(f"Invalid: {d}",C['peach']); return
             s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s._load_d(); s._toast(f"Blocked {d}",C['red'])
@@ -2976,6 +3022,11 @@ class HostsTab(QWidget):
         if s.hm.restore(): s._toast("Restored",C['green']); s._reload()
         else: s._toast("No backup",C['peach'])
     def _unlock(s):
+        if QMessageBox.question(s,"Reset hosts file",
+            "Reset the hosts file to the Windows default template?\n\n"
+            "HostsGuard creates a backup first, then removes current custom hosts entries.",
+            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            return
         if s.hm.emergency_unlock(): s._toast("Reset to defaults",C['green']); s._reload()
     # Blocklists
     def _sel_all(s):
@@ -3136,9 +3187,11 @@ class FirewallTab(QWidget):
         desc=QLabel("Windows Firewall rules. HostsGuard rules use the HG_ prefix."); desc.setWordWrap(True)
         desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.fw_s=QLineEdit(); s.fw_s.setPlaceholderText("Search rules..."); s.fw_s.setFixedHeight(_dp(30))
+        s.fw_s=QLineEdit(); s.fw_s.setPlaceholderText("Search rule name, program, or remote address..."); s.fw_s.setFixedHeight(_dp(30))
+        s.fw_s.setAccessibleName("Search firewall rules"); s.fw_s.setClearButtonEnabled(True)
         s.fw_s.textChanged.connect(s._apply); tb.addWidget(s.fw_s,1)
         s.fw_f=QComboBox(); s.fw_f.addItems(["All","HG Only","Block","Allow","Inbound","Outbound"])
+        s.fw_f.setAccessibleName("Filter firewall rules")
         s.fw_f.currentIndexChanged.connect(s._apply); tb.addWidget(s.fw_f)
         tb.addWidget(_tbtn("\u21BB Refresh","primary",s._refresh,75))
         tb.addWidget(_tbtn("+ Rule","dim",s._new,60)); lo.addLayout(tb)
@@ -3152,6 +3205,7 @@ class FirewallTab(QWidget):
         qa.addWidget(_tbtn("Delete All HG","danger",s._del_all_hg,115)); lo.addLayout(qa)
         s.tbl=_tbl(["","Name","Dir","Action","Proto","Remote","Program","Src"],1,row_h=28)
         s.tbl.set_empty_state("No firewall rules shown","Refresh rules or clear the current search/filter.")
+        s.tbl.setAccessibleName("Firewall rules table")
         s.tbl.setColumnWidth(0,_dp(28)); s.tbl.setColumnWidth(2,_dp(38)); s.tbl.setColumnWidth(3,_dp(48))
         s.tbl.setColumnWidth(4,_dp(50)); s.tbl.setColumnWidth(5,_dp(135)); s.tbl.setColumnWidth(6,_dp(135)); s.tbl.setColumnWidth(7,_dp(65))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
@@ -3271,7 +3325,7 @@ class FirewallTab(QWidget):
     def _create_from_dialog(s,d):
         """Validate + create a rule from NewRuleDlg data. Shared by _new/_dup."""
         if not d['name'][len(FW_PFX):].strip(): s._toast("Rule name is required",C['peach']); return
-        if d.get('addr') and not valid_fw_addr(d['addr']) and d['addr'][0].isdigit():
+        if d.get('addr') and not NewRuleDlg._addr_ok(d['addr']):
             s._toast(f"Invalid remote address: {d['addr']}",C['peach']); return
         fw.create(d['name'],d['dir'],d['action'],d.get('addr',''),d.get('proto',''),d.get('prog',''))
         dr="In" if d['dir']=="Inbound" else "Out"
@@ -3288,7 +3342,7 @@ class FirewallTab(QWidget):
         if dlg.exec_()==QDialog.Accepted: s._create_from_dialog(dlg.data())
 
     def _qblock_ip(s):
-        ip,ok=QInputDialog.getText(s,"Block IP","IP address, CIDR subnet, or range:")
+        ip,ok=QInputDialog.getText(s,"Block outbound address","IP address, CIDR subnet, or range:")
         if ok and ip.strip():
             ip=ip.strip()
             if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
@@ -3296,7 +3350,7 @@ class FirewallTab(QWidget):
             if n: s._inject_rule(n,"Out","Block",remote_addr=ip); s._toast(f"Blocked {ip} outbound",C['red'])
             else: s._toast("Rule already exists",C['dim'])
     def _qblock_ip_both(s):
-        ip,ok=QInputDialog.getText(s,"Block IP In+Out","IP address, CIDR subnet, or range:")
+        ip,ok=QInputDialog.getText(s,"Block address in both directions","IP address, CIDR subnet, or range:")
         if ok and ip.strip():
             ip=ip.strip()
             if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
@@ -3326,7 +3380,11 @@ class FirewallTab(QWidget):
     def _del_all_hg(s):
         hg=[r.name for r in s._rules if r.source=="hostsguard" and r.name]
         if not hg: s._toast("No HG rules to delete",C['dim']); return
-        if QMessageBox.question(s,"Delete All HG Rules",f"Delete {len(hg)} HostsGuard firewall rules?",QMessageBox.Yes|QMessageBox.No)!=QMessageBox.Yes: return
+        if QMessageBox.question(s,"Delete HostsGuard firewall rules",
+            f"Delete {len(hg)} HostsGuard-created firewall rules?\n\n"
+            "Only HG_ rules are removed. Windows and third-party firewall rules are left untouched.",
+            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            return
         def _bg():
             for n in hg:
                 try: fw.delete(n)
@@ -3442,13 +3500,16 @@ class ToolsTab(QWidget):
         lo.addLayout(grid)
         lg=QGroupBox("Event Log"); ll=QVBoxLayout(lg)
         lr=QHBoxLayout(); lr.setSpacing(_dp(5))
-        s.log_s=QLineEdit(); s.log_s.setPlaceholderText("Search..."); s.log_s.setFixedHeight(_dp(28))
+        s.log_s=QLineEdit(); s.log_s.setPlaceholderText("Search domain, action, process, or details..."); s.log_s.setFixedHeight(_dp(28))
+        s.log_s.setAccessibleName("Search event log"); s.log_s.setClearButtonEnabled(True)
         s.log_s.textChanged.connect(s._log); lr.addWidget(s.log_s,1)
         s.log_f=QComboBox(); s.log_f.addItems(["All","blocked","whitelisted","fw_blocked"])
+        s.log_f.setAccessibleName("Filter event log by action")
         s.log_f.currentIndexChanged.connect(s._log); lr.addWidget(s.log_f)
-        lr.addWidget(_tbtn("Clear","danger",lambda:(s.db.clear_log(),s._log()),65)); ll.addLayout(lr)
+        lr.addWidget(_tbtn("Clear Log","danger",s._clear_log,75,"Delete all event log rows")); ll.addLayout(lr)
         s.log_tbl=_tbl(["Time","Domain","Action","Process","Details"],1,row_h=26)
         s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.")
+        s.log_tbl.setAccessibleName("Event log table")
         s.log_tbl.setColumnWidth(0,_dp(140)); s.log_tbl.setColumnWidth(2,_dp(75)); s.log_tbl.setColumnWidth(3,_dp(95)); s.log_tbl.setColumnWidth(4,_dp(170))
         ll.addWidget(s.log_tbl,1); lo.addWidget(lg,1)
 
@@ -3516,6 +3577,13 @@ class ToolsTab(QWidget):
             ai=QTableWidgetItem(action or ""); ai.setForeground(QColor({'blocked':C['red'],'whitelisted':C['green'],'fw_blocked':C['mauve']}.get(action,C['dim'])))
             s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,4,QTableWidgetItem(det or ""))
         s.log_tbl.setSortingEnabled(True)
+    def _clear_log(s):
+        if QMessageBox.question(s,"Clear event log",
+            "Delete all HostsGuard event log rows?\n\n"
+            "This does not change hosts entries, firewall rules, or connection history.",
+            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            return
+        s.db.clear_log(); s._log(); s._toast("Event log cleared",C['dim'])
     def _toggle_rec(s):
         if s._recording:
             s._recording=False; s._rec_btn.setText("Record Session")
@@ -3653,7 +3721,13 @@ class ToolsTab(QWidget):
         if sys.platform=='win32': os.startfile(CONFIG_DIR)
     def _show_t(s): QMessageBox.information(s,"Trusted",'\n'.join(sorted(s.learn._trusted) or ["(none)"]))
     def _show_u(s): QMessageBox.information(s,"Untrusted",'\n'.join(sorted(s.learn._untrusted) or ["(none)"]))
-    def _clear_t(s): s.learn._trusted.clear(); s.learn._untrusted.clear(); s.learn.save(); s._upd_learn()
+    def _clear_t(s):
+        if QMessageBox.question(s,"Clear learning decisions",
+            "Clear all trusted and untrusted process decisions?\n\n"
+            "Learning Mode will prompt again as those processes connect.",
+            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            return
+        s.learn._trusted.clear(); s.learn._untrusted.clear(); s.learn.save(); s._upd_learn(); s._toast("Learning decisions cleared",C['dim'])
     def _restore_hosts(s):
         """Re-add all DB blocked domains to hosts file."""
         blocked=s.db.get_domains(status='blocked')
@@ -3833,6 +3907,8 @@ class MainWindow(QMainWindow):
         sep=QFrame(); sep.setFixedSize(1,_dp(20)); sep.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep)
         s._dot=QLabel(); s._dot.setFixedSize(_dp(10),_dp(10)); s._dot.setStyleSheet(f"background:{C['dim']};border-radius:{_dp(4)}px;"); tb.addWidget(s._dot)
         s._status=QLabel("STARTING"); s._status.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;"); tb.addWidget(s._status)
+        s._status.setAccessibleName("Monitoring status")
+        s._status.setToolTip("Current DNS and connection monitoring state")
         try: adm=ctypes.windll.shell32.IsUserAnAdmin()!=0
         except: adm=False
         ac=C['green'] if adm else C['peach']
@@ -3844,19 +3920,24 @@ class MainWindow(QMainWindow):
         sep2=QFrame(); sep2.setFixedSize(1,_dp(20)); sep2.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep2)
         s._cbtn=QPushButton("CONNECTIONS: OFF"); s._cbtn.setCursor(Qt.PointingHandCursor); s._cbtn.setFixedHeight(_dp(24))
         s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
+        s._cbtn.setAccessibleName("Toggle live connection monitoring")
+        s._cbtn.setToolTip("Start or stop live connection monitoring")
         s._cbtn.clicked.connect(s._toggle_conns); tb.addWidget(s._cbtn)
         # Notification mute toggle
         s._notif_muted=load_cfg().get('notif_muted',False)
         s._mbtn=QPushButton("NOTIF: OFF" if s._notif_muted else "NOTIF: ON")
         s._mbtn.setCursor(Qt.PointingHandCursor); s._mbtn.setFixedHeight(_dp(24))
+        s._mbtn.setAccessibleName("Toggle blocked-domain notifications")
         s._mbtn.setToolTip("Toggle desktop notifications for blocked domains")
         s._upd_mute_btn(); s._mbtn.clicked.connect(s._toggle_mute); tb.addWidget(s._mbtn)
         s._prof_cb=QComboBox(); s._prof_cb.setFixedHeight(_dp(24)); s._prof_cb.setFixedWidth(_dp(100))
+        s._prof_cb.setAccessibleName("Network profile")
         s._prof_cb.setToolTip("Network profile — different rule sets per network")
         s._prof_cb.setStyleSheet(f"background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(6)}px;font-size:{_dp(8)}px;padding:0 {_dp(4)}px;")
         tb.addWidget(s._prof_cb)
         s._tbtn=QPushButton("LIGHT" if load_cfg().get('theme')=='light' else "DARK")
         s._tbtn.setCursor(Qt.PointingHandCursor); s._tbtn.setFixedHeight(_dp(24))
+        s._tbtn.setAccessibleName("Toggle theme")
         s._tbtn.setToolTip("Switch between dark and light theme (requires restart)")
         s._tbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
         s._tbtn.clicked.connect(s._toggle_theme); tb.addWidget(s._tbtn)
@@ -4014,6 +4095,7 @@ class MainWindow(QMainWindow):
         on=s._monitoring or s._conn_on; c=C['green'] if on else C['red']
         s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(4)}px;")
         s._status.setText(msg.upper()[:25]); s._status.setStyleSheet(f"color:{c};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;")
+        s._status.setToolTip(f"Monitoring status: {msg}")
     def _upd_bw(s):
         up,dn=bw.rates(); s._bw_up.setText(f"\u25B2 {bw.fmt(up)}"); s._bw_dn.setText(f"\u25BC {bw.fmt(dn)}")
         if s._mini and s._mini.isVisible():
