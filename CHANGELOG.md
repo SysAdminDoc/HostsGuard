@@ -2,7 +2,7 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [v3.14.0] - 2026-07-02
 
 ### Changed
 - Refined the shared PySide6 theme system with higher-contrast dark/light
