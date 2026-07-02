@@ -4,6 +4,17 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — blocklist source health + mirror fallback (NET-077)
+- **Mirror fallback** — curated sources carry a fallback URL; when the primary
+  fetch fails the importer retries the mirror before giving up (HaGezi,
+  StevenBlack, OISD wired). A ↔ mirror flag shows which sources have one.
+- **Merge health report** — import now scans the list and reports duplicates
+  dropped, invalid lines dropped, **hosts-hijack entries** (a domain pointed at
+  a routable IP rather than a sink like 0.0.0.0 — the StevenBlack hijack check;
+  excluded from the block set), and how many imported domains an allowlist kept
+  unblocked. Surfaced inline in the Blocklists status line and the event log.
+  Per-source enable/disable already exists via subscribe/unsubscribe.
+
 ### Added — global outbound modes + per-app scope blocks (NET-076)
 - **Global outbound selector** — a tray "Global outbound" submenu applies
   Block-all or Allow-all outbound posture (default-outbound action on every

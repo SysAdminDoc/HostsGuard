@@ -120,6 +120,7 @@ message BlocklistSource {
   string last_refresh = 5;
   int64 domain_count = 6;
   bool large_list_warning = 7; // known to bloat the hosts file (DNS Client CPU)
+  string mirror = 8;           // fallback URL (NET-077); "" when none
 }
 
 message BlocklistSources {
@@ -134,6 +135,12 @@ message BlocklistResult {
   int64 total = 5;          // domains parsed from the source(s)
   int64 hosts_entries = 6;  // hosts-file entry count after import
   string warning = 7;       // e.g. DNS-Client CPU warning above 100k entries
+  // NET-077 merge health report.
+  int64 duplicates = 8;        // duplicate domains dropped
+  int64 invalid = 9;           // unparseable/invalid lines dropped
+  int64 hijack_flagged = 10;   // domains pointed at a non-sink routable IP (excluded)
+  int64 allowlist_overrides = 11; // imported domains an allowlist kept unblocked
+  bool mirror_used = 12;       // the primary URL failed and the mirror served the list
 }
 
 message AllowlistUrls {

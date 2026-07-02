@@ -6,8 +6,11 @@ using HostsGuard.Windows;
 
 namespace HostsGuard.Service;
 
-/// <summary>One import's outcome.</summary>
-public sealed record ImportOutcome(long Added, long Total, long HostsEntries, string Warning);
+/// <summary>One import's outcome, with the NET-077 health report.</summary>
+public sealed record ImportOutcome(
+    long Added, long Total, long HostsEntries, string Warning,
+    long Duplicates = 0, long Invalid = 0, long HijackFlagged = 0,
+    long AllowlistOverrides = 0, bool MirrorUsed = false);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -35,37 +38,75 @@ public sealed class ListImporter : IDisposable
 
     public async Task<ImportOutcome> ImportBlocklistAsync(string name, string url, CancellationToken ct)
     {
-        var text = await _fetcher.FetchAsync(url, BlocklistCatalog.MaxBlocklistBytes, ct);
-        var domains = BlocklistCatalog.ParseDomains(text);
+        // Mirror fallback (NET-077): if the primary URL fails and the catalog
+        // knows a mirror for this source, retry the mirror before giving up.
+        var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        var scan = BlocklistCatalog.Scan(text);
+        var domains = scan.Domains;
 
         var added = _hosts.BlockBulk(domains);
         _db.AddDomainsBulk(domains.Select(d => (d, "blocked", $"list:{name}")));
         _db.UpsertBlocklistSub(name, url, domains.Count);
-        _db.LogEvent($"list:{name}", "blocked", details: $"Blocklist imported ({domains.Count} domains)", reason: "blocklist");
 
-        // Whitelisted domains always win: re-apply allowlists after an import.
-        ReapplyAllowlisted();
+        // Whitelisted domains always win: re-apply allowlists after an import,
+        // and report how many blocklist entries the allowlist overrode.
+        var overrides = ReapplyAllowlisted(domains);
 
         var entries = _hosts.GetBlocked().Count;
         var warning = entries > BlocklistCatalog.LargeHostsWarn
             ? $"Hosts file now {entries:N0} entries — watch DNS Client CPU"
             : string.Empty;
-        return new ImportOutcome(added, domains.Count, entries, warning);
+
+        _db.LogEvent($"list:{name}", "blocked",
+            details: $"imported {domains.Count} domains ({scan.Duplicates} dup, {scan.Invalid} invalid, " +
+                     $"{scan.HijackFlagged} hijack-flagged, {overrides} allowlist-overridden" +
+                     (mirrorUsed ? ", via mirror" : string.Empty) + ")",
+            reason: "blocklist");
+
+        return new ImportOutcome(added, domains.Count, entries, warning,
+            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed);
+    }
+
+    /// <summary>Fetch a list, falling back to the catalog mirror on failure.</summary>
+    private async Task<(string Text, bool MirrorUsed)> FetchWithMirrorAsync(string name, string url, CancellationToken ct)
+    {
+        try
+        {
+            return (await _fetcher.FetchAsync(url, BlocklistCatalog.MaxBlocklistBytes, ct), false);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            var mirror = BlocklistCatalog.Sources
+                .FirstOrDefault(s => s.Name == name && s.Url == url && s.Mirror.Length != 0)?.Mirror;
+            if (mirror is null)
+            {
+                throw;
+            }
+
+            _db.LogEvent($"list:{name}", "mirror_fallback", details: $"primary failed ({ex.GetType().Name}); trying mirror");
+            return (await _fetcher.FetchAsync(mirror, BlocklistCatalog.MaxBlocklistBytes, ct), true);
+        }
     }
 
     public async Task<ImportOutcome> RefreshAllAsync(CancellationToken ct)
     {
         long added = 0, total = 0;
         var warning = string.Empty;
+        long duplicates = 0, invalid = 0, hijack = 0, overrides = 0;
         foreach (var (name, url, _, _) in _db.GetBlocklistSubs())
         {
             var outcome = await ImportBlocklistAsync(name, url, ct);
             added += outcome.Added;
             total += outcome.Total;
+            duplicates += outcome.Duplicates;
+            invalid += outcome.Invalid;
+            hijack += outcome.HijackFlagged;
+            overrides += outcome.AllowlistOverrides;
             warning = outcome.Warning;
         }
 
-        return new ImportOutcome(added, total, _hosts.GetBlocked().Count, warning);
+        return new ImportOutcome(added, total, _hosts.GetBlocked().Count, warning,
+            duplicates, invalid, hijack, overrides);
     }
 
     public async Task<int> RefreshAllowlistsAsync(CancellationToken ct)
@@ -98,17 +139,20 @@ public sealed class ListImporter : IDisposable
     /// per-domain Unblock calls, so a large allowlist can't overflow the hosts
     /// engine's self-write hash window and trip a spurious tamper alert.
     /// </summary>
-    private void ReapplyAllowlisted()
+    /// <summary>Returns how many of <paramref name="imported"/> the allowlist overrode.</summary>
+    private long ReapplyAllowlisted(IReadOnlyList<string> imported)
     {
         var whitelisted = _db.GetDomains(status: "whitelisted")
             .Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
         if (whitelisted.Count == 0)
         {
-            return;
+            return 0;
         }
 
+        var overrides = imported.Count(whitelisted.Contains);
         var target = _hosts.GetBlocked().Where(d => !whitelisted.Contains(d)).ToList();
         _hosts.Reconcile(target);
+        return overrides;
     }
 
     private async Task SafeScheduledRefreshAsync()

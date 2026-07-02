@@ -30,6 +30,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 LastRefresh = subscribed ? sub.LastRefresh : string.Empty,
                 DomainCount = subscribed ? sub.DomainCount : 0,
                 LargeListWarning = BlocklistCatalog.LargeLists.Contains(src.Name),
+                Mirror = src.Mirror,
             });
         }
 
@@ -75,11 +76,17 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             return new BlocklistResult
             {
                 Ok = true,
-                Message = $"imported {name}: {outcome.Added} new of {outcome.Total} domains",
+                Message = $"imported {name}: {outcome.Added} new of {outcome.Total} domains" +
+                          (outcome.MirrorUsed ? " (via mirror)" : string.Empty),
                 Added = outcome.Added,
                 Total = outcome.Total,
                 HostsEntries = outcome.HostsEntries,
                 Warning = outcome.Warning,
+                Duplicates = outcome.Duplicates,
+                Invalid = outcome.Invalid,
+                HijackFlagged = outcome.HijackFlagged,
+                AllowlistOverrides = outcome.AllowlistOverrides,
+                MirrorUsed = outcome.MirrorUsed,
             };
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)

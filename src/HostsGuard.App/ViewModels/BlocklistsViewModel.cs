@@ -31,7 +31,11 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     [ObservableProperty]
     private bool _largeListWarning;
 
-    public string Flags => LargeListWarning ? "⚠ large" : string.Empty;
+    [ObservableProperty]
+    private string _mirror = string.Empty;
+
+    public string Flags =>
+        (LargeListWarning ? "⚠ large " : string.Empty) + (Mirror.Length != 0 ? "↔ mirror" : string.Empty);
 
     public static BlocklistSourceViewModel From(BlocklistSource s) => new()
     {
@@ -42,6 +46,7 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         LastRefresh = s.LastRefresh,
         DomainCount = s.DomainCount,
         LargeListWarning = s.LargeListWarning,
+        Mirror = s.Mirror,
     };
 }
 
@@ -96,8 +101,26 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 
         StatusText = $"Importing {source.Name}…";
         var result = await _client.Lists.ImportBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
-        StatusText = result.Ok && result.Warning.Length != 0 ? $"{result.Message} — {result.Warning}" : result.Message;
+        StatusText = FormatResult(result);
         await RefreshAsync();
+    }
+
+    /// <summary>Compose the NET-077 health report into a one-line status.</summary>
+    public static string FormatResult(BlocklistResult r)
+    {
+        if (!r.Ok)
+        {
+            return r.Message;
+        }
+
+        var report = new List<string>();
+        if (r.Duplicates > 0) report.Add($"{r.Duplicates} dup");
+        if (r.Invalid > 0) report.Add($"{r.Invalid} invalid");
+        if (r.HijackFlagged > 0) report.Add($"{r.HijackFlagged} hijack-flagged");
+        if (r.AllowlistOverrides > 0) report.Add($"{r.AllowlistOverrides} allowlist-kept");
+        var health = report.Count != 0 ? $" [{string.Join(", ", report)}]" : string.Empty;
+        var warn = r.Warning.Length != 0 ? $" — {r.Warning}" : string.Empty;
+        return $"{r.Message}{health}{warn}";
     }
 
     [RelayCommand]
@@ -113,7 +136,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         StatusText = "Refreshing all subscriptions…";
         var result = await _client.Lists.RefreshBlocklistsAsync(new Empty());
-        StatusText = result.Ok && result.Warning.Length != 0 ? $"{result.Message} — {result.Warning}" : result.Message;
+        StatusText = FormatResult(result);
         await RefreshAsync();
     }
 
