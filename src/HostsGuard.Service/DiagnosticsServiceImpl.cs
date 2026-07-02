@@ -73,10 +73,62 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             var schedules = _state.Db.GetSchedules()
                 .Select(s => $"{Redaction.RedactText(s.Target)}\tdays={s.Days}\t{s.Start}-{s.End}");
             AddEntry(zip, "schedules.tsv", string.Join('\n', schedules));
+
+            // NET-063 local-only metrics: event counts grouped by the canonical
+            // taxonomy + the consent surface (mode/posture). Counts + booleans
+            // only — no domains, IPs, or secrets.
+            AddEntry(zip, "diagnostics.json", BuildDiagnostics());
+
+            // Consent decision history (counts + redacted app/remote).
+            var decisions = _state.Db.GetLog(500)
+                .Where(l => l.Action.StartsWith("consent_", StringComparison.Ordinal))
+                .Select(l => $"{l.Ts}\t{l.Action}\t{Redaction.RedactText(l.Domain)}\t{Redaction.RedactText(l.Details)}");
+            AddEntry(zip, "consent_decisions.tsv", string.Join('\n', decisions));
         }
 
         _state.Db.LogEvent("support", "bundle_export", details: Path.GetFileName(path));
         return Task.FromResult(new Ack { Ok = true, Message = path });
+    }
+
+    /// <summary>
+    /// Local-only metrics: recent-event counts by taxonomy category and action,
+    /// plus the consent mode/posture snapshot. Counts and booleans only — safe
+    /// to include verbatim (no domains, IPs, tokens, or secrets).
+    /// </summary>
+    private string BuildDiagnostics()
+    {
+        var recent = _state.Db.GetLog(2000);
+        var byCategory = recent.GroupBy(l => EventTaxonomy.Category(l.Action))
+            .ToDictionary(g => g.Key, g => g.Count());
+        var byAction = recent.GroupBy(l => l.Action)
+            .OrderByDescending(g => g.Count())
+            .Take(30)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        string posture = "unavailable";
+        try
+        {
+            if (_state.Firewall is { } fw)
+            {
+                posture = string.Join(", ", fw.GetPosture().Select(p => $"{p.Name}={(p.OutboundBlock ? "block" : "allow")}"));
+            }
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            // Posture read failed — leave "unavailable".
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            generated = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            filtering_mode = _state.Consent.Mode,
+            detection_armed = _state.Consent.DetectionArmed,
+            default_outbound = posture,
+            temp_allows_pending = _state.TempAllows.Pending().Count,
+            events_window = recent.Count,
+            events_by_category = byCategory,
+            events_by_action_top = byAction,
+        }, new JsonSerializerOptions { WriteIndented = true });
     }
 
     private static void AddEntry(ZipArchive zip, string name, string content)

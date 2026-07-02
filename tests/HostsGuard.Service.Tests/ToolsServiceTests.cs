@@ -249,9 +249,36 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         File.Exists(ack.Message).Should().BeTrue();
 
         using var zip = ZipFile.OpenRead(ack.Message);
-        zip.Entries.Select(e => e.Name).Should().Contain(new[] { "status.json", "events.log", "firewall_rules.tsv", "schedules.tsv" });
+        zip.Entries.Select(e => e.Name).Should().Contain(new[]
+        {
+            "status.json", "events.log", "firewall_rules.tsv", "schedules.tsv",
+            "diagnostics.json", "consent_decisions.tsv",
+        });
         using var reader = new StreamReader(zip.GetEntry("events.log")!.Open());
         var log = await reader.ReadToEndAsync();
         log.Should().NotContain("93.184.216.34"); // redaction pipeline applied
+    }
+
+    [Fact]
+    public async Task Diagnostics_summary_reports_grouped_counts_and_consent_state_without_leaking()
+    {
+        _state.Db.LogEvent("203.0.113.9", "fw_blocked", details: "remote 203.0.113.9");
+        _state.Db.LogEvent("ads.example.com", "blocked", details: "hosts file");
+        _state.Consent.SetMode("notify");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
+            .ExportSupportBundleAsync(new Empty());
+
+        using var zip = ZipFile.OpenRead(ack.Message);
+        using var reader = new StreamReader(zip.GetEntry("diagnostics.json")!.Open());
+        var json = await reader.ReadToEndAsync();
+
+        json.Should().Contain("\"filtering_mode\": \"notify\"");
+        json.Should().Contain("events_by_category");
+        json.Should().Contain("firewall");   // fw_blocked bucketed
+        json.Should().Contain("hosts");      // blocked bucketed
+        json.Should().NotContain("203.0.113.9"); // counts only, no IPs
+        json.Should().NotContain("ads.example.com");
     }
 }
