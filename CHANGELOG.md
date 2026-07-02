@@ -16,6 +16,8 @@ All notable changes to HostsGuard are documented in this file.
 - Aligned headless-service discovery metadata: `/openapi.json` now advertises
   the active `HG_PORT`, service startup copy lists the contract endpoint, and
   release metadata version strings are guarded by tests.
+- Bounded GeoIP MMDB gzip decompression so compressed download size limits also
+  cap expanded payloads before database files are written.
 
 ## [v3.16.0] - 2026-07-02
 

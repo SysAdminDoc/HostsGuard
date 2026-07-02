@@ -12,6 +12,7 @@ import time
 import json
 import hashlib
 import hmac
+import gzip
 import shutil
 import tempfile
 import threading
@@ -55,6 +56,7 @@ _apply_import_plan = _m["_apply_import_plan"]
 load_cfg = _m["load_cfg"]
 save_cfg = _m["save_cfg"]
 _read_response_limited = _m["_read_response_limited"]
+_gzip_decompress_limited = _m["_gzip_decompress_limited"]
 _parse_doh_payload = _m["_parse_doh_payload"]
 _verify_doh_payload_hash = _m["_verify_doh_payload_hash"]
 _doh_state_payload = _m["_doh_state_payload"]
@@ -185,6 +187,15 @@ class TestBoundedResponseReads:
     def test_limited_response_reader_rejects_oversized_payload(self):
         with pytest.raises(ValueError, match="exceeds"):
             _read_response_limited(io.BytesIO(b"abcd"), 3, "test payload")
+
+    def test_limited_gzip_reader_accepts_exact_output_limit(self):
+        data = gzip.compress(b"abc")
+        assert _gzip_decompress_limited(data, 3, "geoip") == b"abc"
+
+    def test_limited_gzip_reader_rejects_oversized_output(self):
+        data = gzip.compress(b"abcd")
+        with pytest.raises(ValueError, match="after decompression"):
+            _gzip_decompress_limited(data, 3, "geoip")
 
 
 class TestDestructiveActionGuards:

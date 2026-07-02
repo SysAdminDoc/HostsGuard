@@ -6,7 +6,7 @@ See what connects. Block what you don't want. Simple.
 import multiprocessing
 multiprocessing.freeze_support()
 
-import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac,shlex
+import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac,shlex,gzip
 import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid,zipfile,platform
 import importlib.metadata as importlib_metadata
 from pathlib import Path
@@ -73,6 +73,7 @@ MAX_THREAT_FEED_BYTES=5_000_000
 MAX_FAVICON_BYTES=256_000
 MAX_DOH_RESOLVER_BYTES=2_000_000
 MAX_GEOIP_GZIP_BYTES=80_000_000
+MAX_GEOIP_MMDB_BYTES=250_000_000
 MAX_GEOIP_API_BYTES=256_000
 MAX_BLOCKLIST_BYTES=25_000_000
 MAX_ALLOWLIST_BYTES=10_000_000
@@ -403,6 +404,20 @@ def _read_response_limited(resp,max_bytes,label="response"):
 
 def _decode_response_limited(resp,max_bytes,label="response"):
     return _read_response_limited(resp,max_bytes,label).decode('utf-8',errors='replace')
+
+def _gzip_decompress_limited(data,max_bytes,label="gzip payload"):
+    try: limit=int(max_bytes)
+    except Exception: raise ValueError(f"{label} byte limit must be an integer")
+    if limit<1: raise ValueError(f"{label} byte limit must be positive")
+    out=bytearray()
+    with gzip.GzipFile(fileobj=io.BytesIO(data)) as gz:
+        while True:
+            chunk=gz.read(min(65536,limit+1-len(out)))
+            if not chunk: break
+            out.extend(chunk)
+            if len(out)>limit:
+                raise ValueError(f"{label} exceeds {limit} bytes after decompression")
+    return bytes(out)
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
 _DARK={"bg":"#0b0d12","base":"#141821","mantle":"#10141c","crust":"#090b10","s0":"#242b38","s1":"#354052","s2":"#4a5870",
@@ -2320,7 +2335,6 @@ GEOASN_PATH=os.path.join(CONFIG_DIR,"geoasn.mmdb")
 
 def _ensure_geoip():
     """Download DB-IP Lite MMDB files if not present (CC BY 4.0, no account needed)."""
-    import gzip
     now=datetime.datetime.now()
     months=[now.strftime('%Y-%m'),(now.replace(day=1)-datetime.timedelta(days=1)).strftime('%Y-%m')]
     for path,slug in [(GEOIP_PATH,'dbip-country-lite'),(GEOASN_PATH,'dbip-asn-lite')]:
@@ -2330,7 +2344,8 @@ def _ensure_geoip():
                 url=f"https://download.db-ip.com/free/{slug}-{month}.mmdb.gz"
                 req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
                 with urllib.request.urlopen(req,timeout=60) as resp:
-                    with open(path,'wb') as f: f.write(gzip.decompress(_read_response_limited(resp,MAX_GEOIP_GZIP_BYTES,f"{slug} MMDB gzip")))
+                    compressed=_read_response_limited(resp,MAX_GEOIP_GZIP_BYTES,f"{slug} MMDB gzip")
+                    with open(path,'wb') as f: f.write(_gzip_decompress_limited(compressed,MAX_GEOIP_MMDB_BYTES,f"{slug} MMDB"))
                 log.info(f"Downloaded {slug} to {path}")
                 break
             except Exception as e: log.warning(f"GeoIP download failed ({slug}-{month}): {e}")
