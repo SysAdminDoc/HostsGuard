@@ -53,6 +53,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private FwRulesViewModel? _fwRules;
 
     [ObservableProperty]
+    private ToolsViewModel? _tools;
+
+    [ObservableProperty]
     private string _theme;
 
     [ObservableProperty]
@@ -94,6 +97,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             FwActivity.StartWatching();
             FwRules ??= new FwRulesViewModel(_client);
             await FwRules.RefreshAsync();
+            Tools ??= new ToolsViewModel(_client);
+            await Tools.LoadSchedulesAsync();
             IsConnected = true;
             ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
         }

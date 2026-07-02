@@ -26,7 +26,7 @@ public sealed record FeedRow(
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -86,6 +86,8 @@ public sealed class HostsDatabase : IDisposable
                 id INTEGER PRIMARY KEY, profile TEXT, domain TEXT, status TEXT DEFAULT 'blocked', source TEXT);
             CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY, added TEXT);
             CREATE TABLE IF NOT EXISTS temp_allows(domain TEXT PRIMARY KEY, expires TEXT);
+            CREATE TABLE IF NOT EXISTS schedules(
+                id INTEGER PRIMARY KEY, target TEXT, days TEXT, start TEXT, end TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -243,6 +245,15 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    public string? GetDomainStatus(string domain)
+    {
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>("SELECT status FROM domains WHERE domain=@d",
+                new { d = domain.ToLowerInvariant() });
+        }
+    }
+
     // ─── Activity feed ────────────────────────────────────────────────────────
 
     /// <summary>UPSERT a DNS sighting: bump hits + last_seen, keep first_seen.</summary>
@@ -341,6 +352,36 @@ public sealed class HostsDatabase : IDisposable
                 .Select(r => (r.Item1, DateTime.Parse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal)))
                 .ToList();
+        }
+    }
+
+    // ─── Schedules ────────────────────────────────────────────────────────────
+
+    /// <summary>Replace the full schedule set (the editor saves atomically).</summary>
+    public void SetSchedules(IEnumerable<(string Target, string Days, string Start, string End)> schedules)
+    {
+        ArgumentNullException.ThrowIfNull(schedules);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM schedules", transaction: tx);
+            foreach (var (target, days, start, end) in schedules)
+            {
+                _conn.Execute(
+                    "INSERT INTO schedules(target,days,start,end) VALUES(@target,@days,@start,@end)",
+                    new { target = target.ToLowerInvariant(), days, start, end }, tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
+    public IReadOnlyList<(string Target, string Days, string Start, string End)> GetSchedules()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string, string)>(
+                "SELECT target, days, start, end FROM schedules ORDER BY id").ToList();
         }
     }
 

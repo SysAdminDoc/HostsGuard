@@ -16,6 +16,7 @@ public class SchemaLockTests
     private const string Expected = """
         package hostsguard.v1
         service Diagnostics
+          ExportSupportBundle(Empty) returns (Ack)
           GetStatus(Empty) returns (ServiceStatus)
         service DnsControl
           FlushCache(Empty) returns (Ack)
@@ -32,11 +33,13 @@ public class SchemaLockTests
           UnblockEncryptedDns(Empty) returns (Ack)
         service HostsControl
           Allow(DomainRequest) returns (Ack)
+          BackupHosts(Empty) returns (Ack)
           Block(DomainRequest) returns (Ack)
           BlockRoot(DomainRequest) returns (Ack)
           EmergencyReset(Empty) returns (Ack)
           GetActivity(ActivityRequest) returns (ActivityList)
           GetHostsText(Empty) returns (HostsText)
+          HardenAcl(Empty) returns (Ack)
           HideRoot(DomainRequest) returns (Ack)
           ListDomains(ListDomainsRequest) returns (DomainList)
           ListTempAllows(Empty) returns (TempAllowList)

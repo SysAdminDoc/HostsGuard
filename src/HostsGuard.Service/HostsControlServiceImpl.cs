@@ -214,6 +214,29 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(list);
     }
 
+    public override Task<Ack> BackupHosts(Empty request, ServerCallContext context)
+    {
+        var backupDir = System.IO.Path.Combine(_state.DataDir, "backups");
+        var path = _state.Hosts.Backup(backupDir);
+        return Task.FromResult(path is null
+            ? Error("backup_failed", "could not write the hosts backup")
+            : Ok(path));
+    }
+
+    public override Task<Ack> HardenAcl(Empty request, ServerCallContext context)
+    {
+        try
+        {
+            Windows.HostsAcl.Harden(_state.Hosts.HostsPath);
+            _state.Db.LogEvent("hosts", "acl_hardened");
+            return Task.FromResult(Ok("hosts file ACL hardened"));
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.IO.IOException or InvalidOperationException)
+        {
+            return Task.FromResult(Error("acl_failed", ex.Message));
+        }
+    }
+
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 
     private static Ack Error(string code, string message) =>

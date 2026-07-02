@@ -20,7 +20,8 @@ var hosts = new HostsEngine(HostsEngine.DefaultHostsPath);
 var db = new HostsDatabase(dbPath);
 var firewall = new FirewallEngine();
 var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"));
-using var state = new ServiceState(hosts, db, firewall, identity);
+var dns = new DnsConfig();
+using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir);
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 

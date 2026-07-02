@@ -26,6 +26,8 @@ public static class ServiceHost
                 app.MapGrpcService<HostsControlServiceImpl>();
                 app.MapGrpcService<MonitoringServiceImpl>();
                 app.MapGrpcService<FirewallControlServiceImpl>();
+                app.MapGrpcService<DnsControlServiceImpl>();
+                app.MapGrpcService<PolicyServiceImpl>();
             },
             pipeName,
             services => services.AddSingleton(state));

@@ -23,6 +23,9 @@ message Ack {
 
 service Diagnostics {
   rpc GetStatus(Empty) returns (ServiceStatus);
+  // Writes a redacted support bundle zip under the service data dir; the
+  // resulting path is returned in Ack.message. Never contains tokens/secrets.
+  rpc ExportSupportBundle(Empty) returns (Ack);
 }
 
 message ServiceStatus {
@@ -60,6 +63,10 @@ service HostsControl {
   rpc UnhideRoot(DomainRequest) returns (Ack);
   // Snapshot of recent DNS activity (the live delta streams via Monitoring.WatchDns).
   rpc GetActivity(ActivityRequest) returns (ActivityList);
+  // Copy the hosts file to a timestamped backup; path returned in Ack.message.
+  rpc BackupHosts(Empty) returns (Ack);
+  // Re-apply the hardened ACL to the hosts file.
+  rpc HardenAcl(Empty) returns (Ack);
 }
 
 message TempAllowRequest {

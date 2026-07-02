@@ -408,9 +408,84 @@
                 </TabItem>
 
                 <TabItem Header="Tools">
-                    <TextBlock Text="DNS / DoH / backup tools — arrive with NET-023."
-                               Style="{StaticResource Hg.DimText}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="8" DataContext="{Binding Tools}">
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="DNS" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <DockPanel LastChildFill="False">
+                                        <Button DockPanel.Dock="Left" Content="Flush DNS cache"
+                                                Command="{Binding FlushDnsCommand}" Margin="0,0,10,0" />
+                                        <ComboBox DockPanel.Dock="Left" Width="180" Margin="0,0,10,0"
+                                                  ItemsSource="{x:Static vm:ToolsViewModel.ResolverNames}"
+                                                  SelectedItem="{Binding SelectedResolver}" />
+                                        <Button DockPanel.Dock="Left" Content="Apply resolver"
+                                                Command="{Binding ApplyResolverCommand}" />
+                                    </DockPanel>
+                                    <DockPanel Margin="0,10,0,0">
+                                        <Button DockPanel.Dock="Right" Content="Inspect"
+                                                Command="{Binding InspectCommand}" Margin="8,0,0,0" />
+                                        <TextBox Text="{Binding InspectDomain, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Domain to resolve and check block state">
+                                            <TextBox.InputBindings>
+                                                <KeyBinding Key="Return" Command="{Binding InspectCommand}" />
+                                            </TextBox.InputBindings>
+                                        </TextBox>
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Scheduled blocking" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <DataGrid ItemsSource="{Binding Schedules}" IsReadOnly="False" MinHeight="80" MaxHeight="220"
+                                              CanUserAddRows="False">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Domain / target" Binding="{Binding Target, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
+                                            <DataGridTextColumn Header="Days (Mon,Tue…)" Binding="{Binding DaysText, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
+                                            <DataGridTextColumn Header="Start" Binding="{Binding Start, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                                            <DataGridTextColumn Header="End" Binding="{Binding End, UpdateSourceTrigger=PropertyChanged}" Width="80" />
+                                            <DataGridTemplateColumn Header="" Width="90">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="Remove" Padding="8,2"
+                                                                Style="{StaticResource Hg.DangerButton}"
+                                                                Command="{Binding DataContext.RemoveScheduleCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <DockPanel Margin="0,8,0,0" LastChildFill="False">
+                                        <Button DockPanel.Dock="Left" Content="Add window"
+                                                Command="{Binding AddScheduleCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Save schedules"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding SaveSchedulesCommand}" />
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Maintenance" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <DockPanel LastChildFill="False">
+                                        <Button DockPanel.Dock="Left" Content="Backup hosts file"
+                                                Command="{Binding BackupHostsCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Harden hosts ACL"
+                                                Command="{Binding HardenAclCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Export support bundle (redacted)"
+                                                Command="{Binding ExportBundleCommand}" />
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" Margin="2,0,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
         </DockPanel>

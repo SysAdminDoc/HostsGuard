@@ -60,7 +60,16 @@ All notable changes to HostsGuard are documented in this file.
   research links) and FW Rules (viewer with HostsGuard-only + text filters,
   enable/disable, delete, bulk delete, inline custom-rule form, ⚠ orphan/drift
   flags).
-- 205 .NET tests; zero build warnings under warnings-as-errors.
+- Tools tab (NET-023): DnsControl impl (native DnsFlushResolverCache flush,
+  per-adapter registry resolver switching with preset list, domain inspector
+  with block-state), Policy schedules editor (validated HH:mm + day set,
+  DB-persisted schema v3) enforced by a ScheduleEnforcer with overnight-window
+  support and self-owned revert (manual blocks/whitelists always win), hosts
+  backup + ACL re-hardening RPCs, and a redacted support-bundle export
+  (status/events/rules/schedules zip; public IPs and secrets pass through the
+  redaction pipeline). Contract grew ExportSupportBundle, BackupHosts, and
+  HardenAcl.
+- 215 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

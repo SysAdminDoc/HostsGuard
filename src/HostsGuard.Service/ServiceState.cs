@@ -15,16 +15,26 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed class ServiceState : IDisposable
 {
-    public ServiceState(HostsEngine hosts, HostsDatabase db, IFirewallEngine? firewall = null, FirewallIdentity? identity = null)
+    public ServiceState(
+        HostsEngine hosts,
+        HostsDatabase db,
+        IFirewallEngine? firewall = null,
+        FirewallIdentity? identity = null,
+        IDnsConfig? dns = null,
+        string? dataDir = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
         Firewall = firewall;
         Identity = identity;
+        Dns = dns;
+        DataDir = dataDir ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
         StartedAtUtc = DateTime.UtcNow;
         Bus = new EventBus();
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
+        Schedules = new ScheduleEnforcer(hosts, db);
     }
 
     public HostsEngine Hosts { get; }
@@ -34,6 +44,13 @@ public sealed class ServiceState : IDisposable
     public IFirewallEngine? Firewall { get; }
 
     public FirewallIdentity? Identity { get; }
+
+    public IDnsConfig? Dns { get; }
+
+    /// <summary>Service data directory (backups, support bundles). ProgramData in production.</summary>
+    public string DataDir { get; }
+
+    public ScheduleEnforcer Schedules { get; }
 
     public EventBus Bus { get; }
 
@@ -84,6 +101,7 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        Schedules.Dispose();
         TempAllows.Dispose();
         Db.Dispose();
     }
