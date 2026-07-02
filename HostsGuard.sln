@@ -11,6 +11,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7A0EADFF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Core.Tests", "tests\HostsGuard.Core.Tests\HostsGuard.Core.Tests.csproj", "{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Contracts", "src\HostsGuard.Contracts\HostsGuard.Contracts.csproj", "{233D7B47-C274-45E2-A7B0-E1857581EBB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Contracts.Tests", "tests\HostsGuard.Contracts.Tests\HostsGuard.Contracts.Tests.csproj", "{28FEFC17-7CE9-44CA-8A75-4E95B50896C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +32,19 @@ Global
 		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{233D7B47-C274-45E2-A7B0-E1857581EBB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{233D7B47-C274-45E2-A7B0-E1857581EBB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{233D7B47-C274-45E2-A7B0-E1857581EBB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{233D7B47-C274-45E2-A7B0-E1857581EBB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28FEFC17-7CE9-44CA-8A75-4E95B50896C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28FEFC17-7CE9-44CA-8A75-4E95B50896C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28FEFC17-7CE9-44CA-8A75-4E95B50896C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28FEFC17-7CE9-44CA-8A75-4E95B50896C4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{AEF41324-52FB-487F-B8E7-CED5D4EC238B} = {5D3827D7-6B71-40AB-AD79-811709D3EC5C}
 		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9} = {7A0EADFF-2F42-4968-BDEB-517AB528F71E}
+		{233D7B47-C274-45E2-A7B0-E1857581EBB3} = {5D3827D7-6B71-40AB-AD79-811709D3EC5C}
+		{28FEFC17-7CE9-44CA-8A75-4E95B50896C4} = {7A0EADFF-2F42-4968-BDEB-517AB528F71E}
 	EndGlobalSection
 EndGlobal

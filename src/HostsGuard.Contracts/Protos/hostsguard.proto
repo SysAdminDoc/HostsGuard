@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+// HostsGuard IPC contract, v1. Shared by the elevated service (server) and the
+// unelevated UI + CLI (clients). Transport: gRPC over an ACL'd named pipe.
+// Streaming RPCs deliver live DNS/connection/event feeds without polling.
+package hostsguard.v1;
+
+option csharp_namespace = "HostsGuard.Contracts";
+
+import "google/protobuf/timestamp.proto";
+
+// ─── Common ──────────────────────────────────────────────────────────────────
+
+message Empty {}
+
+message Ack {
+  bool ok = 1;
+  string message = 2;      // human-readable detail (never secrets)
+  string error_code = 3;   // machine code, e.g. hostsguard.error.v1/invalid_domain
+}
+
+// ─── Diagnostics / health ────────────────────────────────────────────────────
+
+service Diagnostics {
+  rpc GetStatus(Empty) returns (ServiceStatus);
+}
+
+message ServiceStatus {
+  string version = 1;
+  bool elevated = 2;
+  int64 uptime_seconds = 3;
+  int32 hosts_blocked = 4;
+  int32 db_blocked = 5;
+  int32 db_allowed = 6;
+  int32 feed_total = 7;
+  bool dns_monitor_active = 8;
+  bool connection_monitor_active = 9;
+}
+
+// ─── Hosts control ───────────────────────────────────────────────────────────
+
+service HostsControl {
+  rpc Block(DomainRequest) returns (Ack);
+  rpc Allow(DomainRequest) returns (Ack);
+  rpc Unblock(DomainRequest) returns (Ack);
+  rpc BlockRoot(DomainRequest) returns (Ack);
+  rpc ListDomains(ListDomainsRequest) returns (DomainList);
+  rpc Reconcile(ReconcileRequest) returns (Ack);
+  rpc EmergencyReset(Empty) returns (Ack);
+}
+
+message DomainRequest {
+  string domain = 1;
+  string reason = 2;   // canonical reason key or free-form (server canonicalizes)
+  string source = 3;
+}
+
+message ListDomainsRequest {
+  string status = 1;   // "", "blocked", "whitelisted"
+  string search = 2;   // shared search DSL
+  string source = 3;
+}
+
+message ManagedDomain {
+  string domain = 1;
+  string status = 2;
+  string source = 3;
+  string reason = 4;
+  int64 hits = 5;
+  google.protobuf.Timestamp added = 6;
+  google.protobuf.Timestamp modified = 7;
+  string notes = 8;
+}
+
+message DomainList {
+  repeated ManagedDomain domains = 1;
+}
+
+message ReconcileRequest {
+  repeated string blocked = 1;   // exact target set to enforce in the hosts file
+}
+
+// ─── Firewall control ────────────────────────────────────────────────────────
+
+service FirewallControl {
+  rpc BlockIp(FirewallIpRequest) returns (Ack);
+  rpc BlockProgram(FirewallProgramRequest) returns (Ack);
+  rpc CreateRule(FirewallRule) returns (Ack);
+  rpc DeleteRule(RuleNameRequest) returns (Ack);
+  rpc SetRuleEnabled(RuleEnabledRequest) returns (Ack);
+  rpc ListRules(Empty) returns (FirewallRuleList);
+  rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
+  rpc UnblockEncryptedDns(Empty) returns (Ack);
+}
+
+message FirewallIpRequest {
+  string address = 1;   // IP / CIDR / range
+  string direction = 2; // "Outbound" | "Inbound"
+}
+
+message FirewallProgramRequest {
+  string program_path = 1;
+  string direction = 2;
+}
+
+message FirewallRule {
+  string name = 1;
+  string direction = 2; // "In" | "Out"
+  string action = 3;    // "Block" | "Allow"
+  bool enabled = 4;
+  string remote_addr = 5;
+  string protocol = 6;
+  string program = 7;
+  string source = 8;    // "hostsguard" | "system"
+}
+
+message FirewallRuleList {
+  repeated FirewallRule rules = 1;
+}
+
+message RuleNameRequest { string name = 1; }
+message RuleEnabledRequest { string name = 1; bool enabled = 2; }
+
+message DohBlockRequest {
+  repeated string exempt = 1; // the machine's own resolver IPs, never blocked
+}
+
+// ─── DNS control ─────────────────────────────────────────────────────────────
+
+service DnsControl {
+  rpc FlushCache(Empty) returns (Ack);
+  rpc SetResolver(ResolverRequest) returns (Ack);
+  rpc Inspect(DomainRequest) returns (DnsInspectResult);
+}
+
+message ResolverRequest {
+  repeated string servers = 1; // empty = reset to DHCP default
+}
+
+message DnsRecord {
+  string type = 1;    // A / AAAA / CNAME
+  string name = 2;
+  int32 ttl = 3;
+  string value = 4;
+}
+
+message DnsInspectResult {
+  repeated DnsRecord records = 1;
+  int32 latency_ms = 2;
+  bool blocked = 3;
+}
+
+// ─── Monitoring (server-streaming live feeds) ────────────────────────────────
+
+service Monitoring {
+  rpc WatchDns(Empty) returns (stream DnsEvent);
+  rpc WatchConnections(Empty) returns (stream ConnectionEvent);
+  rpc WatchEvents(Empty) returns (stream ActivityEvent);
+}
+
+message DnsEvent {
+  string domain = 1;
+  string process = 2;
+  int32 pid = 3;
+  bool blocked = 4;
+  google.protobuf.Timestamp ts = 5;
+}
+
+message ConnectionEvent {
+  string protocol = 1;
+  string local_addr = 2;
+  int32 local_port = 3;
+  string remote_addr = 4;
+  int32 remote_port = 5;
+  string host = 6;
+  string process = 7;
+  int32 pid = 8;
+  string state = 9;
+  string country = 10;
+  string category = 11;
+  string fw_status = 12; // "", "HOSTS", "FW BLOCK", "THREAT"
+  google.protobuf.Timestamp ts = 13;
+}
+
+message ActivityEvent {
+  google.protobuf.Timestamp ts = 1;
+  string domain = 2;
+  string action = 3;
+  string process = 4;
+  string details = 5;
+  string reason = 6;
+}
+
+// ─── Policy / profiles / scheduling ──────────────────────────────────────────
+
+service Policy {
+  rpc ListProfiles(Empty) returns (ProfileList);
+  rpc SwitchProfile(ProfileRequest) returns (Ack);
+  rpc SetSchedules(ScheduleList) returns (Ack);
+  rpc GetSchedules(Empty) returns (ScheduleList);
+  rpc ToggleService(ServiceToggleRequest) returns (Ack);
+}
+
+message ProfileList { repeated string names = 1; string active = 2; }
+message ProfileRequest { string name = 1; }
+
+message Schedule {
+  string target = 1;        // domain or service name
+  repeated int32 days = 2;  // 0=Mon .. 6=Sun
+  string start = 3;         // "HH:mm"
+  string end = 4;           // "HH:mm"
+}
+message ScheduleList { repeated Schedule schedules = 1; }
+
+message ServiceToggleRequest { string service = 1; bool block = 2; }
