@@ -49,7 +49,8 @@ def _extract():
                                      debug=lambda *a, **k: None, error=lambda *a, **k: None)
     ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
-          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys}
+          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
+          "os": os}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -396,6 +397,9 @@ class TestLegacyMigrationIntegration:
         _m["DB_PATH"] = path
         return _m["DB"]()
 
+    def _backups(self, tmp_path):
+        return sorted((tmp_path / "backups").glob("hostsguard_db_v*_to_v*.sqlite"))
+
     def test_migration_recovers_domains_and_log(self, tmp_path):
         path = self._legacy_db(tmp_path)
         db = self._open_db(path)
@@ -408,12 +412,47 @@ class TestLegacyMigrationIntegration:
         # Notes and hits preserved through the rename
         row = [r for r in rows if r[0] == 'legacy.com'][0]
         assert row[7] == 'keep' and row[6] == 9
+        db.close()
+
+    def test_migration_creates_pre_change_backup(self, tmp_path):
+        path = self._legacy_db(tmp_path)
+        db = self._open_db(path)
+        backups = self._backups(tmp_path)
+        assert len(backups) == 1
+        b = sqlite3.connect(backups[0])
+        cols = {r[1] for r in b.execute("PRAGMA table_info(domains)").fetchall()}
+        row = b.execute("SELECT domain,hit_count FROM domains WHERE domain='legacy.com'").fetchone()
+        b.close(); db.close()
+        assert {"date_added", "date_modified", "hit_count"} <= cols
+        assert row == ("legacy.com", 9)
 
     def test_migration_is_idempotent(self, tmp_path):
         path = self._legacy_db(tmp_path)
-        self._open_db(path)      # first migration
+        db1 = self._open_db(path)      # first migration
+        first_backups = self._backups(tmp_path)
+        db1.close()
         db2 = self._open_db(path)  # re-open: must not error or lose data
         assert any(r[0] == 'legacy.com' for r in db2.get_domains())
+        db2.close()
+        assert self._backups(tmp_path) == first_backups
+
+    def test_migration_failure_preserves_backup(self, tmp_path, monkeypatch):
+        path = self._legacy_db(tmp_path)
+        def fail_rename(self):
+            raise RuntimeError("forced migration failure")
+        monkeypatch.setattr(_m["DB"], "_rename_legacy", fail_rename)
+        with pytest.raises(RuntimeError):
+            self._open_db(path)
+        backups = self._backups(tmp_path)
+        assert len(backups) == 1
+        b = sqlite3.connect(backups[0])
+        backup_cols = {r[1] for r in b.execute("PRAGMA table_info(domains)").fetchall()}
+        b.close()
+        c = sqlite3.connect(path)
+        live_cols = {r[1] for r in c.execute("PRAGMA table_info(domains)").fetchall()}
+        c.close()
+        assert "date_added" in backup_cols
+        assert "date_added" in live_cols
 
     def test_fresh_db_has_all_tables(self, tmp_path):
         db = self._open_db(str(tmp_path / "fresh.db"))

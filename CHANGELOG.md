@@ -8,12 +8,18 @@ All notable changes to HostsGuard are documented in this file.
 - Hardened packaged startup by running `multiprocessing.freeze_support()` before
   bootstrap/Qt imports, skipping runtime dependency installation inside frozen
   builds, and wiring a PyInstaller runtime hook for worker-process diversion.
+- Added a pre-migration SQLite backup guard so existing policy databases are
+  copied with SQLite's backup API before schema upgrades or legacy column-shape
+  repairs; failed migrations now log the preserved backup path.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
 - Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`.
 - Rebuilt the PyInstaller onedir artifact with `runtime_hook_mp.py` included.
 - Passed `py -3.12 HostsGuard.py status` CLI smoke.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 78 tests after the
+  migration-backup coverage was added.
+- Rebuilt the PyInstaller onedir artifact after the migration-backup change.
 
 ## [v3.15.0] - 2026-07-02
 

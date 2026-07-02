@@ -565,24 +565,56 @@ def _init_fav():
 class DB:
     def __init__(s):
         s.conn=sqlite3.connect(DB_PATH,check_same_thread=False); s.conn.execute("PRAGMA journal_mode=WAL")
-        s.conn.execute("PRAGMA busy_timeout=5000"); s._lock=Lock()
+        s.conn.execute("PRAGMA busy_timeout=5000"); s._lock=Lock(); s._migration_backup=None
         try:
             r=s.conn.execute("PRAGMA integrity_check").fetchone()
             if r and r[0]!='ok': log.warning(f"DB integrity issue: {r[0]}")
         except Exception as e: log.warning(f"DB integrity check failed: {e}")
         s._migrate(); s._blocked_cache=None; s._blocked_ts=0
+    def _table_cols(s,t):
+        try: return {r[1] for r in s.conn.execute(f"PRAGMA table_info({t})").fetchall()}
+        except Exception: return set()
+    def _schema_version(s):
+        try:
+            r=s.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+            return int(r[0]) if r and r[0] is not None else 0
+        except Exception: return 0
+    def _has_user_tables(s):
+        try:
+            rows=s.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()
+            return bool(rows)
+        except Exception: return False
+    def _legacy_rename_needed(s):
+        d=s._table_cols('domains'); lg=s._table_cols('log')
+        return any(c in d for c in ('date_added','date_modified','hit_count')) or any(c in lg for c in ('timestamp','process_name'))
+    def _db_backup_path(s,old_v):
+        p=str(DB_PATH or '')
+        if not p or p==":memory:" or p.startswith("file::memory:"): return None
+        if not os.path.exists(p) or not s._has_user_tables(): return None
+        bdir=os.path.join(os.path.dirname(os.path.abspath(p)) or ".","backups")
+        os.makedirs(bdir,exist_ok=True)
+        ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        return os.path.join(bdir,f"hostsguard_db_v{old_v}_to_v{SCHEMA_VER}_{ts}.sqlite")
+    def _backup_before_migration(s,old_v):
+        dst=s._db_backup_path(old_v)
+        if not dst: return None
+        try:
+            with sqlite3.connect(dst) as bk:
+                s.conn.backup(bk)
+            log.warning(f"DB migration backup created: {dst}")
+            return dst
+        except Exception as e:
+            log.warning(f"DB migration backup failed: {e}")
+            raise
     def _rename_legacy(s):
         """Pre-versioning DBs used date_added/date_modified/hit_count (domains) and
         timestamp/process_name (log). CREATE TABLE IF NOT EXISTS silently kept those
         shapes while schema_version was stamped current, so every domains/log query
         failed and returned empty. Rename in place — data is preserved."""
-        def cols(t):
-            try: return {r[1] for r in s.conn.execute(f"PRAGMA table_info({t})").fetchall()}
-            except Exception: return set()
         renames={'domains':(('date_added','added'),('date_modified','modified'),('hit_count','hits')),
                  'log':(('timestamp','ts'),('process_name','process'))}
         for table,pairs in renames.items():
-            have=cols(table)
+            have=s._table_cols(table)
             if not have: continue
             for old,new in pairs:
                 if old in have and new not in have:
@@ -592,33 +624,40 @@ class DB:
         except Exception: pass
         s.conn.commit()
     def _migrate(s):
-        s.conn.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT)")
-        s._rename_legacy()
+        v=s._schema_version()
+        if v<SCHEMA_VER or s._legacy_rename_needed():
+            s._migration_backup=s._backup_before_migration(v)
         try:
-            v=int(s.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0])
-        except: v=0
-        if v<1:
-            s.conn.execute("CREATE TABLE IF NOT EXISTS domains(domain TEXT PRIMARY KEY,status TEXT DEFAULT 'blocked',category TEXT,source TEXT,added TEXT,modified TEXT,hits INTEGER DEFAULT 0,notes TEXT)")
-            s.conn.execute("CREATE TABLE IF NOT EXISTS feed(domain TEXT PRIMARY KEY,first_seen TEXT,last_seen TEXT,hits INTEGER DEFAULT 1,process TEXT,hidden INTEGER DEFAULT 0)")
-            s.conn.execute("CREATE TABLE IF NOT EXISTS log(id INTEGER PRIMARY KEY,ts TEXT,domain TEXT,action TEXT,process TEXT,details TEXT)")
-            s.conn.execute("CREATE INDEX IF NOT EXISTS idx_log_ts ON log(ts)")
-            s.conn.execute("CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen)")
-        if v<2:
-            try: s.conn.execute("ALTER TABLE feed ADD COLUMN hidden INTEGER DEFAULT 0")
-            except: pass
-        if v<3:
-            s.conn.execute("CREATE TABLE IF NOT EXISTS fw_state(name TEXT PRIMARY KEY,direction TEXT,action TEXT,remote_addr TEXT,protocol TEXT,program TEXT,created TEXT)")
-        if v<4:
-            s.conn.execute("CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY,added TEXT)")
-        if v<5:
-            s.conn.execute("CREATE TABLE IF NOT EXISTS proc_rules(id INTEGER PRIMARY KEY,process TEXT,domain TEXT,action TEXT DEFAULT 'block',added TEXT)")
-            s.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_rules ON proc_rules(process,domain)")
-        if v<6:
-            s.conn.execute("CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY,created TEXT)")
-            s.conn.execute("CREATE TABLE IF NOT EXISTS profile_rules(id INTEGER PRIMARY KEY,profile TEXT,domain TEXT,status TEXT DEFAULT 'blocked',source TEXT)")
-            s.conn.execute("INSERT OR IGNORE INTO profiles(name,created)VALUES('Default',?)",(datetime.datetime.now().isoformat(),))
-        s.conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)",(str(SCHEMA_VER),))
-        s.conn.commit()
+            s.conn.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT)")
+            s._rename_legacy()
+            v=s._schema_version()
+            if v<1:
+                s.conn.execute("CREATE TABLE IF NOT EXISTS domains(domain TEXT PRIMARY KEY,status TEXT DEFAULT 'blocked',category TEXT,source TEXT,added TEXT,modified TEXT,hits INTEGER DEFAULT 0,notes TEXT)")
+                s.conn.execute("CREATE TABLE IF NOT EXISTS feed(domain TEXT PRIMARY KEY,first_seen TEXT,last_seen TEXT,hits INTEGER DEFAULT 1,process TEXT,hidden INTEGER DEFAULT 0)")
+                s.conn.execute("CREATE TABLE IF NOT EXISTS log(id INTEGER PRIMARY KEY,ts TEXT,domain TEXT,action TEXT,process TEXT,details TEXT)")
+                s.conn.execute("CREATE INDEX IF NOT EXISTS idx_log_ts ON log(ts)")
+                s.conn.execute("CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen)")
+            if v<2:
+                try: s.conn.execute("ALTER TABLE feed ADD COLUMN hidden INTEGER DEFAULT 0")
+                except: pass
+            if v<3:
+                s.conn.execute("CREATE TABLE IF NOT EXISTS fw_state(name TEXT PRIMARY KEY,direction TEXT,action TEXT,remote_addr TEXT,protocol TEXT,program TEXT,created TEXT)")
+            if v<4:
+                s.conn.execute("CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY,added TEXT)")
+            if v<5:
+                s.conn.execute("CREATE TABLE IF NOT EXISTS proc_rules(id INTEGER PRIMARY KEY,process TEXT,domain TEXT,action TEXT DEFAULT 'block',added TEXT)")
+                s.conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_proc_rules ON proc_rules(process,domain)")
+            if v<6:
+                s.conn.execute("CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY,created TEXT)")
+                s.conn.execute("CREATE TABLE IF NOT EXISTS profile_rules(id INTEGER PRIMARY KEY,profile TEXT,domain TEXT,status TEXT DEFAULT 'blocked',source TEXT)")
+                s.conn.execute("INSERT OR IGNORE INTO profiles(name,created)VALUES('Default',?)",(datetime.datetime.now().isoformat(),))
+            s.conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)",(str(SCHEMA_VER),))
+            s.conn.commit()
+        except Exception:
+            try: s.conn.rollback()
+            except Exception: pass
+            if s._migration_backup: log.warning(f"DB migration failed; backup preserved: {s._migration_backup}")
+            raise
     def _x(s,sql,p=(),many=False):
         with s._lock:
             try:
