@@ -4,7 +4,7 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
-### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+### Added — .NET 8 engine v0.5.0 (DNS-bypass defenses + consent-prompt quality)
 - **Accessibility pass on the consent prompt (NET-080)** — the focus-stealing,
   time-boxed consent window now carries AutomationProperties names on every
   control, explicit tab order, an assertive live-region on the threat banner,

@@ -17,16 +17,15 @@
          publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
     <!-- Shared product version — single source of truth for every assembly.
-         0.4.0: WFC-parity consent loop (Security 5157/5152 detection →
-         dedup/trust broker → top-most consent window → HG_ rule write, with
-         Normal/Notify/Learning modes, decision history, and posture safety
-         rails), Phase 2 residuals (backup restore, FW activity timeline, orphan
-         rebind, mode toggles), Phase 5 packaging (single-file publish, Inno
-         service installer, release-smoke, HostsGuard.Cli), and Phase 6
-         hardening (fuzz/property suite, security review with ProgramData ACL +
-         SSRF guard + posture-restore-on-stop, dependency CVE remediation,
-         observability event taxonomy, per-domain 24h sparkline). -->
-    <Version>0.4.0</Version>
+         0.5.0: DNS-bypass defenses (block QUIC/UDP-443, DoH-resolver bootstrap
+         blocklist, CNAME-cloak reactive blocking + wired ETW DNS monitor) +
+         consent-prompt quality (host/GeoIP/threat/signer enrichment, scope +
+         duration selectors, known-safe baseline auto-allow, identity-bound rules
+         with versioned-path recognition) + Secure-Rules tamper-guard +
+         domain-purpose annotations + consent-prompt accessibility + runtime
+         servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
+         hardening. -->
+    <Version>0.5.0</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
