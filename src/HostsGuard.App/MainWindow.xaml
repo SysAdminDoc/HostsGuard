@@ -204,7 +204,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
-                        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="True">
                             <CheckBox DockPanel.Dock="Left" Content="Lockdown" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding Lockdown}"
                                       ToolTip="Set the default outbound action to Block on all firewall profiles" />
@@ -216,9 +216,41 @@
                                       ToolTip="Record new processes silently instead of prompting" />
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
+                            <CheckBox DockPanel.Dock="Right" Content="Group by app" Margin="10,0,10,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding GroupByApp}"
+                                      AutomationProperties.Name="Group connections by app"
+                                      ToolTip="Group the live connections under their owning process" />
+                            <TextBox Margin="0,0,0,0" VerticalAlignment="Center"
+                                     Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Search live connections"
+                                     ToolTip="Search: process:chrome  port:443  country!=US  !svchost" />
                         </DockPanel>
 
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}">
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding ConnectionsView}">
+                            <DataGrid.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.ContainerStyle>
+                                        <Style TargetType="{x:Type GroupItem}">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                        <Expander IsExpanded="True" Margin="0,2,0,0">
+                                                            <Expander.Header>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                                                                               Style="{StaticResource Hg.DimText}" />
+                                                                </StackPanel>
+                                                            </Expander.Header>
+                                                            <ItemsPresenter />
+                                                        </Expander>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </GroupStyle.ContainerStyle>
+                                </GroupStyle>
+                            </DataGrid.GroupStyle>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Block remote IP"

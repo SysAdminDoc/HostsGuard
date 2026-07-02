@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Runtime.Versioning;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Grpc.Core;
@@ -186,6 +188,84 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public ObservableCollection<ConnectionRowViewModel> Rows { get; } = new();
 
     public ObservableCollection<TimelineSeriesViewModel> Timeline { get; } = new();
+
+    // ─── Grouped + searchable live view (NET-071) ─────────────────────────────
+
+    /// <summary>Search-DSL field aliases for the live-connection filter.</summary>
+    private static readonly Dictionary<string, string> FilterAliases = new(StringComparer.Ordinal)
+    {
+        ["proto"] = "protocol",
+        ["addr"] = "remote",
+        ["ip"] = "remote",
+        ["app"] = "process",
+        ["status"] = "fw",
+    };
+
+    private ICollectionView? _view;
+
+    [ObservableProperty]
+    private bool _groupByApp = true;
+
+    /// <summary>
+    /// The live-connection view: filtered by the shared search DSL
+    /// (<c>field:value</c>, <c>!term</c>, <c>field!=value</c>) and optionally
+    /// grouped by owning process.
+    /// </summary>
+    public ICollectionView ConnectionsView
+    {
+        get
+        {
+            if (_view is null)
+            {
+                _view = CollectionViewSource.GetDefaultView(Rows);
+                _view.Filter = o => o is ConnectionRowViewModel r && MatchesFilter(r);
+                ApplyGrouping(_view);
+            }
+
+            return _view;
+        }
+    }
+
+    /// <summary>Whether a row matches the current search query (shared DSL).</summary>
+    public bool MatchesFilter(ConnectionRowViewModel row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (string.IsNullOrWhiteSpace(Filter))
+        {
+            return true;
+        }
+
+        return Core.SearchQuery.Matches(new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["process"] = row.Process,
+            ["pid"] = row.Pid.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["protocol"] = row.Protocol,
+            ["remote"] = row.RemoteAddr,
+            ["port"] = row.RemotePort.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["state"] = row.State,
+            ["country"] = row.Country,
+            ["fw"] = row.FwStatus,
+        }, Filter, FilterAliases);
+    }
+
+    partial void OnFilterChanged(string value) => _view?.Refresh();
+
+    partial void OnGroupByAppChanged(bool value)
+    {
+        if (_view is not null)
+        {
+            ApplyGrouping(_view);
+        }
+    }
+
+    private void ApplyGrouping(ICollectionView view)
+    {
+        view.GroupDescriptions.Clear();
+        if (GroupByApp)
+        {
+            view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ConnectionRowViewModel.Process)));
+        }
+    }
 
     public void StartWatching()
     {

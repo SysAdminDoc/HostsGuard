@@ -4,6 +4,16 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — group-by-app connections view + live search (NET-071)
+- **FW Activity grouped view** — live connections now group under their owning
+  process (collapsible per-app sections with connection counts; toggleable
+  back to the flat list), the expected tree view requested across
+  WFN/TinyWall/Fort. GeoIP country and THREAT status stay inline per row.
+- **Live search** — the shared search DSL (`field:value`, `!term`,
+  `field!=value`) now filters the live view as you type, with aliases
+  (`app:`→process, `ip:`/`addr:`→remote, `proto:`→protocol, `status:`→fw),
+  e.g. `port:443 country!=US` or `fw:threat`.
+
 ### Added — connection history + per-app bandwidth (NET-070)
 - **Persistent connection history** — first sightings from the connection feed
   land in a new retention-bounded `conn_history` table (schema v6) with
