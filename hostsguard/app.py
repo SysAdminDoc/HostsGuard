@@ -69,6 +69,14 @@ def _kill_remnants():
 CLI_CMDS=('block','allow','unblock','status','export','release-smoke','help')
 DEPENDENCY_PACKAGES=(('PySide6','PySide6'),('psutil','psutil'),('maxminddb','maxminddb'))
 CONSTRAINTS_FILENAME="constraints.txt"
+MAX_THREAT_FEED_BYTES=5_000_000
+MAX_FAVICON_BYTES=256_000
+MAX_DOH_RESOLVER_BYTES=2_000_000
+MAX_GEOIP_GZIP_BYTES=80_000_000
+MAX_GEOIP_API_BYTES=256_000
+MAX_BLOCKLIST_BYTES=25_000_000
+MAX_ALLOWLIST_BYTES=10_000_000
+MAX_UPSTREAM_HOSTS_BYTES=25_000_000
 def _is_cli_invocation():
     args=[a for a in sys.argv[1:] if not a.startswith('--')]
     return bool(args and args[0] in CLI_CMDS)
@@ -351,19 +359,50 @@ def reason_label(reason):
 # Defined before the Theme section: _load_theme() runs at import time and
 # reads the config — v3.7.0..v3.11.0 crashed at import (NameError) because
 # load_cfg was defined further down the module.
+_CFG_LOCK=Lock()
 def load_cfg():
     try:
-        with open(CFG_PATH) as f: return json.load(f)
-    except: return {}
+        with _CFG_LOCK:
+            with open(CFG_PATH,encoding='utf-8') as f: return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError as e:
+        log.warning(f"Config JSON invalid: {e}")
+        return {}
+    except Exception as e:
+        log.warning(f"Config load failed: {e}")
+        return {}
 def save_cfg(c):
-    tmp=CFG_PATH+'.tmp'
-    with open(tmp,'w') as f: json.dump(c,f,indent=2)
-    os.replace(tmp,CFG_PATH)
+    os.makedirs(os.path.dirname(CFG_PATH) or '.',exist_ok=True)
+    tmp=f"{CFG_PATH}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with _CFG_LOCK:
+        try:
+            with open(tmp,'w',encoding='utf-8') as f:
+                json.dump(c,f,indent=2,ensure_ascii=False)
+                f.write('\n')
+            os.replace(tmp,CFG_PATH)
+        finally:
+            try:
+                if os.path.exists(tmp): os.unlink(tmp)
+            except OSError:
+                pass
 
 def T(key,fallback=None,**values):
     try: lang=load_cfg().get('language','en')
     except Exception: lang='en'
     return tr(key,fallback,lang=lang,**values)
+
+def _read_response_limited(resp,max_bytes,label="response"):
+    try: limit=int(max_bytes)
+    except Exception: raise ValueError(f"{label} byte limit must be an integer")
+    if limit<1: raise ValueError(f"{label} byte limit must be positive")
+    data=resp.read(limit+1)
+    if len(data)>limit:
+        raise ValueError(f"{label} exceeds {limit} bytes")
+    return data
+
+def _decode_response_limited(resp,max_bytes,label="response"):
+    return _read_response_limited(resp,max_bytes,label).decode('utf-8',errors='replace')
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
 _DARK={"bg":"#0b0d12","base":"#141821","mantle":"#10141c","crust":"#090b10","s0":"#242b38","s1":"#354052","s2":"#4a5870",
@@ -689,7 +728,7 @@ def _load_threat_intel():
         try:
             req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
             with urllib.request.urlopen(req,timeout=30) as resp:
-                for line in resp.read().decode('utf-8',errors='replace').splitlines():
+                for line in _decode_response_limited(resp,MAX_THREAT_FEED_BYTES,f"threat feed {name}").splitlines():
                     line=line.strip()
                     if not line or line.startswith('#'): continue
                     parts=line.split()
@@ -741,7 +780,7 @@ class FaviconCache(QObject):
             url=f"https://{r}/favicon.ico"
             req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
             with urllib.request.urlopen(req,timeout=5) as resp:
-                data=resp.read()
+                data=_read_response_limited(resp,MAX_FAVICON_BYTES,f"favicon {domain}")
                 if len(data)>100:
                     with open(p,'wb') as f: f.write(data)
                     s._img_ready.emit(domain,data); got=True
@@ -1708,7 +1747,7 @@ def _windows_known_doh_ips():
 def _fetch_doh_resolver_list(url,expected_sha256=""):
     req=urllib.request.Request(url,headers={"User-Agent":f"{APP}/{VER}"})
     with urllib.request.urlopen(req,timeout=20) as r:
-        raw=r.read(2_000_000)
+        raw=_read_response_limited(r,MAX_DOH_RESOLVER_BYTES,"DoH resolver list")
     actual=_verify_doh_payload_hash(raw,expected_sha256)
     ips=_parse_doh_payload(raw)
     if not ips: raise ValueError("DoH resolver list contained no valid IP addresses")
@@ -2291,7 +2330,7 @@ def _ensure_geoip():
                 url=f"https://download.db-ip.com/free/{slug}-{month}.mmdb.gz"
                 req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
                 with urllib.request.urlopen(req,timeout=60) as resp:
-                    with open(path,'wb') as f: f.write(gzip.decompress(resp.read()))
+                    with open(path,'wb') as f: f.write(gzip.decompress(_read_response_limited(resp,MAX_GEOIP_GZIP_BYTES,f"{slug} MMDB gzip")))
                 log.info(f"Downloaded {slug} to {path}")
                 break
             except Exception as e: log.warning(f"GeoIP download failed ({slug}-{month}): {e}")
@@ -2354,7 +2393,7 @@ class GeoWorker(QThread):
                             headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
                         with urllib.request.urlopen(req,timeout=10) as resp:
                             got=set()
-                            for item in json.loads(resp.read()):
+                            for item in json.loads(_read_response_limited(resp,MAX_GEOIP_API_BYTES,"GeoIP API response")):
                                 q=item.get("query","")
                                 if q in batch_set and item.get("countryCode"):
                                     got.add(q)
@@ -4391,7 +4430,7 @@ class ImpWorker(QThread):
         try:
             req=urllib.request.Request(s.url,headers={'User-Agent':f'HostsGuard/{VER}'})
             with urllib.request.urlopen(req,timeout=30) as resp:
-                lines=resp.read().decode('utf-8',errors='replace').splitlines()
+                lines=_decode_response_limited(resp,MAX_BLOCKLIST_BYTES,f"blocklist {s.name}").splitlines()
             domains=[d for l in lines if (d:=norm_line(l,False)) and looks_like_domain(d)]
             total=len(domains)
             ct=s.hm.block_bulk(domains,flush=False)
@@ -4412,7 +4451,7 @@ class AllowWorker(QThread):
                 try:
                     req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
                     with urllib.request.urlopen(req,timeout=30) as resp:
-                        for l in resp.read().decode('utf-8',errors='replace').splitlines():
+                        for l in _decode_response_limited(resp,MAX_ALLOWLIST_BYTES,"allowlist").splitlines():
                             d=norm_line(l,False)
                             if d and looks_like_domain(d): doms.add(d)
                 except Exception as e: log.warning(f"allowlist {url}: {e}")
@@ -5157,7 +5196,7 @@ class ToolsTab(QWidget):
                 url="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
                 req=urllib.request.Request(url,headers={'User-Agent':f'HostsGuard/{VER}'})
                 with urllib.request.urlopen(req,timeout=30) as resp:
-                    content=resp.read().decode('utf-8',errors='replace')
+                    content=_decode_response_limited(resp,MAX_UPSTREAM_HOSTS_BYTES,"StevenBlack hosts file")
                 s.hm.backup()
                 err=s.hm.save_raw(content)
                 if err: ui_call(lambda:s._toast(f"Restore failed: {err}",C['red']))
@@ -5594,6 +5633,19 @@ def _cli(args):
 SERVICE_API_VERSION="1.0.0"
 SERVICE_BODY_LIMIT=1_000_000
 SERVICE_LOG_ACTIONS={"all","blocked","whitelisted","fw_blocked","fw_allowed"}
+def _service_content_length(value):
+    try: n=int(value or 0)
+    except Exception: raise ValueError("Content-Length must be an integer")
+    if n<0: raise ValueError("Content-Length must not be negative")
+    if n>SERVICE_BODY_LIMIT: raise OverflowError(f"request body exceeds {SERVICE_BODY_LIMIT} bytes")
+    return n
+
+def _service_port(value=None):
+    raw=os.environ.get('HG_PORT','7847') if value is None else value
+    try: port=int(str(raw or '').strip())
+    except Exception: raise ValueError("HG_PORT must be an integer")
+    if port<1 or port>65535: raise ValueError("HG_PORT must be between 1 and 65535")
+    return port
 
 def _service_error(code,message,details=None):
     err={"code":str(code),"message":str(message)}
@@ -5631,9 +5683,7 @@ def _service_log_params(qs):
             "action":action,"reason":reason}
 
 def _service_parse_json_body(raw,length):
-    try: n=int(length or 0)
-    except Exception: raise ValueError("Content-Length must be an integer")
-    if n>SERVICE_BODY_LIMIT: raise OverflowError(f"request body exceeds {SERVICE_BODY_LIMIT} bytes")
+    _service_content_length(length)
     if not raw: return {}
     try: obj=json.loads(raw.decode("utf-8"))
     except Exception as e: raise ValueError(f"bad JSON: {e}")
@@ -5669,6 +5719,10 @@ def _service():
     """Run HostsGuard as a headless background service with HTTP JSON-RPC."""
     import http.server,json as _json
     print(f"{APP} v{VER} - Headless Service Mode")
+    try: port=_service_port()
+    except ValueError as e:
+        print(f"Invalid HG_PORT: {e}",file=sys.stderr)
+        return 2
     db=DB(); hm=HostsMgr(); cdb=ConnDB()
     hm.backup(); db.sync_hosts_to_db(hm)
     cdb.prune(30); db.prune_log()
@@ -5815,9 +5869,7 @@ def _service():
             if parsed.path!='/domains':
                 s._json_reply(404,_service_error('not_found','unknown endpoint')); return
             try:
-                length=int(s.headers.get('Content-Length',0) or 0)
-                if length>SERVICE_BODY_LIMIT:
-                    s._json_reply(413,_service_error('body_too_large',f'request body exceeds {SERVICE_BODY_LIMIT} bytes')); return
+                length=_service_content_length(s.headers.get('Content-Length',0))
                 raw=s.rfile.read(length) if length else b''
                 body=_service_parse_json_body(raw,length)
                 action=str(body.get('action','')); domain=str(body.get('domain','')).lower().strip()
@@ -5837,7 +5889,6 @@ def _service():
             else:
                 s._json_reply(400,_service_error('invalid_action','action must be block or allow'))
         def log_message(s,*a): pass
-    port=int(os.environ.get('HG_PORT','7847'))
     srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
     print("Endpoints: GET /status /domains /stats /log, POST /domains (action+domain)")
@@ -5911,7 +5962,7 @@ def main():
 
 def run():
     if '--service' in sys.argv:
-        _service()
+        sys.exit(_service() or 0)
     else:
         cli_args=[a for a in sys.argv[1:] if not a.startswith('--')]
         if cli_args and cli_args[0] in CLI_CMDS:

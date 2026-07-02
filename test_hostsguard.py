@@ -1,5 +1,6 @@
 """Tests for HostsGuard's security-critical and correctness-critical package APIs."""
 import ast
+import io
 import ipaddress
 import os
 import re
@@ -25,6 +26,7 @@ from dataclasses import dataclass, field
 import pytest
 
 os.environ.setdefault("HOSTSGUARD_SKIP_BOOTSTRAP", "1")
+import hostsguard as hg_pkg
 import hostsguard.app as hg
 import hostsguard.core as hg_core
 import hostsguard.firewall as hg_firewall
@@ -50,6 +52,9 @@ _parse_fw_rules = _m["_parse_fw_rules"]
 _build_import_plan = _m["_build_import_plan"]
 _format_import_plan = _m["_format_import_plan"]
 _apply_import_plan = _m["_apply_import_plan"]
+load_cfg = _m["load_cfg"]
+save_cfg = _m["save_cfg"]
+_read_response_limited = _m["_read_response_limited"]
 _parse_doh_payload = _m["_parse_doh_payload"]
 _verify_doh_payload_hash = _m["_verify_doh_payload_hash"]
 _doh_state_payload = _m["_doh_state_payload"]
@@ -77,9 +82,11 @@ canonical_reason = _m["canonical_reason"]
 reason_label = _m["reason_label"]
 _service_error = _m["_service_error"]
 _service_auth_ok = _m["_service_auth_ok"]
+_service_content_length = _m["_service_content_length"]
 _service_log_params = _m["_service_log_params"]
 _service_parse_json_body = _m["_service_parse_json_body"]
 _service_openapi = _m["_service_openapi"]
+_service_port = _m["_service_port"]
 APP = _m["APP"]
 VER = _m["VER"]
 SCHEMA_VER = _m["SCHEMA_VER"]
@@ -109,6 +116,11 @@ class TestPackageBoundaries:
     def test_version_is_current(self):
         assert re.match(r"^\d+\.\d+\.\d+$", VER)
 
+    def test_package_metadata_matches_runtime_constants(self):
+        assert hg_pkg.APP == APP
+        assert hg_pkg.VER == VER
+        assert hg_pkg.SCHEMA_VER == SCHEMA_VER
+
 
 class TestLocalizationRegistry:
     def test_registry_formats_english_strings(self):
@@ -123,6 +135,40 @@ class TestLocalizationRegistry:
         for key in ("tabs.hosts_activity", "tabs.firewall_activity", "tabs.hosts_file", "tabs.firewall_rules", "tabs.tools"):
             assert key in hg_i18n.registered_keys()
             assert f'T("{key}"' in _SRC
+
+
+class TestConfigPersistence:
+    def test_save_cfg_creates_directory_and_round_trips_utf8(self, tmp_path):
+        old_path = _m["CFG_PATH"]
+        cfg_path = tmp_path / "nested" / "config.json"
+        _m["CFG_PATH"] = str(cfg_path)
+        try:
+            save_cfg({"language": "en", "label": "Café"})
+            assert cfg_path.exists()
+            assert cfg_path.read_text(encoding="utf-8").endswith("\n")
+            assert load_cfg()["label"] == "Café"
+            assert not list(cfg_path.parent.glob("*.tmp"))
+        finally:
+            _m["CFG_PATH"] = old_path
+
+    def test_load_cfg_fails_closed_for_invalid_json(self, tmp_path):
+        old_path = _m["CFG_PATH"]
+        cfg_path = tmp_path / "config.json"
+        cfg_path.write_text("{not-json", encoding="utf-8")
+        _m["CFG_PATH"] = str(cfg_path)
+        try:
+            assert load_cfg() == {}
+        finally:
+            _m["CFG_PATH"] = old_path
+
+
+class TestBoundedResponseReads:
+    def test_limited_response_reader_accepts_exact_limit(self):
+        assert _read_response_limited(io.BytesIO(b"abc"), 3, "test payload") == b"abc"
+
+    def test_limited_response_reader_rejects_oversized_payload(self):
+        with pytest.raises(ValueError, match="exceeds"):
+            _read_response_limited(io.BytesIO(b"abcd"), 3, "test payload")
 
 
 class TestBootstrapGuards:
@@ -342,8 +388,26 @@ class TestServiceContract:
             _service_parse_json_body(b"{", 1)
         with pytest.raises(ValueError, match="JSON object"):
             _service_parse_json_body(b'["not-object"]', 14)
+        with pytest.raises(ValueError, match="negative"):
+            _service_parse_json_body(b"", -1)
         with pytest.raises(OverflowError, match="exceeds"):
             _service_parse_json_body(b"{}", _m["SERVICE_BODY_LIMIT"] + 1)
+
+    def test_content_length_and_port_validation(self):
+        assert _service_content_length("0") == 0
+        assert _service_content_length("12") == 12
+        with pytest.raises(ValueError, match="integer"):
+            _service_content_length("abc")
+        with pytest.raises(ValueError, match="negative"):
+            _service_content_length("-1")
+        assert _service_port("7847") == 7847
+        assert _service_port(65535) == 65535
+        with pytest.raises(ValueError, match="integer"):
+            _service_port("bad")
+        with pytest.raises(ValueError, match="between"):
+            _service_port("0")
+        with pytest.raises(ValueError, match="between"):
+            _service_port("70000")
 
     def test_log_query_param_validation(self):
         params = _service_log_params({"limit": ["50"], "since": ["2026-07-02T12:00:00Z"],

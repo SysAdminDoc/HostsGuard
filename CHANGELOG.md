@@ -4,6 +4,13 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Hardened config persistence, remote feed ingestion, and local service request
+  parsing: config now saves atomically with UTF-8 and per-thread temp files,
+  remote hosts/threat/allowlist/GeoIP/favicons reads enforce size limits, and
+  service requests reject negative `Content-Length` plus invalid `HG_PORT`
+  values before starting elevated mutation work.
+
 ## [v3.16.0] - 2026-07-02
 
 ### Fixed
