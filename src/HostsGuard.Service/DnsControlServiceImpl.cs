@@ -105,6 +105,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             Sha256 = state.Sha256,
             BlockingActive = _state.Firewall?.RuleExists("HG_DoT_TCP") ?? false,
             QuicBlocked = _state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false,
+            CnameCloak = _state.CnameCloak.Enabled,
         });
     }
 
@@ -132,6 +133,14 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             // The prior doh_resolvers.json is untouched on any failure.
             return Error("refresh_failed", ex.Message);
         }
+    }
+
+    public override Task<Ack> SetCnameCloak(CnameCloakRequest request, ServerCallContext context)
+    {
+        _state.CnameCloak.SetEnabled(request.Enabled);
+        return Task.FromResult(Ok(request.Enabled
+            ? "CNAME-cloak blocking armed — first-party hosts aliasing to blocked trackers are now blocked"
+            : "CNAME-cloak blocking disarmed"));
     }
 
     private sealed class NullFetcher : IListFetcher

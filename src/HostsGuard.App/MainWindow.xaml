@@ -679,6 +679,27 @@
                                                    Style="{StaticResource Hg.DimText}"
                                                    Text="Forces TCP fallback so DoH3/QUIC can't bypass blocking" />
                                     </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Left" Margin="0,0,10,0"
+                                                Command="{Binding ToggleCnameCloakCommand}"
+                                                ToolTip="CNAME-cloak defense: when a first-party host resolves via CNAME to a blocked tracker, block the fronting host too. Uses the live DNS resolution chain; requires the elevated DNS monitor.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Arm CNAME-cloak defense" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CnameCloakActive}" Value="True">
+                                                            <Setter Property="Content" Value="Disarm CNAME-cloak defense" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                                   Style="{StaticResource Hg.DimText}"
+                                                   Text="Blocks first-party hosts that alias to blocked trackers" />
+                                    </DockPanel>
                                     <TextBlock Text="{Binding DohStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>

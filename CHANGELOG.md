@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **CNAME-cloak reactive blocking (NET-075)** — an opt-in guard blocks a
+  first-party host that resolves via CNAME to a blocked tracker, defeating
+  CNAME-cloaking without a DNS forwarder. The ETW DNS monitor now parses the
+  resolution-completion event (3008) for the CNAME chain and is wired into the
+  service — which also finally feeds the DNS activity feed and 24h sparkline
+  with real data. New SetCnameCloak RPC + a Tools toggle; setting persists.
 - **Secure Rules tamper-guard (NET-072)** — an opt-in guard (Tools tab) has the
   LocalSystem service recreate or re-enable any HostsGuard HG_ rule that gets
   deleted or disabled behind its back, restoring it from the tracked state and

@@ -32,6 +32,7 @@ public class SchemaLockTests
           GetDohStatus(Empty) returns (DohStatus)
           Inspect(DomainRequest) returns (DnsInspectResult)
           RefreshDohIntelligence(DohRefreshRequest) returns (Ack)
+          SetCnameCloak(CnameCloakRequest) returns (Ack)
           SetResolver(ResolverRequest) returns (Ack)
         service FirewallControl
           BlockEncryptedDns(DohBlockRequest) returns (Ack)

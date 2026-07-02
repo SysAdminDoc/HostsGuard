@@ -39,6 +39,15 @@ using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, 
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 
+// Real-time DNS monitor (ETW): feeds the activity feed + 24h sparkline, and
+// drives CNAME-cloak reactive blocking (NET-075). Elevation-gated; degrades
+// cleanly to the connection feed when unavailable.
+using var dnsMonitor = new DnsMonitor();
+dnsMonitor.DnsObserved += (_, e) => state.RecordDns(e.Domain, pid: e.Pid);
+dnsMonitor.DnsResolved += (_, e) => state.CnameCloak.Evaluate(e.QueryName, e.Cnames);
+var dnsStatus = dnsMonitor.Start();
+db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(

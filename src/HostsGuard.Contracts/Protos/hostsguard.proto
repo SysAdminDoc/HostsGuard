@@ -346,6 +346,13 @@ service DnsControl {
   // DoH resolver intelligence (doh_resolvers.json): status + gated refresh.
   rpc GetDohStatus(Empty) returns (DohStatus);
   rpc RefreshDohIntelligence(DohRefreshRequest) returns (Ack);
+  // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
+  // blocked tracker (uses the ETW resolution chain; opt-in).
+  rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
+}
+
+message CnameCloakRequest {
+  bool enabled = 1;
 }
 
 message DohStatus {
@@ -356,6 +363,7 @@ message DohStatus {
   string sha256 = 5;
   bool blocking_active = 6; // HG_DoH_* rules currently exist
   bool quic_blocked = 7;    // HG_QUIC_UDP443 rule currently exists
+  bool cname_cloak = 8;     // CNAME-cloak reactive blocking is armed
 }
 
 message DohRefreshRequest {

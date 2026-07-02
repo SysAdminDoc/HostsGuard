@@ -361,6 +361,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     private bool _quicBlockingActive;
 
     [ObservableProperty]
+    private bool _cnameCloakActive;
+
+    [ObservableProperty]
     private string _dohUrl = string.Empty;
 
     [ObservableProperty]
@@ -372,6 +375,7 @@ public sealed partial class ToolsViewModel : ObservableObject
         var status = await _client.Dns.GetDohStatusAsync(new Empty());
         DohBlockingActive = status.BlockingActive;
         QuicBlockingActive = status.QuicBlocked;
+        CnameCloakActive = status.CnameCloak;
         DohStatusText = status.Updated.Length != 0
             ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
             : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
@@ -383,6 +387,14 @@ public sealed partial class ToolsViewModel : ObservableObject
         var ack = QuicBlockingActive
             ? await _client.Firewall.UnblockQuicAsync(new Empty())
             : await _client.Firewall.BlockQuicAsync(new Empty());
+        StatusText = ack.Message;
+        await LoadDohStatusAsync();
+    }
+
+    [RelayCommand]
+    public async Task ToggleCnameCloakAsync()
+    {
+        var ack = await _client.Dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = !CnameCloakActive });
         StatusText = ack.Message;
         await LoadDohStatusAsync();
     }

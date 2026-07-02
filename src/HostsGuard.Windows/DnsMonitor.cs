@@ -14,6 +14,14 @@ public sealed class DnsObservedEventArgs(string domain, int pid) : EventArgs
     public int Pid { get; } = pid;
 }
 
+/// <summary>A completed DNS resolution with its CNAME chain (for cloak defense).</summary>
+public sealed class DnsResolvedEventArgs(string queryName, IReadOnlyList<string> cnames) : EventArgs
+{
+    public string QueryName { get; } = queryName;
+
+    public IReadOnlyList<string> Cnames { get; } = cnames;
+}
+
 /// <summary>Result of attempting to start the monitor.</summary>
 public enum DnsMonitorStatus
 {
@@ -35,6 +43,7 @@ public sealed class DnsMonitor : IDisposable
     // {1C95126E-7EEA-49A9-A3FE-A378B03DDB4D} — Microsoft-Windows-DNS-Client
     private static readonly Guid DnsClientProvider = new("1C95126E-7EEA-49A9-A3FE-A378B03DDB4D");
     private const int QueryStartEventId = 3006;
+    private const int QueryCompletedEventId = 3008;
 
     private readonly string _sessionName;
     private TraceEventSession? _session;
@@ -44,6 +53,9 @@ public sealed class DnsMonitor : IDisposable
 
     /// <summary>Fires for each reportable DNS query with owning PID.</summary>
     public event EventHandler<DnsObservedEventArgs>? DnsObserved;
+
+    /// <summary>Fires when a resolution completes with a CNAME chain (cloak defense).</summary>
+    public event EventHandler<DnsResolvedEventArgs>? DnsResolved;
 
     public static bool IsElevated()
     {
@@ -84,15 +96,28 @@ public sealed class DnsMonitor : IDisposable
 
     private void OnEvent(TraceEvent data)
     {
-        if ((int)data.ID != QueryStartEventId)
+        switch ((int)data.ID)
         {
-            return;
-        }
+            case QueryStartEventId:
+                if (DnsEventNormalizer.TryNormalize(data.PayloadByName("QueryName") as string, out var domain))
+                {
+                    DnsObserved?.Invoke(this, new DnsObservedEventArgs(domain, data.ProcessID));
+                }
 
-        var raw = data.PayloadByName("QueryName") as string;
-        if (DnsEventNormalizer.TryNormalize(raw, out var domain))
-        {
-            DnsObserved?.Invoke(this, new DnsObservedEventArgs(domain, data.ProcessID));
+                break;
+
+            case QueryCompletedEventId:
+                if (DnsResolved is not null &&
+                    DnsEventNormalizer.TryNormalize(data.PayloadByName("QueryName") as string, out var qn))
+                {
+                    var cnames = DnsQueryResults.ExtractCnames(data.PayloadByName("QueryResults") as string);
+                    if (cnames.Count != 0)
+                    {
+                        DnsResolved.Invoke(this, new DnsResolvedEventArgs(qn, cnames));
+                    }
+                }
+
+                break;
         }
     }
 

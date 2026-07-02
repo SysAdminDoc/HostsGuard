@@ -46,6 +46,7 @@ public sealed class ServiceState : IDisposable
             LookupThreat = Threats.Contains,
         };
         SecureRules = new SecureRulesGuard(firewall, db);
+        CnameCloak = new CnameCloakGuard(hosts, db);
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)
@@ -86,6 +87,8 @@ public sealed class ServiceState : IDisposable
     public ConsentBroker Consent { get; }
 
     public SecureRulesGuard SecureRules { get; }
+
+    public CnameCloakGuard CnameCloak { get; }
 
     public TempAllowScheduler TempAllows { get; }
 
