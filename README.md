@@ -252,6 +252,30 @@ Use Tools > DNS + Network > **Refresh DoH List**. HostsGuard merges Windows know
 **Q: Windows Defender flags HostsGuard as a threat**
 Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive - HostsGuard is modifying the hosts file intentionally. To resolve: Settings > Virus & Threat Protection > Manage settings > Exclusions > Add an exclusion > File > `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.
 
+## Security
+
+The .NET engine (`src/`, `HostsGuard.sln`) pins its runtime and dependency
+posture:
+
+- **Runtime servicing floor:** builds resolve the latest .NET 8 servicing patch
+  (`TargetLatestRuntimePatch`), so self-contained artifacts bundle a runtime
+  ≥ 8.0.10 (which carries the System.Text.Json DoS fix CVE-2024-43485 and the
+  HTTP/2 Rapid Reset fix CVE-2023-44487). .NET 8 is supported until 2026-11-10; a
+  move to .NET 10 LTS is planned.
+- **Dependency CVEs:** `dotnet list package --vulnerable --include-transitive`
+  is kept clean. The native SQLite bundle is pinned to `SQLitePCLRaw.bundle_e_sqlite3`
+  3.0.3 to clear GHSA-2m69-gcr7-jv3q (CVE-2025-6965); test-only 4.3.0 transitives
+  are floored via `tests/Directory.Build.props`; Google.Protobuf ≥ 3.35 carries
+  the recursion-depth fix.
+- **Elevated surface:** the LocalSystem service's data directory
+  (`%ProgramData%\HostsGuard`) is DACL-locked to SYSTEM+Admins before any state
+  file is written; client blocklist URLs pass an SSRF guard (loopback/RFC1918/
+  link-local/CGNAT/ULA/metadata rejected) before the service fetches them; the
+  gRPC control pipe is ACL'd and per-session-token authenticated.
+
+Report vulnerabilities via a GitHub issue with the redacted support bundle
+(Tools → **Export Support Bundle**).
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
