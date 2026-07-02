@@ -69,6 +69,56 @@ service HostsControl {
   rpc HardenAcl(Empty) returns (Ack);
 }
 
+// ─── Blocklist / allowlist subscriptions ─────────────────────────────────────
+
+service ListControl {
+  // Curated catalog + subscription state.
+  rpc ListBlocklistSources(Empty) returns (BlocklistSources);
+  // Fetch + parse + bulk-import one source; records a subscription for refresh.
+  rpc ImportBlocklist(BlocklistRequest) returns (BlocklistResult);
+  // Stop refreshing a source (imported domains stay).
+  rpc RemoveBlocklistSubscription(BlocklistRequest) returns (Ack);
+  // Re-import every subscribed source now.
+  rpc RefreshBlocklists(Empty) returns (BlocklistResult);
+  // Allowlist subscriptions: whitelisted domains always win over blocklists.
+  rpc GetAllowlists(Empty) returns (AllowlistUrls);
+  rpc SetAllowlists(AllowlistUrls) returns (Ack);
+  rpc RefreshAllowlists(Empty) returns (Ack);
+}
+
+message BlocklistRequest {
+  string name = 1;
+  string url = 2;
+}
+
+message BlocklistSource {
+  string category = 1;
+  string name = 2;
+  string url = 3;
+  bool subscribed = 4;
+  string last_refresh = 5;
+  int64 domain_count = 6;
+  bool large_list_warning = 7; // known to bloat the hosts file (DNS Client CPU)
+}
+
+message BlocklistSources {
+  repeated BlocklistSource sources = 1;
+}
+
+message BlocklistResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  int64 added = 4;          // newly blocked in the hosts file
+  int64 total = 5;          // domains parsed from the source(s)
+  int64 hosts_entries = 6;  // hosts-file entry count after import
+  string warning = 7;       // e.g. DNS-Client CPU warning above 100k entries
+}
+
+message AllowlistUrls {
+  repeated string urls = 1;
+}
+
 message TempAllowRequest {
   string domain = 1;
   int32 minutes = 2;

@@ -292,6 +292,71 @@
                             </Grid>
                         </TabItem>
 
+                        <TabItem Header="Blocklists">
+                            <Grid Margin="4" DataContext="{Binding Blocklists}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                                        <DataGridCheckBoxColumn Header="Subscribed" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Domains" Binding="{Binding DomainCount}" Width="90" />
+                                        <DataGridTextColumn Header="Last refresh" Binding="{Binding LastRefresh}" Width="160" />
+                                        <DataGridTextColumn Header="" Binding="{Binding Flags}" Width="70">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTemplateColumn Header="" Width="190">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Import" Padding="8,2" Margin="0,0,6,0"
+                                                                Style="{StaticResource Hg.AccentButton}"
+                                                                Command="{Binding DataContext.ImportCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="Unsubscribe" Padding="8,2"
+                                                                Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.UnsubscribeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Save + apply allowlists"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding SaveAllowlistsCommand}" Margin="8,0,0,0"
+                                                VerticalAlignment="Top" />
+                                        <Button DockPanel.Dock="Right" Content="Refresh all subscriptions"
+                                                Command="{Binding RefreshAllListsCommand}" Margin="8,0,0,0"
+                                                VerticalAlignment="Top" />
+                                        <StackPanel>
+                                            <TextBlock Text="Allowlist URLs (one per line — whitelisted domains always win over blocklists)"
+                                                       Style="{StaticResource Hg.SubText}" Margin="0,0,0,4" />
+                                            <TextBox Text="{Binding AllowlistUrlsText, UpdateSourceTrigger=PropertyChanged}"
+                                                     AcceptsReturn="True" MinHeight="52" MaxHeight="110"
+                                                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+
                         <TabItem Header="Raw Editor">
                             <Grid Margin="4" DataContext="{Binding RawHosts}">
                                 <Grid.RowDefinitions>

@@ -26,7 +26,7 @@ public sealed record FeedRow(
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -88,6 +88,9 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS temp_allows(domain TEXT PRIMARY KEY, expires TEXT);
             CREATE TABLE IF NOT EXISTS schedules(
                 id INTEGER PRIMARY KEY, target TEXT, days TEXT, start TEXT, end TEXT);
+            CREATE TABLE IF NOT EXISTS blocklist_subs(
+                name TEXT PRIMARY KEY, url TEXT, last_refresh TEXT, domain_count INTEGER DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS allowlist_subs(url TEXT PRIMARY KEY);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -352,6 +355,61 @@ public sealed class HostsDatabase : IDisposable
                 .Select(r => (r.Item1, DateTime.Parse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal)))
                 .ToList();
+        }
+    }
+
+    // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
+
+    public void UpsertBlocklistSub(string name, string url, long domainCount)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                "INSERT OR REPLACE INTO blocklist_subs(name,url,last_refresh,domain_count) VALUES(@name,@url,@now,@domainCount)",
+                new { name, url, now, domainCount });
+        }
+    }
+
+    public void RemoveBlocklistSub(string name)
+    {
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM blocklist_subs WHERE name=@name", new { name });
+        }
+    }
+
+    public IReadOnlyList<(string Name, string Url, string LastRefresh, long DomainCount)> GetBlocklistSubs()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string, long)>(
+                "SELECT name, url, last_refresh, domain_count FROM blocklist_subs ORDER BY name").ToList();
+        }
+    }
+
+    public void SetAllowlistSubs(IEnumerable<string> urls)
+    {
+        ArgumentNullException.ThrowIfNull(urls);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM allowlist_subs", transaction: tx);
+            foreach (var url in urls)
+            {
+                _conn.Execute("INSERT OR IGNORE INTO allowlist_subs(url) VALUES(@url)", new { url }, tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
+    public IReadOnlyList<string> GetAllowlistSubs()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT url FROM allowlist_subs ORDER BY url").ToList();
         }
     }
 

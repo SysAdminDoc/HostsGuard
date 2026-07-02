@@ -73,7 +73,16 @@ All notable changes to HostsGuard are documented in this file.
   Python `_confirm`) now gates domain remove, bulk remove, firewall rule
   delete, bulk delete, and the new Emergency Reset button; view-model tests
   prove a declined confirm leaves state untouched on every path.
-- 222 .NET tests; zero build warnings under warnings-as-errors.
+- Blocklist + allowlist engine (NET-030/031): new ListControl service with the
+  25-source curated catalog (large-list ⚠ flags), https-only source validation,
+  streaming byte-capped fetch (25 MB block / 5 MB allow), shared parse/dedupe,
+  single-transaction bulk upsert (allowlist wins), subscription records with
+  daily scheduled refresh, unsubscribe-keeps-domains, oversized-hosts
+  DNS-Client CPU warning above 100k entries, import diff counts, and allowlist
+  subscriptions that whitelist + unblock and re-apply after every import. UI
+  gained a Blocklists view (catalog grid, import with large-list confirm,
+  refresh-all, allowlist URL editor).
+- 231 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

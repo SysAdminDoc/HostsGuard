@@ -21,7 +21,8 @@ public sealed class ServiceState : IDisposable
         IFirewallEngine? firewall = null,
         FirewallIdentity? identity = null,
         IDnsConfig? dns = null,
-        string? dataDir = null)
+        string? dataDir = null,
+        IListFetcher? listFetcher = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -35,6 +36,10 @@ public sealed class ServiceState : IDisposable
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
         Schedules = new ScheduleEnforcer(hosts, db);
+        if (listFetcher is not null)
+        {
+            Lists = new ListImporter(hosts, db, listFetcher);
+        }
     }
 
     public HostsEngine Hosts { get; }
@@ -51,6 +56,8 @@ public sealed class ServiceState : IDisposable
     public string DataDir { get; }
 
     public ScheduleEnforcer Schedules { get; }
+
+    public ListImporter? Lists { get; }
 
     public EventBus Bus { get; }
 
@@ -101,6 +108,7 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        Lists?.Dispose();
         Schedules.Dispose();
         TempAllows.Dispose();
         Db.Dispose();

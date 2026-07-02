@@ -25,6 +25,7 @@ public sealed class HostsServiceClient : IDisposable
         Dns = new DnsControl.DnsControlClient(_channel);
         Monitoring = new Monitoring.MonitoringClient(_channel);
         Policy = new Policy.PolicyClient(_channel);
+        Lists = new ListControl.ListControlClient(_channel);
     }
 
     public Contracts.Diagnostics.DiagnosticsClient Diagnostics { get; }
@@ -38,6 +39,8 @@ public sealed class HostsServiceClient : IDisposable
     public Monitoring.MonitoringClient Monitoring { get; }
 
     public Policy.PolicyClient Policy { get; }
+
+    public ListControl.ListControlClient Lists { get; }
 
     /// <summary>
     /// Connect to the running service: read the ACL'd handshake token from

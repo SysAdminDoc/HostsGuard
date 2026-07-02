@@ -57,6 +57,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private ToolsViewModel? _tools;
 
     [ObservableProperty]
+    private BlocklistsViewModel? _blocklists;
+
+    [ObservableProperty]
     private string _theme;
 
     [ObservableProperty]
@@ -101,6 +104,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await FwRules.RefreshAsync();
             Tools ??= new ToolsViewModel(_client, _confirm);
             await Tools.LoadSchedulesAsync();
+            Blocklists ??= new BlocklistsViewModel(_client, _confirm);
+            await Blocklists.RefreshAsync();
             IsConnected = true;
             ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
         }

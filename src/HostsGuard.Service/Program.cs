@@ -21,7 +21,8 @@ var db = new HostsDatabase(dbPath);
 var firewall = new FirewallEngine();
 var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"));
 var dns = new DnsConfig();
-using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir);
+using var listFetcher = new HttpListFetcher();
+using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher);
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 

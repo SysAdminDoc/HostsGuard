@@ -48,6 +48,14 @@ public class SchemaLockTests
           TempAllow(TempAllowRequest) returns (Ack)
           Unblock(DomainRequest) returns (Ack)
           UnhideRoot(DomainRequest) returns (Ack)
+        service ListControl
+          GetAllowlists(Empty) returns (AllowlistUrls)
+          ImportBlocklist(BlocklistRequest) returns (BlocklistResult)
+          ListBlocklistSources(Empty) returns (BlocklistSources)
+          RefreshAllowlists(Empty) returns (Ack)
+          RefreshBlocklists(Empty) returns (BlocklistResult)
+          RemoveBlocklistSubscription(BlocklistRequest) returns (Ack)
+          SetAllowlists(AllowlistUrls) returns (Ack)
         service Monitoring
           WatchConnections(Empty) returns (stream ConnectionEvent)
           WatchDns(Empty) returns (stream DnsEvent)
