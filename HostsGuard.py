@@ -184,6 +184,10 @@ SOURCES={
         ("TikTok","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.tiktok.extended.txt"),
         ("Samsung","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.samsung.txt")]}
 _DEFENDER_WARN={"Windows/Office","HaGezi Ultimate","StevenBlack Unified","Windows Spy Blocker"}
+# Lists large enough to bloat the hosts file to the point the Windows DNS Client
+# (svchost) spikes CPU and resolution slows. Warn before importing these.
+_LARGE_LISTS={"HaGezi Ultimate","OISD Full","StevenBlack Unified","HOSTShield Combined"}
+LARGE_HOSTS_WARN=100_000  # hosts-file entry count above which we surface a CPU warning
 
 # ─── Config ─────────────────────────────────────────────────────────────────
 # Defined before the Theme section: _load_theme() runs at import time and
@@ -2693,6 +2697,20 @@ class HostsTab(QWidget):
                 f"Path: {HOSTS_PATH}\n\nContinue importing?",
                 QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if r!=QMessageBox.Yes: return
+        # Warn if importing a very large list, or if the hosts file is already large.
+        big=[n for n,_ in sources if n in _LARGE_LISTS]
+        cur=len(s.hm.get_blocked())
+        if big or cur>=LARGE_HOSTS_WARN:
+            reason=(f"selected lists ({', '.join(big)}) each add 100k+ domains" if big
+                    else f"your hosts file already has {cur:,} entries")
+            r=QMessageBox.warning(s,"Large hosts file",
+                f"Heads up — {reason}.\n\n"
+                "A very large hosts file (100k+ entries) can make the Windows DNS "
+                "Client (svchost) spike CPU and slow name resolution. For blocking at "
+                "this scale, firewall IP rules or a network-wide DNS blocker are lighter.\n\n"
+                "Continue importing?",
+                QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
+            if r!=QMessageBox.Yes: return
         s._importing=True
         s.bl_prog.setVisible(True); s.bl_prog.setRange(0,len(sources)); s.bl_prog.setValue(0)
         s._iq=list(sources); s._ii=0; s._it=0; s._do_next()
@@ -2700,7 +2718,11 @@ class HostsTab(QWidget):
         if s._ii>=len(s._iq):
             s._importing=False
             s.bl_prog.setVisible(False); s.bl_st.setText(f"Done! {s._it} domains")
-            s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); s._sync_and_load(); return
+            s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); s._sync_and_load()
+            total=len(s.hm.get_blocked())
+            if total>=LARGE_HOSTS_WARN:
+                s._toast(f"Hosts file now {total:,} entries — watch DNS Client CPU",C['peach'])
+            return
         name,url=s._iq[s._ii]; s.bl_st.setText(f"{name}...")
         if name in s._chk: s._chk[name][2].setText("\u2026")
         s._cw=ImpWorker(name,url,s.hm,s.db); s._cw.done.connect(s._on_imp); s._cw.start()
