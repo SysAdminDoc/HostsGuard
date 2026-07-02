@@ -189,6 +189,14 @@ public static class RebindScanner
             }
         }
 
+        // Same app under a different version directory (NET-069): the strongest
+        // signal that an auto-updater just moved the binary to a new versioned path.
+        if (Core.AppPaths.SameVersionedApp(oldPath, candidate.Path))
+        {
+            score += 30;
+            why.Add("same versioned app path");
+        }
+
         reasons = string.Join("; ", why);
         return Math.Min(score, 100);
     }

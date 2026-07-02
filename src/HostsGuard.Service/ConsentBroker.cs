@@ -310,12 +310,31 @@ public sealed class ConsentBroker : IDisposable
             return false;
         }
 
-        return fw.ListRules().Any(r =>
-            r.Source == "hostsguard" &&
-            r.Enabled &&
-            r.Direction == direction &&
-            r.Program.Length != 0 &&
-            r.Program.Split(',')[0].Trim().Equals(application, StringComparison.OrdinalIgnoreCase));
+        foreach (var r in fw.ListRules())
+        {
+            if (r.Source != "hostsguard" || !r.Enabled || r.Direction != direction || r.Program.Length == 0)
+            {
+                continue;
+            }
+
+            if (!r.Program.Split(',')[0].Trim().Equals(application, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // Identity guard (NET-069): when the binary's identity was recorded at
+            // rule-creation time, the file on disk must still match it (same hash
+            // or signer). A renamed impostor dropped at a whitelisted path fails
+            // the check, so it is NOT covered and gets re-prompted.
+            if (_identity is { } id && id.Get(r.Name).Count > 0 && !id.MatchesRemembered(r.Name, application))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     private void AutoAllow(BlockedConnection blocked)

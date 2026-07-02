@@ -5,6 +5,13 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Identity-bound rules + versioned-path handling (NET-069)** — the consent
+  broker's covering-rule check now verifies the on-disk binary still matches the
+  SHA-256/signer recorded when the rule was created, so a renamed impostor
+  dropped at a whitelisted path is re-prompted instead of silently allowed. The
+  rebind scanner gains a "same versioned app path" signal (via
+  `AppPaths.NormalizeVersionedPath`) so an auto-updater that moves its binary to
+  a new version directory is recognized as the same app.
 - **Known-safe baseline (NET-068)** — essential Windows binaries (Update, Defender,
   kernel, LSA) are auto-allowed silently so Notify mode targets interesting
   traffic instead of burying the user in prompts for OS infrastructure.

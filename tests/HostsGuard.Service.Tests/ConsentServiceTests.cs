@@ -122,6 +122,30 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Renamed_impostor_at_a_whitelisted_path_is_re_prompted()
+    {
+        var app = WriteExe("realapp.exe");
+        // Allow the real binary permanently — this remembers its identity.
+        _state.Consent.Decide(new ConnectionDecision { Application = app, Verdict = "allow", Duration = "always" })
+            .Ok.Should().BeTrue();
+        _state.Identity!.Get("HG_Consent_Allow_realapp_Out").Should().NotBeEmpty();
+
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        // Same path, unchanged binary → covered, no prompt.
+        _state.Consent.OnBlocked(Blocked(app, DateTime.UtcNow));
+        _state.Consent.PendingCount.Should().Be(0);
+
+        // An impostor overwrites the file at the same whitelisted path.
+        File.WriteAllText(app, "malware-different-content");
+        _state.Consent.OnBlocked(Blocked(app, DateTime.UtcNow.AddSeconds(10)));
+
+        // Identity no longer matches → the rule doesn't cover it → re-prompted.
+        _state.Consent.PendingCount.Should().Be(1);
+    }
+
+    [Fact]
     public void Notify_publishes_a_decision_request_on_the_bus()
     {
         _state.Consent.SetMode("notify");

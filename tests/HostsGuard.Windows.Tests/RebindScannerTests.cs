@@ -71,6 +71,24 @@ public sealed class RebindScannerTests : IDisposable
     }
 
     [Fact]
+    public void Versioned_path_move_clears_the_threshold_even_when_unsigned()
+    {
+        // Same app, new version directory, different content (an update). Neither
+        // hash nor signer matches, but same-name (30) + same-versioned-path (30)
+        // clears the 60-point threshold so the update is recognized.
+        var old = WriteExe(@"app\1.2.3\tool.exe", "v1");
+        var updated = WriteExe(@"app\1.3.0\tool.exe", "v2-different");
+        // History is the old binary; the candidate is the moved+updated one.
+        var history = new[] { FirewallIdentity.Compute(old) };
+
+        var ranked = RebindScanner.Rank(old, history, new[] { updated });
+
+        ranked.Should().ContainSingle();
+        ranked[0].Path.Should().Be(updated);
+        ranked[0].Reasons.Should().Contain("same versioned app path");
+    }
+
+    [Fact]
     public void Name_only_match_without_history_is_never_suggested()
     {
         var old = Path.Combine(_dir, "gone", "tool.exe");
