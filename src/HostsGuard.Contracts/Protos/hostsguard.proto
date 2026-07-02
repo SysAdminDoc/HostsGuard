@@ -446,8 +446,12 @@ message ConnectionDecision {
   string remote_address = 4;
   string protocol = 5;
   string verdict = 6;         // "allow" | "block"
-  bool permanent = 7;         // permanent COM rule vs reaped once-rule
+  bool permanent = 7;         // legacy: permanent vs once-rule (overridden by duration)
   bool scope_remote = 8;      // restrict the rule to remote_address
+  int32 remote_port = 9;      // echoed from the request, used when scope_port is set
+  bool scope_port = 10;       // restrict the rule to remote_port (implies TCP/UDP protocol)
+  bool scope_protocol = 11;   // restrict the rule to protocol
+  string duration = 12;       // "once" | "1h" | "session" | "always" (blank = legacy permanent flag)
 }
 
 message FilteringMode {

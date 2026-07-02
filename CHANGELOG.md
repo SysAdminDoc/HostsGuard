@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Consent scope + duration selectors (NET-067)** — the prompt now offers scope
+  checkboxes (this IP / this port / this protocol; whole-app by default) and a
+  duration dropdown (Once 15 min / 1 hour / This session / Always). Rules are
+  shaped and TTL-reaped accordingly: "always" writes a permanent rule, "session"
+  survives until the service restarts, timed durations reap on the sweep. The
+  legacy Allow/Block once/always buttons collapse into Allow/Block + duration.
 - **Enriched consent prompt (NET-066)** — the ask-to-connect window now shows the
   remote's reverse-DNS hostname (resolved async, off-thread), GeoIP country, and
   the process's Authenticode signer, and raises a threat banner when the remote

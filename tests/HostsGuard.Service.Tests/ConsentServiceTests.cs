@@ -194,6 +194,57 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Decision_scopes_the_rule_to_port_and_protocol()
+    {
+        var app = WriteExe("scoped.exe");
+
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Application = app,
+            Direction = "Out",
+            Verdict = "block",
+            Duration = "always",
+            Protocol = "TCP",
+            RemotePort = 8080,
+            ScopePort = true,
+            ScopeProtocol = true,
+        }).Ok.Should().BeTrue();
+
+        var rule = _fw.Rules["HG_Consent_Block_scoped_Out"];
+        rule.Protocol.Should().Be("TCP");
+        rule.RemotePorts.Should().Be("8080");
+    }
+
+    [Fact]
+    public void Duration_1h_reaps_the_rule_after_an_hour_not_before()
+    {
+        var app = WriteExe("hourly.exe");
+        _state.Consent.Decide(new ConnectionDecision { Application = app, Verdict = "allow", Duration = "1h" }).Ok.Should().BeTrue();
+        var name = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Once_Allow_hourly_Out_"));
+
+        _state.Consent.Sweep(DateTime.UtcNow + TimeSpan.FromMinutes(30));
+        _fw.Rules.Should().ContainKey(name);
+
+        _state.Consent.Sweep(DateTime.UtcNow + TimeSpan.FromHours(1) + TimeSpan.FromMinutes(1));
+        _fw.Rules.Should().NotContainKey(name);
+    }
+
+    [Fact]
+    public void Session_duration_survives_the_timer_but_startup_reaps_it()
+    {
+        var app = WriteExe("sessioned.exe");
+        _state.Consent.Decide(new ConnectionDecision { Application = app, Verdict = "allow", Duration = "session" }).Ok.Should().BeTrue();
+        var name = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Once_Allow_sessioned_Out_"));
+
+        _state.Consent.Sweep(DateTime.UtcNow + TimeSpan.FromDays(365)); // never timer-reaped
+        _fw.Rules.Should().ContainKey(name);
+
+        // A fresh broker (service restart) reaps all HG_Once_ rules.
+        using var restarted = new ConsentBroker(_state.Db, _state.Bus, _fw, _state.Identity, _dir);
+        _fw.Rules.Should().NotContainKey(name);
+    }
+
+    [Fact]
     public void Once_rules_exist_immediately_and_are_reaped_after_their_window()
     {
         var app = WriteExe("once.exe");

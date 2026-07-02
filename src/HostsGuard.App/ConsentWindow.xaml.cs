@@ -81,7 +81,7 @@ public partial class ConsentWindow : Window
         Countdown.Text = $"closes in {left.TotalSeconds:0} s";
     }
 
-    private void Decide(string verdict, bool permanent)
+    private void Decide(string verdict)
     {
         Result = new ConnectionDecision
         {
@@ -90,18 +90,20 @@ public partial class ConsentWindow : Window
             Direction = _request.Direction,
             RemoteAddress = _request.RemoteAddress,
             Protocol = _request.Protocol,
+            RemotePort = _request.RemotePort,
             Verdict = verdict,
-            Permanent = permanent,
             ScopeRemote = ScopeRemote.IsChecked == true,
+            ScopePort = ScopePort.IsChecked == true,
+            ScopeProtocol = ScopeProtocol.IsChecked == true,
+            Duration = SelectedDuration(),
         };
         Close();
     }
 
-    private void OnAllowOnce(object sender, RoutedEventArgs e) => Decide("allow", permanent: false);
+    private string SelectedDuration()
+        => (DurationBox.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag as string ?? "always";
 
-    private void OnAllowAlways(object sender, RoutedEventArgs e) => Decide("allow", permanent: true);
+    private void OnAllow(object sender, RoutedEventArgs e) => Decide("allow");
 
-    private void OnBlockOnce(object sender, RoutedEventArgs e) => Decide("block", permanent: false);
-
-    private void OnBlockAlways(object sender, RoutedEventArgs e) => Decide("block", permanent: true);
+    private void OnBlock(object sender, RoutedEventArgs e) => Decide("block");
 }

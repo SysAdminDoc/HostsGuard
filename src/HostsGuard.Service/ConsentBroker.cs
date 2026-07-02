@@ -354,6 +354,9 @@ public sealed class ConsentBroker : IDisposable
         var direction = decision.Direction == "In" ? "In" : "Out";
         var action = verdict == "allow" ? "Allow" : "Block";
         var stem = Path.GetFileNameWithoutExtension(application);
+
+        // Scope (NET-067): whole-app by default; optionally narrow to the remote
+        // IP, protocol, and/or port. Port scoping implies a TCP/UDP protocol.
         var remote = "Any";
         if (decision.ScopeRemote && decision.RemoteAddress.Length != 0)
         {
@@ -364,38 +367,62 @@ public sealed class ConsentBroker : IDisposable
 
             remote = decision.RemoteAddress;
         }
-        string name;
-        if (decision.Permanent)
-        {
-            name = $"{ConsentPrefix}{action}_{stem}_{direction}";
-        }
-        else
-        {
-            name = $"{OncePrefix}{action}_{stem}_{direction}_{Guid.NewGuid().ToString("N")[..8]}";
-        }
 
-        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, "Any", application, "hostsguard"));
+        var protoIsPortable = decision.Protocol is "TCP" or "UDP";
+        var protocol = (decision.ScopeProtocol || decision.ScopePort) && protoIsPortable ? decision.Protocol : "Any";
+        var ports = decision.ScopePort && decision.RemotePort > 0 && protocol is "TCP" or "UDP"
+            ? decision.RemotePort.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : "Any";
+
+        // Duration (NET-067): "always" → permanent COM rule; "once"/"1h"/"session"
+        // → ephemeral HG_Once_ rule. Blank falls back to the legacy permanent flag.
+        var (permanent, expiresUtc, label) = ResolveDuration(decision.Duration, decision.Permanent);
+
+        var name = permanent
+            ? $"{ConsentPrefix}{action}_{stem}_{direction}"
+            : $"{OncePrefix}{action}_{stem}_{direction}_{Guid.NewGuid().ToString("N")[..8]}";
+
+        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, protocol, application, "hostsguard", RemotePorts: ports));
         if (created)
         {
-            _db.UpsertFwState(name, direction, action, remote, "Any", application);
+            _db.UpsertFwState(name, direction, action, remote, protocol, application);
             _identity?.Remember(name, application);
-            if (!decision.Permanent)
+            if (!permanent)
             {
                 lock (_gate)
                 {
-                    _onceRules.Add((name, DateTime.UtcNow + OnceRuleLifetime));
+                    _onceRules.Add((name, expiresUtc));
                     SaveState();
                 }
             }
         }
 
-        LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, decision.Permanent);
+        LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, permanent);
         return new Ack
         {
             Ok = true,
-            Message = created
-                ? $"{verdict} {stem} ({(decision.Permanent ? "permanent" : $"once, reaped in {OnceRuleLifetime.TotalMinutes:0} min")}) — {name}"
-                : $"{name} already exists",
+            Message = created ? $"{verdict} {stem} ({label}) — {name}" : $"{name} already exists",
+        };
+    }
+
+    /// <summary>Map a duration token to (permanent, ephemeral-expiry, human label).</summary>
+    private (bool Permanent, DateTime ExpiresUtc, string Label) ResolveDuration(string? duration, bool legacyPermanent)
+    {
+        var d = (duration ?? string.Empty).Trim().ToLowerInvariant();
+        if (d.Length == 0)
+        {
+            d = legacyPermanent ? "always" : "once";
+        }
+
+        var now = DateTime.UtcNow;
+        return d switch
+        {
+            "always" => (true, DateTime.MaxValue, "permanent"),
+            "1h" => (false, now + TimeSpan.FromHours(1), "1 hour"),
+            // "session" survives until the service restarts (startup reap clears
+            // all HG_Once_), so it's never timer-reaped.
+            "session" => (false, DateTime.MaxValue, "this session"),
+            _ => (false, now + OnceRuleLifetime, $"once, reaped in {OnceRuleLifetime.TotalMinutes:0} min"),
         };
     }
 
