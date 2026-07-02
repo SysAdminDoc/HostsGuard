@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5D3827D7-6B71-40AB-AD79-811709D3EC5C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Core", "src\HostsGuard.Core\HostsGuard.Core.csproj", "{AEF41324-52FB-487F-B8E7-CED5D4EC238B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{7A0EADFF-2F42-4968-BDEB-517AB528F71E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Core.Tests", "tests\HostsGuard.Core.Tests\HostsGuard.Core.Tests.csproj", "{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AEF41324-52FB-487F-B8E7-CED5D4EC238B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEF41324-52FB-487F-B8E7-CED5D4EC238B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEF41324-52FB-487F-B8E7-CED5D4EC238B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEF41324-52FB-487F-B8E7-CED5D4EC238B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AEF41324-52FB-487F-B8E7-CED5D4EC238B} = {5D3827D7-6B71-40AB-AD79-811709D3EC5C}
+		{AF2B066D-A8CD-43B0-91B2-042981AFB6A9} = {7A0EADFF-2F42-4968-BDEB-517AB528F71E}
+	EndGlobalSection
+EndGlobal

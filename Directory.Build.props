@@ -1,0 +1,23 @@
+<Project>
+  <!-- Solution-wide build standards for HostsGuard .NET.
+       Rock-solid defaults: nullable on, warnings are errors, latest analyzers,
+       deterministic builds, and a single shared version. -->
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Shared product version — single source of truth for every assembly. -->
+    <Version>0.1.0</Version>
+    <Product>HostsGuard</Product>
+    <Company>SysAdminDoc</Company>
+    <Authors>SysAdminDoc</Authors>
+    <Copyright>Copyright (c) SysAdminDoc. MIT License.</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+</Project>

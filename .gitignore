@@ -24,3 +24,13 @@ AGENTS.md
 .ai/
 PROJECT_CONTEXT.md
 CONTINUATION_PROMPT.md
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+*.dll.config
+TestResults/
