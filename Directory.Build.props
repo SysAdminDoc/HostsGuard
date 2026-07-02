@@ -13,9 +13,11 @@
     <Deterministic>true</Deterministic>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Shared product version — single source of truth for every assembly.
-         0.2.0: elevated engine complete (hosts/firewall/DNS/connections/tamper),
-         gRPC-over-named-pipe IPC, SQLite persistence, and the UI service-client. -->
-    <Version>0.2.0</Version>
+         0.3.0: Phase 2 UI parity (five-tab WPF shell, hosts/firewall/tools
+         views, confirm guardrails) + Phase 3 feature parity (blocklists,
+         allowlists, blocked services, DoH/DoT blocking, profiles, threat
+         intel, GeoIP, Defender, i18n) + the Python-profile migrator. -->
+    <Version>0.3.0</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

@@ -4,7 +4,7 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
-### Added — .NET 8 restructure (engine v0.2.0, in progress)
+### Added — .NET 8 restructure (engine v0.3.0, in progress)
 - Began the C#/.NET 8 rewrite (`src/` + `tests/`, `HostsGuard.sln`) on a
   split-trust architecture: an elevated LocalSystem service owns all privileged
   mutation; the unelevated UI/CLI talk to it over gRPC on an ACL'd named pipe.
