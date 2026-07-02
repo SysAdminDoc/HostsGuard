@@ -35,6 +35,7 @@ public class SchemaLockTests
           BlockEncryptedDns(DohBlockRequest) returns (Ack)
           BlockIp(FirewallIpRequest) returns (Ack)
           BlockProgram(FirewallProgramRequest) returns (Ack)
+          BlockQuic(Empty) returns (Ack)
           CreateRule(FirewallRule) returns (Ack)
           DeleteRule(RuleNameRequest) returns (Ack)
           GetPosture(Empty) returns (FirewallPosture)
@@ -44,6 +45,7 @@ public class SchemaLockTests
           SetRuleEnabled(RuleEnabledRequest) returns (Ack)
           SuggestRebind(RuleNameRequest) returns (RebindSuggestions)
           UnblockEncryptedDns(Empty) returns (Ack)
+          UnblockQuic(Empty) returns (Ack)
         service HostsControl
           AddDefenderExclusion(Empty) returns (Ack)
           Allow(DomainRequest) returns (Ack)

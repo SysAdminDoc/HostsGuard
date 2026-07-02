@@ -93,6 +93,34 @@ public sealed class DohBlockingTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Quic_block_creates_udp443_rule_and_status_reflects_it()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = new FirewallControl.FirewallControlClient(channel);
+        var dns = new DnsControl.DnsControlClient(channel);
+
+        (await dns.GetDohStatusAsync(new Empty())).QuicBlocked.Should().BeFalse();
+
+        var ack = await fw.BlockQuicAsync(new Empty());
+        ack.Ok.Should().BeTrue();
+        _fw.Rules.Should().ContainKey("HG_QUIC_UDP443");
+        _fw.Rules["HG_QUIC_UDP443"].Protocol.Should().Be("UDP");
+        _fw.Rules["HG_QUIC_UDP443"].RemotePorts.Should().Be("443");
+        _fw.Rules["HG_QUIC_UDP443"].Direction.Should().Be("Out");
+        _state.Db.GetFwStateNames().Should().Contain("HG_QUIC_UDP443");
+        (await dns.GetDohStatusAsync(new Empty())).QuicBlocked.Should().BeTrue();
+
+        // Idempotent re-block.
+        (await fw.BlockQuicAsync(new Empty())).Ok.Should().BeTrue();
+
+        var un = await fw.UnblockQuicAsync(new Empty());
+        un.Ok.Should().BeTrue();
+        _fw.Rules.Should().NotContainKey("HG_QUIC_UDP443");
+        _state.Db.GetFwStateNames().Should().NotContain("HG_QUIC_UDP443");
+        (await dns.GetDohStatusAsync(new Empty())).QuicBlocked.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Doh_status_reflects_blocking_state()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

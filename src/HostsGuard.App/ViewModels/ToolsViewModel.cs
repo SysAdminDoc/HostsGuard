@@ -358,6 +358,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     private bool _dohBlockingActive;
 
     [ObservableProperty]
+    private bool _quicBlockingActive;
+
+    [ObservableProperty]
     private string _dohUrl = string.Empty;
 
     [ObservableProperty]
@@ -368,9 +371,20 @@ public sealed partial class ToolsViewModel : ObservableObject
     {
         var status = await _client.Dns.GetDohStatusAsync(new Empty());
         DohBlockingActive = status.BlockingActive;
+        QuicBlockingActive = status.QuicBlocked;
         DohStatusText = status.Updated.Length != 0
             ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
             : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+    }
+
+    [RelayCommand]
+    public async Task ToggleQuicAsync()
+    {
+        var ack = QuicBlockingActive
+            ? await _client.Firewall.UnblockQuicAsync(new Empty())
+            : await _client.Firewall.BlockQuicAsync(new Empty());
+        StatusText = ack.Message;
+        await LoadDohStatusAsync();
     }
 
     [RelayCommand]

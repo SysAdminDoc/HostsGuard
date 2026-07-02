@@ -4,6 +4,13 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Block QUIC / HTTP3 (NET-064)** — a Tools-tab toggle blocks outbound UDP/443
+  via a `HG_QUIC_UDP443` firewall rule, forcing clients to fall back to TCP so
+  DoH3 and general QUIC can't bypass hosts/SNI-based blocking. Opt-in, off by
+  default, clean TCP fallback (no user-visible breakage). `GetDohStatus` now
+  reports `quic_blocked`.
+
 ### Added — .NET 8 engine v0.4.0 (WFC parity, packaging, hardening)
 - **WFC notification parity (WFCP-000..022)** — the reactive allow/block prompt
   on unruled connections, reaching feature parity with Malwarebytes Windows

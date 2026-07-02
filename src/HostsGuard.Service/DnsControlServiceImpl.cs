@@ -104,6 +104,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             Source = state.Source,
             Sha256 = state.Sha256,
             BlockingActive = _state.Firewall?.RuleExists("HG_DoT_TCP") ?? false,
+            QuicBlocked = _state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false,
         });
     }
 

@@ -241,6 +241,11 @@ service FirewallControl {
   rpc ListRules(Empty) returns (FirewallRuleList);
   rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
   rpc UnblockEncryptedDns(Empty) returns (Ack);
+  // QUIC/HTTP3 (outbound UDP/443) blocking. Forces clients to fall back to
+  // TCP/HTTP2 so DoH3 and general QUIC can't bypass hosts/SNI-based blocking.
+  // Opt-in, off by default; clean TCP fallback means no user-visible breakage.
+  rpc BlockQuic(Empty) returns (Ack);
+  rpc UnblockQuic(Empty) returns (Ack);
   // Default-outbound posture (lockdown). Set flips DefaultOutboundAction on
   // all profiles; it never touches the firewall on/off switch.
   rpc GetPosture(Empty) returns (FirewallPosture);
@@ -337,6 +342,7 @@ message DohStatus {
   string source = 4;
   string sha256 = 5;
   bool blocking_active = 6; // HG_DoH_* rules currently exist
+  bool quic_blocked = 7;    // HG_QUIC_UDP443 rule currently exists
 }
 
 message DohRefreshRequest {

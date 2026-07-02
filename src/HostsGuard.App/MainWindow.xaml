@@ -658,6 +658,27 @@
                                         <Button DockPanel.Dock="Left" Content="Refresh DoH intelligence"
                                                 Command="{Binding RefreshDohCommand}" />
                                     </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Left" Margin="0,0,10,0"
+                                                Command="{Binding ToggleQuicCommand}"
+                                                ToolTip="Block outbound QUIC/HTTP3 (UDP port 443). Forces clients to fall back to TCP so DoH3 and QUIC can't bypass hosts/SNI blocking. Clean fallback — browsing keeps working.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Block QUIC / HTTP3" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding QuicBlockingActive}" Value="True">
+                                                            <Setter Property="Content" Value="Unblock QUIC / HTTP3" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                                   Style="{StaticResource Hg.DimText}"
+                                                   Text="Forces TCP fallback so DoH3/QUIC can't bypass blocking" />
+                                    </DockPanel>
                                     <TextBlock Text="{Binding DohStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>

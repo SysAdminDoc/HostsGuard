@@ -250,6 +250,48 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok($"encrypted DNS blocked: {ips.Count} resolver IPs + DoT/DoQ port 853 ({string.Join(", ", created)})"));
     }
 
+    /// <summary>Outbound QUIC block rule (UDP/443) — forces TCP/HTTP2 fallback.</summary>
+    public const string QuicRuleName = "HG_QUIC_UDP443";
+
+    public override Task<Ack> BlockQuic(Empty request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        if (fw.RuleExists(QuicRuleName))
+        {
+            return Task.FromResult(Ok("QUIC/HTTP3 already blocked"));
+        }
+
+        // Block outbound UDP to remote port 443 (QUIC/HTTP3, incl. DoH3). Clients
+        // transparently fall back to HTTP/2 over TCP — no user-visible breakage.
+        var created = fw.CreateRule(new FwRule(QuicRuleName, "Out", "Block", true, "Any", "UDP", string.Empty, "hostsguard", RemotePorts: "443"));
+        if (created)
+        {
+            _state.Db.UpsertFwState(QuicRuleName, "Out", "Block", "Any", "UDP", string.Empty);
+            _state.Db.LogEvent("quic", "fw_blocked", details: "QUIC/HTTP3 blocked (outbound UDP/443)", reason: "doh");
+        }
+
+        return Task.FromResult(Ok(created
+            ? "QUIC/HTTP3 blocked — clients fall back to TCP so DoH3/QUIC can't bypass blocking"
+            : $"{QuicRuleName} already exists"));
+    }
+
+    public override Task<Ack> UnblockQuic(Empty request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var removed = fw.DeleteRule(QuicRuleName);
+        _state.Db.RemoveFwState(QuicRuleName);
+        _state.Db.LogEvent("quic", "fw_unblocked", details: "QUIC/HTTP3 unblocked", reason: "doh");
+        return Task.FromResult(Ok(removed ? "QUIC/HTTP3 unblocked (outbound UDP/443 allowed)" : "QUIC was not blocked"));
+    }
+
     public override Task<Ack> UnblockEncryptedDns(Empty request, ServerCallContext context)
     {
         if (_state.Firewall is not { } fw)
