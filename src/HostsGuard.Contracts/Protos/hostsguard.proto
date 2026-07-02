@@ -250,6 +250,10 @@ service FirewallControl {
   // all profiles; it never touches the firewall on/off switch.
   rpc GetPosture(Empty) returns (FirewallPosture);
   rpc SetDefaultOutbound(OutboundRequest) returns (Ack);
+  // Secure-Rules tamper-guard: recreate/re-enable HG_ rules changed behind our
+  // back. Opt-in; only ever touches HostsGuard's own rules.
+  rpc GetSecureRules(Empty) returns (SecureRulesStatus);
+  rpc SetSecureRules(SecureRulesRequest) returns (Ack);
   // Orphan rebind: rank identity-matched replacement binaries for a program
   // rule whose target vanished, then re-target the rule.
   rpc SuggestRebind(RuleNameRequest) returns (RebindSuggestions);
@@ -270,6 +274,15 @@ message ProfilePosture {
 
 message OutboundRequest {
   bool block = 1;
+}
+
+message SecureRulesRequest {
+  bool enabled = 1;
+}
+
+message SecureRulesStatus {
+  bool enabled = 1;
+  int32 tracked = 2;   // HG_ rules under protection
 }
 
 message RebindCandidate {

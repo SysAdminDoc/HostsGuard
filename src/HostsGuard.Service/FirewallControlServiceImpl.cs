@@ -423,6 +423,21 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok($"rebound {name} to {newPath}"));
     }
 
+    public override Task<SecureRulesStatus> GetSecureRules(Empty request, ServerCallContext context)
+        => Task.FromResult(new SecureRulesStatus
+        {
+            Enabled = _state.SecureRules.Enabled,
+            Tracked = _state.SecureRules.TrackedCount,
+        });
+
+    public override Task<Ack> SetSecureRules(SecureRulesRequest request, ServerCallContext context)
+    {
+        _state.SecureRules.SetEnabled(request.Enabled);
+        return Task.FromResult(Ok(request.Enabled
+            ? $"Secure Rules armed — {_state.SecureRules.TrackedCount} HG_ rules protected against tampering"
+            : "Secure Rules disarmed"));
+    }
+
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);
 

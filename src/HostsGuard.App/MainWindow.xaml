@@ -785,6 +785,22 @@
                                         <Button DockPanel.Dock="Left" Content="Apply known-safe baseline"
                                                 Command="{Binding ApplyBaselineCommand}" Margin="0,0,10,0"
                                                 ToolTip="Pre-allow essential Windows binaries (Update, Defender, kernel) so ask-to-connect targets interesting traffic instead of prompting for OS infrastructure." />
+                                        <Button DockPanel.Dock="Left"
+                                                Command="{Binding ToggleSecureRulesCommand}" Margin="0,0,10,0"
+                                                ToolTip="Secure Rules: the service recreates or re-enables any HostsGuard rule deleted or disabled behind its back. Only touches HG_ rules.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Arm Secure Rules" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SecureRulesActive}" Value="True">
+                                                            <Setter Property="Content" Value="Disarm Secure Rules" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Button DockPanel.Dock="Left" Content="Refresh threat intel"
                                                 Command="{Binding RefreshThreatIntelCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Refresh GeoIP"

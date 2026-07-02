@@ -45,6 +45,7 @@ public sealed class ServiceState : IDisposable
             LookupCountry = GeoIp.Lookup,
             LookupThreat = Threats.Contains,
         };
+        SecureRules = new SecureRulesGuard(firewall, db);
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)
@@ -83,6 +84,8 @@ public sealed class ServiceState : IDisposable
     public EventBus Bus { get; }
 
     public ConsentBroker Consent { get; }
+
+    public SecureRulesGuard SecureRules { get; }
 
     public TempAllowScheduler TempAllows { get; }
 
@@ -141,6 +144,7 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        SecureRules.Dispose();
         Consent.Dispose();
         GeoIp.Dispose();
         Lists?.Dispose();

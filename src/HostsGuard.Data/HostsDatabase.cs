@@ -17,6 +17,10 @@ public sealed record FeedRow(
     string Domain, string? FirstSeen, string? LastSeen, long Hits,
     string? Process, long Hidden, string? Reason, string? Status);
 
+/// <summary>A tracked HostsGuard firewall rule, for the Secure-Rules reconcile.</summary>
+public sealed record FwStateRow(
+    string Name, string? Direction, string? Action, string? RemoteAddr, string? Protocol, string? Program);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -620,6 +624,20 @@ public sealed class HostsDatabase : IDisposable
         lock (_gate)
         {
             return _conn.Query<string>("SELECT name FROM fw_state").ToHashSet(StringComparer.Ordinal);
+        }
+    }
+
+    /// <summary>Full tracked-rule rows, for the Secure-Rules tamper reconcile.</summary>
+    public IReadOnlyList<FwStateRow> GetFwState()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<FwStateRow>(
+                """
+                SELECT name AS Name, direction AS Direction, action AS Action,
+                       remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program
+                FROM fw_state
+                """).ToList();
         }
     }
 

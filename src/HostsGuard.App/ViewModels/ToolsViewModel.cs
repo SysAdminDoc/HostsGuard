@@ -394,6 +394,30 @@ public sealed partial class ToolsViewModel : ObservableObject
         StatusText = ack.Message;
     }
 
+    [ObservableProperty]
+    private bool _secureRulesActive;
+
+    [ObservableProperty]
+    private string _secureRulesText = string.Empty;
+
+    [RelayCommand]
+    public async Task LoadSecureRulesAsync()
+    {
+        var status = await _client.Firewall.GetSecureRulesAsync(new Empty());
+        SecureRulesActive = status.Enabled;
+        SecureRulesText = status.Enabled
+            ? $"Secure Rules ON — {status.Tracked} HostsGuard rules protected"
+            : "Secure Rules OFF — HostsGuard rules are not tamper-guarded";
+    }
+
+    [RelayCommand]
+    public async Task ToggleSecureRulesAsync()
+    {
+        var ack = await _client.Firewall.SetSecureRulesAsync(new SecureRulesRequest { Enabled = !SecureRulesActive });
+        StatusText = ack.Message;
+        await LoadSecureRulesAsync();
+    }
+
     [RelayCommand]
     public async Task ToggleEncryptedDnsAsync()
     {

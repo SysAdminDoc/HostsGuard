@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Secure Rules tamper-guard (NET-072)** — an opt-in guard (Tools tab) has the
+  LocalSystem service recreate or re-enable any HostsGuard HG_ rule that gets
+  deleted or disabled behind its back, restoring it from the tracked state and
+  logging the revert. It only ever touches HostsGuard's own rules — the user's
+  other firewall configuration is left alone. Modelled on Malwarebytes WFC's
+  Secure Rules; the setting persists across restarts and reconciles on a timer.
 - **Identity-bound rules + versioned-path handling (NET-069)** — the consent
   broker's covering-rule check now verifies the on-disk binary still matches the
   SHA-256/signer recorded when the rule was created, so a renamed impostor
