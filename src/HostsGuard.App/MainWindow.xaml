@@ -77,6 +77,7 @@
                         <TextBlock Text="Scale" Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" Margin="0,0,6,0" />
                         <ComboBox ItemsSource="{x:Static vm:MainViewModel.UiScaleChoices}"
                                   SelectedItem="{Binding UiScalePct}"
+                                  AutomationProperties.Name="UI scale percent"
                                   Width="64" Margin="0,0,10,0" />
                         <Button Content="Theme" Command="{Binding ToggleThemeCommand}" Padding="10,3" />
                     </StackPanel>

@@ -106,6 +106,13 @@ public sealed class WpfSmokeTests
                 consent.Arrange(new Rect(0, 0, 500, 600));
                 consent.UpdateLayout();
 
+                // Accessibility (NET-080): the primary action carries a screen-
+                // reader name and the window itself is named.
+                var allow = (System.Windows.Controls.Button)consent.FindName("AllowButton");
+                System.Windows.Automation.AutomationProperties.GetName(allow).Should().Be("Allow this connection");
+                System.Windows.Automation.AutomationProperties.GetName(consent)
+                    .Should().Be("HostsGuard connection consent prompt");
+
                 vm.Dispose();
             }
 

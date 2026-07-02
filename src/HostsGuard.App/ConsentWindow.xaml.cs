@@ -42,6 +42,8 @@ public partial class ConsentWindow : Window
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         Tick();
+        // Land keyboard/screen-reader focus on the primary action (NET-080).
+        Loaded += (_, _) => AllowButton.Focus();
         Closed += (_, _) => _timer.Stop();
     }
 

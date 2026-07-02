@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Accessibility pass on the consent prompt (NET-080)** — the focus-stealing,
+  time-boxed consent window now carries AutomationProperties names on every
+  control, explicit tab order, an assertive live-region on the threat banner,
+  and lands keyboard/screen-reader focus on the Allow button; the UI-scale combo
+  gained a name too. The headless WPF smoke asserts the accessible names.
 - **Domain-purpose annotations (NET-078)** — a curated, offline domain→purpose
   map (Little Snitch Research Assistant style) labels known domains ("Microsoft
   telemetry", "Akamai CDN", "Google Analytics") in a new Purpose column on the

@@ -5,6 +5,7 @@
         Width="460" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
+        AutomationProperties.Name="HostsGuard connection consent prompt"
         Background="{DynamicResource Hg.Base}"
         Foreground="{DynamicResource Hg.Text}">
     <Border BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1">
@@ -17,8 +18,10 @@
             </DockPanel>
 
             <Border x:Name="ThreatBanner" Visibility="Collapsed" Margin="0,10,0,0" Padding="8,5"
-                    Background="{DynamicResource Hg.Danger2}" CornerRadius="4">
+                    Background="{DynamicResource Hg.Danger2}" CornerRadius="4"
+                    AutomationProperties.LiveSetting="Assertive">
                 <TextBlock Text="⚠ This remote address is on the threat-intelligence list"
+                           AutomationProperties.Name="Warning: this remote address is on the threat-intelligence list"
                            Foreground="{DynamicResource Hg.OnDanger}" FontWeight="SemiBold" />
             </Border>
 
@@ -50,18 +53,22 @@
 
             <TextBlock Text="Scope" Margin="0,14,0,4" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
             <WrapPanel>
-                <CheckBox x:Name="ScopeRemote" Content="This IP" Margin="0,0,16,0"
+                <CheckBox x:Name="ScopeRemote" Content="This IP" Margin="0,0,16,0" TabIndex="0"
+                          AutomationProperties.Name="Restrict the rule to this remote IP address"
                           Foreground="{DynamicResource Hg.Sub}" />
-                <CheckBox x:Name="ScopePort" Content="This port" Margin="0,0,16,0"
+                <CheckBox x:Name="ScopePort" Content="This port" Margin="0,0,16,0" TabIndex="1"
+                          AutomationProperties.Name="Restrict the rule to this remote port"
                           Foreground="{DynamicResource Hg.Sub}" />
-                <CheckBox x:Name="ScopeProtocol" Content="This protocol"
+                <CheckBox x:Name="ScopeProtocol" Content="This protocol" TabIndex="2"
+                          AutomationProperties.Name="Restrict the rule to this protocol"
                           Foreground="{DynamicResource Hg.Sub}" />
             </WrapPanel>
 
             <DockPanel Margin="0,12,0,0" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="Duration" VerticalAlignment="Center"
                            Margin="0,0,10,0" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
-                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3">
+                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3" TabIndex="3"
+                          AutomationProperties.Name="Rule duration">
                     <ComboBoxItem Tag="once" Content="Once (15 min)" />
                     <ComboBoxItem Tag="1h" Content="1 hour" />
                     <ComboBoxItem Tag="session" Content="This session" />
@@ -73,9 +80,11 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition /> <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="Allow" Margin="0,0,6,0" Padding="8,8"
+                <Button x:Name="AllowButton" Grid.Column="0" Content="Allow" Margin="0,0,6,0" Padding="8,8" TabIndex="4"
+                        AutomationProperties.Name="Allow this connection"
                         Style="{StaticResource Hg.AccentButton}" Click="OnAllow" />
-                <Button Grid.Column="1" Content="Block" Padding="8,8"
+                <Button Grid.Column="1" Content="Block" Padding="8,8" TabIndex="5"
+                        AutomationProperties.Name="Block this connection"
                         Style="{StaticResource Hg.DangerButton}" Click="OnBlock" />
             </Grid>
 
