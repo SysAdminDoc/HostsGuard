@@ -33,10 +33,36 @@ public static partial class Domains
         "edu.au", "ne.jp", "or.jp", "or.kr", "go.jp", "go.kr",
     };
 
+    /// <summary>RFC 1035 limits: whole name ≤ 253 chars, every label ≤ 63.</summary>
+    public static bool WithinDnsLimits(string d)
+    {
+        if (d.Length > 253)
+        {
+            return false;
+        }
+
+        var start = 0;
+        for (var i = 0; i <= d.Length; i++)
+        {
+            if (i == d.Length || d[i] == '.')
+            {
+                if (i - start > 63)
+                {
+                    return false;
+                }
+
+                start = i + 1;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>True if <paramref name="d"/> is a syntactically valid, non-special, non-IP domain.</summary>
     public static bool LooksLikeDomain(string? d) =>
         !string.IsNullOrEmpty(d)
         && d.Contains('.')
+        && WithinDnsLimits(d)
         && DomainRegex().IsMatch(d)
         && !Ipv4Regex().IsMatch(d)
         && !Ignored.Contains(d);

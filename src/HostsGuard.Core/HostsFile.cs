@@ -73,7 +73,7 @@ public static class HostsFile
             return null;
         }
 
-        if (!Domains.DomainRegex().IsMatch(d) && !d.StartsWith('*'))
+        if (!Domains.WithinDnsLimits(d) || (!Domains.DomainRegex().IsMatch(d) && !d.StartsWith('*')))
         {
             return null;
         }

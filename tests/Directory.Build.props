@@ -1,0 +1,13 @@
+<Project>
+  <!-- Inherit the solution-wide standards. -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- Test-only CVE floor: Microsoft.NET.Test.Sdk drags in the vulnerable 4.3.0
+       System.Net.Http (GHSA-7jgj-8wvc-jh57) and System.Text.RegularExpressions
+       (GHSA-cmhx-cq75-c4mj) transitively. They never ship (test host only), but
+       pinning safe versions keeps the vulnerable-package scan clean. -->
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
+  </ItemGroup>
+</Project>
