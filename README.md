@@ -90,7 +90,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Feature | Description |
 |---------|-------------|
 | Connection History | SQLite-backed log of all observed connections with search and export |
-| Event Log | Chronological log of all block, allow, and firewall actions |
+| Event Log | Chronological log of block, allow, firewall, and policy actions with action and reason filters |
 | Statistics Dashboard | Blocked count, allowed count, feed total, today's hits, top blocked domains |
 | DNS Flush | One-click `ipconfig /flushdns` |
 | DNS Resolver Switcher | One-click switch to Cloudflare, Google, Quad9, AdGuard DNS, or NextDNS |
@@ -98,7 +98,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Network Reset | Winsock reset, IP release/renew |
 | Database Sync | Manual hosts-to-DB synchronization |
 | Session Recording | Record DNS + connection events to JSONL for analysis |
-| Export | Export connections as CSV/JSONL, config as JSON |
+| Export | Export connections as CSV/JSONL and config as JSON, including policy reasons |
 
 ### System Features
 
@@ -202,7 +202,7 @@ All data is stored in `%APPDATA%\HostsGuard\`:
 
 | File | Purpose |
 |------|---------|
-| `hostsguard.db` | Domain management, feed, event log, FW state (SQLite WAL) |
+| `hostsguard.db` | Domain management, feed, event log, canonical reasons, FW state (SQLite WAL) |
 | `connections.db` | Connection history (SQLite WAL) |
 | `config.json` | Learning mode, trusted/untrusted processes, notification settings |
 | `doh_resolvers.json` | Refreshed DoH resolver intelligence: source, last update, SHA-256, and validated IP list |
@@ -228,7 +228,7 @@ Run `ipconfig /flushdns` (available in the Tools tab) or wait for the DNS cache 
 Hosts File tab > **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. Firewall Rules tab > **Delete HG Rules** removes all HostsGuard-created firewall rules.
 
 **Q: Can I run this headless / via CLI?**
-Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
+Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts; `/domains` and `/log` include canonical reason values, and `/log?reason=firewall` filters by reason. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
 
 **Q: How do I keep encrypted-DNS blocking current?**
 Use Tools > DNS + Network > **Refresh DoH List**. HostsGuard merges Windows known DoH servers with the built-in resolver list and, if configured, a remote resolver list from `config.json` keys `doh_resolver_url` and `doh_resolver_sha256`. Remote lists are rejected without a SHA-256 value, failed refreshes leave the previous `doh_resolvers.json` intact, and enabling **Block Encrypted DNS** always exempts your current DNS resolver.

@@ -20,6 +20,10 @@ All notable changes to HostsGuard are documented in this file.
   reports source/last-updated status in Tools and `/status`, rolls back failed
   refreshes by leaving the previous state file intact, and recreates DoH/DoT
   firewall rules to avoid duplicates.
+- Added canonical policy reasons for domain, feed, and event-log rows; Managed
+  Domains and Event Log now expose reason filters, config/CLI/service exports
+  include reason values, `/log?reason=<value>` filters service logs, and legacy
+  rows are backfilled or rendered with inferred reasons.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -38,6 +42,11 @@ All notable changes to HostsGuard are documented in this file.
 - Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
   rebuilt the PyInstaller onedir artifact, and passed `py -3.12 HostsGuard.py status`
   after the DoH intelligence change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 94 tests after adding
+  canonical policy reason coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
+  passed `py -3.12 HostsGuard.py status`, and rebuilt the PyInstaller onedir
+  artifact after the reason-tracking change.
 
 ## [v3.15.0] - 2026-07-02
 

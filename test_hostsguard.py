@@ -19,6 +19,7 @@ import threading
 import types
 import urllib.request
 import urllib.error
+from collections import OrderedDict
 from dataclasses import dataclass, field
 import pytest
 
@@ -33,10 +34,12 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_normalize_sha256", "_verify_doh_payload_hash", "_doh_state_payload",
                "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
                "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
-               "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text"}
+               "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text",
+               "canonical_reason", "reason_label"}
 _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
-                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS"}
+                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS",
+                "REASON_LABELS", "_REASON_ALIASES"}
 
 
 def _extract():
@@ -61,7 +64,7 @@ def _extract():
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
-          "urllib": urllib, "hashlib": hashlib}
+          "urllib": urllib, "hashlib": hashlib, "OrderedDict": OrderedDict}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -89,6 +92,8 @@ _current_doh_ips = _m["_current_doh_ips"]
 _doh_rule_ips = _m["_doh_rule_ips"]
 _parse_windows_doh_servers = _m["_parse_windows_doh_servers"]
 refresh_doh_intelligence = _m["refresh_doh_intelligence"]
+canonical_reason = _m["canonical_reason"]
+reason_label = _m["reason_label"]
 APP = _m["APP"]
 VER = _m["VER"]
 SCHEMA_VER = _m["SCHEMA_VER"]
@@ -183,7 +188,7 @@ class TestImportPlanning:
             "trusted": ["Good.EXE", ""],
             "untrusted": ["Bad.EXE"],
         })
-        assert plan["domains"] == [("example.com", "whitelisted", "manual")]
+        assert plan["domains"] == [("example.com", "whitelisted", "manual", "manual")]
         assert plan["fw_state"][0]["action"] == "Block"
         assert plan["trusted"] == ["good.exe"]
         assert plan["untrusted"] == ["bad.exe"]
@@ -237,6 +242,69 @@ class TestImportPlanning:
         assert "new.example.com" not in domains
         assert learn._trusted == {"old.exe"}
         assert learn._untrusted == {"bad.exe"}
+        db.close()
+
+
+class TestReasonTracking:
+    def _open_db(self, path):
+        _m["DB_PATH"] = str(path)
+        return _m["DB"]()
+
+    def test_canonical_reason_covers_policy_sources(self):
+        assert canonical_reason(source="manual", action="blocked") == "manual"
+        assert canonical_reason(source="list:Ads", action="blocked") == "blocklist"
+        assert canonical_reason(source="allowlist", action="whitelisted") == "allowlist"
+        assert canonical_reason(source="schedule", action="blocked") == "schedule"
+        assert canonical_reason(source="service:YouTube", action="blocked") == "service"
+        assert canonical_reason(source="telemetry", action="blocked") == "telemetry"
+        assert canonical_reason(action="fw_blocked", details="Firewall blocked IP") == "firewall"
+        assert canonical_reason(details="Encrypted DNS blocked") == "doh"
+
+    def test_domain_reason_storage_and_filters(self, tmp_path):
+        db = self._open_db(tmp_path / "reasons.db")
+        db.add_domain("manual.example.com", "blocked", "manual")
+        db.add_domains_bulk([
+            ("ads.example.com", "blocked", "list:Ads"),
+            ("allow.example.com", "whitelisted", "allowlist"),
+            ("svc.example.com", "blocked", "service:YouTube"),
+            ("telemetry.example.com", "blocked", "telemetry"),
+            ("scheduled.example.com", "blocked", "schedule"),
+        ])
+        assert {r[0] for r in db.get_domains(reason="manual")} == {"manual.example.com"}
+        assert {r[0] for r in db.get_domains(reason="blocklist")} == {"ads.example.com"}
+        assert {r[0] for r in db.get_domains(reason="allowlist")} == {"allow.example.com"}
+        assert {r[0] for r in db.get_domains(reason="service")} == {"svc.example.com"}
+        assert {r[0] for r in db.get_domains(reason="telemetry")} == {"telemetry.example.com"}
+        assert {r[0] for r in db.get_domains(reason="schedule")} == {"scheduled.example.com"}
+        db.close()
+
+    def test_log_reason_storage_and_filters(self, tmp_path):
+        db = self._open_db(tmp_path / "log-reasons.db")
+        db.log_event("manual.example.com", "blocked", "", "Hosts block", "manual")
+        db.log_event("list:Ads", "blocked", "", "Blocklist imported", "blocklist")
+        db.log_event("allowlist", "whitelisted", "", "Allowlist applied", "allowlist")
+        db.log_event("service:YouTube", "blocked", "", "Service preset enabled", "service")
+        db.log_event("windows_telemetry", "blocked", "", "Telemetry preset enabled", "telemetry")
+        db.log_event("encrypted_dns", "fw_blocked", "", "Encrypted DNS blocked", "doh")
+        db.log_event("8.8.8.8", "fw_blocked", "", "Firewall blocked IP", "firewall")
+        assert [r[2] for r in db.get_log(reason_filter="manual")] == ["manual.example.com"]
+        assert [r[2] for r in db.get_log(reason_filter="blocklist")] == ["list:Ads"]
+        assert [r[2] for r in db.get_log(reason_filter="allowlist")] == ["allowlist"]
+        assert [r[2] for r in db.get_log(reason_filter="service")] == ["service:YouTube"]
+        assert [r[2] for r in db.get_log(reason_filter="telemetry")] == ["windows_telemetry"]
+        assert [r[2] for r in db.get_log(reason_filter="doh")] == ["encrypted_dns"]
+        assert [r[2] for r in db.get_log(reason_filter="firewall")] == ["8.8.8.8"]
+        db.close()
+
+    def test_feed_reason_defaults_and_domain_reason_overlay(self, tmp_path):
+        db = self._open_db(tmp_path / "feed-reasons.db")
+        assert db.feed_upsert("observed.example.com", "browser.exe") is True
+        rows = db.feed_get()
+        assert rows[0][0] == "observed.example.com"
+        assert rows[0][8] == "observed"
+        db.add_domain("observed.example.com", "blocked", "list:Ads")
+        rows = db.feed_get()
+        assert rows[0][8] == "blocklist"
         db.close()
 
 
@@ -563,27 +631,28 @@ class TestDomainUpsert:
     def _mkdb(self):
         c = sqlite3.connect(":memory:")
         c.execute("CREATE TABLE domains(domain TEXT PRIMARY KEY,status TEXT DEFAULT 'blocked',"
-                  "category TEXT,source TEXT,added TEXT,modified TEXT,hits INTEGER DEFAULT 0,notes TEXT)")
+                  "category TEXT,source TEXT,reason TEXT,added TEXT,modified TEXT,hits INTEGER DEFAULT 0,notes TEXT)")
         return c
 
-    _UPSERT = ("""INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,0)
+    _UPSERT = ("""INSERT INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,?,0)
                 ON CONFLICT(domain) DO UPDATE SET status=excluded.status,modified=excluded.modified,
                 source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END,
+                reason=CASE WHEN excluded.reason!='' THEN excluded.reason ELSE domains.reason END,
                 category=CASE WHEN excluded.category!='' THEN excluded.category ELSE domains.category END""")
 
     def test_reblock_preserves_notes_added_hits(self):
         c = self._mkdb()
-        c.execute("INSERT INTO domains(domain,status,category,source,added,modified,hits,notes)"
-                  "VALUES('x.com','blocked','Ads','manual','2020-01-01','2020-01-01',7,'note')")
-        c.execute(self._UPSERT, ('x.com', 'whitelisted', '', '', '2026-01-01', '2026-01-01'))
-        row = c.execute("SELECT status,category,source,added,hits,notes FROM domains WHERE domain='x.com'").fetchone()
-        assert row == ('whitelisted', 'Ads', 'manual', '2020-01-01', 7, 'note')
+        c.execute("INSERT INTO domains(domain,status,category,source,reason,added,modified,hits,notes)"
+                  "VALUES('x.com','blocked','Ads','manual','manual','2020-01-01','2020-01-01',7,'note')")
+        c.execute(self._UPSERT, ('x.com', 'whitelisted', '', '', '', '2026-01-01', '2026-01-01'))
+        row = c.execute("SELECT status,category,source,reason,added,hits,notes FROM domains WHERE domain='x.com'").fetchone()
+        assert row == ('whitelisted', 'Ads', 'manual', 'manual', '2020-01-01', 7, 'note')
 
     def test_new_source_overrides(self):
         c = self._mkdb()
-        c.execute(self._UPSERT, ('y.com', 'blocked', '', 'manual', '2026', '2026'))
-        c.execute(self._UPSERT, ('y.com', 'blocked', '', 'list:foo', '2026', '2026'))
-        assert c.execute("SELECT source FROM domains WHERE domain='y.com'").fetchone()[0] == 'list:foo'
+        c.execute(self._UPSERT, ('y.com', 'blocked', '', 'manual', 'manual', '2026', '2026'))
+        c.execute(self._UPSERT, ('y.com', 'blocked', '', 'list:foo', 'blocklist', '2026', '2026'))
+        assert c.execute("SELECT source,reason FROM domains WHERE domain='y.com'").fetchone() == ('list:foo', 'blocklist')
 
 
 class TestLegacyMigrationIntegration:

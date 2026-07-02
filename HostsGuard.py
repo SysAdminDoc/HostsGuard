@@ -13,7 +13,7 @@ from collections import OrderedDict,defaultdict
 from dataclasses import dataclass,field
 from queue import Queue,Empty
 from threading import Lock,Event as TEvent
-import urllib.request,urllib.error
+import urllib.request,urllib.error,urllib.parse
 
 
 def _is_frozen():
@@ -134,7 +134,7 @@ try:
     log.addHandler(_fh)
 except: pass
 log.setLevel(logging.WARNING)
-SCHEMA_VER=6
+SCHEMA_VER=7
 WINDOWS_HEADER=["# Copyright (c) 1993-2009 Microsoft Corp.","#","# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.","#",
     "# localhost name resolution is handled within DNS itself.","#    127.0.0.1       localhost","#    ::1             localhost",""]
 IGNORED={'localhost','broadcasthost','local','ip6-localhost','ip6-loopback','ip6-localnet','ip6-mcastprefix','ip6-allnodes',
@@ -240,6 +240,54 @@ MS_TELEMETRY=[
 # (svchost) spikes CPU and resolution slows. Warn before importing these.
 _LARGE_LISTS={"HaGezi Ultimate","OISD Full","StevenBlack Unified","HOSTShield Combined"}
 LARGE_HOSTS_WARN=100_000  # hosts-file entry count above which we surface a CPU warning
+REASON_LABELS=OrderedDict([
+    ("manual","Manual"),
+    ("blocklist","Blocklist"),
+    ("allowlist","Allowlist"),
+    ("schedule","Schedule"),
+    ("service","Service"),
+    ("telemetry","Telemetry"),
+    ("doh","Encrypted DNS"),
+    ("firewall","Firewall"),
+    ("import","Import"),
+    ("hosts_file","Hosts File"),
+    ("cli","CLI"),
+    ("service_api","Service API"),
+    ("observed","Observed"),
+    ("unknown","Unknown"),
+])
+_REASON_ALIASES={"allow":"manual","allowed":"manual","whitelist":"allowlist","whitelisted":"allowlist",
+    "list":"blocklist","blocklists":"blocklist","firewall_blocked":"firewall","fw":"firewall",
+    "rpc":"service_api","api":"service_api","temp_allow":"manual","temp_reverted":"manual",
+    "paste":"manual"}
+
+def canonical_reason(reason='',source='',action='',details=''):
+    r=str(reason or '').strip().lower().replace(" ","_").replace("-","_")
+    r=_REASON_ALIASES.get(r,r)
+    if r in REASON_LABELS: return r
+    src=str(source or '').strip().lower()
+    if src.startswith("list:"): return "blocklist"
+    if src.startswith("service:"): return "service"
+    src=_REASON_ALIASES.get(src,src)
+    if src in REASON_LABELS: return src
+    detail=str(details or '').strip().lower()
+    action=str(action or '').strip().lower()
+    if action=="fw_blocked" or "firewall" in detail: return "firewall"
+    if "doh" in detail or "encrypted dns" in detail: return "doh"
+    if "telemetry" in detail: return "telemetry"
+    if "schedule" in detail: return "schedule"
+    if "allowlist" in detail: return "allowlist"
+    if "blocklist" in detail or "imported" in detail: return "blocklist"
+    if "rpc" in detail or "json-rpc" in detail: return "service_api"
+    if "cli" in detail: return "cli"
+    if "import" in detail: return "import"
+    if "hosts file" in detail or "blocked by hosts" in detail: return "hosts_file"
+    if action in ("blocked","whitelisted"): return "manual"
+    return "unknown"
+
+def reason_label(reason):
+    r=canonical_reason(reason)
+    return REASON_LABELS.get(r,REASON_LABELS["unknown"])
 
 # ─── Config ─────────────────────────────────────────────────────────────────
 # Defined before the Theme section: _load_theme() runs at import time and
@@ -681,6 +729,16 @@ class DB:
                 s.conn.execute("CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY,created TEXT)")
                 s.conn.execute("CREATE TABLE IF NOT EXISTS profile_rules(id INTEGER PRIMARY KEY,profile TEXT,domain TEXT,status TEXT DEFAULT 'blocked',source TEXT)")
                 s.conn.execute("INSERT OR IGNORE INTO profiles(name,created)VALUES('Default',?)",(datetime.datetime.now().isoformat(),))
+            if v<7:
+                for table,ddl in (
+                    ("domains","ALTER TABLE domains ADD COLUMN reason TEXT DEFAULT ''"),
+                    ("feed","ALTER TABLE feed ADD COLUMN reason TEXT DEFAULT 'observed'"),
+                    ("log","ALTER TABLE log ADD COLUMN reason TEXT DEFAULT ''"),
+                    ("profile_rules","ALTER TABLE profile_rules ADD COLUMN reason TEXT DEFAULT ''"),
+                ):
+                    try: s.conn.execute(ddl)
+                    except sqlite3.OperationalError: pass
+                s._backfill_reasons()
             s.conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',?)",(str(SCHEMA_VER),))
             s.conn.commit()
         except Exception:
@@ -688,6 +746,20 @@ class DB:
             except Exception: pass
             if s._migration_backup: log.warning(f"DB migration failed; backup preserved: {s._migration_backup}")
             raise
+    def _backfill_reasons(s):
+        try:
+            for d,st,src,reason in s.conn.execute("SELECT domain,status,source,COALESCE(reason,'') FROM domains").fetchall():
+                cr=canonical_reason(reason,src,st)
+                if cr!=reason: s.conn.execute("UPDATE domains SET reason=? WHERE domain=?",(cr,d))
+            for rid,action,det,reason in s.conn.execute("SELECT id,action,details,COALESCE(reason,'') FROM log").fetchall():
+                cr=canonical_reason(reason,action=action,details=det)
+                if cr!=reason: s.conn.execute("UPDATE log SET reason=? WHERE id=?",(cr,rid))
+            s.conn.execute("UPDATE feed SET reason='observed' WHERE reason IS NULL OR reason=''")
+            for rid,st,src,reason in s.conn.execute("SELECT id,status,source,COALESCE(reason,'') FROM profile_rules").fetchall():
+                cr=canonical_reason(reason,src,st)
+                if cr!=reason: s.conn.execute("UPDATE profile_rules SET reason=? WHERE id=?",(cr,rid))
+        except Exception as e:
+            log.warning(f"reason backfill: {e}")
     def _x(s,sql,p=(),many=False):
         with s._lock:
             try:
@@ -700,16 +772,18 @@ class DB:
             try: return s.conn.execute(sql,p).fetchall()
             except Exception as e: log.warning(f"DB query: {e} | {sql[:80]}"); return []
     # Domains
-    def add_domain(s,d,status='blocked',source='',cat=''):
+    def add_domain(s,d,status='blocked',source='',cat='',reason=''):
         now=datetime.datetime.now().isoformat()
+        reason=canonical_reason(reason,source,status)
         # UPSERT that preserves original added-date, hits, notes, and existing
         # category — the old INSERT OR REPLACE reset added and wiped notes/category
         # on every re-block.
-        s._x("""INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,0)
+        s._x("""INSERT INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,?,0)
                 ON CONFLICT(domain) DO UPDATE SET status=excluded.status,modified=excluded.modified,
                 source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END,
+                reason=CASE WHEN excluded.reason!='' THEN excluded.reason ELSE domains.reason END,
                 category=CASE WHEN excluded.category!='' THEN excluded.category ELSE domains.category END""",
-              (d,status,cat,source,now,now))
+              (d,status,cat,source,reason,now,now))
         s._blocked_cache=None
     def add_domains_bulk(s,rows):
         """Bulk UPSERT (domain,status,source) tuples in ONE transaction. Blocklist
@@ -718,44 +792,55 @@ class DB:
         allowlist entries win over blocklists."""
         if not rows: return 0
         now=datetime.datetime.now().isoformat()
+        norm=[]
+        for row in rows:
+            if len(row)>=4: d,st,src,reason=row[:4]
+            else: d,st,src=row[:3]; reason=''
+            norm.append((d,st,src,canonical_reason(reason,src,st),now,now))
         with s._lock:
             try:
                 s.conn.executemany(
-                    """INSERT INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,'',?,?,?,0)
+                    """INSERT INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,'',?,?,?,?,0)
                        ON CONFLICT(domain) DO UPDATE SET
                        status=CASE WHEN domains.status='whitelisted' AND excluded.status='blocked' THEN 'whitelisted' ELSE excluded.status END,
                        modified=excluded.modified,
-                       source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END""",
-                    [(d,st,src,now,now) for d,st,src in rows])
+                       source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END,
+                       reason=CASE WHEN domains.status='whitelisted' AND excluded.status='blocked' THEN domains.reason
+                                   WHEN excluded.reason!='' THEN excluded.reason ELSE domains.reason END""",
+                    norm)
                 s.conn.commit()
             except Exception as e: log.warning(f"add_domains_bulk: {e}"); return 0
         s._blocked_cache=None
         return len(rows)
-    def get_domains(s,status=None,search=None,source=None):
-        q="SELECT domain,status,category,source,added,modified,hits,notes FROM domains WHERE 1=1"
+    def get_domains(s,status=None,search=None,source=None,reason=None):
+        q="SELECT domain,status,category,source,added,modified,hits,notes,reason FROM domains WHERE 1=1"
         p=[]
         if status: q+=" AND status=?"; p.append(status)
         if source: q+=" AND source=?"; p.append(source)
+        if reason and reason!='all': q+=" AND reason=?"; p.append(canonical_reason(reason))
         if search: q+=" AND domain LIKE ?"; p.append(f"%{search}%")
         return s._q(q+" ORDER BY modified DESC",p)
     def get_sources(s):
         return [r[0] for r in s._q("SELECT DISTINCT source FROM domains WHERE source!='' ORDER BY source")]
+    def get_domain_reasons(s):
+        return [r[0] for r in s._q("SELECT DISTINCT reason FROM domains WHERE reason!='' ORDER BY reason")]
     def toggle_source(s,source,new_status):
         now=datetime.datetime.now().isoformat()
-        s._x("UPDATE domains SET status=?,modified=? WHERE source=?",(new_status,now,source))
+        s._x("UPDATE domains SET status=?,reason=?,modified=? WHERE source=?",(new_status,canonical_reason(source=source,action=new_status),now,source))
         s._blocked_cache=None
     def remove_domain(s,d): s._x("DELETE FROM domains WHERE domain=?",((d,))); s._blocked_cache=None
     def update_status(s,d,st):
-        s._x("UPDATE domains SET status=?,modified=? WHERE domain=?",(st,datetime.datetime.now().isoformat(),d))
+        s._x("UPDATE domains SET status=?,reason=?,modified=? WHERE domain=?",(st,canonical_reason(action=st),datetime.datetime.now().isoformat(),d))
         s._blocked_cache=None
     def add_root(s,d,status,source):
         root=get_root(d); now=datetime.datetime.now().isoformat()
+        reason=canonical_reason(source=source,action=status)
         with s._lock:
             try:
                 rows=s.conn.execute("SELECT domain FROM feed WHERE domain=? OR domain LIKE ?",(root,f"%.{root}")).fetchall()
                 for r in rows:
-                    s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(r[0],status,'',source,now,now,r[0]))
-                s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(root,status,'',source,now,now,root))
+                    s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(r[0],status,'',source,reason,now,now,r[0]))
+                s.conn.execute("INSERT OR REPLACE INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,?,COALESCE((SELECT hits FROM domains WHERE domain=?),0))",(root,status,'',source,reason,now,now,root))
                 s.conn.commit(); s._blocked_cache=None
             except Exception as e: log.warning(f"add_root: {e}"); return 0
         return len(rows)+1
@@ -794,20 +879,20 @@ class DB:
     def save_profile_snapshot(s,name):
         """Save current domains table state as a profile snapshot."""
         s._x("DELETE FROM profile_rules WHERE profile=?",(name,))
-        rows=s._q("SELECT domain,status,source FROM domains")
-        s._x("INSERT INTO profile_rules(profile,domain,status,source)VALUES(?,?,?,?)",
-            [(name,r[0],r[1],r[2]) for r in rows],many=True)
+        rows=s._q("SELECT domain,status,source,reason FROM domains")
+        s._x("INSERT INTO profile_rules(profile,domain,status,source,reason)VALUES(?,?,?,?,?)",
+            [(name,r[0],r[1],r[2],r[3]) for r in rows],many=True)
     def load_profile(s,name):
         """Restore domains table from a profile snapshot. An empty snapshot is a
         valid profile (block nothing) — it must still clear the domains table, or
         switching to it silently leaves the previous profile applied."""
-        rows=s._q("SELECT domain,status,source FROM profile_rules WHERE profile=?",(name,))
+        rows=s._q("SELECT domain,status,source,reason FROM profile_rules WHERE profile=?",(name,))
         now=datetime.datetime.now().isoformat()
         with s._lock:
             s.conn.execute("DELETE FROM domains")
             if rows:
-                s.conn.executemany("INSERT INTO domains(domain,status,source,added,modified,hits)VALUES(?,?,?,?,?,0)",
-                    [(r[0],r[1],r[2] or '',now,now) for r in rows])
+                s.conn.executemany("INSERT INTO domains(domain,status,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,0)",
+                    [(r[0],r[1],r[2] or '',r[3] or canonical_reason(source=r[2],action=r[1]),now,now) for r in rows])
             s.conn.commit()
         s._blocked_cache=None; return len(rows)
     # Feed
@@ -825,9 +910,9 @@ class DB:
                     hr=s.conn.execute("SELECT 1 FROM hidden_roots WHERE root=?",(root,)).fetchone()
                     if hr:
                         # Insert as pre-hidden so it never surfaces
-                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden)VALUES(?,?,?,1,?,1)",(d,now,now,proc))
+                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason)VALUES(?,?,?,1,?,1,'observed')",(d,now,now,proc))
                         s.conn.commit(); return False
-                    s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process)VALUES(?,?,?,1,?)",(d,now,now,proc))
+                    s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,reason)VALUES(?,?,?,1,?,'observed')",(d,now,now,proc))
                 s.conn.commit(); return r is None
             except Exception as e: log.warning(f"feed_upsert {d}: {e}"); return False
     def feed_upsert_batch(s,domains):
@@ -845,16 +930,17 @@ class DB:
                         if r[0]==1: continue
                         s.conn.execute("UPDATE feed SET last_seen=?,hits=hits+1 WHERE domain=?",(now,d))
                     elif get_root(d) in hidden_roots:
-                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden)VALUES(?,?,?,1,'',1)",(d,now,now))
+                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason)VALUES(?,?,?,1,'',1,'observed')",(d,now,now))
                     else:
-                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process)VALUES(?,?,?,1,'')",(d,now,now))
+                        s.conn.execute("INSERT INTO feed(domain,first_seen,last_seen,hits,process,reason)VALUES(?,?,?,1,'','observed')",(d,now,now))
                         new.append(d)
                 s.conn.commit()
             except Exception as e: log.warning(f"feed_upsert_batch: {e}")
         return new
     def feed_get(s,search=None,show_hidden=False,status_filter=None):
         q="""SELECT f.domain,f.first_seen,f.last_seen,f.hits,f.process,f.hidden,
-            COALESCE(d.status,'unmanaged'),d.source FROM feed f LEFT JOIN domains d ON f.domain=d.domain WHERE 1=1"""
+            COALESCE(d.status,'unmanaged'),d.source,COALESCE(NULLIF(d.reason,''),f.reason,'observed')
+            FROM feed f LEFT JOIN domains d ON f.domain=d.domain WHERE 1=1"""
         p=[]
         if not show_hidden: q+=" AND f.hidden=0"
         else: q+=" AND f.hidden=1"
@@ -894,27 +980,34 @@ class DB:
         hosts_blocked=hm.get_blocked()
         if not hosts_blocked: return 0
         db_all={r[0] for r in s._q("SELECT domain FROM domains")}
-        new_domains=[(d,'blocked','','hosts_file',datetime.datetime.now().isoformat()) for d in hosts_blocked if d not in db_all]
+        new_domains=[(d,'blocked','','hosts_file','hosts_file',datetime.datetime.now().isoformat()) for d in hosts_blocked if d not in db_all]
         if not new_domains:
             return 0
         with s._lock:
             try:
                 s.conn.executemany(
-                    "INSERT OR IGNORE INTO domains(domain,status,category,source,added,modified,hits)VALUES(?,?,?,?,?,?,0)",
-                    [(d,st,cat,src,ts,ts) for d,st,cat,src,ts in new_domains])
+                    "INSERT OR IGNORE INTO domains(domain,status,category,source,reason,added,modified,hits)VALUES(?,?,?,?,?,?,?,0)",
+                    [(d,st,cat,src,reason,ts,ts) for d,st,cat,src,reason,ts in new_domains])
                 s.conn.commit()
             except Exception as e: log.warning(f"DB sync: {e}"); return 0
         s._blocked_cache=None
         return len(new_domains)
     # Log
-    def log_event(s,d,action,proc='',det=''):
-        s._x("INSERT INTO log(ts,domain,action,process,details)VALUES(?,?,?,?,?)",(datetime.datetime.now().isoformat(),d,action,proc,det))
-    def get_log(s,limit=200,domain_filter=None,action_filter='all',since=None):
-        q="SELECT id,ts,domain,action,process,details FROM log WHERE 1=1"; p=[]
+    def log_event(s,d,action,proc='',det='',reason=''):
+        reason=canonical_reason(reason,action=action,details=det)
+        s._x("INSERT INTO log(ts,domain,action,process,details,reason)VALUES(?,?,?,?,?,?)",(datetime.datetime.now().isoformat(),d,action,proc,det,reason))
+    def get_log(s,limit=200,domain_filter=None,action_filter='all',since=None,reason_filter=None):
+        q="SELECT id,ts,domain,action,process,details,reason FROM log WHERE 1=1"; p=[]
         if domain_filter: q+=" AND domain LIKE ?"; p.append(f"%{domain_filter}%")
         if action_filter and action_filter!='all': q+=" AND action=?"; p.append(action_filter)
         if since: q+=" AND ts>=?"; p.append(since)
-        p.append(limit); return s._q(q+" ORDER BY ts DESC LIMIT ?",p)
+        fetch_limit=max(int(limit or 200),2000) if reason_filter and reason_filter!='all' else int(limit or 200)
+        p.append(fetch_limit); rows=s._q(q+" ORDER BY ts DESC LIMIT ?",p)
+        rows=[(rid,ts,d,a,proc,det,canonical_reason(reason,action=a,details=det)) for rid,ts,d,a,proc,det,reason in rows]
+        if reason_filter and reason_filter!='all':
+            rf=canonical_reason(reason_filter)
+            rows=[r for r in rows if r[6]==rf][:int(limit or 200)]
+        return rows
     def clear_log(s): s._x("DELETE FROM log")
     def prune_log(s,keep=20000):
         s._x("DELETE FROM log WHERE id NOT IN (SELECT id FROM log ORDER BY id DESC LIMIT ?)",(keep,))
@@ -1732,7 +1825,7 @@ class DNSMonitor(QThread):
             ev={'domain':d,'ts':datetime.datetime.now().isoformat(),'process':proc}
             s.dns_event.emit(ev)
             if d in blocked:
-                s.db.log_event(d,'blocked',proc,'Blocked by hosts')
+                s.db.log_event(d,'blocked',proc,'Blocked by hosts','hosts_file')
                 s.blocked_event.emit(ev)
             s.updated.emit()
         s._trim_seen()
@@ -1760,7 +1853,7 @@ class DNSMonitor(QThread):
                 ev={'domain':d,'ts':datetime.datetime.now().isoformat()}
                 s.dns_event.emit(ev)
                 if d in blocked:
-                    s.db.log_event(d,'blocked','','Blocked by hosts')
+                    s.db.log_event(d,'blocked','','Blocked by hosts','hosts_file')
                     s.blocked_event.emit(ev)
             if new: s.updated.emit()
             s._trim_seen()
@@ -2285,7 +2378,9 @@ def _build_import_plan(data):
             errors.append(f"domains[{i}]: invalid status"); continue
         if dom in seen:
             errors.append(f"domains[{i}]: duplicate domain {dom}"); continue
-        seen.add(dom); rows.append((dom,st,str(d.get('source','import') or 'import')[:120]))
+        src=str(d.get('source','import') or 'import')[:120]
+        rows.append((dom,st,src,canonical_reason(d.get('reason',''),src,st)))
+        seen.add(dom)
     fw_rows=[]
     for i,r in enumerate(_import_list(data,'fw_state',errors),1):
         if not isinstance(r,dict):
@@ -2811,20 +2906,20 @@ class HostsActivityTab(QWidget):
         if it: open_research(it.text())
     # Actions
     def _act_block(s,d):
-        s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s.db.log_event(d,'blocked','','Hosts block')
+        s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s.db.log_event(d,'blocked','','Hosts block','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {d}",C['red'])
     def _act_block_root(s,d):
-        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root); s.db.log_event(root,'blocked','','Hosts block root')
+        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root); s.db.log_event(root,'blocked','','Hosts block root','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {root}",C['red'])
     def _act_allow(s,d):
-        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed')
+        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d}",C['green'])
     def _act_allow_root(s,d):
-        root=get_root(d); s.db.add_root(d,'whitelisted','manual'); s.hm.unblock(root); s.db.log_event(root,'whitelisted','','Allowed root')
+        root=get_root(d); s.db.add_root(d,'whitelisted','manual'); s.hm.unblock(root); s.db.log_event(root,'whitelisted','','Allowed root','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {root}",C['green'])
     def _act_temp_allow(s,d,mins):
         s.db.add_domain(d,'whitelisted','temp_allow'); s.hm.unblock(d)
-        s.db.log_event(d,'whitelisted','',f'Temp allow {mins}m')
+        s.db.log_event(d,'whitelisted','',f'Temp allow {mins}m','manual')
         cfg=load_cfg(); ta=cfg.get('temp_allows',{}); ta[d]=time.time()+mins*60
         cfg['temp_allows']=ta; save_cfg(cfg)
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d} for {mins}m",C['green'])
@@ -2837,7 +2932,7 @@ class HostsActivityTab(QWidget):
         r=s.db._q("SELECT source FROM domains WHERE domain=?",(d,))
         if not r or r[0][0]!='temp_allow': return
         s.db.add_domain(d,'blocked','temp_reverted'); s.hm.block(d)
-        s.db.log_event(d,'blocked','','Temp allow expired')
+        s.db.log_event(d,'blocked','','Temp allow expired','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Temp allow expired: {d}",C['red'])
     def resume_temp_allows(s):
         """Re-arm temp-allow expiry timers after restart; revert already-expired ones."""
@@ -3157,26 +3252,30 @@ class FWActivityTab(QWidget):
              'reset_trust':lambda t:(s.learn.reset(t),s._toast(f"Reset {t}",C['dim']))}.get(a,lambda t:None)(t)
     # Actions — Hosts
     def _act_block(s,d):
-        s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s.db.log_event(d,'blocked','','Hosts block')
+        s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s.db.log_event(d,'blocked','','Hosts block','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {d}",C['red'])
     def _act_block_root(s,d):
-        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root); s.db.log_event(root,'blocked','','Hosts block root')
+        root=get_root(d); s.db.add_root(d,'blocked','manual'); s.hm.block(root); s.db.log_event(root,'blocked','','Hosts block root','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Blocked {root}",C['red'])
     def _act_allow(s,d):
-        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed')
+        s.db.add_domain(d,'whitelisted','manual'); s.hm.unblock(d); s.db.log_event(d,'whitelisted','','Allowed','manual')
         s._last_hash=0; s._refresh(); s._toast(f"Allowed {d}",C['green'])
     # Actions — Firewall
     def _fw_ip(s,ip):
         n=fw.block_ip(ip); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
+        if n: s.db.log_event(ip,'fw_blocked','','Firewall blocked IP outbound','firewall')
         s._toast(f"Firewall blocked {ip} outbound" if n else "Rule already exists",C['red'] if n else C['dim'])
     def _fw_ip_both(s,ip):
         created=fw.block_ip_both(ip); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
+        if created: s.db.log_event(ip,'fw_blocked','',f'Firewall blocked IP in+out ({len(created)} rules)','firewall')
         s._toast(f"Blocked {ip} in+out ({len(created)} rules)" if created else "Rules already exist",C['red'] if created else C['dim'])
     def _fw_prog(s,path):
         n=fw.block_program(path); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
+        if n: s.db.log_event(path,'fw_blocked','','Firewall blocked program outbound','firewall')
         s._toast(f"Firewall blocked {Path(path).name} outbound" if n else "Rule already exists",C['red'] if n else C['dim'])
     def _fw_prog_both(s,path):
         created=fw.block_program_both(path); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
+        if created: s.db.log_event(path,'fw_blocked','',f'Firewall blocked program in+out ({len(created)} rules)','firewall')
         s._toast(f"Blocked {Path(path).name} in+out ({len(created)} rules)" if created else "Rules already exist",C['red'] if created else C['dim'])
     def _fw_allow_prog(s,path):
         name=f"{FW_PFX}Allow_{Path(path).stem}"
@@ -3188,7 +3287,8 @@ class FWActivityTab(QWidget):
         pf={'addr':ci.ra,'prog':ci.path or '','proto':ci.proto,'name':f'{FW_PFX}Block_{ci.proc.replace(".exe","")}'}
         dlg=NewRuleDlg(s,pf)
         if dlg.exec_()==QDialog.Accepted:
-            dd=dlg.data(); fw.create(dd['name'],dd['dir'],dd['action'],dd.get('addr',''),dd.get('proto',''),dd.get('prog',''))
+            dd=dlg.data(); ok=fw.create(dd['name'],dd['dir'],dd['action'],dd.get('addr',''),dd.get('proto',''),dd.get('prog',''))
+            if ok: s.db.log_event(dd['name'],'fw_blocked' if dd['action']=='Block' else 'fw_allowed','',f"Firewall custom rule {dd['action']}",'firewall')
             s._rebuild_fw_cache(); s._last_hash=0; s._refresh(); s._toast(f"Created {dd['name']}",C['green'])
     def _kill(s,pid,name):
         if pid>0 and fw.kill_conn(pid): s._toast(f"Killed {name}",C['peach'])
@@ -3231,13 +3331,16 @@ class HostsTab(QWidget):
         s.d_search.textChanged.connect(s._load_d); tr.addWidget(s.d_search,1)
         s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.setAccessibleName("Filter managed domains by status"); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
         s.d_src=QComboBox(); s.d_src.addItem("All Sources"); s.d_src.setAccessibleName("Filter managed domains by source"); s.d_src.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_src)
+        s.d_reason=QComboBox(); s.d_reason.addItem("All Reasons","all")
+        for key,label in REASON_LABELS.items(): s.d_reason.addItem(label,key)
+        s.d_reason.setAccessibleName("Filter managed domains by reason"); s.d_reason.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_reason)
         tr.addWidget(_tbtn("Refresh","dim",s._sync_and_load,65))
         tr.addWidget(_tbtn("Add Domain","primary",s._add,88)); tr.addWidget(_tbtn("Sync to Hosts","dim",s._sync,105))
         dl.addLayout(tr)
-        s.d_tbl=_tbl(["Domain","Status","Source","Hits","Modified"],0)
+        s.d_tbl=_tbl(["Domain","Status","Reason","Source","Hits","Modified"],0)
         s.d_tbl.set_empty_state("No managed domains","Add a domain, import a list, or sync the hosts file to build a policy.","◆")
         s.d_tbl.setAccessibleName("Managed domains table")
-        s.d_tbl.setColumnWidth(1,_dp(85)); s.d_tbl.setColumnWidth(2,_dp(90)); s.d_tbl.setColumnWidth(3,_dp(50)); s.d_tbl.setColumnWidth(4,_dp(140))
+        s.d_tbl.setColumnWidth(1,_dp(85)); s.d_tbl.setColumnWidth(2,_dp(95)); s.d_tbl.setColumnWidth(3,_dp(100)); s.d_tbl.setColumnWidth(4,_dp(50)); s.d_tbl.setColumnWidth(5,_dp(140))
         s.d_tbl.customContextMenuRequested.connect(s._d_ctx); dl.addWidget(s.d_tbl,1)
         s.d_info=QLabel(""); s.d_info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); dl.addWidget(s.d_info)
         s._d_overlay=LoadingOverlay(s.d_tbl)
@@ -3350,7 +3453,8 @@ class HostsTab(QWidget):
         q=s.d_search.text().strip() or None; f=s.d_filt.currentText().lower()
         st=None if f=='all' else f.replace('allowed','whitelisted')
         src=s.d_src.currentText() if s.d_src.currentIndex()>0 else None
-        rows=s.db.get_domains(status=st,search=q,source=src)
+        reason=s.d_reason.currentData() if hasattr(s,'d_reason') else None
+        rows=s.db.get_domains(status=st,search=q,source=src,reason=reason)
         srcs=s.db.get_sources()
         s.d_src.blockSignals(True)
         cur=s.d_src.currentText(); s.d_src.clear(); s.d_src.addItem("All Sources")
@@ -3359,11 +3463,12 @@ class HostsTab(QWidget):
         if idx>=0: s.d_src.setCurrentIndex(idx)
         s.d_src.blockSignals(False)
         s.d_tbl.setSortingEnabled(False); s.d_tbl.setRowCount(len(rows))
-        for i,(domain,status,cat,source,added,mod,hits,notes) in enumerate(rows):
+        for i,(domain,status,cat,source,added,mod,hits,notes,reason) in enumerate(rows):
             _icon_item(s.d_tbl,i,0,domain,domain)
             s.d_tbl.setCellWidget(i,1,_badge(status.upper(),C['red'] if status=='blocked' else C['green']))
-            s.d_tbl.setItem(i,2,QTableWidgetItem((source or "")[:20]))
-            s.d_tbl.setItem(i,3,_num_item(hits)); s.d_tbl.setItem(i,4,QTableWidgetItem((mod or "")[:19]))
+            s.d_tbl.setItem(i,2,QTableWidgetItem(reason_label(reason)))
+            s.d_tbl.setItem(i,3,QTableWidgetItem((source or "")[:20]))
+            s.d_tbl.setItem(i,4,_num_item(hits)); s.d_tbl.setItem(i,5,QTableWidgetItem((mod or "")[:19]))
         s.d_tbl.setSortingEnabled(True)
         bl=sum(1 for r in rows if r[1]=='blocked'); wl=sum(1 for r in rows if r[1]=='whitelisted')
         s.d_info.setText(f"{len(rows)} domains \u00B7 {bl} blocked \u00B7 {wl} allowed")
@@ -3417,11 +3522,13 @@ class HostsTab(QWidget):
         if not domains: return
         if on:
             ct=s.hm.block_bulk(domains)
-            s.db.add_domains_bulk([(d.lower(),'blocked',f'service:{name}') for d in domains])
+            s.db.add_domains_bulk([(d.lower(),'blocked',f'service:{name}','service') for d in domains])
+            s.db.log_event(f'service:{name}','blocked','',f'Service preset enabled ({len(domains)} domains)','service')
             s._toast(f"Blocked {name} ({ct} new)",C['red'])
         else:
             for d in domains: s.hm.unblock(d,flush=False); s.db.remove_domain(d)
             s.hm._flush()
+            s.db.log_event(f'service:{name}','whitelisted','','Service preset removed','service')
             s._toast(f"Unblocked {name}",C['green'])
         if s._sub.currentIndex()==0: s._load_d()
     def _toggle_src(s,source,new_status):
@@ -3570,12 +3677,12 @@ class HostsTab(QWidget):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
         if not ds: s._toast("No valid domains to add",C['peach']); return
         ct=s.hm.block_bulk(ds)
-        s.db.add_domains_bulk([(d,'blocked','paste') for d in ds])
+        s.db.add_domains_bulk([(d,'blocked','paste','manual') for d in ds])
         s._toast(f"Added {ct} to hosts file",C['green']); s.paste.clear(); s._load_d()
     def _paste_db(s):
         ds=[d.strip().lower() for d in s.paste.toPlainText().splitlines() if looks_like_domain(d.strip().lower())]
         if not ds: s._toast("No valid domains to add",C['peach']); return
-        s.db.add_domains_bulk([(d,'blocked','paste') for d in ds])
+        s.db.add_domains_bulk([(d,'blocked','paste','manual') for d in ds])
         s._toast(f"Added {len(ds)} to database",C['green']); s.paste.clear(); s._load_d()
     def _save_refresh(s,idx):
         hours=[0,6,12,24,48][idx]
@@ -3594,6 +3701,7 @@ class HostsTab(QWidget):
     def _on_allow(s,count,err):
         if err: s.allow_st.setText("Couldn't apply allowlist: "+err); s._toast(f"Allowlist failed: {err}",C['red']); return
         s.allow_st.setText(f"Applied {count} allowed domains")
+        s.db.log_event('allowlist','whitelisted','',f'Allowlist applied ({count} domains)','allowlist')
         s._toast(f"Allowlisted {count} domains",C['green']); s._load_d()
     def _reapply_db_allowlist(s):
         """Remove any currently-blocked hosts entry whose DB status is whitelisted —
@@ -3618,7 +3726,8 @@ class ImpWorker(QThread):
             domains=[d for l in lines if (d:=norm_line(l,False)) and looks_like_domain(d)]
             total=len(domains)
             ct=s.hm.block_bulk(domains,flush=False)
-            s.db.add_domains_bulk([(d,'blocked',f'list:{s.name}') for d in domains])
+            s.db.add_domains_bulk([(d,'blocked',f'list:{s.name}','blocklist') for d in domains])
+            s.db.log_event(f'list:{s.name}','blocked','',f'Blocklist imported ({total} domains)','blocklist')
             s.hm._flush(); s.done.emit(s.name,ct,total,"")
         except Exception as e: s.done.emit(s.name,0,0,str(e)[:40])
 
@@ -3639,7 +3748,7 @@ class AllowWorker(QThread):
                             if d and looks_like_domain(d): doms.add(d)
                 except Exception as e: log.warning(f"allowlist {url}: {e}")
             if doms:
-                s.db.add_domains_bulk([(d,'whitelisted','allowlist') for d in doms])
+                s.db.add_domains_bulk([(d,'whitelisted','allowlist','allowlist') for d in doms])
                 for d in doms: s.hm.unblock(d,flush=False)
                 s.hm._flush()
             s.done.emit(len(doms),"")
@@ -3983,11 +4092,15 @@ class ToolsTab(QWidget):
         s.log_f=QComboBox(); s.log_f.addItems(["All","Blocked","Allowed","Firewall Blocked"])
         s.log_f.setAccessibleName("Filter event log by action")
         s.log_f.currentIndexChanged.connect(s._log); lr.addWidget(s.log_f)
+        s.log_r=QComboBox(); s.log_r.addItem("All Reasons","all")
+        for key,label in REASON_LABELS.items(): s.log_r.addItem(label,key)
+        s.log_r.setAccessibleName("Filter event log by reason")
+        s.log_r.currentIndexChanged.connect(s._log); lr.addWidget(s.log_r)
         lr.addWidget(_tbtn("Clear Log","danger",s._clear_log,90,"Delete all event log rows")); ll.addLayout(lr)
-        s.log_tbl=_tbl(["Time","Domain","Action","Process","Details"],1,row_h=26)
+        s.log_tbl=_tbl(["Time","Domain","Action","Reason","Process","Details"],1,row_h=26)
         s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.","◇")
         s.log_tbl.setAccessibleName("Event log table")
-        s.log_tbl.setColumnWidth(0,_dp(140)); s.log_tbl.setColumnWidth(2,_dp(75)); s.log_tbl.setColumnWidth(3,_dp(95)); s.log_tbl.setColumnWidth(4,_dp(170))
+        s.log_tbl.setColumnWidth(0,_dp(140)); s.log_tbl.setColumnWidth(2,_dp(75)); s.log_tbl.setColumnWidth(3,_dp(95)); s.log_tbl.setColumnWidth(4,_dp(95)); s.log_tbl.setColumnWidth(5,_dp(170))
         ll.addWidget(s.log_tbl,1); lo.addWidget(lg,1)
 
     def showEvent(s,e):
@@ -4010,10 +4123,12 @@ class ToolsTab(QWidget):
                 "Block Telemetry","Cancel"):
                 s._tel_cb.blockSignals(True); s._tel_cb.setChecked(False); s._tel_cb.blockSignals(False); return
             ct=s.hm.block_bulk(MS_TELEMETRY)
-            s.db.add_domains_bulk([(d.lower(),'blocked','telemetry') for d in MS_TELEMETRY])
+            s.db.add_domains_bulk([(d.lower(),'blocked','telemetry','telemetry') for d in MS_TELEMETRY])
+            s.db.log_event('windows_telemetry','blocked','','Telemetry preset enabled','telemetry')
             s._toast(f"Blocked Windows telemetry ({ct} new)",C['red'])
         else:
             for d in MS_TELEMETRY: s.hm.unblock(d,flush=False); s.db.remove_domain(d.lower())
+            s.db.log_event('windows_telemetry','whitelisted','','Telemetry preset removed','telemetry')
             s.hm._flush(); s._toast("Unblocked Windows telemetry",C['green'])
     def _toggle_doh(s,on):
         def _bg():
@@ -4024,6 +4139,7 @@ class ToolsTab(QWidget):
                 cfg=load_cfg(); cfg['block_doh']=True; save_cfg(cfg)
                 msg=(f"Encrypted DNS blocked ({len(ips)} resolver IPs, {len(created)} rules)"+(f", exempting your resolver" if exempt else "")) if created else "Failed to create DoH block rules"
                 color=C['green'] if created else C['red']
+                if created: s.db.log_event('encrypted_dns','fw_blocked','',msg,'doh')
                 if not created:
                     def _revert():
                         s._doh_cb.blockSignals(True); s._doh_cb.setChecked(False); s._doh_cb.blockSignals(False)
@@ -4032,6 +4148,7 @@ class ToolsTab(QWidget):
             else:
                 fw.unblock_doh()
                 cfg=load_cfg(); cfg['block_doh']=False; save_cfg(cfg)
+                s.db.log_event('encrypted_dns','fw_allowed','','Encrypted DNS block removed','doh')
                 ui_call(lambda:(s._upd_doh_status(),s._toast("Encrypted DNS block removed",C['dim'])))
         threading.Thread(target=_bg,daemon=True).start()
     def _upd_doh_status(s):
@@ -4066,13 +4183,15 @@ class ToolsTab(QWidget):
     def _log(s):
         q=s.log_s.text().strip() or None; f=s.log_f.currentText()
         af={'All':'all','Blocked':'blocked','Allowed':'whitelisted','Firewall Blocked':'fw_blocked'}.get(f,'all')
-        rows=s.db.get_log(limit=500,domain_filter=q,action_filter=af)
+        rf=s.log_r.currentData() if hasattr(s,'log_r') else 'all'
+        rows=s.db.get_log(limit=500,domain_filter=q,action_filter=af,reason_filter=rf)
         s.log_tbl.setSortingEnabled(False); s.log_tbl.setRowCount(len(rows))
-        for i,(_id,ts,domain,action,proc,det) in enumerate(rows):
+        for i,(_id,ts,domain,action,proc,det,reason) in enumerate(rows):
             s.log_tbl.setItem(i,0,QTableWidgetItem((ts or "")[:19]))
             _icon_item(s.log_tbl,i,1,domain or "",domain)
             ai=QTableWidgetItem(action or ""); ai.setForeground(QColor({'blocked':C['red'],'whitelisted':C['green'],'fw_blocked':C['mauve']}.get(action,C['dim'])))
-            s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,4,QTableWidgetItem(det or ""))
+            s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(reason_label(reason)))
+            s.log_tbl.setItem(i,4,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,5,QTableWidgetItem(det or ""))
         s.log_tbl.setSortingEnabled(True)
     def _clear_log(s):
         if not _confirm(s,"Clear event log",
@@ -4160,7 +4279,7 @@ class ToolsTab(QWidget):
             ui_call(lambda:s._toast("IP renewed" if ok else "Renew failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _export(s):
-        data={'version':VER,'schema':SCHEMA_VER,'domains':[{'domain':r[0],'status':r[1],'source':r[3]} for r in s.db.get_domains()],
+        data={'version':VER,'schema':SCHEMA_VER,'domains':[{'domain':r[0],'status':r[1],'source':r[3],'reason':r[8]} for r in s.db.get_domains()],
             'fw_rules':[r.name for r in fw.get_cached() if r.source=='hostsguard'],
             'fw_state':[{'name':r[0],'direction':r[1],'action':r[2],'remote_addr':r[3],'protocol':r[4],'program':r[5]} for r in s.db.get_fw_state()],
             'trusted':list(s.learn._trusted),'untrusted':list(s.learn._untrusted)}
@@ -4656,13 +4775,13 @@ def _cli(args):
         ok=already or hm.block(d)
         db.add_domain(d,'blocked','cli')
         if not ok: print(f"Failed to write hosts file (see {os.path.join(CONFIG_DIR,'hostsguard.log')})"); return 1
-        db.log_event(d,'blocked','','CLI block')
+        db.log_event(d,'blocked','','CLI block','cli')
         print(f"Already blocked: {d}" if already else f"Blocked: {d}"); return 0
     elif cmd=='allow' and len(args)>1:
         d=args[1].lower().strip()
         if not looks_like_domain(d): print(f"Invalid domain: {d}"); return 1
         db.add_domain(d,'whitelisted','cli'); hm.unblock(d)
-        db.log_event(d,'whitelisted','','CLI allow'); print(f"Allowed: {d}"); return 0
+        db.log_event(d,'whitelisted','','CLI allow','cli'); print(f"Allowed: {d}"); return 0
     elif cmd=='unblock' and len(args)>1:
         d=args[1].lower().strip(); db.remove_domain(d); hm.unblock(d)
         print(f"Unblocked: {d}"); return 0
@@ -4676,7 +4795,7 @@ def _cli(args):
         return 0
     elif cmd=='export':
         try:
-            for r in db.get_domains(): print(f"{r[1]}\t{r[0]}\t{r[3] or ''}")
+            for r in db.get_domains(): print(f"{r[1]}\t{r[0]}\t{r[3] or ''}\t{r[8] or ''}")
         except (BrokenPipeError,OSError): pass  # piped into head/findstr that exited early
         return 0
     else:
@@ -4716,7 +4835,7 @@ def _service():
                         if d not in seen:
                             seen.add(d)
                             if d in blocked:
-                                db.log_event(d,'blocked','','Blocked by hosts')
+                                db.log_event(d,'blocked','','Blocked by hosts','hosts_file')
                                 threading.Thread(target=_evt_log,args=(f"Blocked: {d}",),daemon=True).start()
                                 _post_webhook('blocked',{'domain':d})
                     if len(seen)>20000: seen.clear()
@@ -4804,22 +4923,26 @@ def _service():
             s.wfile.write(body)
         def do_GET(s):
             if not s._authed(): return
-            if s.path=='/status':
+            parsed=urllib.parse.urlparse(s.path)
+            path=parsed.path
+            if path=='/status':
                 st=db.get_stats(); blocked=hm.get_blocked(); up,dn=bw.rates()
                 s._json_reply(200,{'app':APP,'version':VER,'blocked':len(blocked),'db_blocked':st['blocked'],
                     'db_allowed':st['whitelisted'],'feed_total':st['feed_total'],'today_hits':st['today_hits'],
                     'bw_up':up,'bw_dn':dn,'doh':_doh_status_payload()})
-            elif s.path=='/domains':
-                s._json_reply(200,[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()])
-            elif s.path=='/stats':
+            elif path=='/domains':
+                s._json_reply(200,[{'domain':r[0],'status':r[1],'source':r[3],'reason':r[8]} for r in db.get_domains()])
+            elif path=='/stats':
                 st=db.get_stats()
                 s._json_reply(200,{'blocked':st['blocked'],'whitelisted':st['whitelisted'],
                     'feed_total':st['feed_total'],'today_hits':st['today_hits'],
                     'top_blocked':[{'domain':d,'count':c} for d,c in st['top_blocked']],
                     'connections_total':cdb.count() if hasattr(cdb,'count') else None})
-            elif s.path=='/log':
-                rows=db.get_log(limit=200)
-                s._json_reply(200,[{'ts':r[1],'domain':r[2],'action':r[3],'process':r[4],'details':r[5]} for r in rows])
+            elif path=='/log':
+                qs=urllib.parse.parse_qs(parsed.query)
+                reason=(qs.get('reason') or ['all'])[0]
+                rows=db.get_log(limit=200,reason_filter=reason)
+                s._json_reply(200,[{'ts':r[1],'domain':r[2],'action':r[3],'process':r[4],'details':r[5],'reason':r[6]} for r in rows])
             else:
                 s._json_reply(404,{'ok':False,'error':'unknown endpoint'})
         def do_POST(s):
@@ -4836,11 +4959,11 @@ def _service():
             if not looks_like_domain(domain):
                 s._json_reply(400,{'ok':False,'error':'invalid domain'}); return
             if action=='block':
-                db.add_domain(domain,'blocked','rpc'); hm.block(domain); db.log_event(domain,'blocked','','RPC block')
+                db.add_domain(domain,'blocked','rpc'); hm.block(domain); db.log_event(domain,'blocked','','RPC block','service_api')
                 s._json_reply(200,{'ok':True})
             elif action=='allow':
                 db.add_domain(domain,'whitelisted','rpc'); hm.unblock(domain)
-                db.log_event(domain,'whitelisted','','RPC allow')
+                db.log_event(domain,'whitelisted','','RPC allow','service_api')
                 s._json_reply(200,{'ok':True})
             else:
                 s._json_reply(400,{'ok':False,'error':'action must be block or allow'})
