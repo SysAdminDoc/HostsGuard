@@ -15,6 +15,12 @@ public class SchemaLockTests
 {
     private const string Expected = """
         package hostsguard.v1
+        service Consent
+          Decide(ConnectionDecision) returns (Ack)
+          GetDecisionHistory(HistoryRequest) returns (DecisionHistory)
+          GetMode(Empty) returns (FilteringMode)
+          SetMode(FilteringMode) returns (Ack)
+          WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics
           ExportSupportBundle(Empty) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)

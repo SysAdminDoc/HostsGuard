@@ -1,0 +1,58 @@
+<Window x:Class="HostsGuard.App.ConsentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HostsGuard — connection blocked"
+        Width="460" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
+        Background="{DynamicResource Hg.Base}"
+        Foreground="{DynamicResource Hg.Text}">
+    <Border BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1">
+        <StackPanel Margin="20,16,20,16">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Connection blocked" FontSize="15" FontWeight="Bold"
+                           Foreground="{DynamicResource Hg.Red}" />
+                <TextBlock DockPanel.Dock="Right" x:Name="Countdown" HorizontalAlignment="Right"
+                           Foreground="{DynamicResource Hg.Dim}" />
+            </DockPanel>
+
+            <TextBlock x:Name="AppName" FontSize="14" FontWeight="SemiBold" Margin="0,10,0,2" />
+            <TextBlock x:Name="AppPath" TextWrapping="Wrap" Foreground="{DynamicResource Hg.Dim}" FontSize="11" />
+
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition /> <RowDefinition /> <RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Remote" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Direction" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DirectionText" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Process" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,0" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PidText" />
+            </Grid>
+
+            <CheckBox x:Name="ScopeRemote" Margin="0,12,0,0"
+                      Content="Apply only to this remote address"
+                      Foreground="{DynamicResource Hg.Sub}" />
+
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition /> <ColumnDefinition /> <ColumnDefinition /> <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Allow once" Margin="0,0,6,0" Padding="8,7" Click="OnAllowOnce" />
+                <Button Grid.Column="1" Content="Allow always" Margin="0,0,6,0" Padding="8,7"
+                        Style="{StaticResource Hg.AccentButton}" Click="OnAllowAlways" />
+                <Button Grid.Column="2" Content="Block once" Margin="0,0,6,0" Padding="8,7" Click="OnBlockOnce" />
+                <Button Grid.Column="3" Content="Block always" Padding="8,7"
+                        Style="{StaticResource Hg.DangerButton}" Click="OnBlockAlways" />
+            </Grid>
+
+            <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="{DynamicResource Hg.Dim}" TextWrapping="Wrap"
+                       Text="No decision keeps the connection blocked (default-deny is active). 'Once' rules are removed automatically after 15 minutes." />
+        </StackPanel>
+    </Border>
+</Window>

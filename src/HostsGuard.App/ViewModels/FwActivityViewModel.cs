@@ -45,6 +45,33 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     public string Key => $"{Protocol}|{LocalAddr}:{LocalPort}|{RemoteAddr}:{RemotePort}|{Pid}";
 }
 
+/// <summary>Row VM for a recorded consent decision (WFCP-021 history).</summary>
+public sealed partial class DecisionRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _decidedAt = string.Empty;
+
+    [ObservableProperty]
+    private string _application = string.Empty;
+
+    [ObservableProperty]
+    private string _direction = string.Empty;
+
+    [ObservableProperty]
+    private string _remoteAddress = string.Empty;
+
+    [ObservableProperty]
+    private string _protocol = string.Empty;
+
+    [ObservableProperty]
+    private string _verdict = string.Empty;
+
+    [ObservableProperty]
+    private bool _permanent;
+
+    public string Scope => Permanent ? "permanent" : "once";
+}
+
 /// <summary>One timeline series: per-minute new-connection counts for a process.</summary>
 public sealed partial class TimelineSeriesViewModel : ObservableObject
 {
@@ -269,6 +296,56 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         TimelineStatus = $"Top {top.Count} apps · last {TimelineMinutes} min · peak {peak}/min";
+    }
+
+    // ─── Consent history (WFCP-021): recent prompts with re-decide ───────────
+
+    public ObservableCollection<DecisionRowViewModel> ConsentHistory { get; } = new();
+
+    [RelayCommand]
+    public async Task LoadConsentHistoryAsync()
+    {
+        var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 50 });
+        ConsentHistory.Clear();
+        foreach (var entry in history.Entries)
+        {
+            ConsentHistory.Add(new DecisionRowViewModel
+            {
+                DecidedAt = entry.DecidedAt,
+                Application = entry.Application,
+                Direction = entry.Direction,
+                RemoteAddress = entry.RemoteAddress,
+                Protocol = entry.Protocol,
+                Verdict = entry.Verdict,
+                Permanent = entry.Permanent,
+            });
+        }
+    }
+
+    [RelayCommand]
+    public Task ReAllowAsync(DecisionRowViewModel row) => ReDecideAsync(row, "allow");
+
+    [RelayCommand]
+    public Task ReBlockAsync(DecisionRowViewModel row) => ReDecideAsync(row, "block");
+
+    private async Task ReDecideAsync(DecisionRowViewModel? row, string verdict)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var ack = await _client.Consent.DecideAsync(new ConnectionDecision
+        {
+            Application = row.Application,
+            Direction = row.Direction,
+            RemoteAddress = row.RemoteAddress,
+            Protocol = row.Protocol,
+            Verdict = verdict,
+            Permanent = true,
+        });
+        StatusText = ack.Message;
+        await LoadConsentHistoryAsync();
     }
 
     // ─── Modes: lockdown (service posture) + learning/observe (config) ───────

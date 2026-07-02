@@ -1,0 +1,510 @@
+using System.Runtime.Versioning;
+using System.Text.Json;
+using Google.Protobuf.WellKnownTypes;
+using HostsGuard.Contracts;
+using HostsGuard.Core;
+using HostsGuard.Data;
+using HostsGuard.Windows;
+
+namespace HostsGuard.Service;
+
+/// <summary>
+/// The WFC-parity consent pipeline (WFCP-010/012/020/021/022). Blocked
+/// connections flow in from <see cref="BlockedConnectionWatch"/>; per the
+/// filtering mode they are dropped (normal), auto-allowed and recorded
+/// (learning), or deduped and pushed to the UI as pending decisions (notify).
+/// Decisions come back as HG_ COM rules — permanent, or once-rules reaped
+/// after a timeout — with <see cref="FirewallIdentity.Remember"/> on every
+/// write so rebind history exists before the next app update.
+///
+/// Posture rails: arming detection (notify/learning) saves the current
+/// default-outbound posture and sets Block; returning to normal restores the
+/// saved posture. Mode + saved posture persist in consent_state.json so a
+/// service restart re-arms (or stays disarmed) faithfully — the WFC-conflict
+/// lesson is that firewall posture must never change without an explicit,
+/// reversible opt-in.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed class ConsentBroker : IDisposable
+{
+    public const string ModeNormal = "normal";
+    public const string ModeNotify = "notify";
+    public const string ModeLearning = "learning";
+
+    public static readonly TimeSpan DedupWindow = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan PendingTtl = TimeSpan.FromSeconds(60);
+    public static readonly TimeSpan OnceRuleLifetime = TimeSpan.FromMinutes(15);
+
+    private const string OncePrefix = "HG_Once_";
+    private const string ConsentPrefix = "HG_Consent_";
+    private const string LearnPrefix = "HG_Learn_";
+
+    private readonly IFirewallEngine? _firewall;
+    private readonly FirewallIdentity? _identity;
+    private readonly HostsDatabase _db;
+    private readonly EventBus _bus;
+    private readonly string _statePath;
+    private readonly object _gate = new();
+    private readonly Dictionary<string, DateTime> _recent = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (ConnectionDecisionRequest Request, DateTime ExpiresUtc)> _pending = new(StringComparer.Ordinal);
+    private readonly List<(string RuleName, DateTime ExpiresUtc)> _onceRules = new();
+    private readonly System.Threading.Timer _sweepTimer;
+
+    private PersistedState _state;
+
+    /// <summary>
+    /// Production hook that enables audit policy + starts the Security-log
+    /// watch; returns whether detection is live. Null (tests, unwired hosts)
+    /// means posture rails still run but no OS-level arming is attempted.
+    /// </summary>
+    public Func<bool>? ArmDetection { get; set; }
+
+    /// <summary>Production hook that stops the Security-log watch.</summary>
+    public Action? DisarmDetection { get; set; }
+
+    public ConsentBroker(HostsDatabase db, EventBus bus, IFirewallEngine? firewall, FirewallIdentity? identity, string dataDir)
+    {
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+        _bus = bus ?? throw new ArgumentNullException(nameof(bus));
+        _firewall = firewall;
+        _identity = identity;
+        _statePath = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "consent_state.json");
+        _state = LoadState();
+        ReapExpiredOnceRules(DateTime.UtcNow, startup: true);
+        _sweepTimer = new System.Threading.Timer(_ => Sweep(DateTime.UtcNow), null,
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    public string Mode
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state.Mode;
+            }
+        }
+    }
+
+    public bool DetectionArmed { get; private set; }
+
+    /// <summary>Re-arm on service start when the persisted mode wants detection (WFCP-000c).</summary>
+    public void ResumeFromPersistedMode()
+    {
+        if (Mode is ModeNotify or ModeLearning)
+        {
+            DetectionArmed = ArmDetection?.Invoke() ?? false;
+            _db.LogEvent("consent", "mode_resumed", details: $"{Mode}; detection {(DetectionArmed ? "armed" : "unavailable")}");
+        }
+    }
+
+    /// <summary>Switch filtering mode with the posture rails applied.</summary>
+    public Ack SetMode(string requested)
+    {
+        var mode = (requested ?? string.Empty).Trim().ToLowerInvariant();
+        if (mode is not (ModeNormal or ModeNotify or ModeLearning))
+        {
+            return new Ack { Ok = false, Message = $"unknown mode '{requested}'", ErrorCode = "hostsguard.error.v1/invalid_mode" };
+        }
+
+        lock (_gate)
+        {
+            if (_state.Mode == mode)
+            {
+                return new Ack { Ok = true, Message = $"already in {mode} mode" };
+            }
+
+            var wasDetecting = _state.Mode is ModeNotify or ModeLearning;
+            var wantsDetection = mode is ModeNotify or ModeLearning;
+
+            if (wantsDetection && !wasDetecting)
+            {
+                // Save the user's posture before we own it; restore on the way out.
+                if (_firewall is { } fw)
+                {
+                    _state.PriorOutboundBlock = fw.GetPosture().ToDictionary(p => p.Name, p => p.OutboundBlock);
+                    fw.SetDefaultOutboundBlock(true);
+                }
+
+                DetectionArmed = ArmDetection?.Invoke() ?? false;
+            }
+            else if (!wantsDetection && wasDetecting)
+            {
+                RestorePosture();
+                DisarmDetection?.Invoke();
+                DetectionArmed = false;
+                _pending.Clear();
+            }
+
+            _state.Mode = mode;
+            SaveState();
+        }
+
+        _db.LogEvent("consent", "mode_changed", details: mode);
+        return new Ack
+        {
+            Ok = true,
+            Message = mode switch
+            {
+                ModeNotify => "notify mode — unruled connections prompt for a decision (default outbound: Block)",
+                ModeLearning => "learning mode — unruled connections are auto-allowed and recorded (default outbound: Block)",
+                _ => "normal mode — rules enforce silently (default outbound restored)",
+            },
+        };
+    }
+
+    private void RestorePosture()
+    {
+        if (_firewall is not { } fw || _state.PriorOutboundBlock is not { Count: > 0 } prior)
+        {
+            return;
+        }
+
+        // The engine's setter is all-profiles; restore Block only if every
+        // profile was blocking before we armed (mixed prior states restore to
+        // the safe common denominator: Allow).
+        fw.SetDefaultOutboundBlock(prior.Values.All(v => v));
+        _state.PriorOutboundBlock = null;
+    }
+
+    /// <summary>Entry point for blocked-connection events (watch or tests).</summary>
+    public void OnBlocked(BlockedConnection blocked)
+    {
+        ArgumentNullException.ThrowIfNull(blocked);
+        if (blocked.Application.Length == 0)
+        {
+            return;
+        }
+
+        string mode;
+        lock (_gate)
+        {
+            mode = _state.Mode;
+            if (mode == ModeNormal)
+            {
+                return;
+            }
+
+            // Dedup identical app+direction+remote+proto bursts (WFCP-010).
+            var key = $"{blocked.Application}|{blocked.Direction}|{blocked.RemoteAddress}|{blocked.Protocol}";
+            if (_recent.TryGetValue(key, out var last) && blocked.TsUtc - last < DedupWindow)
+            {
+                return;
+            }
+
+            _recent[key] = blocked.TsUtc;
+            if (_recent.Count > 4096)
+            {
+                foreach (var stale in _recent.Where(kv => blocked.TsUtc - kv.Value > DedupWindow).Select(kv => kv.Key).ToList())
+                {
+                    _recent.Remove(stale);
+                }
+            }
+        }
+
+        // Apps that already have an HG rule covering this direction were
+        // decided already — never re-prompt (WFCP-010 trust check).
+        if (HasCoveringRule(blocked.Application, blocked.Direction))
+        {
+            return;
+        }
+
+        if (mode == ModeLearning)
+        {
+            AutoAllow(blocked);
+            return;
+        }
+
+        var request = new ConnectionDecisionRequest
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Application = blocked.Application,
+            Direction = blocked.Direction,
+            RemoteAddress = blocked.RemoteAddress,
+            RemotePort = blocked.RemotePort,
+            Protocol = blocked.Protocol,
+            ProcessId = blocked.ProcessId,
+            Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(blocked.TsUtc, DateTimeKind.Utc)),
+        };
+        lock (_gate)
+        {
+            _pending[request.Id] = (request, blocked.TsUtc + PendingTtl);
+        }
+
+        _bus.Publish(request);
+    }
+
+    private bool HasCoveringRule(string application, string direction)
+    {
+        if (_firewall is not { } fw)
+        {
+            return false;
+        }
+
+        return fw.ListRules().Any(r =>
+            r.Source == "hostsguard" &&
+            r.Enabled &&
+            r.Direction == direction &&
+            r.Program.Length != 0 &&
+            r.Program.Split(',')[0].Trim().Equals(application, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AutoAllow(BlockedConnection blocked)
+    {
+        var name = $"{LearnPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
+        if (_firewall is { } fw &&
+            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+        {
+            _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
+            _identity?.Remember(name, blocked.Application);
+        }
+
+        LogDecision(blocked.Application, blocked.Direction, blocked.RemoteAddress, blocked.Protocol, "learn", permanent: true);
+    }
+
+    /// <summary>Apply a decision from the UI (WFCP-012): rule write + identity + history.</summary>
+    public Ack Decide(ConnectionDecision decision)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+        var verdict = (decision.Verdict ?? string.Empty).ToLowerInvariant();
+        if (verdict is not ("allow" or "block"))
+        {
+            return new Ack { Ok = false, Message = $"unknown verdict '{decision.Verdict}'", ErrorCode = "hostsguard.error.v1/invalid_verdict" };
+        }
+
+        var application = (decision.Application ?? string.Empty).Trim();
+        if (application.Length == 0)
+        {
+            return new Ack { Ok = false, Message = "application path is required", ErrorCode = "hostsguard.error.v1/invalid_program" };
+        }
+
+        if (decision.Id.Length != 0)
+        {
+            lock (_gate)
+            {
+                _pending.Remove(decision.Id);
+            }
+        }
+
+        if (_firewall is not { } fw)
+        {
+            return new Ack { Ok = false, Message = "firewall engine is not attached to this service instance", ErrorCode = "hostsguard.error.v1/firewall_unavailable" };
+        }
+
+        var direction = decision.Direction == "In" ? "In" : "Out";
+        var action = verdict == "allow" ? "Allow" : "Block";
+        var stem = Path.GetFileNameWithoutExtension(application);
+        var remote = "Any";
+        if (decision.ScopeRemote && decision.RemoteAddress.Length != 0)
+        {
+            if (!FirewallAddress.IsValid(decision.RemoteAddress))
+            {
+                return new Ack { Ok = false, Message = $"'{decision.RemoteAddress}' is not a valid IP/CIDR/range", ErrorCode = "hostsguard.error.v1/invalid_address" };
+            }
+
+            remote = decision.RemoteAddress;
+        }
+        string name;
+        if (decision.Permanent)
+        {
+            name = $"{ConsentPrefix}{action}_{stem}_{direction}";
+        }
+        else
+        {
+            name = $"{OncePrefix}{action}_{stem}_{direction}_{Guid.NewGuid().ToString("N")[..8]}";
+        }
+
+        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, "Any", application, "hostsguard"));
+        if (created)
+        {
+            _db.UpsertFwState(name, direction, action, remote, "Any", application);
+            _identity?.Remember(name, application);
+            if (!decision.Permanent)
+            {
+                lock (_gate)
+                {
+                    _onceRules.Add((name, DateTime.UtcNow + OnceRuleLifetime));
+                    SaveState();
+                }
+            }
+        }
+
+        LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, decision.Permanent);
+        return new Ack
+        {
+            Ok = true,
+            Message = created
+                ? $"{verdict} {stem} ({(decision.Permanent ? "permanent" : $"once, reaped in {OnceRuleLifetime.TotalMinutes:0} min")}) — {name}"
+                : $"{name} already exists",
+        };
+    }
+
+    /// <summary>Expire pending prompts (safe action: stays blocked) and reap once-rules.</summary>
+    public void Sweep(DateTime nowUtc)
+    {
+        List<ConnectionDecisionRequest> expired;
+        lock (_gate)
+        {
+            expired = _pending.Values.Where(p => p.ExpiresUtc <= nowUtc).Select(p => p.Request).ToList();
+            foreach (var request in expired)
+            {
+                _pending.Remove(request.Id);
+            }
+        }
+
+        foreach (var request in expired)
+        {
+            // Default-block already holds the connection; a timeout writes no
+            // rule — it just records that nobody answered.
+            LogDecision(request.Application, request.Direction, request.RemoteAddress, request.Protocol, "timeout", permanent: false);
+        }
+
+        ReapExpiredOnceRules(nowUtc, startup: false);
+    }
+
+    private void ReapExpiredOnceRules(DateTime nowUtc, bool startup)
+    {
+        if (_firewall is not { } fw)
+        {
+            return;
+        }
+
+        if (startup)
+        {
+            // Once-rules never outlive their window across restarts: anything
+            // persisted (or orphaned live with the prefix) from a prior run is
+            // overdue by definition.
+            foreach (var rule in fw.ListRules().Where(r => r.Name.StartsWith(OncePrefix, StringComparison.Ordinal)))
+            {
+                fw.DeleteRule(rule.Name);
+                _db.RemoveFwState(rule.Name);
+            }
+
+            lock (_gate)
+            {
+                _onceRules.Clear();
+                SaveState();
+            }
+
+            return;
+        }
+
+        List<string> due;
+        lock (_gate)
+        {
+            due = _onceRules.Where(r => r.ExpiresUtc <= nowUtc).Select(r => r.RuleName).ToList();
+            _onceRules.RemoveAll(r => r.ExpiresUtc <= nowUtc);
+            if (due.Count != 0)
+            {
+                SaveState();
+            }
+        }
+
+        foreach (var name in due)
+        {
+            fw.DeleteRule(name);
+            _db.RemoveFwState(name);
+            _db.LogEvent(name, "consent_once_reaped", reason: "consent");
+        }
+    }
+
+    /// <summary>Pending count for tests/diagnostics.</summary>
+    public int PendingCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pending.Count;
+            }
+        }
+    }
+
+    private void LogDecision(string application, string direction, string remote, string protocol, string verdict, bool permanent)
+        => _db.LogEvent(
+            application,
+            $"consent_{verdict}",
+            details: $"{direction}|{remote}|{protocol}|{(permanent ? "permanent" : "once")}",
+            reason: "consent");
+
+    /// <summary>Read persisted consent decisions back out of the event log.</summary>
+    public DecisionHistory History(int limit)
+    {
+        var history = new DecisionHistory();
+        foreach (var row in _db.GetLog(limit is > 0 and <= 2000 ? limit * 4 : 800))
+        {
+            if (!row.Action.StartsWith("consent_", StringComparison.Ordinal) || row.Action == "consent_once_reaped")
+            {
+                continue;
+            }
+
+            var parts = (row.Details ?? string.Empty).Split('|');
+            history.Entries.Add(new DecisionEntry
+            {
+                DecidedAt = row.Ts,
+                Application = row.Domain,
+                Direction = parts.Length > 0 ? parts[0] : string.Empty,
+                RemoteAddress = parts.Length > 1 ? parts[1] : string.Empty,
+                Protocol = parts.Length > 2 ? parts[2] : string.Empty,
+                Verdict = row.Action["consent_".Length..],
+                Permanent = parts.Length > 3 && parts[3] == "permanent",
+            });
+            if (history.Entries.Count >= (limit is > 0 and <= 2000 ? limit : 200))
+            {
+                break;
+            }
+        }
+
+        return history;
+    }
+
+    // ─── Persistence ──────────────────────────────────────────────────────────
+
+    private sealed class PersistedState
+    {
+        public string Mode { get; set; } = ModeNormal;
+
+        public Dictionary<string, bool>? PriorOutboundBlock { get; set; }
+
+        public List<OnceRule> OnceRules { get; set; } = new();
+    }
+
+    private sealed class OnceRule
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public DateTime ExpiresUtc { get; set; }
+    }
+
+    private PersistedState LoadState()
+    {
+        try
+        {
+            if (File.Exists(_statePath))
+            {
+                var loaded = JsonSerializer.Deserialize<PersistedState>(File.ReadAllText(_statePath));
+                if (loaded is not null)
+                {
+                    _onceRules.AddRange(loaded.OnceRules.Select(r => (r.Name, r.ExpiresUtc)));
+                    return loaded;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or JsonException)
+        {
+            // Corrupt state — fall back to normal mode rather than fail startup.
+        }
+
+        return new PersistedState();
+    }
+
+    private void SaveState()
+    {
+        _state.OnceRules = _onceRules.Select(r => new OnceRule { Name = r.RuleName, ExpiresUtc = r.ExpiresUtc }).ToList();
+        var tmp = _statePath + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
+        File.Move(tmp, _statePath, overwrite: true);
+    }
+
+    public void Dispose() => _sweepTimer.Dispose();
+}

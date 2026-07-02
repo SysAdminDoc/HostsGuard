@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Grpc.Core;
 using HostsGuard.App.Services;
 using HostsGuard.Contracts;
 
@@ -19,7 +20,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ThemeManager _themes;
     private readonly IConfirm _confirm;
     private readonly IFilePicker? _filePicker;
+    private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
     private HostsServiceClient? _client;
+    private CancellationTokenSource? _decisionCts;
 
     [ObservableProperty]
     private bool _isConnected;
@@ -66,6 +69,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _uiScalePct;
 
+    [ObservableProperty]
+    private string _filteringMode = "normal";
+
+    [ObservableProperty]
+    private string _filteringModeText = string.Empty;
+
+    /// <summary>Raised on the UI thread when the service pushes a consent prompt.</summary>
+    public event Action<ConnectionDecisionRequest>? DecisionRequested;
+
     public MainViewModel(
         Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes,
         IConfirm confirm, IFilePicker? filePicker = null)
@@ -105,6 +117,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             FwActivity ??= new FwActivityViewModel(_client, _confirm, _config);
             FwActivity.StartWatching();
             await FwActivity.LoadPostureAsync();
+            await FwActivity.LoadConsentHistoryAsync();
             FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker);
             await FwRules.RefreshAsync();
             Tools ??= new ToolsViewModel(_client, _confirm);
@@ -116,6 +129,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadBackupsAsync();
             Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
+            await LoadFilteringModeAsync();
+            StartDecisionWatch();
             IsConnected = true;
             ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
                 + (status.Elevated ? " (elevated)" : string.Empty);
@@ -124,6 +139,97 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             IsConnected = false;
             ConnectionText = I18n.T("Status.Unavailable", "Service unavailable — {0}", ex.Message);
+        }
+    }
+
+    // ─── Filtering mode + consent prompts (WFC parity) ────────────────────────
+
+    public async Task LoadFilteringModeAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        var mode = await _client.Consent.GetModeAsync(new Empty());
+        FilteringMode = mode.Mode;
+        FilteringModeText = $"Mode: {mode.Mode}" + (mode.DetectionArmed ? " (armed)" : string.Empty);
+    }
+
+    [RelayCommand]
+    public async Task SetFilteringModeAsync(string mode)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        if (mode is "notify" or "learning" && FilteringMode == "normal" &&
+            !_confirm.Confirm("Enable connection filtering",
+                $"Switch to {mode} mode? The default outbound action becomes Block on every " +
+                "firewall profile until you return to normal mode; your current posture is restored then."))
+        {
+            return;
+        }
+
+        var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode });
+        ConnectionText = ack.Message;
+        await LoadFilteringModeAsync();
+        if (FwActivity is not null)
+        {
+            await FwActivity.LoadPostureAsync();
+        }
+    }
+
+    private void StartDecisionWatch()
+    {
+        if (_decisionCts is not null || _client is null)
+        {
+            return;
+        }
+
+        _decisionCts = new CancellationTokenSource();
+        _ = WatchDecisionsAsync(_client, _decisionCts.Token);
+    }
+
+    private async Task WatchDecisionsAsync(HostsServiceClient client, CancellationToken ct)
+    {
+        try
+        {
+            using var call = client.Consent.WatchDecisions(new Empty(), cancellationToken: ct);
+            await foreach (var request in call.ResponseStream.ReadAllAsync(ct))
+            {
+                if (_ui is null)
+                {
+                    DecisionRequested?.Invoke(request);
+                }
+                else
+                {
+                    _ui.Post(_ => DecisionRequested?.Invoke(request), null);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is Grpc.Core.RpcException or OperationCanceledException or System.IO.IOException)
+        {
+            // Stream ends with the connection; reconnect restarts it.
+            _decisionCts?.Dispose();
+            _decisionCts = null;
+        }
+    }
+
+    /// <summary>Send a consent decision back to the service.</summary>
+    public async Task SendDecisionAsync(ConnectionDecision decision)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        var ack = await _client.Consent.DecideAsync(decision);
+        ConnectionText = ack.Message;
+        if (FwActivity is not null)
+        {
+            await FwActivity.LoadConsentHistoryAsync();
         }
     }
 
@@ -143,6 +249,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        _decisionCts?.Cancel();
+        _decisionCts?.Dispose();
+        _decisionCts = null;
         Activity?.Dispose();
         FwActivity?.Dispose();
         _client?.Dispose();

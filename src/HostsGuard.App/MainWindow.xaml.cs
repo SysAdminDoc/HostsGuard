@@ -16,6 +16,26 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        viewModel.DecisionRequested += OnDecisionRequested;
+    }
+
+    /// <summary>Consent prompt push (WFCP-011): raised on the UI thread by the VM.</summary>
+    private void OnDecisionRequested(Contracts.ConnectionDecisionRequest request)
+    {
+        var window = new ConsentWindow(request);
+        window.ShowDialog();
+        if (window.Result is { } decision && DataContext is MainViewModel vm)
+        {
+            _ = vm.SendDecisionAsync(decision);
+        }
+    }
+
+    private void OnTrayMode(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string mode } && DataContext is MainViewModel vm)
+        {
+            _ = vm.SetFilteringModeAsync(mode);
+        }
     }
 
     protected override void OnClosing(CancelEventArgs e)

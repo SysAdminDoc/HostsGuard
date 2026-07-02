@@ -94,7 +94,8 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             _fw,
-            new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")));
+            new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
+            dataDir: _dir);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.FwTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);

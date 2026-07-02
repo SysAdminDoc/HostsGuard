@@ -1,0 +1,291 @@
+using System.Runtime.Versioning;
+using FluentAssertions;
+using HostsGuard.Contracts;
+using HostsGuard.Core;
+using HostsGuard.Data;
+using HostsGuard.Ipc;
+using HostsGuard.Windows;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Data.Sqlite;
+using Xunit;
+
+namespace HostsGuard.Service.Tests;
+
+/// <summary>
+/// WFC-parity consent loop (WFCP-010/012/020/021/022): dedup + trust checks,
+/// learning auto-allow, decision → rule write with identity, once-rule reaping,
+/// pending timeout, posture rails on mode switches, and persistence across
+/// broker restarts — over the real pipe transport where it matters.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed class ConsentServiceTests : IAsyncLifetime
+{
+    private string _dir = null!;
+    private WebApplication _app = null!;
+    private ServiceState _state = null!;
+    private FakeFirewallEngine _fw = null!;
+    private string _pipe = null!;
+    private string _token = null!;
+
+    public async Task InitializeAsync()
+    {
+        _dir = Path.Combine(Path.GetTempPath(), "hg_consent_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
+        var hostsPath = Path.Combine(_dir, "hosts");
+        File.WriteAllText(hostsPath, "# hosts\n");
+
+        _fw = new FakeFirewallEngine();
+        _state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
+            _fw,
+            new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
+            dataDir: _dir);
+        _token = SessionToken.Generate();
+        _pipe = "HostsGuard.ConsentTest." + Guid.NewGuid().ToString("N");
+        _app = ServiceHost.Build(_state, _token, _pipe);
+        await _app.StartAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _app.DisposeAsync();
+        _state.Dispose();
+        SqliteConnection.ClearAllPools();
+        try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
+    }
+
+    private string WriteExe(string name)
+    {
+        var path = Path.Combine(_dir, name);
+        File.WriteAllText(path, "binary " + name);
+        return path;
+    }
+
+    private static BlockedConnection Blocked(string app, DateTime tsUtc, string direction = "Out",
+        string remote = "203.0.113.7", string protocol = "TCP")
+        => new(tsUtc, app, direction, remote, 443, protocol, 4711, 5157);
+
+    [Fact]
+    public void Normal_mode_drops_everything_and_notify_dedups_bursts()
+    {
+        var now = DateTime.UtcNow;
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\a.exe", now));
+        _state.Consent.PendingCount.Should().Be(0); // normal mode: no prompts
+
+        _state.Consent.SetMode("notify").Ok.Should().BeTrue();
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\a.exe", now));
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\a.exe", now.AddSeconds(2)));  // burst dup
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\a.exe", now.AddSeconds(10))); // outside window
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\b.exe", now.AddSeconds(2)));  // distinct app
+
+        _state.Consent.PendingCount.Should().Be(3);
+    }
+
+    [Fact]
+    public void Apps_with_a_covering_rule_are_never_reprompted()
+    {
+        _state.Consent.SetMode("notify");
+        var app = WriteExe("ruled.exe");
+        _fw.CreateRule(new FwRule("HG_Consent_Allow_ruled_Out", "Out", "Allow", true, "Any", "Any", app, "hostsguard"));
+
+        _state.Consent.OnBlocked(Blocked(app, DateTime.UtcNow));
+
+        _state.Consent.PendingCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Notify_publishes_a_decision_request_on_the_bus()
+    {
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\push.exe", DateTime.UtcNow));
+
+        sub.Reader.TryRead(out var request).Should().BeTrue();
+        request!.Application.Should().Be(@"C:\apps\push.exe");
+        request.RemoteAddress.Should().Be("203.0.113.7");
+        request.Id.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Learning_auto_allows_records_and_remembers_identity()
+    {
+        _state.Consent.SetMode("learning");
+        var app = WriteExe("learned.exe");
+
+        _state.Consent.OnBlocked(Blocked(app, DateTime.UtcNow));
+
+        _state.Consent.PendingCount.Should().Be(0);
+        _fw.Rules.Should().ContainKey("HG_Learn_learned_Out");
+        _fw.Rules["HG_Learn_learned_Out"].Action.Should().Be("Allow");
+        _state.Identity!.Get("HG_Learn_learned_Out").Should().NotBeEmpty();
+        _state.Consent.History(10).Entries.Should().Contain(e => e.Application == app && e.Verdict == "learn");
+    }
+
+    [Fact]
+    public async Task Decide_writes_permanent_rule_with_identity_over_the_pipe()
+    {
+        var app = WriteExe("decided.exe");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var consent = new Consent.ConsentClient(channel);
+
+        var ack = await consent.DecideAsync(new ConnectionDecision
+        {
+            Application = app,
+            Direction = "Out",
+            RemoteAddress = "203.0.113.9",
+            Protocol = "TCP",
+            Verdict = "allow",
+            Permanent = true,
+        });
+
+        ack.Ok.Should().BeTrue();
+        _fw.Rules.Should().ContainKey("HG_Consent_Allow_decided_Out");
+        _fw.Rules["HG_Consent_Allow_decided_Out"].RemoteAddr.Should().Be("Any"); // not scoped
+        _state.Db.GetFwStateNames().Should().Contain("HG_Consent_Allow_decided_Out");
+        _state.Identity!.Get("HG_Consent_Allow_decided_Out").Should().NotBeEmpty();
+
+        var history = await consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 10 });
+        history.Entries.Should().Contain(e => e.Application == app && e.Verdict == "allow" && e.Permanent);
+    }
+
+    [Fact]
+    public void Remote_scoped_decisions_validate_the_address()
+    {
+        var app = WriteExe("scoped.exe");
+
+        var bad = _state.Consent.Decide(new ConnectionDecision
+        {
+            Application = app,
+            Verdict = "block",
+            Permanent = true,
+            ScopeRemote = true,
+            RemoteAddress = "not-an-ip; Remove-Item",
+        });
+        bad.ErrorCode.Should().Be("hostsguard.error.v1/invalid_address");
+
+        var good = _state.Consent.Decide(new ConnectionDecision
+        {
+            Application = app,
+            Verdict = "block",
+            Permanent = true,
+            ScopeRemote = true,
+            RemoteAddress = "203.0.113.9",
+        });
+        good.Ok.Should().BeTrue();
+        _fw.Rules["HG_Consent_Block_scoped_Out"].RemoteAddr.Should().Be("203.0.113.9");
+    }
+
+    [Fact]
+    public void Once_rules_exist_immediately_and_are_reaped_after_their_window()
+    {
+        var app = WriteExe("once.exe");
+
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Application = app,
+            Verdict = "allow",
+            Permanent = false,
+        }).Ok.Should().BeTrue();
+
+        var onceRule = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Once_Allow_once_Out_"));
+        _state.Consent.Sweep(DateTime.UtcNow); // not due yet
+        _fw.Rules.Should().ContainKey(onceRule);
+
+        _state.Consent.Sweep(DateTime.UtcNow + ConsentBroker.OnceRuleLifetime + TimeSpan.FromSeconds(1));
+        _fw.Rules.Should().NotContainKey(onceRule);
+        _state.Db.GetFwStateNames().Should().NotContain(onceRule);
+    }
+
+    [Fact]
+    public void Pending_prompts_expire_to_a_recorded_timeout()
+    {
+        _state.Consent.SetMode("notify");
+        var now = DateTime.UtcNow;
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\slow.exe", now));
+        _state.Consent.PendingCount.Should().Be(1);
+
+        _state.Consent.Sweep(now + ConsentBroker.PendingTtl + TimeSpan.FromSeconds(1));
+
+        _state.Consent.PendingCount.Should().Be(0);
+        _state.Consent.History(10).Entries.Should().Contain(e =>
+            e.Application == @"C:\apps\slow.exe" && e.Verdict == "timeout");
+        _fw.Rules.Should().BeEmpty(); // timeout writes no rule — default-deny holds
+    }
+
+    [Fact]
+    public void Inbound_decisions_create_inbound_rules()
+    {
+        var app = WriteExe("inbound.exe");
+
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Application = app,
+            Direction = "In",
+            Verdict = "allow",
+            Permanent = true,
+        }).Ok.Should().BeTrue();
+
+        _fw.Rules.Should().ContainKey("HG_Consent_Allow_inbound_In");
+        _fw.Rules["HG_Consent_Allow_inbound_In"].Direction.Should().Be("In");
+    }
+
+    [Fact]
+    public async Task Mode_rails_set_and_restore_posture_over_the_pipe()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var consent = new Consent.ConsentClient(channel);
+        _fw.OutboundBlock.Should().BeFalse();
+
+        (await consent.SetModeAsync(new FilteringMode { Mode = "notify" })).Ok.Should().BeTrue();
+        _fw.OutboundBlock.Should().BeTrue(); // armed: default-outbound Block
+        (await consent.GetModeAsync(new Empty())).Mode.Should().Be("notify");
+
+        (await consent.SetModeAsync(new FilteringMode { Mode = "normal" })).Ok.Should().BeTrue();
+        _fw.OutboundBlock.Should().BeFalse(); // prior posture restored
+
+        (await consent.SetModeAsync(new FilteringMode { Mode = "sideways" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_mode");
+    }
+
+    [Fact]
+    public void Prior_block_posture_survives_a_notify_round_trip()
+    {
+        _fw.OutboundBlock = true; // user already ran lockdown before notify
+
+        _state.Consent.SetMode("notify");
+        _fw.OutboundBlock.Should().BeTrue();
+        _state.Consent.SetMode("normal");
+
+        _fw.OutboundBlock.Should().BeTrue(); // restored to Block, not blindly Allow
+    }
+
+    [Fact]
+    public void Mode_persists_and_resume_rearms_detection()
+    {
+        _state.Consent.SetMode("notify");
+
+        using var restarted = new ConsentBroker(_state.Db, _state.Bus, _fw, _state.Identity, _dir);
+        restarted.Mode.Should().Be("notify");
+
+        var armed = false;
+        restarted.ArmDetection = () => armed = true;
+        restarted.ResumeFromPersistedMode();
+        armed.Should().BeTrue();
+        restarted.DetectionArmed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Startup_reaps_leftover_once_rules_from_a_prior_run()
+    {
+        var app = WriteExe("stale.exe");
+        _fw.CreateRule(new FwRule("HG_Once_Allow_stale_Out_deadbeef", "Out", "Allow", true, "Any", "Any", app, "hostsguard"));
+        _state.Db.UpsertFwState("HG_Once_Allow_stale_Out_deadbeef", "Out", "Allow", "Any", "Any", app);
+
+        using var restarted = new ConsentBroker(_state.Db, _state.Bus, _fw, _state.Identity, _dir);
+
+        _fw.Rules.Should().NotContainKey("HG_Once_Allow_stale_Out_deadbeef");
+        _state.Db.GetFwStateNames().Should().NotContain("HG_Once_Allow_stale_Out_deadbeef");
+    }
+}

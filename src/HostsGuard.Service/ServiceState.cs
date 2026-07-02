@@ -40,6 +40,7 @@ public sealed class ServiceState : IDisposable
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);
+        Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir);
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)
@@ -76,6 +77,8 @@ public sealed class ServiceState : IDisposable
     public GeoIpService GeoIp { get; }
 
     public EventBus Bus { get; }
+
+    public ConsentBroker Consent { get; }
 
     public TempAllowScheduler TempAllows { get; }
 
@@ -133,6 +136,7 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        Consent.Dispose();
         GeoIp.Dispose();
         Lists?.Dispose();
         Schedules.Dispose();

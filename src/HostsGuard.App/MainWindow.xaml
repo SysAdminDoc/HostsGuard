@@ -24,6 +24,12 @@
                 <ContextMenu>
                     <MenuItem Header="Open HostsGuard" Click="OnTrayOpen" />
                     <Separator />
+                    <MenuItem Header="Filtering mode">
+                        <MenuItem Header="Normal — enforce silently" Tag="normal" Click="OnTrayMode" />
+                        <MenuItem Header="Notify — prompt on new connections" Tag="notify" Click="OnTrayMode" />
+                        <MenuItem Header="Learning — auto-allow and record" Tag="learning" Click="OnTrayMode" />
+                    </MenuItem>
+                    <Separator />
                     <MenuItem Header="Exit" Click="OnTrayExit" />
                 </ContextMenu>
             </tb:TaskbarIcon.ContextMenu>
@@ -60,6 +66,11 @@
                         <Run Text="   DB blocked:" /><Run Text="{Binding DbBlocked, Mode=OneWay}" />
                         <Run Text="   Allowed:" /><Run Text="{Binding DbAllowed, Mode=OneWay}" />
                     </TextBlock>
+                </StatusBarItem>
+                <Separator />
+                <StatusBarItem>
+                    <TextBlock Text="{Binding FilteringModeText}" Style="{StaticResource Hg.SubText}"
+                               ToolTip="Filtering mode — switch from the tray menu" />
                 </StatusBarItem>
                 <StatusBarItem HorizontalAlignment="Right">
                     <StackPanel Orientation="Horizontal">
@@ -166,6 +177,7 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
@@ -262,7 +274,39 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Grid.Row="3" Margin="2,6,0,0"
+                        <!-- Recent consent decisions with re-decide (WFCP-021) -->
+                        <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="Recent connection decisions" FontWeight="SemiBold" />
+                                    <Button DockPanel.Dock="Right" Content="Refresh"
+                                            Command="{Binding LoadConsentHistoryCommand}" Padding="10,2" />
+                                </DockPanel>
+                                <DataGrid ItemsSource="{Binding ConsentHistory}" MaxHeight="150" Margin="0,6,0,0">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Allow permanently"
+                                                      Command="{Binding PlacementTarget.DataContext.ReAllowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Block permanently"
+                                                      Command="{Binding PlacementTarget.DataContext.ReBlockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="When" Binding="{Binding DecidedAt}" Width="150" />
+                                        <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="2*" />
+                                        <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="46" />
+                                        <DataGridTextColumn Header="Remote" Binding="{Binding RemoteAddress}" Width="*" />
+                                        <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="56" />
+                                        <DataGridTextColumn Header="Verdict" Binding="{Binding Verdict}" Width="76" />
+                                        <DataGridTextColumn Header="Scope" Binding="{Binding Scope}" Width="86" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Grid.Row="4" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
                 </TabItem>

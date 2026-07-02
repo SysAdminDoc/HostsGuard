@@ -27,6 +27,24 @@ using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, 
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 
+// WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
+var devicePaths = new DevicePathMapper();
+using var blockedWatch = new BlockedConnectionWatch(
+    devicePaths,
+    blocked => state.Consent.OnBlocked(blocked),
+    message => db.LogEvent("consent", "watch_log", details: message));
+state.Consent.ArmDetection = () =>
+{
+    var auditOn = BlockedConnectionWatch.EnableAuditPolicy(
+        message => db.LogEvent("consent", "audit_log", details: message));
+    var watching = blockedWatch.Start();
+    return auditOn && watching;
+};
+state.Consent.DisarmDetection = blockedWatch.Stop;
+// Privileged bootstrap (WFCP-000c): if the persisted mode wants detection,
+// re-arm it now; failures degrade to a logged, disarmed state.
+state.Consent.ResumeFromPersistedMode();
+
 // Mint a per-session token and publish it to the ACL'd handshake file.
 var token = SessionToken.Generate();
 SessionToken.WriteHandshake(handshakePath, token);

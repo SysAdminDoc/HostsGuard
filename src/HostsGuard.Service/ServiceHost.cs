@@ -29,6 +29,7 @@ public static class ServiceHost
                 app.MapGrpcService<DnsControlServiceImpl>();
                 app.MapGrpcService<PolicyServiceImpl>();
                 app.MapGrpcService<ListControlServiceImpl>();
+                app.MapGrpcService<ConsentServiceImpl>();
             },
             pipeName,
             services => services.AddSingleton(state));

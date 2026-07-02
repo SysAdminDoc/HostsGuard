@@ -396,6 +396,67 @@ message ActivityEvent {
   string reason = 6;
 }
 
+// ─── Consent loop (WFC-parity notify/learning) ───────────────────────────────
+
+service Consent {
+  // Live stream of pending decision requests (Notify mode pushes here).
+  rpc WatchDecisions(Empty) returns (stream ConnectionDecisionRequest);
+  // Answer a pending request; re-decide from history by leaving id empty.
+  rpc Decide(ConnectionDecision) returns (Ack);
+  // Filtering mode: "normal" enforces silently, "notify" prompts on unruled
+  // connections, "learning" auto-allows and records. Switching into
+  // notify/learning arms detection (audit + default-outbound Block, prior
+  // posture saved); switching back to normal restores the saved posture.
+  rpc GetMode(Empty) returns (FilteringMode);
+  rpc SetMode(FilteringMode) returns (Ack);
+  rpc GetDecisionHistory(HistoryRequest) returns (DecisionHistory);
+}
+
+message ConnectionDecisionRequest {
+  string id = 1;              // pending-cache key; expires server-side
+  string application = 2;     // DOS path
+  string direction = 3;       // "In" | "Out"
+  string remote_address = 4;
+  int32 remote_port = 5;
+  string protocol = 6;
+  int32 process_id = 7;
+  google.protobuf.Timestamp ts = 8;
+}
+
+message ConnectionDecision {
+  string id = 1;              // echo of the request id ("" = re-decide)
+  string application = 2;
+  string direction = 3;
+  string remote_address = 4;
+  string protocol = 5;
+  string verdict = 6;         // "allow" | "block"
+  bool permanent = 7;         // permanent COM rule vs reaped once-rule
+  bool scope_remote = 8;      // restrict the rule to remote_address
+}
+
+message FilteringMode {
+  string mode = 1;            // "normal" | "notify" | "learning"
+  bool detection_armed = 2;   // audit + watch active (read-only, set by server)
+}
+
+message HistoryRequest {
+  int32 limit = 1;            // 0 = server default
+}
+
+message DecisionEntry {
+  string decided_at = 1;
+  string application = 2;
+  string direction = 3;
+  string remote_address = 4;
+  string protocol = 5;
+  string verdict = 6;         // "allow" | "block" | "timeout" | "learn"
+  bool permanent = 7;
+}
+
+message DecisionHistory {
+  repeated DecisionEntry entries = 1;
+}
+
 // ─── Policy / profiles / scheduling ──────────────────────────────────────────
 
 service Policy {
