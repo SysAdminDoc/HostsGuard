@@ -94,6 +94,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Statistics Dashboard | Blocked count, allowed count, feed total, today's hits, top blocked domains |
 | DNS Flush | One-click `ipconfig /flushdns` |
 | DNS Resolver Switcher | One-click switch to Cloudflare, Google, Quad9, AdGuard DNS, or NextDNS |
+| Encrypted DNS Intelligence | Refresh Windows known DoH servers plus an optional SHA-256-checked resolver list; shows source and last-updated status |
 | Network Reset | Winsock reset, IP release/renew |
 | Database Sync | Manual hosts-to-DB synchronization |
 | Session Recording | Record DNS + connection events to JSONL for analysis |
@@ -130,7 +131,7 @@ winget install --id JRSoftware.InnoSetup -e
 | SHA-512 Integrity | Hash-based hosts file tamper detection (catches time-preserved modifications) |
 | Registry Monitor | Detects DataBasePath registry redirection by malware |
 | Windows Event Log | Tamper events written to Application log as structured JSON for SIEM ingestion |
-| Block Encrypted DNS | Firewall-block known DoH resolver IPs + DoT/DoQ port 853 (your own resolver exempt) so apps can't tunnel DNS past hosts blocking |
+| Block Encrypted DNS | Firewall-block refreshed DoH resolver IPs + DoT/DoQ port 853 (your own resolver exempt) so apps can't tunnel DNS past hosts blocking |
 | Blocked Services | One-click toggles to block YouTube, TikTok, Facebook, Discord, Netflix, and more via curated hosts entries |
 | Windows Telemetry Preset | One-click block ~28 Microsoft telemetry endpoints (reversible as a unit) |
 | Scheduled Blocking | Block a domain or service on a recurring weekly schedule (windows may cross midnight) |
@@ -204,6 +205,7 @@ All data is stored in `%APPDATA%\HostsGuard\`:
 | `hostsguard.db` | Domain management, feed, event log, FW state (SQLite WAL) |
 | `connections.db` | Connection history (SQLite WAL) |
 | `config.json` | Learning mode, trusted/untrusted processes, notification settings |
+| `doh_resolvers.json` | Refreshed DoH resolver intelligence: source, last update, SHA-256, and validated IP list |
 | `hostsguard.log` | Error log (500KB rotating, 1 backup) |
 | `backups/` | Timestamped hosts file backups |
 | `favicons/` | Cached site favicons for domain table display |
@@ -226,7 +228,10 @@ Run `ipconfig /flushdns` (available in the Tools tab) or wait for the DNS cache 
 Hosts File tab > **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. Firewall Rules tab > **Delete HG Rules** removes all HostsGuard-created firewall rules.
 
 **Q: Can I run this headless / via CLI?**
-Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `POST /domains` (with `{action, domain}` body). Because the service runs elevated and the endpoint can modify your hosts file, set the `HG_TOKEN` environment variable to require an `X-HG-Token` header on every request.
+Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
+
+**Q: How do I keep encrypted-DNS blocking current?**
+Use Tools > DNS + Network > **Refresh DoH List**. HostsGuard merges Windows known DoH servers with the built-in resolver list and, if configured, a remote resolver list from `config.json` keys `doh_resolver_url` and `doh_resolver_sha256`. Remote lists are rejected without a SHA-256 value, failed refreshes leave the previous `doh_resolvers.json` intact, and enabling **Block Encrypted DNS** always exempts your current DNS resolver.
 
 **Q: Windows Defender flags HostsGuard as a threat**
 Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive - HostsGuard is modifying the hosts file intentionally. To resolve: Settings > Virus & Threat Protection > Manage settings > Exclusions > Add an exclusion > File > `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.

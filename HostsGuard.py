@@ -152,6 +152,7 @@ DOH_IPS={'1.1.1.1','1.0.0.1','8.8.8.8','8.8.4.4','9.9.9.9','149.112.112.112',
     '94.140.14.14','94.140.15.15','45.90.28.0','45.90.30.0','208.67.222.222','208.67.220.220',
     '185.228.168.168','185.228.169.168','76.76.2.0','76.76.10.0',
     '2606:4700:4700::1111','2606:4700:4700::1001','2001:4860:4860::8888','2001:4860:4860::8844'}
+DOH_STATE_PATH=os.path.join(CONFIG_DIR,"doh_resolvers.json")
 RESEARCH=[("Google","https://www.google.com/search?q={d}"),("VirusTotal","https://www.virustotal.com/gui/domain/{d}"),("who.is","https://who.is/whois/{d}"),
     ("URLScan","https://urlscan.io/search/#{d}"),("Shodan","https://www.shodan.io/search?query={d}"),
     ("SecurityTrails","https://securitytrails.com/domain/{d}"),("MXToolbox","https://mxtoolbox.com/SuperTool.aspx?action=mx:{d}"),
@@ -1053,6 +1054,163 @@ def valid_fw_addr(v):
         ipaddress.ip_address(v); return True
     except ValueError: return False
 
+def _normalize_ip_set(values):
+    if isinstance(values,(str,bytes)):
+        values=[values]
+    out=set()
+    for v in values or []:
+        if v is None: continue
+        if isinstance(v,(list,tuple,set)):
+            out.update(_normalize_ip_set(v)); continue
+        s=str(v).strip().strip('"').strip("'").strip("[](){}")
+        if not s: continue
+        if s.startswith("http://") or s.startswith("https://"):
+            s=s.split("://",1)[1].split("/",1)[0].strip("[]")
+        if "/" in s and ":" not in s:
+            s=s.split("/",1)[0]
+        if "/" in s and s.count(":")>1:
+            s=s.split("/",1)[0]
+        try: out.add(str(ipaddress.ip_address(s)))
+        except ValueError: continue
+    return out
+
+def _collect_doh_values(obj):
+    vals=[]
+    if isinstance(obj,dict):
+        for k,v in obj.items():
+            key=str(k).lower()
+            if key in ("ip","ips","address","addresses","serveraddress","server_address","server","servers",
+                       "resolver","resolvers","remoteaddress","remote_address"):
+                vals.extend(_collect_doh_values(v))
+            elif isinstance(v,(dict,list,tuple,set)):
+                vals.extend(_collect_doh_values(v))
+    elif isinstance(obj,(list,tuple,set)):
+        for item in obj: vals.extend(_collect_doh_values(item))
+    else:
+        vals.append(obj)
+    return vals
+
+def _parse_doh_payload(raw):
+    if isinstance(raw,bytes):
+        text=raw.decode("utf-8-sig","replace")
+    elif isinstance(raw,(dict,list,tuple,set)):
+        return _normalize_ip_set(_collect_doh_values(raw))
+    else:
+        text=str(raw or "")
+    stripped=text.strip()
+    if not stripped: return set()
+    try:
+        data=json.loads(stripped)
+        return _normalize_ip_set(_collect_doh_values(data))
+    except Exception:
+        pass
+    vals=[]
+    for line in text.splitlines():
+        line=line.split("#",1)[0].strip()
+        if not line: continue
+        for token in re.split(r"[\s,;|]+",line):
+            vals.append(token)
+    return _normalize_ip_set(vals)
+
+def _normalize_sha256(expected):
+    h=(expected or "").strip().lower()
+    for pfx in ("sha256:","sha256=","sha256-"):
+        if h.startswith(pfx): h=h[len(pfx):]
+    return h
+
+def _verify_doh_payload_hash(raw,expected_sha256):
+    expected=_normalize_sha256(expected_sha256)
+    actual=hashlib.sha256(raw).hexdigest()
+    if expected and (not re.fullmatch(r"[0-9a-f]{64}",expected) or actual.lower()!=expected):
+        raise ValueError("DoH resolver list SHA-256 did not match")
+    return actual
+
+def _doh_now():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+
+def _doh_state_payload(ips=None,source="",sha256="",updated=None):
+    return {"schema":1,"updated":updated or _doh_now(),"source":source or "Built-in resolver defaults",
+            "sha256":_normalize_sha256(sha256),"ips":sorted(_normalize_ip_set(ips))}
+
+def _load_doh_state():
+    default={"schema":1,"updated":"","source":"Built-in resolver defaults","sha256":"","ips":[]}
+    try:
+        with open(DOH_STATE_PATH,encoding="utf-8") as f: data=json.load(f)
+        if not isinstance(data,dict): return default
+        return {"schema":int(data.get("schema",1)),"updated":str(data.get("updated","")),
+                "source":str(data.get("source") or "Built-in resolver defaults"),
+                "sha256":_normalize_sha256(data.get("sha256","")),
+                "ips":sorted(_normalize_ip_set(data.get("ips",[])))}
+    except Exception:
+        return default
+
+def _save_doh_state(state):
+    clean=_doh_state_payload(state.get("ips",[]),state.get("source",""),state.get("sha256",""),state.get("updated") or _doh_now())
+    os.makedirs(os.path.dirname(DOH_STATE_PATH),exist_ok=True)
+    tmp=DOH_STATE_PATH+".tmp"
+    with open(tmp,"w",encoding="utf-8") as f: json.dump(clean,f,indent=2)
+    os.replace(tmp,DOH_STATE_PATH)
+    return clean
+
+def _current_doh_ips():
+    st=_load_doh_state()
+    return _normalize_ip_set(DOH_IPS)|_normalize_ip_set(st.get("ips",[]))
+
+def _doh_rule_ips(ips=None,exempt=None):
+    src=_current_doh_ips() if ips is None else _normalize_ip_set(ips)
+    skip=_normalize_ip_set(exempt)
+    return [ip for ip in sorted(src) if ip not in skip]
+
+def _parse_windows_doh_servers(text):
+    if not text: return set()
+    try:
+        data=json.loads(text)
+        return _normalize_ip_set(_collect_doh_values(data))
+    except Exception:
+        return _normalize_ip_set(str(text).split(","))
+
+def _windows_known_doh_ips():
+    ok,out=_ps("Get-DnsClientDohServerAddress -EA SilentlyContinue|"
+               "Select-Object -ExpandProperty ServerAddress|ConvertTo-Json -Compress",8)
+    return _parse_windows_doh_servers(out) if ok else set()
+
+def _fetch_doh_resolver_list(url,expected_sha256=""):
+    req=urllib.request.Request(url,headers={"User-Agent":f"{APP}/{VER}"})
+    with urllib.request.urlopen(req,timeout=20) as r:
+        raw=r.read(2_000_000)
+    actual=_verify_doh_payload_hash(raw,expected_sha256)
+    ips=_parse_doh_payload(raw)
+    if not ips: raise ValueError("DoH resolver list contained no valid IP addresses")
+    return _doh_state_payload(ips,url,actual)
+
+def refresh_doh_intelligence(url="",expected_sha256=""):
+    url=(url or "").strip(); expected_sha256=(expected_sha256 or "").strip()
+    windows=_windows_known_doh_ips()
+    remote=set(); actual_hash=""
+    sources=[]
+    if windows: sources.append("Windows known DoH servers")
+    if url:
+        if not expected_sha256:
+            raise ValueError("Set doh_resolver_sha256 before refreshing a remote DoH resolver list")
+        fetched=_fetch_doh_resolver_list(url,expected_sha256)
+        remote=_normalize_ip_set(fetched.get("ips",[])); actual_hash=fetched.get("sha256","")
+        sources.append(url)
+    state=_doh_state_payload(windows|remote," + ".join(sources) or "Built-in resolver defaults",actual_hash)
+    return _save_doh_state(state)
+
+def _doh_status_payload():
+    st=_load_doh_state()
+    ips=_current_doh_ips()
+    return {"resolver_ips":len(ips),"extra_ips":len(_normalize_ip_set(st.get("ips",[]))),
+            "updated":st.get("updated") or None,"source":st.get("source") or "Built-in resolver defaults",
+            "sha256":st.get("sha256") or None}
+
+def _doh_status_text():
+    st=_doh_status_payload()
+    if st["updated"]:
+        return f"DoH intelligence: {st['resolver_ips']} resolver IPs; {st['source']}; updated {st['updated']}"
+    return f"DoH intelligence: {st['resolver_ips']} built-in resolver IPs; no refresh yet"
+
 def _parse_fw_rules(text):
     """Parse the Get-NetFirewallRule JSON dump into FWR records (shared by the
     engine and the background loader — previously duplicated)."""
@@ -1132,13 +1290,15 @@ class FWEngine:
         return created
     # ── Encrypted-DNS (DoH/DoT/DoQ) blocking ──────────────────────────────────
     DOH_RULES=("HG_DoH_IPs","HG_DoT_TCP","HG_DoT_UDP")
-    def block_doh(s,exempt=None):
+    def block_doh(s,exempt=None,ips=None):
         """Block known DoH resolver IPs and DoT/DoQ port 853 outbound so apps and
         browsers can't tunnel DNS past hosts-file blocking. `exempt` (the user's own
         configured resolver IPs) is never blocked so their chosen DNS keeps working."""
-        exempt={str(e).strip() for e in (exempt or set())}
-        ips=[ip for ip in sorted(DOH_IPS) if ip not in exempt]
+        ips=_doh_rule_ips(ips,exempt)
         created=[]
+        for name in s.DOH_RULES:
+            _ps(f"Remove-NetFirewallRule -DisplayName {_ps_esc(name)} -EA SilentlyContinue",10)
+            s._untrack(name)
         if ips:
             addr=",".join(_ps_esc(ip) for ip in ips)  # PowerShell string array: 'a','b',...
             ok,_=_ps(f"New-NetFirewallRule -DisplayName {_ps_esc('HG_DoH_IPs')} -Direction Outbound "
@@ -1650,6 +1810,7 @@ class ConnWorker(QThread):
         # cross-day ordering, and made the UNIQUE index collide across days.
         out=[]; now=datetime.datetime.now().isoformat(timespec='seconds')
         blocked=s._db.get_blocked_set()
+        doh_ips=_current_doh_ips()
         try: conns=psutil.net_connections(kind='all')
         except psutil.AccessDenied: return out
         for c in conns:
@@ -1687,7 +1848,7 @@ class ConnWorker(QThread):
                 elif ra in blocked: stat="BLOCKED"
                 state=c.status if hasattr(c,'status') else ""
                 cat=categorize(host,rp)
-                if ra in DOH_IPS and rp in ('443','853'): cat='DoH/DoT'
+                if ra in doh_ips and rp in ('443','853'): cat='DoH/DoT'
                 geo=geo_c.get(ra)
                 country=(geo[1] or "-") if geo else "-"; cc=geo[0] if geo else ""
                 sig_status=''
@@ -3768,11 +3929,16 @@ class ToolsTab(QWidget):
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
         l1.addWidget(_tbtn("Check Browser DoH","dim",s._check_browser_doh))
+        s._doh_refresh_btn=_tbtn("Refresh DoH List","dim",s._refresh_doh_intel)
+        l1.addWidget(s._doh_refresh_btn)
         s._doh_cb=QCheckBox("Block Encrypted DNS (DoH/DoT)")
         s._doh_cb.setToolTip("Firewall-block known DoH resolver IPs + DoT/DoQ port 853 so apps\n"
                              "can't tunnel DNS past hosts blocking. Your own DNS resolver is exempt.\n"
                              "Note: per-app DoH can't be fully closed without a driver/proxy.")
         s._doh_cb.toggled.connect(s._toggle_doh); l1.addWidget(s._doh_cb)
+        s._doh_st=QLabel(_doh_status_text()); s._doh_st.setWordWrap(True)
+        s._doh_st.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;")
+        l1.addWidget(s._doh_st)
         s._tel_cb=QCheckBox("Block Windows Telemetry")
         s._tel_cb.setToolTip("One-click block ~28 Microsoft telemetry endpoints via the hosts file.\n"
                              "Note: this trips Defender's HostsFileHijack alert (add a hosts exclusion).")
@@ -3825,7 +3991,7 @@ class ToolsTab(QWidget):
         ll.addWidget(s.log_tbl,1); lo.addWidget(lg,1)
 
     def showEvent(s,e):
-        super().showEvent(e); s._log(); s._upd_learn(); s._upd_rec()
+        super().showEvent(e); s._log(); s._upd_learn(); s._upd_rec(); s._upd_doh_status()
         # Reflect actual firewall state (rules persist across restarts) without re-toggling.
         s._doh_cb.blockSignals(True); s._doh_cb.setChecked(load_cfg().get('block_doh',False)); s._doh_cb.blockSignals(False)
         # Telemetry preset reflects actual hosts state (checked only if all blocked)
@@ -3853,19 +4019,39 @@ class ToolsTab(QWidget):
         def _bg():
             if on:
                 exempt=_system_dns_servers()
-                created=fw.block_doh(exempt=exempt)
+                ips=_doh_rule_ips(exempt=exempt)
+                created=fw.block_doh(exempt=exempt,ips=ips)
                 cfg=load_cfg(); cfg['block_doh']=True; save_cfg(cfg)
-                msg=(f"Encrypted DNS blocked ({len(created)} rules)"+(f", exempting your resolver" if exempt else "")) if created else "Failed to create DoH block rules"
+                msg=(f"Encrypted DNS blocked ({len(ips)} resolver IPs, {len(created)} rules)"+(f", exempting your resolver" if exempt else "")) if created else "Failed to create DoH block rules"
                 color=C['green'] if created else C['red']
                 if not created:
                     def _revert():
                         s._doh_cb.blockSignals(True); s._doh_cb.setChecked(False); s._doh_cb.blockSignals(False)
                     ui_call(_revert)
-                ui_call(lambda:s._toast(msg,color))
+                ui_call(lambda:(s._upd_doh_status(),s._toast(msg,color)))
             else:
                 fw.unblock_doh()
                 cfg=load_cfg(); cfg['block_doh']=False; save_cfg(cfg)
-                ui_call(lambda:s._toast("Encrypted DNS block removed",C['dim']))
+                ui_call(lambda:(s._upd_doh_status(),s._toast("Encrypted DNS block removed",C['dim'])))
+        threading.Thread(target=_bg,daemon=True).start()
+    def _upd_doh_status(s):
+        if hasattr(s,'_doh_st'): s._doh_st.setText(_doh_status_text())
+    def _refresh_doh_intel(s):
+        cfg=load_cfg(); url=cfg.get('doh_resolver_url','').strip(); sha=cfg.get('doh_resolver_sha256','').strip()
+        s._doh_refresh_btn.setEnabled(False); s._doh_st.setText("Refreshing DoH resolver intelligence...")
+        def _done(msg,color):
+            s._doh_refresh_btn.setEnabled(True); s._upd_doh_status(); s._toast(msg,color)
+        def _bg():
+            try:
+                state=refresh_doh_intelligence(url,sha)
+                if load_cfg().get('block_doh',False):
+                    fw.block_doh(exempt=_system_dns_servers())
+                total=len(_current_doh_ips()); extra=len(_normalize_ip_set(state.get('ips',[])))
+                msg=f"DoH list refreshed ({total} resolver IPs, {extra} from Windows/source)"
+                ui_call(lambda msg=msg:_done(msg,C['green']))
+            except Exception as e:
+                msg=f"DoH refresh failed: {e}"
+                ui_call(lambda msg=msg:_done(msg,C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _upd_learn(s):
         t=len(s.learn._trusted); u=len(s.learn._untrusted)
@@ -4622,7 +4808,7 @@ def _service():
                 st=db.get_stats(); blocked=hm.get_blocked(); up,dn=bw.rates()
                 s._json_reply(200,{'app':APP,'version':VER,'blocked':len(blocked),'db_blocked':st['blocked'],
                     'db_allowed':st['whitelisted'],'feed_total':st['feed_total'],'today_hits':st['today_hits'],
-                    'bw_up':up,'bw_dn':dn})
+                    'bw_up':up,'bw_dn':dn,'doh':_doh_status_payload()})
             elif s.path=='/domains':
                 s._json_reply(200,[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()])
             elif s.path=='/stats':

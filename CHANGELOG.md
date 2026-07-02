@@ -14,6 +14,12 @@ All notable changes to HostsGuard are documented in this file.
 - Added a reviewed config import path that validates schema/domain/firewall/
   learning rows, previews counts and skipped entries before apply, creates a DB
   backup, and restores DB plus learning state on import failure.
+- Replaced static-only DoH/DoT resolver blocking with refreshable resolver
+  intelligence that merges Windows known DoH servers, requires SHA-256 for
+  remote resolver lists, preserves the user's current DNS resolver exemption,
+  reports source/last-updated status in Tools and `/status`, rolls back failed
+  refreshes by leaving the previous state file intact, and recreates DoH/DoT
+  firewall rules to avoid duplicates.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -27,6 +33,11 @@ All notable changes to HostsGuard are documented in this file.
   validation and rollback coverage was added.
 - Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
   and rebuilt the PyInstaller onedir artifact after the import change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 90 tests after adding
+  DoH resolver intelligence coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
+  rebuilt the PyInstaller onedir artifact, and passed `py -3.12 HostsGuard.py status`
+  after the DoH intelligence change.
 
 ## [v3.15.0] - 2026-07-02
 

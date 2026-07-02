@@ -14,8 +14,11 @@ import sys
 import datetime
 import time
 import json
+import hashlib
 import threading
 import types
+import urllib.request
+import urllib.error
 from dataclasses import dataclass, field
 import pytest
 
@@ -25,10 +28,15 @@ _SRC = open(os.path.join(os.path.dirname(__file__), "HostsGuard.py"), encoding="
 _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clean_hosts",
                "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules",
                "_import_status", "_import_list", "_build_import_plan", "_format_import_plan",
-               "_apply_import_plan"}
-_WANT_CLASSES = {"DB", "FWR"}
+               "_apply_import_plan", "_normalize_ip_set", "_parse_doh_payload",
+               "_collect_doh_values",
+               "_normalize_sha256", "_verify_doh_payload_hash", "_doh_state_payload",
+               "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
+               "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
+               "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text"}
+_WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
-                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER"}
+                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS"}
 
 
 def _extract():
@@ -52,7 +60,8 @@ def _extract():
     ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
-          "os": os}
+          "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
+          "urllib": urllib, "hashlib": hashlib}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -71,9 +80,19 @@ _parse_fw_rules = _m["_parse_fw_rules"]
 _build_import_plan = _m["_build_import_plan"]
 _format_import_plan = _m["_format_import_plan"]
 _apply_import_plan = _m["_apply_import_plan"]
+_parse_doh_payload = _m["_parse_doh_payload"]
+_verify_doh_payload_hash = _m["_verify_doh_payload_hash"]
+_doh_state_payload = _m["_doh_state_payload"]
+_load_doh_state = _m["_load_doh_state"]
+_save_doh_state = _m["_save_doh_state"]
+_current_doh_ips = _m["_current_doh_ips"]
+_doh_rule_ips = _m["_doh_rule_ips"]
+_parse_windows_doh_servers = _m["_parse_windows_doh_servers"]
+refresh_doh_intelligence = _m["refresh_doh_intelligence"]
 APP = _m["APP"]
 VER = _m["VER"]
 SCHEMA_VER = _m["SCHEMA_VER"]
+FWEngine = _m["FWEngine"]
 
 
 class TestExtraction:
@@ -436,6 +455,94 @@ class TestValidFwAddr:
 
     def test_injection_attempt_rejected(self):
         assert valid_fw_addr("8.8.8.8; Remove-Item") is False
+
+
+class TestDohIntelligence:
+    def _state_path(self, tmp_path):
+        path = tmp_path / "doh_resolvers.json"
+        _m["DOH_STATE_PATH"] = str(path)
+        return path
+
+    def test_parse_doh_payload_accepts_json_and_text(self):
+        payload = {
+            "resolvers": [
+                {"ip": "1.1.1.1"},
+                {"serverAddress": "2606:4700:4700::1111"},
+                {"ip": "not-an-ip"},
+            ],
+            "nested": {"addresses": ["8.8.8.8", "https://9.9.9.9/dns-query"]},
+        }
+        assert _parse_doh_payload(payload) == {"1.1.1.1", "8.8.8.8", "9.9.9.9", "2606:4700:4700::1111"}
+        text = "8.8.4.4 # google secondary\nhttps://149.112.112.112/dns-query\nbad-value"
+        assert _parse_doh_payload(text) == {"8.8.4.4", "149.112.112.112"}
+
+    def test_hash_check_accepts_plain_and_prefixed_sha256(self):
+        raw = b'{"ips":["1.1.1.1"]}'
+        digest = hashlib.sha256(raw).hexdigest()
+        assert _verify_doh_payload_hash(raw, digest) == digest
+        assert _verify_doh_payload_hash(raw, f"sha256:{digest}") == digest
+        with pytest.raises(ValueError, match="SHA-256"):
+            _verify_doh_payload_hash(raw, "0" * 64)
+
+    def test_rule_ips_merge_state_and_preserve_dns_exemption(self, tmp_path):
+        self._state_path(tmp_path)
+        _save_doh_state(_doh_state_payload(["9.9.9.9", "bad"], "test", "", "2026-07-02T00:00:00Z"))
+        ips = _doh_rule_ips(ips={"1.1.1.1", "9.9.9.9", "not-an-ip"}, exempt={"1.1.1.1"})
+        assert ips == ["9.9.9.9"]
+        assert "9.9.9.9" in _current_doh_ips()
+
+    def test_windows_doh_servers_parse_convertto_json_shapes(self):
+        assert _parse_windows_doh_servers('"1.1.1.1"') == {"1.1.1.1"}
+        assert _parse_windows_doh_servers('[{"ServerAddress":"8.8.8.8"},{"ServerAddress":"2606:4700:4700::1111"}]') == {
+            "8.8.8.8", "2606:4700:4700::1111"
+        }
+
+    def test_refresh_rolls_back_failed_remote_update(self, tmp_path, monkeypatch):
+        path = self._state_path(tmp_path)
+        original = _save_doh_state(_doh_state_payload(["9.9.9.9"], "old", "a" * 64, "2026-07-02T01:00:00Z"))
+        monkeypatch.setitem(_m, "_windows_known_doh_ips", lambda: set())
+        def fail_fetch(*args, **kwargs):
+            raise ValueError("forced hash failure")
+        monkeypatch.setitem(_m, "_fetch_doh_resolver_list", fail_fetch)
+        with pytest.raises(ValueError, match="forced hash failure"):
+            refresh_doh_intelligence("https://example.test/doh.json", "0" * 64)
+        with open(path, encoding="utf-8") as f:
+            assert json.load(f) == original
+
+    def test_remote_refresh_requires_hash(self, tmp_path, monkeypatch):
+        path = self._state_path(tmp_path)
+        _save_doh_state(_doh_state_payload(["9.9.9.9"], "old", "", "2026-07-02T01:00:00Z"))
+        monkeypatch.setitem(_m, "_windows_known_doh_ips", lambda: set())
+        with pytest.raises(ValueError, match="doh_resolver_sha256"):
+            refresh_doh_intelligence("https://example.test/doh.json", "")
+        with open(path, encoding="utf-8") as f:
+            assert json.load(f)["ips"] == ["9.9.9.9"]
+
+    def test_refresh_merges_windows_and_remote_after_validation(self, tmp_path, monkeypatch):
+        self._state_path(tmp_path)
+        monkeypatch.setitem(_m, "_windows_known_doh_ips", lambda: {"1.1.1.1"})
+        monkeypatch.setitem(_m, "_fetch_doh_resolver_list",
+                            lambda url, expected: _doh_state_payload(["8.8.8.8"], url, "b" * 64, "2026-07-02T02:00:00Z"))
+        state = refresh_doh_intelligence("https://example.test/doh.json", "b" * 64)
+        assert state["ips"] == ["1.1.1.1", "8.8.8.8"]
+        assert "Windows known DoH servers" in state["source"]
+        assert "https://example.test/doh.json" in state["source"]
+
+    def test_block_doh_replaces_existing_rules_before_create(self, monkeypatch):
+        calls = []
+        def fake_ps(cmd, t=20):
+            calls.append(cmd)
+            return True, ""
+        monkeypatch.setitem(_m, "_ps", fake_ps)
+        engine = FWEngine()
+        created = engine.block_doh(exempt={"1.1.1.1"}, ips={"1.1.1.1", "8.8.8.8"})
+        removes = [c for c in calls if c.startswith("Remove-NetFirewallRule")]
+        creates = [c for c in calls if c.startswith("New-NetFirewallRule")]
+        assert len(removes) == 3
+        assert len(creates) == 3
+        assert created == ["HG_DoH_IPs", "HG_DoT_TCP", "HG_DoT_UDP"]
+        assert "8.8.8.8" in creates[0]
+        assert "1.1.1.1" not in creates[0]
 
 
 class TestRgb:
