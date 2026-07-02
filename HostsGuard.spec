@@ -9,7 +9,7 @@ a = Analysis(
     hiddenimports=['psutil', 'maxminddb'],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_mp.py'],
     # HostsGuard needs only PySide6, psutil, maxminddb. Exclude the heavy scientific/
     # ML/dev packages that may be present in a shared build environment — without
     # these excludes PyInstaller drags in torch/tensorflow/scipy and the onedir

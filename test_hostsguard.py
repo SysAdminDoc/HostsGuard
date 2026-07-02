@@ -10,6 +10,7 @@ import ipaddress
 import os
 import re
 import sqlite3
+import sys
 import datetime
 import time
 import json
@@ -21,7 +22,7 @@ import pytest
 _SRC = open(os.path.join(os.path.dirname(__file__), "HostsGuard.py"), encoding="utf-8").read()
 
 # Top-level names to lift out of the real source.
-_WANT_FUNCS = {"looks_like_domain", "get_root", "norm_line", "clean_hosts",
+_WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clean_hosts",
                "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules"}
 _WANT_CLASSES = {"DB", "FWR"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
@@ -48,12 +49,13 @@ def _extract():
                                      debug=lambda *a, **k: None, error=lambda *a, **k: None)
     ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
-          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:"}
+          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
 
 _m = _extract()
+_is_frozen = _m["_is_frozen"]
 looks_like_domain = _m["looks_like_domain"]
 get_root = _m["get_root"]
 norm_line = _m["norm_line"]
@@ -75,6 +77,47 @@ class TestExtraction:
     def test_version_is_current(self):
         # Guards against a stale hardcoded version in the test harness.
         assert re.match(r"^\d+\.\d+\.\d+$", VER)
+
+
+class TestBootstrapGuards:
+    def test_freeze_support_runs_before_bootstrap_and_qt_imports(self):
+        tree = ast.parse(_SRC)
+        freeze_line = None
+        bootstrap_line = None
+        qt_import_line = None
+        for node in tree.body:
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                call = node.value
+                if isinstance(call.func, ast.Attribute) and call.func.attr == "freeze_support":
+                    freeze_line = node.lineno if freeze_line is None else min(freeze_line, node.lineno)
+                elif isinstance(call.func, ast.Name) and call.func.id == "_bootstrap":
+                    bootstrap_line = node.lineno
+            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("PySide6"):
+                qt_import_line = node.lineno if qt_import_line is None else min(qt_import_line, node.lineno)
+        assert freeze_line is not None
+        assert bootstrap_line is not None
+        assert qt_import_line is not None
+        assert freeze_line < bootstrap_line
+        assert freeze_line < qt_import_line
+
+    def test_frozen_detection_uses_sys_frozen(self, monkeypatch):
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        assert _is_frozen() is True
+
+    def test_bootstrap_skips_runtime_pip_when_frozen(self):
+        skip_pos = _SRC.index("if _is_frozen(): return")
+        pip_pos = _SRC.index("subprocess.check_call([sys.executable,'-m','pip','install'")
+        assert skip_pos < pip_pos
+
+    def test_frozen_detection_uses_meipass(self, monkeypatch):
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        monkeypatch.setattr(sys, "_MEIPASS", r"C:\Temp\hg", raising=False)
+        assert _is_frozen() is True
+
+    def test_unfrozen_detection(self, monkeypatch):
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+        assert _is_frozen() is False
 
 
 class TestNormLine:

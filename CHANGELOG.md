@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Hardened packaged startup by running `multiprocessing.freeze_support()` before
+  bootstrap/Qt imports, skipping runtime dependency installation inside frozen
+  builds, and wiring a PyInstaller runtime hook for worker-process diversion.
+
+### Verified
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`.
+- Rebuilt the PyInstaller onedir artifact with `runtime_hook_mp.py` included.
+- Passed `py -3.12 HostsGuard.py status` CLI smoke.
+
 ## [v3.15.0] - 2026-07-02
 
 ### Changed

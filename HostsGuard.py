@@ -3,8 +3,11 @@
 HostsGuard v3.15.0 - Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
+import multiprocessing
+multiprocessing.freeze_support()
+
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html
-import tempfile,webbrowser,socket,datetime,logging,multiprocessing,ipaddress,uuid
+import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid
 from pathlib import Path
 from collections import OrderedDict,defaultdict
 from dataclasses import dataclass,field
@@ -13,9 +16,13 @@ from threading import Lock,Event as TEvent
 import urllib.request,urllib.error
 
 
+def _is_frozen():
+    return getattr(sys,"frozen",False) or hasattr(sys,"_MEIPASS")
+
+
 def _branding_icon_path() -> Path:
     candidates = []
-    if getattr(sys, "frozen", False):
+    if _is_frozen():
         exe_dir = Path(sys.executable).resolve().parent
         candidates.append(exe_dir / "icon.png")
         meipass = getattr(sys, "_MEIPASS", None)
@@ -79,6 +86,7 @@ def _bootstrap():
             os._exit(0)
     if not is_cli and '--service' not in sys.argv: _kill_remnants()
     if sys.version_info<(3,8): print("Python 3.8+ required"); sys.exit(1)
+    if _is_frozen(): return
     _cf={'creationflags':NOWIN} if sys.platform=='win32' else {}
     for pkg in ['PySide6','psutil','maxminddb']:
         try: __import__(pkg)
@@ -4560,7 +4568,6 @@ def main():
         print(f"CRASH: {e}\n{tb}",file=sys.stderr); sys.exit(1)
 
 if __name__=="__main__":
-    multiprocessing.freeze_support()
     if '--service' in sys.argv:
         _service()
     else:
