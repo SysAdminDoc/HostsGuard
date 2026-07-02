@@ -12,8 +12,10 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- Shared product version — single source of truth for every assembly. -->
-    <Version>0.1.0</Version>
+    <!-- Shared product version — single source of truth for every assembly.
+         0.2.0: elevated engine complete (hosts/firewall/DNS/connections/tamper),
+         gRPC-over-named-pipe IPC, SQLite persistence, and the UI service-client. -->
+    <Version>0.2.0</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
