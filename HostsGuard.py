@@ -1871,10 +1871,10 @@ class DNSInspectDlg(QDialog):
             try:
                 resp=s._dns_query(domain,qtype)
                 if resp:
-                    for name,rtype,ttl,rdata in resp:
+                    for name,rtype,ttl,rdata,data,rdata_off in resp:
                         if rtype==1 and len(rdata)==4: val='.'.join(str(b) for b in rdata)
                         elif rtype==28 and len(rdata)==16: val=socket.inet_ntop(socket.AF_INET6,rdata)
-                        elif rtype==5: val=s._parse_name_from(rdata,b'')
+                        elif rtype==5: val=s._read_name(data,rdata_off)[0] or '(unresolved)'
                         else: val=rdata.hex()
                         lines.append(f"{label:6s}  {name:40s}  TTL={ttl:<6d}  {val}")
             except Exception as e: lines.append(f"{label:6s}  Error: {e}")
@@ -1910,8 +1910,10 @@ class DNSInspectDlg(QDialog):
             name,off=DNSInspectDlg._read_name(data,off)
             if off+10>len(data): break
             rtype,_,ttl,rdlen=_st.unpack('!HHIH',data[off:off+10]); off+=10
-            rdata=data[off:off+rdlen]; off+=rdlen
-            results.append((name,rtype,ttl,rdata))
+            rdata_off=off; rdata=data[off:off+rdlen]; off+=rdlen
+            # Carry the full packet + rdata offset so name-bearing records (CNAME)
+            # can resolve DNS compression pointers that reference earlier positions.
+            results.append((name,rtype,ttl,rdata,data,rdata_off))
         return results
     @staticmethod
     def _read_name(data,off):
@@ -1929,15 +1931,6 @@ class DNSInspectDlg(QDialog):
                 continue
             off+=1; parts.append(data[off:off+l].decode('ascii','replace')); off+=l
         return '.'.join(parts), save_off if jumped else off
-    @staticmethod
-    def _parse_name_from(rdata,full_pkt):
-        parts=[]; off=0
-        while off<len(rdata):
-            l=rdata[off]
-            if l==0: break
-            if l&0xc0==0xc0: parts.append('(ptr)'); break
-            off+=1; parts.append(rdata[off:off+l].decode('ascii','replace')); off+=l
-        return '.'.join(parts) if parts else rdata.hex()
 
 # ─── Connection Detail Dialog ───────────────────────────────────────────────
 class ConnDetailDlg(QDialog):
