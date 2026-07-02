@@ -105,7 +105,11 @@ All notable changes to HostsGuard are documented in this file.
   switch), DeleteProfile guarded by confirm in the UI. The machine-policy half
   of the old item is resolved by architecture: the service already owns all
   state in %ProgramData%\HostsGuard.
-- 245 .NET tests; zero build warnings under warnings-as-errors.
+- i18n scaffolding (NET-037): I18n.T(key, english, args) backed by
+  Resources/Strings.resx with safe missing-key fallback to the English default;
+  shell connection strings route through it as the pattern. Future locales are
+  satellite-assembly drops, no code changes.
+- 248 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

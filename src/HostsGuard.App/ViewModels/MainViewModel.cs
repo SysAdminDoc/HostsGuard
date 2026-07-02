@@ -24,7 +24,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isConnected;
 
     [ObservableProperty]
-    private string _connectionText = "Connecting to service…";
+    private string _connectionText = I18n.T("Status.Connecting", "Connecting to service…");
 
     [ObservableProperty]
     private string _serviceVersion = string.Empty;
@@ -110,12 +110,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
             IsConnected = true;
-            ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
+            ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
+                + (status.Elevated ? " (elevated)" : string.Empty);
         }
         catch (Exception ex)
         {
             IsConnected = false;
-            ConnectionText = $"Service unavailable — {ex.Message}";
+            ConnectionText = I18n.T("Status.Unavailable", "Service unavailable — {0}", ex.Message);
         }
     }
 
