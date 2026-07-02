@@ -1,10 +1,4 @@
-"""Tests for HostsGuard's security-critical and correctness-critical pure functions.
-
-Rather than hand-copying function bodies (which silently drift from the source),
-this harness parses HostsGuard.py with the `ast` module and executes ONLY the
-selected top-level constants and pure functions in an isolated namespace — so the
-tests exercise the real code without triggering the module-level bootstrap/Qt init.
-"""
+"""Tests for HostsGuard's security-critical and correctness-critical package APIs."""
 import ast
 import ipaddress
 import os
@@ -30,81 +24,18 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 import pytest
 
-_SRC = open(os.path.join(os.path.dirname(__file__), "HostsGuard.py"), encoding="utf-8").read()
+os.environ.setdefault("HOSTSGUARD_SKIP_BOOTSTRAP", "1")
+import hostsguard.app as hg
+import hostsguard.core as hg_core
+import hostsguard.firewall as hg_firewall
+import hostsguard.network as hg_network
+import hostsguard.service as hg_service
+import hostsguard.ui as hg_ui
 
-# Top-level names to lift out of the real source.
-_WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clean_hosts",
-               "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules",
-               "_import_status", "_import_list", "_build_import_plan", "_format_import_plan",
-               "_apply_import_plan", "_normalize_ip_set", "_parse_doh_payload",
-               "_collect_doh_values",
-               "_normalize_sha256", "_verify_doh_payload_hash", "_doh_state_payload",
-               "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
-               "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
-               "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text",
-               "_redaction_marker", "_looks_like_url", "_looks_like_public_ip",
-               "_redact_support_scalar", "_redact_support_key", "_redact_support_config", "_redact_support_text",
-               "_fw_support_summary", "_event_rows_redacted", "_support_bundle_payload",
-               "_write_support_bundle",
-               "_clamp_number", "_webhook_options", "_webhook_payload", "_webhook_error_text", "_deliver_webhook",
-               "_module_version", "_dependency_versions",
-               "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
-               "_migrate_policy_to_programdata",
-               "_parse_search_query", "_search_record_text", "_search_matches",
-               "_coerce_ui_scale",
-               "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
-               "_load_fw_identity_cache", "_remember_fw_program_identity",
-               "_remember_fw_program_identity_async", "_identity_hashes",
-               "_score_rebind_candidate", "_rank_rebind_candidates", "_candidate_search_roots",
-               "_scan_program_rebind_candidates",
-               "canonical_reason", "reason_label", "_service_error", "_service_auth_ok",
-               "_service_parse_limit", "_service_validate_since", "_service_log_params",
-               "_service_parse_json_body", "_service_openapi"}
-_WANT_CLASSES = {"DB", "FWR", "FWEngine"}
-_WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
-                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS", "_PORTABLE",
-                "USER_CONFIG_DIR", "PROGRAMDATA_CONFIG_DIR", "POLICY_FILES", "POLICY_SCOPE",
-                "UI_SCALE_CHOICES",
-                "FW_IDENTITY_CACHE_KEY",
-                "WEBHOOK_MAX_RETRIES", "WEBHOOK_MAX_BACKOFF_SECONDS", "WEBHOOK_MAX_TIMEOUT_SECONDS",
-                "WEBHOOK_DEFAULT_TIMEOUT_SECONDS",
-                "SUPPORT_REDACTION_MARKERS", "_SECRET_KEY_RE", "_URL_RE", "_DOMAIN_TEXT_RE", "_IP_TEXT_RE",
-                "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
-                "SERVICE_BODY_LIMIT", "SERVICE_LOG_ACTIONS"}
-
-
-def _extract():
-    tree = ast.parse(_SRC)
-    picked = []
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name in _WANT_FUNCS:
-            picked.append(node)
-        elif isinstance(node, ast.ClassDef) and node.name in _WANT_CLASSES:
-            picked.append(node)
-        elif isinstance(node, ast.Assign):
-            targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
-            if any(t in _WANT_CONSTS for t in targets):
-                picked.append(node)
-    module = ast.Module(body=picked, type_ignores=[])
-    ast.fix_missing_locations(module)
-    # Provide the module globals the extracted code resolves at call time (the DB
-    # class references these). log is a no-op stub; DB_PATH is set per-test.
-    log_stub = types.SimpleNamespace(warning=lambda *a, **k: None, info=lambda *a, **k: None,
-                                     debug=lambda *a, **k: None, error=lambda *a, **k: None)
-    ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
-          "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
-          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
-          "CONFIG_DIR": os.getcwd(),
-          "Path": __import__("pathlib").Path,
-          "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
-          "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict,
-          "defaultdict": defaultdict, "zipfile": zipfile, "shutil": shutil, "tempfile": tempfile,
-          "shlex": shlex, "platform": platform, "importlib_metadata": importlib_metadata}
-    exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
-    return ns
-
-
-_m = _extract()
+_ROOT = os.path.dirname(__file__)
+_SRC = open(os.path.join(_ROOT, "hostsguard", "app.py"), encoding="utf-8").read()
+_LAUNCHER_SRC = open(os.path.join(_ROOT, "HostsGuard.py"), encoding="utf-8").read()
+_m = hg.__dict__
 _is_frozen = _m["_is_frozen"]
 looks_like_domain = _m["looks_like_domain"]
 get_root = _m["get_root"]
@@ -154,13 +85,27 @@ SCHEMA_VER = _m["SCHEMA_VER"]
 FWEngine = _m["FWEngine"]
 
 
-class TestExtraction:
-    def test_all_functions_extracted(self):
-        for name in _WANT_FUNCS:
-            assert name in _m, f"{name} was not extracted from source"
+class TestPackageBoundaries:
+    def test_launcher_is_thin(self):
+        code_lines = [
+            line for line in _LAUNCHER_SRC.splitlines()
+            if line.strip() and not line.lstrip().startswith("#") and not line.strip().startswith('"""')
+        ]
+        assert "from hostsguard.app import run" in _LAUNCHER_SRC
+        assert len(code_lines) <= 4
+
+    def test_facade_modules_export_expected_boundaries(self):
+        assert hg_core.DB is hg.DB
+        assert hg_core.HostsMgr is hg.HostsMgr
+        assert hg_firewall.FWEngine is hg.FWEngine
+        assert hg_firewall.valid_fw_addr is hg.valid_fw_addr
+        assert hg_network.ConnWorker is hg.ConnWorker
+        assert hg_network.refresh_doh_intelligence is hg.refresh_doh_intelligence
+        assert hg_service._service is hg._service
+        assert hg_service._deliver_webhook is hg._deliver_webhook
+        assert hg_ui.MainWindow is hg.MainWindow
 
     def test_version_is_current(self):
-        # Guards against a stale hardcoded version in the test harness.
         assert re.match(r"^\d+\.\d+\.\d+$", VER)
 
 
@@ -175,7 +120,7 @@ class TestBootstrapGuards:
                 call = node.value
                 if isinstance(call.func, ast.Attribute) and call.func.attr == "freeze_support":
                     freeze_line = node.lineno if freeze_line is None else min(freeze_line, node.lineno)
-                elif isinstance(call.func, ast.Name) and call.func.id == "_bootstrap":
+                elif isinstance(call.func, ast.Name) and call.func.id == "_maybe_bootstrap":
                     bootstrap_line = node.lineno
             elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("PySide6"):
                 qt_import_line = node.lineno if qt_import_line is None else min(qt_import_line, node.lineno)

@@ -34,6 +34,10 @@ winget install --id JRSoftware.InnoSetup -e
 # Produces installer_output/HostsGuard-v3.15.0-Setup.exe
 ```
 
+### Project Layout
+
+`HostsGuard.py` is a thin launcher. Runtime code lives under `hostsguard/`: `app.py` keeps the current application capsule, while `core.py`, `firewall.py`, `network.py`, `service.py`, and `ui.py` expose responsibility-focused package boundaries for tests and future refactors.
+
 ## Features
 
 ### Hosts Activity Tab

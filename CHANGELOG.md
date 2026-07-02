@@ -54,6 +54,10 @@ All notable changes to HostsGuard are documented in this file.
   bounded retry/backoff/timeout controls, explicit disabled/invalid states, and
   retry/exhaustion delivery status in `hostsguard.log`; support bundles redact
   webhook secrets alongside URLs.
+- Split the monolithic runtime into a `hostsguard/` package with a thin
+  `HostsGuard.py` launcher, responsibility facade modules for core/firewall/
+  network/service/UI code, and direct package-import tests instead of AST
+  extraction.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -127,6 +131,15 @@ All notable changes to HostsGuard are documented in this file.
   after the webhook hardening change.
 - Rebuilt the PyInstaller onedir artifact and passed the frozen `release-smoke`
   process exit check after the webhook hardening change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 119 tests after the
+  package split and direct-import test migration.
+- Passed `py -3.12 -m py_compile HostsGuard.py hostsguard\__init__.py
+  hostsguard\app.py hostsguard\core.py hostsguard\firewall.py
+  hostsguard\network.py hostsguard\service.py hostsguard\ui.py
+  test_hostsguard.py runtime_hook_mp.py`.
+- Passed `py -3.12 HostsGuard.py status`, `py -3.12 HostsGuard.py release-smoke`,
+  rebuilt the PyInstaller onedir artifact from the thin launcher, and passed the
+  frozen `release-smoke` process exit check after the package split.
 
 ## [v3.15.0] - 2026-07-02
 
