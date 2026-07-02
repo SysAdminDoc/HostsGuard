@@ -1,13 +1,19 @@
+#define MyAppName "HostsGuard"
+#define MyAppVersion "3.15.0"
+#define MyAppVersionInfo "3.15.0.0"
+
 [Setup]
-AppName=HostsGuard
-AppVersion=3.14.0
+AppId=HostsGuard
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher=SysAdminDoc
 AppPublisherURL=https://github.com/SysAdminDoc/HostsGuard
 DefaultDirName={autopf}\HostsGuard
 DefaultGroupName=HostsGuard
 UninstallDisplayIcon={app}\HostsGuard.exe
 OutputDir=installer_output
-OutputBaseFilename=HostsGuard_Setup
+OutputBaseFilename=HostsGuard-v{#MyAppVersion}-Setup
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -16,6 +22,15 @@ SetupIconFile=icon.ico
 ArchitecturesInstallIn64BitMode=x64compatible
 LicenseFile=LICENSE
 MinVersion=10.0
+SetupLogging=yes
+CloseApplications=yes
+CloseApplicationsFilter=HostsGuard.exe
+RestartApplications=no
+VersionInfoVersion={#MyAppVersionInfo}
+VersionInfoCompany=SysAdminDoc
+VersionInfoDescription=HostsGuard installer
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
 
 [Files]
 Source: "dist\HostsGuard\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs

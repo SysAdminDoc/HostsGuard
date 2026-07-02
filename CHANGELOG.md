@@ -2,6 +2,34 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [v3.15.0] - 2026-07-02
+
+### Changed
+- Elevated the PySide6 interface polish across the full app shell: branded header,
+  clearer tab names, stronger dark/light focus states, consistent button/checkbox
+  behavior, and deterministic no-pill radius treatment.
+- Reworked prompts, confirmations, firewall-rule creation, empty states, loading
+  overlays, toasts, and status labels so default, empty, error, disabled, and
+  destructive flows read clearly and recoverably.
+- Replaced fragile decorative glyph labels with readable text/status treatments,
+  refreshed microcopy across hosts, firewall, blocklist, learning, backup, and
+  DNS tools, and recaptured the README screenshot from rendered UI QA.
+
+### Verified
+- Rendered dark and light screenshots for Hosts Activity, Firewall Activity,
+  Hosts File subtabs, Firewall Rules, Tools, domain prompts, and firewall-rule
+  dialogs.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 71 tests.
+
+## [v3.14.1] - 2026-07-02
+
+### Changed
+- Hardened the Windows installer pipeline: the Inno Setup script now emits a
+  versioned setup executable with explicit version metadata, setup logging, and
+  close-application handling for upgrades.
+- Documented the direct Inno Setup compiler path used on Windows systems where
+  `iscc` is installed but not present on `PATH`.
+
 ## [v3.14.0] - 2026-07-02
 
 ### Changed

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-3.14.0-blue)
+![Version](https://img.shields.io/badge/version-3.15.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
@@ -25,11 +25,12 @@ Dependencies (`PySide6`, `psutil`, `maxminddb`) are auto-installed on first run.
 
 ### Building
 
-```bash
+```powershell
 pip install pyinstaller
 pyinstaller HostsGuard.spec          # Builds to dist/HostsGuard/
-# Optional: build installer with Inno Setup
-iscc installer.iss                    # Produces installer_output/HostsGuard_Setup.exe
+winget install --id JRSoftware.InnoSetup -e
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+# Produces installer_output/HostsGuard-v3.15.0-Setup.exe
 ```
 
 ## Features
@@ -47,14 +48,14 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | Bulk Actions | Multi-select domains for batch block, allow, or hide operations |
 | Research Links | Right-click any domain to open Google, VirusTotal, who.is, URLScan, Shodan, SecurityTrails, MXToolbox, or AbuseIPDB |
 
-### FW Activity Tab
+### Firewall Activity Tab
 
 | Feature | Description |
 |---------|-------------|
 | Live Connections | Real-time view of all outbound TCP/UDP connections via `psutil` |
-| FW Status Overlay | Each connection shows whether it's blocked by hosts file, firewall, or neither |
+| Firewall Status Overlay | Each connection shows whether it's blocked by hosts file, firewall, or neither |
 | Process Identification | Shows process name, PID, remote port, country code, and traffic category |
-| Quick FW Blocking | Block any IP (outbound, inbound, or both) or program directly from the connection list |
+| Quick Firewall Blocking | Block any IP (outbound, inbound, or both) or program directly from the connection list |
 | Custom Rules | Create fully customized Windows Firewall rules with direction, action, protocol, address, and program |
 | Learning Mode | Prompts on first connection from unknown processes — trust, untrust, or investigate |
 | GeoIP Lookup | Resolves remote IPs to country codes via ip-api.com with LRU caching |
@@ -71,13 +72,13 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | Blocklist Import | Import from 12+ community blocklists across ads, tracking, malware, and privacy categories |
 | Paste Import | Bulk-add domains from clipboard (one per line) to hosts file or database |
 
-### FW Rules Tab
+### Firewall Rules Tab
 
 | Feature | Description |
 |---------|-------------|
 | Full Rule Viewer | Lists all Windows Firewall rules with name, direction, action, protocol, remote address, and program |
 | HG Prefix Tracking | HostsGuard-created rules use `HG_` prefix for easy identification and management |
-| Quick Block Buttons | Block IP Out, Block IP In+Out, Block Program — instant rule creation |
+| Quick Block Buttons | Block IP Out, Block IP In+Out, Block Program - instant rule creation |
 | Change Action | Right-click any rule to toggle between Block and Allow |
 | Enable / Disable | Toggle rules on/off without deleting them |
 | Profile Management | Enable all firewall profiles (Domain, Public, Private) with one click |
@@ -168,7 +169,7 @@ Importable directly from the Hosts File tab:
 └──────────────────┘     └──────────────────┘     └──────────────────┘
 
 ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  psutil           │────>│  Connection DB    │────>│  FW Activity Tab  │
+│  psutil           │────>│  Connection DB    │────>│ Firewall Activity │
 │  net_connections  │     │  (SQLite WAL)     │     │  (live view)      │
 │  (2s interval)    │     │                  │     │                  │
 └──────────────────┘     └──────────────────┘     └──────────────────┘
@@ -222,13 +223,13 @@ Click the **Refresh** button or switch away and back — the first load runs an 
 Run `ipconfig /flushdns` (available in the Tools tab) or wait for the DNS cache to expire. Some applications maintain their own DNS cache separate from the OS.
 
 **Q: How do I undo everything?**
-Hosts File tab → **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. FW Rules tab → **Delete All HG** removes all HostsGuard-created firewall rules.
+Hosts File tab > **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. Firewall Rules tab > **Delete HG Rules** removes all HostsGuard-created firewall rules.
 
 **Q: Can I run this headless / via CLI?**
 Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `POST /domains` (with `{action, domain}` body). Because the service runs elevated and the endpoint can modify your hosts file, set the `HG_TOKEN` environment variable to require an `X-HG-Token` header on every request.
 
 **Q: Windows Defender flags HostsGuard as a threat**
-Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive — HostsGuard is modifying the hosts file intentionally. To resolve: Settings → Virus & Threat Protection → Manage settings → Exclusions → Add an exclusion → File → `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.
+Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive - HostsGuard is modifying the hosts file intentionally. To resolve: Settings > Virus & Threat Protection > Manage settings > Exclusions > Add an exclusion > File > `C:\Windows\System32\drivers\etc\hosts`. HostsGuard shows a warning before importing lists that trigger this.
 
 ## License
 
