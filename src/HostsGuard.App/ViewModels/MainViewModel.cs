@@ -41,6 +41,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private HostsViewModel? _hosts;
 
     [ObservableProperty]
+    private HostsActivityViewModel? _activity;
+
+    [ObservableProperty]
+    private RawHostsViewModel? _rawHosts;
+
+    [ObservableProperty]
     private string _theme;
 
     [ObservableProperty]
@@ -73,6 +79,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbAllowed = status.DbAllowed;
             Hosts ??= new HostsViewModel(_client);
             await Hosts.RefreshAsync();
+            Activity ??= new HostsActivityViewModel(_client);
+            await Activity.RefreshAsync();
+            Activity.StartWatching();
+            RawHosts ??= new RawHostsViewModel(_client);
+            await RawHosts.LoadAsync();
             IsConnected = true;
             ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
         }
@@ -97,5 +108,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _config.Save(Theme, value);
     }
 
-    public void Dispose() => _client?.Dispose();
+    public void Dispose()
+    {
+        Activity?.Dispose();
+        _client?.Dispose();
+    }
 }

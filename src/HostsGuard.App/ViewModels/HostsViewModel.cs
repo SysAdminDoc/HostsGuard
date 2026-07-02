@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,6 +16,8 @@ namespace HostsGuard.App.ViewModels;
 [SupportedOSPlatform("windows")]
 public sealed partial class HostsViewModel : ObservableObject
 {
+    public static readonly IReadOnlyList<string> StatusFilters = new[] { "All", "blocked", "whitelisted" };
+
     private readonly HostsServiceClient _client;
 
     [ObservableProperty]
@@ -26,14 +29,23 @@ public sealed partial class HostsViewModel : ObservableObject
     [ObservableProperty]
     private string _filter = string.Empty;
 
+    [ObservableProperty]
+    private string _statusFilter = "All";
+
     public HostsViewModel(HostsServiceClient client) => _client = client ?? throw new ArgumentNullException(nameof(client));
 
     public ObservableCollection<ManagedDomainViewModel> Domains { get; } = new();
 
+    partial void OnStatusFilterChanged(string value) => _ = RefreshAsync();
+
     [RelayCommand]
     public async Task RefreshAsync()
     {
-        var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest { Search = Filter });
+        var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest
+        {
+            Search = Filter,
+            Status = StatusFilter == "All" ? string.Empty : StatusFilter,
+        });
         Domains.Clear();
         foreach (var d in list.Domains)
         {
@@ -70,4 +82,59 @@ public sealed partial class HostsViewModel : ObservableObject
         StatusText = $"Removed {domain}";
         await RefreshAsync();
     }
+
+    [RelayCommand]
+    public async Task BlockRootAsync(string domain)
+    {
+        var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "manual" });
+        StatusText = ack.Message;
+        await RefreshAsync();
+    }
+
+    // ─── Bulk actions (parameter: DataGrid.SelectedItems) ────────────────────
+
+    [RelayCommand]
+    public async Task BlockSelectedAsync(IList? selected)
+    {
+        foreach (var domain in SelectedDomains(selected))
+        {
+            await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
+        }
+
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    public async Task AllowSelectedAsync(IList? selected)
+    {
+        foreach (var domain in SelectedDomains(selected))
+        {
+            await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
+        }
+
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    public async Task RemoveSelectedAsync(IList? selected)
+    {
+        foreach (var domain in SelectedDomains(selected))
+        {
+            await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
+        }
+
+        await RefreshAsync();
+    }
+
+    private static List<string> SelectedDomains(IList? selected)
+        => selected?.OfType<ManagedDomainViewModel>().Select(d => d.Domain).ToList() ?? new List<string>();
+
+    [RelayCommand]
+    public void ResearchGoogle(string domain) => Research.Open(Research.Sites[0].UrlTemplate, domain);
+
+    [RelayCommand]
+    public void ResearchVirusTotal(string domain) => Research.Open(Research.Sites[1].UrlTemplate, domain);
+
+    [RelayCommand]
+    public void ResearchWhois(string domain) => Research.Open(Research.Sites[2].UrlTemplate, domain);
 }

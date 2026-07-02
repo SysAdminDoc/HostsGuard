@@ -1,3 +1,6 @@
+using System.Runtime.Versioning;
+using Google.Protobuf.WellKnownTypes;
+using HostsGuard.Contracts;
 using HostsGuard.Data;
 using HostsGuard.Windows;
 
@@ -5,8 +8,11 @@ namespace HostsGuard.Service;
 
 /// <summary>
 /// Shared engine state for the service's gRPC implementations. Owns the hosts
-/// engine and database; a single instance is registered as a DI singleton.
+/// engine, database, event bus, and temp-allow scheduler; a single instance is
+/// registered as a DI singleton. Constructing it resumes persisted temp-allow
+/// windows (expired ones revert immediately).
 /// </summary>
+[SupportedOSPlatform("windows")]
 public sealed class ServiceState : IDisposable
 {
     public ServiceState(HostsEngine hosts, HostsDatabase db)
@@ -14,13 +20,47 @@ public sealed class ServiceState : IDisposable
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
         StartedAtUtc = DateTime.UtcNow;
+        Bus = new EventBus();
+        TempAllows = new TempAllowScheduler(hosts, db, Bus);
+        TempAllows.Resume();
     }
 
     public HostsEngine Hosts { get; }
 
     public HostsDatabase Db { get; }
 
+    public EventBus Bus { get; }
+
+    public TempAllowScheduler TempAllows { get; }
+
     public DateTime StartedAtUtc { get; }
 
-    public void Dispose() => Db.Dispose();
+    /// <summary>
+    /// Record a DNS sighting: persist to the activity feed and publish to live
+    /// watchers. Called by the ETW pipeline (production) and tests.
+    /// </summary>
+    public void RecordDns(string domain, string process = "", int pid = 0, bool blocked = false)
+    {
+        var d = domain.ToLowerInvariant().Trim();
+        if (d.Length == 0)
+        {
+            return;
+        }
+
+        Db.RecordFeed(d, process);
+        Bus.Publish(new DnsEvent
+        {
+            Domain = d,
+            Process = process,
+            Pid = pid,
+            Blocked = blocked,
+            Ts = Timestamp.FromDateTime(DateTime.UtcNow),
+        });
+    }
+
+    public void Dispose()
+    {
+        TempAllows.Dispose();
+        Db.Dispose();
+    }
 }

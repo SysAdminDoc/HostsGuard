@@ -37,7 +37,19 @@ All notable changes to HostsGuard are documented in this file.
   build while preserving Python-owned keys. Verified interactively: launches
   unelevated, renders all tabs, live theme toggle, correct "service
   unavailable" degradation.
-- 189 .NET tests; zero build warnings under warnings-as-errors.
+- Hosts views (NET-021): contract grew TempAllow/ListTempAllows,
+  GetHostsText/SetHostsText, HideRoot/UnhideRoot, and GetActivity (schema-lock
+  updated deliberately). The service now hosts Monitoring streams over an
+  in-process EventBus, records DNS sightings into the persistent feed, and runs
+  a TempAllowScheduler: temp-allow windows persist in the DB (schema v2), the
+  earliest expiry is timer-armed, expired windows revert on service restart,
+  and a manual allow/block since the window opened wins over the auto-revert.
+  The UI gained the live Hosts Activity tab (WatchDns stream + snapshot,
+  status/search filters, hide-root, temp-allow 15m/1h/8h, research links,
+  reason tooltips) and the Hosts File tab split into Managed Domains
+  (status filter, bulk block/allow/remove, block-root) + Raw Editor
+  (transactional save through the engine).
+- 197 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

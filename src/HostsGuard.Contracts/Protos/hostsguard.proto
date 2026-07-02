@@ -47,6 +47,60 @@ service HostsControl {
   rpc ListDomains(ListDomainsRequest) returns (DomainList);
   rpc Reconcile(ReconcileRequest) returns (Ack);
   rpc EmergencyReset(Empty) returns (Ack);
+  // Temporarily allow a blocked domain; the service re-blocks it when the
+  // window expires and re-arms persisted windows across service restarts.
+  rpc TempAllow(TempAllowRequest) returns (Ack);
+  rpc ListTempAllows(Empty) returns (TempAllowList);
+  // Raw hosts file access for the editor view. Set routes through the
+  // transactional engine (atomic write + self-write hash).
+  rpc GetHostsText(Empty) returns (HostsText);
+  rpc SetHostsText(HostsText) returns (Ack);
+  // Feed root visibility (hide chatty roots from the activity feed).
+  rpc HideRoot(DomainRequest) returns (Ack);
+  rpc UnhideRoot(DomainRequest) returns (Ack);
+  // Snapshot of recent DNS activity (the live delta streams via Monitoring.WatchDns).
+  rpc GetActivity(ActivityRequest) returns (ActivityList);
+}
+
+message TempAllowRequest {
+  string domain = 1;
+  int32 minutes = 2;
+  string source = 3;
+}
+
+message TempAllowEntry {
+  string domain = 1;
+  google.protobuf.Timestamp expires = 2;
+}
+
+message TempAllowList {
+  repeated TempAllowEntry entries = 1;
+}
+
+message HostsText {
+  string text = 1;
+}
+
+message ActivityRequest {
+  int32 limit = 1;        // 0 = server default
+  string search = 2;      // shared search DSL
+  bool include_hidden = 3;
+}
+
+message ActivityRow {
+  string domain = 1;
+  string root = 2;
+  string status = 3;      // "blocked" | "whitelisted" | ""
+  string process = 4;
+  int64 hits = 5;
+  string first_seen = 6;
+  string last_seen = 7;
+  bool hidden = 8;
+  string reason = 9;
+}
+
+message ActivityList {
+  repeated ActivityRow rows = 1;
 }
 
 message DomainRequest {

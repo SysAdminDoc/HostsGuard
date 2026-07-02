@@ -70,19 +70,7 @@
             <!-- Main tabs -->
             <TabControl Margin="8">
                 <TabItem Header="Hosts Activity">
-                    <TextBlock Text="Live DNS activity feed — arrives with NET-021."
-                               Style="{StaticResource Hg.DimText}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </TabItem>
-
-                <TabItem Header="FW Activity">
-                    <TextBlock Text="Live connections + GeoIP — arrives with NET-022."
-                               Style="{StaticResource Hg.DimText}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </TabItem>
-
-                <TabItem Header="Hosts File">
-                    <Grid Margin="4" DataContext="{Binding Hosts}">
+                    <Grid Margin="4" DataContext="{Binding Activity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -92,44 +80,208 @@
                         <DockPanel Grid.Row="0" Margin="0,0,0,8">
                             <Button DockPanel.Dock="Right" Content="Refresh"
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="Block"
-                                    Style="{StaticResource Hg.AccentButton}"
-                                    Command="{Binding BlockCommand}" Margin="8,0,0,0" />
-                            <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
-                                     Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Domain to block" />
+                            <CheckBox DockPanel.Dock="Right" Content="Show hidden" Margin="8,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding ShowHidden}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Filter — supports field:value, !term, field!=value" />
+                                     ToolTip="Filter — supports field:value, !term, field!=value. Enter applies.">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
                         </DockPanel>
 
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding Domains}">
+                        <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding Rows}">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Block"
+                                              Command="{Binding PlacementTarget.DataContext.BlockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Block root"
+                                              Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Allow"
+                                              Command="{Binding PlacementTarget.DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Temp allow">
+                                        <MenuItem Header="15 minutes"
+                                                  Command="{Binding PlacementTarget.DataContext.TempAllow15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="1 hour"
+                                                  Command="{Binding PlacementTarget.DataContext.TempAllow60Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="8 hours"
+                                                  Command="{Binding PlacementTarget.DataContext.TempAllow480Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </MenuItem>
+                                    <Separator />
+                                    <MenuItem Header="Hide root"
+                                              Command="{Binding PlacementTarget.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Unhide root"
+                                              Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <Separator />
+                                    <MenuItem Header="Research online">
+                                        <MenuItem Header="Google"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="VirusTotal"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="who.is"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </MenuItem>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
-                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
-                                <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
+                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
-                                <DataGridTemplateColumn Header="" Width="170">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Content="Allow" Padding="8,2" Margin="0,0,6,0"
-                                                        Command="{Binding DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding Domain}" />
-                                                <Button Content="Remove" Padding="8,2"
-                                                        Style="{StaticResource Hg.DangerButton}"
-                                                        Command="{Binding DataContext.UnblockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding Domain}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen}" Width="170" />
                             </DataGrid.Columns>
                         </DataGrid>
 
                         <TextBlock Grid.Row="2" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
+                </TabItem>
+
+                <TabItem Header="FW Activity">
+                    <TextBlock Text="Live connections + GeoIP — arrives with NET-022."
+                               Style="{StaticResource Hg.DimText}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </TabItem>
+
+                <TabItem Header="Hosts File">
+                    <TabControl Margin="0,4,0,0">
+                        <TabItem Header="Managed Domains">
+                            <Grid Margin="4" DataContext="{Binding Hosts}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="Refresh"
+                                            Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                                    <Button DockPanel.Dock="Right" Content="Block"
+                                            Style="{StaticResource Hg.AccentButton}"
+                                            Command="{Binding BlockCommand}" Margin="8,0,0,0" />
+                                    <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
+                                             Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Domain to block" />
+                                    <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
+                                              ItemsSource="{x:Static vm:HostsViewModel.StatusFilters}"
+                                              SelectedItem="{Binding StatusFilter}" />
+                                    <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip="Filter — supports field:value, !term, field!=value. Enter applies.">
+                                        <TextBox.InputBindings>
+                                            <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
+                                        </TextBox.InputBindings>
+                                    </TextBox>
+                                </DockPanel>
+
+                                <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Block selected"
+                                                      Command="{Binding PlacementTarget.DataContext.BlockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Allow selected"
+                                                      Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Remove selected"
+                                                      Command="{Binding PlacementTarget.DataContext.RemoveSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <Separator />
+                                            <MenuItem Header="Block root"
+                                                      Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <Separator />
+                                            <MenuItem Header="Research online">
+                                                <MenuItem Header="Google"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                <MenuItem Header="VirusTotal"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                <MenuItem Header="who.is"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
+                                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
+                                        <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
+                                        <DataGridTemplateColumn Header="" Width="170">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Allow" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding Domain}" />
+                                                        <Button Content="Remove" Padding="8,2"
+                                                                Style="{StaticResource Hg.DangerButton}"
+                                                                Command="{Binding DataContext.UnblockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding Domain}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Raw Editor">
+                            <Grid Margin="4" DataContext="{Binding RawHosts}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                                    <Button DockPanel.Dock="Right" Content="Save"
+                                            Style="{StaticResource Hg.AccentButton}"
+                                            Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+                                    <Button DockPanel.Dock="Right" Content="Reload"
+                                            Command="{Binding LoadCommand}" Margin="0,0,8,0" />
+                                </DockPanel>
+
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" AcceptsTab="True"
+                                         FontFamily="Consolas"
+                                         VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Auto" />
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
                 </TabItem>
 
                 <TabItem Header="FW Rules">

@@ -12,6 +12,11 @@ public sealed record ManagedDomainRow(
 /// <summary>Aggregate counts for the dashboard.</summary>
 public sealed record DomainStats(int Blocked, int Whitelisted, int FeedTotal, int TodayHits);
 
+/// <summary>A DNS activity feed row, joined with the managed-domain status.</summary>
+public sealed record FeedRow(
+    string Domain, string? FirstSeen, string? LastSeen, long Hits,
+    string? Process, long Hidden, string? Reason, string? Status);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -21,7 +26,7 @@ public sealed record DomainStats(int Blocked, int Whitelisted, int FeedTotal, in
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -79,6 +84,8 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY, created TEXT);
             CREATE TABLE IF NOT EXISTS profile_rules(
                 id INTEGER PRIMARY KEY, profile TEXT, domain TEXT, status TEXT DEFAULT 'blocked', source TEXT);
+            CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY, added TEXT);
+            CREATE TABLE IF NOT EXISTS temp_allows(domain TEXT PRIMARY KEY, expires TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -212,13 +219,128 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
-    public void UpdateStatus(string domain, string status)
+    /// <summary>
+    /// Direct status write, bypassing the allowlist-wins UPSERT rule — reserved
+    /// for flows that legitimately downgrade a whitelisted row (temp-allow revert).
+    /// </summary>
+    public void UpdateStatus(string domain, string status, string? source = null)
     {
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
         lock (_gate)
         {
-            _conn.Execute("UPDATE domains SET status=@status, modified=@now WHERE domain=@d",
-                new { status, now, d = domain.ToLowerInvariant() });
+            _conn.Execute(
+                "UPDATE domains SET status=@status, modified=@now, source=COALESCE(@source, source) WHERE domain=@d",
+                new { status, now, source, d = domain.ToLowerInvariant() });
+        }
+    }
+
+    public string? GetDomainSource(string domain)
+    {
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>("SELECT source FROM domains WHERE domain=@d",
+                new { d = domain.ToLowerInvariant() });
+        }
+    }
+
+    // ─── Activity feed ────────────────────────────────────────────────────────
+
+    /// <summary>UPSERT a DNS sighting: bump hits + last_seen, keep first_seen.</summary>
+    public void RecordFeed(string domain, string process = "", string? reason = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason)
+                VALUES(@domain,@now,@now,1,@process,0,@reason)
+                ON CONFLICT(domain) DO UPDATE SET
+                    last_seen=excluded.last_seen,
+                    hits=feed.hits+1,
+                    process=CASE WHEN excluded.process!='' THEN excluded.process ELSE feed.process END
+                """,
+                new { domain = domain.ToLowerInvariant(), now, process, reason });
+        }
+    }
+
+    /// <summary>Recent feed rows (newest first), joined with managed-domain status.</summary>
+    public IReadOnlyList<FeedRow> GetFeed(int limit = 500)
+    {
+        lock (_gate)
+        {
+            return _conn.Query<FeedRow>(
+                """
+                SELECT f.domain AS Domain, f.first_seen AS FirstSeen, f.last_seen AS LastSeen,
+                       f.hits AS Hits, f.process AS Process, f.hidden AS Hidden, f.reason AS Reason,
+                       d.status AS Status
+                FROM feed f LEFT JOIN domains d ON d.domain = f.domain
+                ORDER BY f.last_seen DESC LIMIT @limit
+                """,
+                new { limit }).ToList();
+        }
+    }
+
+    // ─── Hidden roots ─────────────────────────────────────────────────────────
+
+    public void HideRoot(string root)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute("INSERT OR IGNORE INTO hidden_roots(root,added) VALUES(@root,@now)",
+                new { root = root.ToLowerInvariant(), now });
+        }
+    }
+
+    public void UnhideRoot(string root)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM hidden_roots WHERE root=@root", new { root = root.ToLowerInvariant() });
+        }
+    }
+
+    public IReadOnlySet<string> GetHiddenRoots()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT root FROM hidden_roots").ToHashSet(StringComparer.Ordinal);
+        }
+    }
+
+    // ─── Temp allows ──────────────────────────────────────────────────────────
+
+    public void SetTempAllow(string domain, DateTime expiresUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            _conn.Execute(
+                "INSERT OR REPLACE INTO temp_allows(domain,expires) VALUES(@d,@e)",
+                new { d = domain.ToLowerInvariant(), e = expiresUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture) });
+        }
+    }
+
+    public void RemoveTempAllow(string domain)
+    {
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM temp_allows WHERE domain=@d", new { d = domain.ToLowerInvariant() });
+        }
+    }
+
+    public IReadOnlyList<(string Domain, DateTime ExpiresUtc)> GetTempAllows()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string)>("SELECT domain, expires FROM temp_allows")
+                .Select(r => (r.Item1, DateTime.Parse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal)))
+                .ToList();
         }
     }
 
