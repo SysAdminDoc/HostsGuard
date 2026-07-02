@@ -247,11 +247,11 @@ def save_cfg(c):
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
 _DARK={"bg":"#0b0d12","base":"#141821","mantle":"#10141c","crust":"#090b10","s0":"#242b38","s1":"#354052","s2":"#4a5870",
-   "text":"#edf1f7","sub":"#b8c1d1","dim":"#8490a3","blue":"#77a7ff","green":"#8bd17c","red":"#ff7f9a",
+   "text":"#edf1f7","sub":"#b8c1d1","dim":"#8490a3","blue":"#77a7ff","green":"#8bd17c","red":"#ff7f9a","danger2":"#c84b69","danger_hover":"#ff9aac","on_danger":"#ffffff",
    "peach":"#ffb16c","yellow":"#e7c36f","mauve":"#c4a3ff","teal":"#66d9cf","sky":"#78d5ff","focus":"#a8c7ff",
    "sel":"rgba(119,167,255,0.16)","onsel":"#071019"}
 _LIGHT={"bg":"#f4f7fb","base":"#ffffff","mantle":"#eef3f8","crust":"#e2e9f2","s0":"#cfd9e6","s1":"#b9c6d6","s2":"#93a4ba",
-   "text":"#273142","sub":"#455368","dim":"#68778d","blue":"#1f68e5","green":"#207a36","red":"#c91d42",
+   "text":"#273142","sub":"#455368","dim":"#68778d","blue":"#1f68e5","green":"#207a36","red":"#c91d42","danger2":"#941332","danger_hover":"#a71435","on_danger":"#ffffff",
    "peach":"#c95c17","yellow":"#9a6700","mauve":"#7b3bd8","teal":"#087d79","sky":"#147bb6","focus":"#1f68e5",
    "sel":"rgba(31,104,229,0.12)","onsel":"#ffffff"}
 _IS_LIGHT=load_cfg().get('theme')=='light'
@@ -278,12 +278,12 @@ QPushButton:hover{{background:{C['s1']};color:{C['text']};border-color:{C['s2']}
 QPushButton:focus{{border:1px solid {C['focus']};color:{C['text']};}}
 QPushButton:pressed{{background:{C['mantle']};padding-top:8px;padding-bottom:6px;}}
 QPushButton:disabled{{color:{C['dim']};background:{C['mantle']};border-color:{C['s0']};}}
-QPushButton[class="primary"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['blue']},stop:1 {C['teal']});color:#071019;border:1px solid rgba({_rgb(C['blue'])},0.55);font-weight:800;}}
+QPushButton[class="primary"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['blue']},stop:1 {C['teal']});color:{C['onsel']};border:1px solid rgba({_rgb(C['blue'])},0.55);font-weight:800;}}
 QPushButton[class="primary"]:hover{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['sky']},stop:1 {C['teal']});}}
 QPushButton[class="primary"]:focus{{border:1px solid {C['focus']};}}
-QPushButton[class="danger"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['red']},stop:1 #b83252);color:#fff;border:1px solid rgba({_rgb(C['red'])},0.55);font-weight:800;}}
-QPushButton[class="danger"]:hover{{background:#df3f62;}}
-QPushButton[class="success"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['green']},stop:1 {C['teal']});color:#071019;border:1px solid rgba({_rgb(C['green'])},0.55);font-weight:800;}}
+QPushButton[class="danger"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['red']},stop:1 {C['danger2']});color:{C['on_danger']};border:1px solid rgba({_rgb(C['red'])},0.55);font-weight:800;}}
+QPushButton[class="danger"]:hover{{background:{C['danger_hover']};}}
+QPushButton[class="success"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['green']},stop:1 {C['teal']});color:{C['onsel']};border:1px solid rgba({_rgb(C['green'])},0.55);font-weight:800;}}
 QPushButton[class="dim"]{{background:{C['s0']};color:{C['dim']};border:1px solid {C['s1']};}}
 QPushButton[class="dim"]:hover{{color:{C['text']};background:{C['s1']};}}
 QLineEdit,QTextEdit,QPlainTextEdit{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:8px 12px;selection-background-color:{C['blue']};selection-color:{C['onsel']};}}
@@ -1831,25 +1831,54 @@ def _icon_item(tbl,r,c,text,domain=None):
         if px and not px.isNull(): it.setIcon(QIcon(px))
     tbl.setItem(r,c,it)
 
+def _button_qss(cls,font_px=11,pad_x=8):
+    radius=8
+    if cls=="primary":
+        return (f"QPushButton{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['blue']},stop:1 {C['teal']});"
+                f"color:{C['onsel']};border:1px solid rgba({_rgb(C['blue'])},0.55);border-radius:{_dp(radius)}px;"
+                f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
+                f"QPushButton:hover{{background:{C['sky']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
+    if cls=="danger":
+        return (f"QPushButton{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['red']},stop:1 {C['danger2']});"
+                f"color:{C['on_danger']};border:1px solid rgba({_rgb(C['red'])},0.55);border-radius:{_dp(radius)}px;"
+                f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
+                f"QPushButton:hover{{background:{C['danger_hover']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
+    if cls=="success":
+        return (f"QPushButton{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['green']},stop:1 {C['teal']});"
+                f"color:{C['onsel']};border:1px solid rgba({_rgb(C['green'])},0.55);border-radius:{_dp(radius)}px;"
+                f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
+                f"QPushButton:hover{{background:{C['green']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
+    return (f"QPushButton{{background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(radius)}px;"
+            f"font-size:{_dp(font_px)}px;font-weight:700;padding:0 {_dp(pad_x)}px;}}"
+            f"QPushButton:hover{{background:{C['s1']};color:{C['text']};border-color:{C['s2']};}}"
+            f"QPushButton:focus{{border:1px solid {C['focus']};color:{C['text']};}}"
+            f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
+
 def _btn(text,cls="dim",cb=None,tip=None):
     b=QPushButton(text); b.setProperty("class",cls); b.setCursor(Qt.PointingHandCursor)
     b.setFixedHeight(_dp(26)); b.setMinimumWidth(_dp(16))
     b.setSizePolicy(QSizePolicy.Preferred,QSizePolicy.Fixed)
-    b.setStyleSheet(b.styleSheet()+f"font-size:{_dp(11)}px;padding:0 {_dp(8)}px;")
+    b.setStyleSheet(_button_qss(cls,11,8))
     if cb: b.clicked.connect(cb)
     b.setAccessibleName(tip or text)
     if tip:
         b.setToolTip(tip); b.setAccessibleDescription(tip)
+    b.style().unpolish(b); b.style().polish(b)
     return b
 
 def _tbtn(text,cls="dim",cb=None,w=None,tip=None):
     b=QPushButton(text); b.setProperty("class",cls); b.setCursor(Qt.PointingHandCursor)
     b.setFixedHeight(_dp(30))
+    b.setStyleSheet(_button_qss(cls,10,10))
     if w: b.setFixedWidth(_dp(w))
     if cb: b.clicked.connect(cb)
     b.setAccessibleName(text)
     if tip:
         b.setToolTip(tip); b.setAccessibleDescription(tip)
+    b.style().unpolish(b); b.style().polish(b)
     return b
 
 class PremiumTableWidget(QTableWidget):
@@ -2081,7 +2110,7 @@ class ConnDetailDlg(QDialog):
     def __init__(s,ci,db,hm,learn,parent=None):
         super().__init__(parent); s.ci=ci; s.db=db; s.hm=hm; s.learn=learn; s.result_action=None
         s.setWindowTitle(f"Connection: {ci.proc} \u2192 {ci.host if ci.host not in ('-','') else ci.ra}")
-        s.setFixedWidth(_dp(520)); s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
+        s.setFixedWidth(_dp(640)); s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
         lo=QVBoxLayout(s); lo.setSpacing(_dp(10)); lo.setContentsMargins(_dp(20),_dp(14),_dp(20),_dp(14))
         hdr=QLabel(ci.proc); hdr.setStyleSheet(f"font-size:{_dp(16)}px;font-weight:800;color:{C['text']};"); lo.addWidget(hdr)
         if ci.path: pl=QLabel(ci.path); pl.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;"); pl.setWordWrap(True); lo.addWidget(pl)
@@ -2106,14 +2135,20 @@ class ConnDetailDlg(QDialog):
             hl.addWidget(_btn(f"Allow","success",lambda:s._do('hosts_allow',host_d)))
         else: hl.addWidget(QLabel("No hostname resolved"))
         hl.addStretch(); lo.addWidget(hg)
-        fg=QGroupBox("Firewall"); fl=QHBoxLayout(fg); fl.setSpacing(_dp(5))
-        fl.addWidget(_btn(f"Block IP Out","danger",lambda:s._do('fw_block_ip',ci.ra)))
-        fl.addWidget(_btn(f"Block IP In+Out","danger",lambda:s._do('fw_block_ip_both',ci.ra)))
+        fg=QGroupBox("Firewall"); fl=QGridLayout(fg); fl.setHorizontalSpacing(_dp(6)); fl.setVerticalSpacing(_dp(6))
+        fl.setColumnStretch(4,1)
+        def row_label(text):
+            lab=QLabel(text); lab.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;font-weight:800;")
+            return lab
+        fl.addWidget(row_label("Remote IP"),0,0)
+        fl.addWidget(_btn("Block Out","danger",lambda:s._do('fw_block_ip',ci.ra),"Block this remote IP for outbound traffic"),0,1)
+        fl.addWidget(_btn("Block In + Out","danger",lambda:s._do('fw_block_ip_both',ci.ra),"Block this remote IP inbound and outbound"),0,2)
         if ci.path:
-            fl.addWidget(_btn(f"Block Program Out","danger",lambda:s._do('fw_block_prog',ci.path)))
-            fl.addWidget(_btn(f"Block Program In+Out","danger",lambda:s._do('fw_block_prog_both',ci.path)))
-        if ci.pid>0: fl.addWidget(_btn(f"Kill PID {ci.pid}","danger",lambda:s._do('kill',str(ci.pid))))
-        fl.addStretch(); lo.addWidget(fg)
+            fl.addWidget(row_label("Program"),1,0)
+            fl.addWidget(_btn("Block App Out","danger",lambda:s._do('fw_block_prog',ci.path),"Block this program for outbound traffic"),1,1)
+            fl.addWidget(_btn("Block App In + Out","danger",lambda:s._do('fw_block_prog_both',ci.path),"Block this program inbound and outbound"),1,2)
+        if ci.pid>0: fl.addWidget(_btn(f"Kill PID {ci.pid}","danger",lambda:s._do('kill',str(ci.pid)),f"End process {ci.pid}"),1 if ci.path else 0,3)
+        lo.addWidget(fg)
         lg=QGroupBox("Learning"); ll2=QHBoxLayout(lg); ll2.setSpacing(_dp(5))
         ll2.addWidget(_btn("Trust","success",lambda:s._do('trust',ci.proc)))
         ll2.addWidget(_btn("Untrust","danger",lambda:s._do('untrust',ci.proc)))
@@ -3453,7 +3488,7 @@ class ToolsTab(QWidget):
     def _build(s):
         lo=QVBoxLayout(s); lo.setContentsMargins(_dp(16),_dp(12),_dp(16),_dp(8)); lo.setSpacing(_dp(10))
         grid=QHBoxLayout(); grid.setSpacing(_dp(10))
-        g1=QGroupBox("DNS & Network"); l1=QVBoxLayout(g1); l1.setSpacing(_dp(4))
+        g1=QGroupBox("DNS + Network"); l1=QVBoxLayout(g1); l1.setSpacing(_dp(4))
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
         l1.addWidget(_tbtn("Check Browser DoH","dim",s._check_browser_doh))
@@ -3473,7 +3508,7 @@ class ToolsTab(QWidget):
         s._rec_btn=_tbtn("Record Session","dim",s._toggle_rec); l1.addWidget(s._rec_btn)
         s._recording=False; s._rec_data=[]
         l1.addStretch(); grid.addWidget(g1)
-        g2=QGroupBox("Config & Data"); l2=QVBoxLayout(g2); l2.setSpacing(_dp(4))
+        g2=QGroupBox("Config + Data"); l2=QVBoxLayout(g2); l2.setSpacing(_dp(4))
         l2.addWidget(_tbtn("Export Config","primary",s._export)); l2.addWidget(_tbtn("Import Config","dim",s._import))
         l2.addWidget(_tbtn("Export Connections","dim",s._export_conns))
         l2.addWidget(_tbtn("Prune History (30d)","dim",s._prune)); l2.addWidget(_tbtn("Clear Favicons","dim",s._clear_fav))
@@ -3483,7 +3518,7 @@ class ToolsTab(QWidget):
         l3.addWidget(_tbtn("View Trusted","dim",s._show_t)); l3.addWidget(_tbtn("View Untrusted","dim",s._show_u))
         l3.addWidget(_tbtn("Clear All Trust","danger",s._clear_t)); l3.addStretch(); grid.addWidget(g3)
         # Recovery section
-        g4=QGroupBox("Backup & Recovery"); l4=QVBoxLayout(g4); l4.setSpacing(_dp(4))
+        g4=QGroupBox("Backup + Recovery"); l4=QVBoxLayout(g4); l4.setSpacing(_dp(4))
         s.rec_st=QLabel(""); s.rec_st.setWordWrap(True); s.rec_st.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); l4.addWidget(s.rec_st)
         l4.addWidget(_tbtn("Restore Hosts from DB","primary",s._restore_hosts))
         l4.addWidget(_tbtn("Restore FW Rules from DB","primary",s._restore_fw))
@@ -3506,7 +3541,7 @@ class ToolsTab(QWidget):
         s.log_f=QComboBox(); s.log_f.addItems(["All","blocked","whitelisted","fw_blocked"])
         s.log_f.setAccessibleName("Filter event log by action")
         s.log_f.currentIndexChanged.connect(s._log); lr.addWidget(s.log_f)
-        lr.addWidget(_tbtn("Clear Log","danger",s._clear_log,75,"Delete all event log rows")); ll.addLayout(lr)
+        lr.addWidget(_tbtn("Clear Log","danger",s._clear_log,90,"Delete all event log rows")); ll.addLayout(lr)
         s.log_tbl=_tbl(["Time","Domain","Action","Process","Details"],1,row_h=26)
         s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.")
         s.log_tbl.setAccessibleName("Event log table")

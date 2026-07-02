@@ -13,6 +13,10 @@ All notable changes to HostsGuard are documented in this file.
 - Tightened workflow microcopy and accessibility metadata across search/filter
   controls, compact header controls, destructive confirmations, scheduled blocking,
   and the custom firewall-rule dialog.
+- Fixed rendered Qt polish defects found during dark/light QA: compact button
+  variants now receive deterministic theme styling, Tools tab section labels no
+  longer expose accelerator underscores, the event-log action no longer clips,
+  and connection-detail firewall actions use a readable two-row layout.
 
 ## [v3.13.0] - 2026-07-01
 
