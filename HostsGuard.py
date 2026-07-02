@@ -80,7 +80,7 @@ def _bootstrap():
     if not is_cli and '--service' not in sys.argv: _kill_remnants()
     if sys.version_info<(3,8): print("Python 3.8+ required"); sys.exit(1)
     _cf={'creationflags':NOWIN} if sys.platform=='win32' else {}
-    for pkg in ['PyQt5','psutil','maxminddb']:
+    for pkg in ['PySide6','psutil','maxminddb']:
         try: __import__(pkg)
         except ImportError:
             for f in [[],['--user']]:
@@ -89,11 +89,14 @@ def _bootstrap():
 _bootstrap()
 
 import psutil
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-QApplication.setAttribute(Qt.AA_EnableHighDpiScaling,True)
-QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps,True)
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+# Qt6 enables HiDPI scaling automatically; these attributes are deprecated no-ops
+# (kept for older Qt and guarded so a future removal can't crash startup).
+for _attr in ("AA_EnableHighDpiScaling","AA_UseHighDpiPixmaps"):
+    try: QApplication.setAttribute(getattr(Qt,_attr),True)
+    except Exception: pass
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 APP="HostsGuard"; VER="3.12.0"; FW_PFX="HG_"
@@ -278,7 +281,7 @@ class _UiBridge(QObject):
     """QTimer.singleShot(0,...) from a plain threading.Thread never fires (no
     event dispatcher in that thread). Signals ARE thread-safe, so route
     callables through a queued signal onto the GUI thread instead."""
-    call=pyqtSignal(object)
+    call=Signal(object)
 _ui_bridge=None
 def _init_ui_bridge():
     global _ui_bridge
@@ -415,8 +418,8 @@ class FWR:
 
 # ─── FaviconCache ───────────────────────────────────────────────────────────
 class FaviconCache(QObject):
-    ready=pyqtSignal(str)
-    _img_ready=pyqtSignal(str,bytes)
+    ready=Signal(str)
+    _img_ready=Signal(str,bytes)
     def __init__(s):
         super().__init__(); s._mem={}; s._pending=set(); s._lock=Lock()
         s._img_ready.connect(s._on_img)
@@ -1197,7 +1200,7 @@ bw=BWTracker()
 
 # ─── Workers ────────────────────────────────────────────────────────────────
 class DNSResolveWorker(QThread):
-    resolved=pyqtSignal(str,str)
+    resolved=Signal(str,str)
     def __init__(s): super().__init__(); s._q=Queue(); s._stop=TEvent()
     def add(s,ip):
         if ip not in dns_c: s._q.put(ip)
@@ -1233,7 +1236,7 @@ def _ensure_geoip():
     return os.path.exists(GEOIP_PATH)
 
 class GeoWorker(QThread):
-    resolved=pyqtSignal(str,str,str)
+    resolved=Signal(str,str,str)
     def __init__(s): super().__init__(); s._batch=[]; s._stop=TEvent(); s._lock=Lock(); s._backoff=2; s._mmdb=None; s._asndb=None
     def add(s,ip):
         if ip not in geo_c:
@@ -1316,8 +1319,8 @@ class GeoWorker(QThread):
 
 class DNSMonitor(QThread):
     """ETW-based DNS monitoring with PowerShell polling fallback."""
-    dns_event=pyqtSignal(dict); blocked_event=pyqtSignal(dict)
-    status=pyqtSignal(str); updated=pyqtSignal()
+    dns_event=Signal(dict); blocked_event=Signal(dict)
+    status=Signal(str); updated=Signal()
     CMD='Get-DnsClientCache -EA SilentlyContinue|Select Entry,RecordName|ConvertTo-Json -Compress'
     def __init__(s,hm,db):
         super().__init__(); s.hm,s.db=hm,db; s.running=False; s._scan_lock=Lock()
@@ -1438,7 +1441,7 @@ class DNSMonitor(QThread):
             except: pass
 
 class SigWorker(QThread):
-    resolved=pyqtSignal(str,str)
+    resolved=Signal(str,str)
     def __init__(s): super().__init__(); s._q=Queue(); s._stop=TEvent()
     def add(s,path):
         if path not in sig_c: s._q.put(path)
@@ -1459,7 +1462,7 @@ class SigWorker(QThread):
     def stop(s): s._stop.set()
 
 class ConnWorker(QThread):
-    ready=pyqtSignal(list); need_dns=pyqtSignal(str); need_geo=pyqtSignal(str); need_sig=pyqtSignal(str)
+    ready=Signal(list); need_dns=Signal(str); need_geo=Signal(str); need_sig=Signal(str)
     def __init__(s,db): super().__init__(); s._stop=TEvent(); s._db=db
     def run(s):
         while not s._stop.is_set():
@@ -1533,8 +1536,8 @@ class ConnWorker(QThread):
     def stop(s): s._stop.set()
 
 class HostsWatcher(QThread):
-    changed=pyqtSignal(bytes)
-    registry_tamper=pyqtSignal(str)
+    changed=Signal(bytes)
+    registry_tamper=Signal(str)
     def __init__(s):
         super().__init__(); s._stop=TEvent(); s._hash=b''
         s._expected_dbpath=r'%SystemRoot%\System32\drivers\etc'
@@ -1566,8 +1569,8 @@ class StartupLoader(QThread):
     """Fast startup: DB + Hosts + ConnDB only. FW loads post-UI via FWLoadWorker.
     DNS cache is NOT pre-loaded — DNSMonitor picks it up within 3s naturally.
     PersistentPS is warmed up in background so DNSMonitor's first scan is fast."""
-    progress=pyqtSignal(str,int)
-    finished=pyqtSignal(object)
+    progress=Signal(str,int)
+    finished=Signal(object)
     def __init__(s): super().__init__()
     def run(s):
         results={'db':None,'hm':None,'cdb':None}
@@ -1586,7 +1589,7 @@ class StartupLoader(QThread):
 class FWLoadWorker(QThread):
     """Loads firewall rules in background AFTER UI is visible.
     Uses dedicated subprocess (not PPS) so it never blocks the persistent session."""
-    ready=pyqtSignal(list)
+    ready=Signal(list)
     def run(s):
         rules=[]
         try:
@@ -2801,7 +2804,7 @@ class HostsTab(QWidget):
         if hasattr(w,'_toasts'): w._toasts.toast(msg,color)
 
 class ImpWorker(QThread):
-    done=pyqtSignal(str,int,int,str)
+    done=Signal(str,int,int,str)
     def __init__(s,name,url,hm,db): super().__init__(); s.name,s.url,s.hm,s.db=name,url,hm,db
     def run(s):
         try:
@@ -3902,7 +3905,7 @@ def main():
             with open(crash,'a') as f: f.write(f"\n{'='*60}\n{datetime.datetime.now()}\n{tb}\n")
         except: pass
         try:
-            from PyQt5.QtWidgets import QMessageBox as MB,QApplication as Q2
+            from PySide6.QtWidgets import QMessageBox as MB,QApplication as Q2
             if not Q2.instance(): Q2(sys.argv)
             MB.critical(None,f"{APP} Crash",f"{e}\n\nSee: {crash}")
         except: pass

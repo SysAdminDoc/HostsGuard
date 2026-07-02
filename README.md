@@ -21,7 +21,7 @@ python HostsGuard.py  # Auto-installs dependencies, requests admin elevation
 
 **Requirements:** Python 3.8+, Windows 10/11, Administrator privileges
 
-Dependencies (`PyQt5`, `psutil`) are auto-installed on first run. No manual setup needed.
+Dependencies (`PySide6`, `psutil`, `maxminddb`) are auto-installed on first run. No manual setup needed.
 
 ### Building
 

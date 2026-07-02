@@ -10,12 +10,12 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # HostsGuard needs only PyQt5, psutil, maxminddb. Exclude the heavy scientific/
+    # HostsGuard needs only PySide6, psutil, maxminddb. Exclude the heavy scientific/
     # ML/dev packages that may be present in a shared build environment — without
     # these excludes PyInstaller drags in torch/tensorflow/scipy and the onedir
     # output balloons to 800MB+.
     excludes=[
-        'PyQt6', 'PySide2', 'PySide6', 'tkinter', 'matplotlib', 'numpy', 'scipy',
+        'PyQt5', 'PyQt6', 'PySide2', 'tkinter', 'matplotlib', 'numpy', 'scipy',
         'torch', 'torchvision', 'torchaudio', 'tensorflow', 'onnxruntime', 'pandas',
         'sklearn', 'sympy', 'IPython', 'jupyter', 'notebook', 'PIL', 'cv2',
         'transformers', 'numba', 'llvmlite', 'pyarrow', 'cryptography', 'pytest',
