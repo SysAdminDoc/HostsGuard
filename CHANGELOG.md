@@ -4,6 +4,21 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — connection history + per-app bandwidth (NET-070)
+- **Persistent connection history** — first sightings from the connection feed
+  land in a new retention-bounded `conn_history` table (schema v6) with
+  process, PID, protocol, remote endpoint, GeoIP country, and threat status.
+  Queryable from FW Activity → History & bandwidth (substring search across
+  process/remote/country), with a configurable retention policy (default 30
+  days, clamped 1–365, pruned opportunistically). Nothing leaves the machine.
+- **Per-app bandwidth timeline** — real byte counters via the ETW kernel
+  NetworkTCPIP provider (TCP+UDP, IPv4+IPv6 send/recv, per PID — the
+  GlassWire-style source, no packet capture), aggregated into per-process
+  per-minute buckets and rendered as a top-5 polyline timeline with ↑sent/↓recv
+  legend totals. Elevation-gated like the DNS monitor; the view says so when
+  counters are inactive. New Monitoring RPCs: GetConnectionHistory,
+  GetAppBandwidth, Get/SetHistorySettings (schema-lock updated deliberately).
+
 ### Changed — .NET 10 LTS migration (NET-081)
 - **Solution retargeted from .NET 8 to .NET 10 (LTS)** ahead of the .NET 8
   end-of-support date (2026-11-10); .NET 10 is supported to November 2028. All

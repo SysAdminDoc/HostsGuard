@@ -48,6 +48,20 @@ dnsMonitor.DnsResolved += (_, e) => state.CnameCloak.Evaluate(e.QueryName, e.Cna
 var dnsStatus = dnsMonitor.Start();
 db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
 
+// Per-app byte counters (NET-070): ETW kernel NetworkTCPIP → per-minute DB
+// buckets. Elevation-gated like the DNS monitor; history recording via the
+// connection feed works regardless.
+using var bandwidthMonitor = new BandwidthMonitor();
+var bandwidthStatus = bandwidthMonitor.Start();
+using var bandwidth = new BandwidthAggregator(db, bandwidthMonitor);
+if (bandwidthStatus == DnsMonitorStatus.Started)
+{
+    bandwidth.Start();
+}
+
+state.Bandwidth = bandwidth;
+db.LogEvent("bandwidth", "monitor_start", details: bandwidthStatus.ToString());
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(

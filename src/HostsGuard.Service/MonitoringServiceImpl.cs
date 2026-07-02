@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.Versioning;
 using Grpc.Core;
 using HostsGuard.Contracts;
@@ -5,9 +6,11 @@ using HostsGuard.Contracts;
 namespace HostsGuard.Service;
 
 /// <summary>
-/// Server-streaming live feeds. Each watcher subscribes to the in-process
-/// EventBus; the stream ends when the client disconnects. The engines (ETW DNS,
-/// connection monitor, temp-allow scheduler) publish onto the bus.
+/// Server-streaming live feeds plus the persistent connection-history and
+/// per-app bandwidth queries (NET-070). Each watcher subscribes to the
+/// in-process EventBus; the stream ends when the client disconnects. The
+/// engines (ETW DNS, connection monitor, temp-allow scheduler) publish onto
+/// the bus.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
@@ -24,6 +27,101 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task WatchEvents(Empty request, IServerStreamWriter<ActivityEvent> responseStream, ServerCallContext context)
         => Pump(responseStream, context);
+
+    public override Task<ConnectionHistoryList> GetConnectionHistory(ConnectionHistoryRequest request, ServerCallContext context)
+    {
+        var rows = _state.Db.GetConnectionHistory(
+            request.Limit > 0 ? request.Limit : 500,
+            string.IsNullOrWhiteSpace(request.Search) ? null : request.Search,
+            string.IsNullOrWhiteSpace(request.Since) ? null : request.Since);
+        var list = new ConnectionHistoryList();
+        foreach (var r in rows)
+        {
+            list.Rows.Add(new ConnectionHistoryRow
+            {
+                Ts = r.Ts,
+                Process = r.Process,
+                Pid = (int)r.Pid,
+                Protocol = r.Protocol,
+                RemoteAddr = r.RemoteAddr,
+                RemotePort = (int)r.RemotePort,
+                Country = r.Country,
+                FwStatus = r.FwStatus,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<AppBandwidthList> GetAppBandwidth(BandwidthRequest request, ServerCallContext context)
+        => Task.FromResult(BuildBandwidth(request, DateTime.Now));
+
+    /// <summary>Aligned, zero-filled per-app series ending at <paramref name="now"/>'s minute.</summary>
+    public AppBandwidthList BuildBandwidth(BandwidthRequest request, DateTime now)
+    {
+        var minutes = Math.Clamp(request.Minutes > 0 ? request.Minutes : 60, 5, 1440);
+        var top = Math.Clamp(request.Top > 0 ? request.Top : 5, 1, 12);
+        var origin = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, now.Kind)
+            .AddMinutes(-(minutes - 1));
+        var rows = _state.Db.GetBandwidth(origin.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture));
+
+        var perProcess = new Dictionary<string, (long[] Buckets, long Sent, long Recv)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (!DateTime.TryParseExact(row.Minute, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var minute))
+            {
+                continue;
+            }
+
+            var slot = (int)(minute - origin).TotalMinutes;
+            if (slot < 0 || slot >= minutes)
+            {
+                continue;
+            }
+
+            if (!perProcess.TryGetValue(row.Process, out var acc))
+            {
+                acc = (new long[minutes], 0, 0);
+            }
+
+            acc.Buckets[slot] += row.Sent + row.Recv;
+            perProcess[row.Process] = (acc.Buckets, acc.Sent + row.Sent, acc.Recv + row.Recv);
+        }
+
+        var list = new AppBandwidthList { CountersActive = _state.Bandwidth?.CountersActive ?? false };
+        foreach (var (process, acc) in perProcess
+                     .OrderByDescending(kv => kv.Value.Sent + kv.Value.Recv)
+                     .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                     .Take(top))
+        {
+            var series = new AppBandwidthSeries { Process = process, TotalSent = acc.Sent, TotalRecv = acc.Recv };
+            series.Bytes.AddRange(acc.Buckets);
+            list.Series.Add(series);
+        }
+
+        return list;
+    }
+
+    public override Task<HistorySettings> GetHistorySettings(Empty request, ServerCallContext context)
+        => Task.FromResult(new HistorySettings { RetentionDays = _state.Db.HistoryRetentionDays });
+
+    public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
+    {
+        if (request.RetentionDays is < 1 or > 365)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "retention must be 1-365 days",
+                ErrorCode = "hostsguard.error.v1/invalid_argument",
+            });
+        }
+
+        _state.Db.HistoryRetentionDays = request.RetentionDays;
+        _state.Db.PruneBandwidth(DateTime.Now);
+        return Task.FromResult(new Ack { Ok = true, Message = $"history retention set to {request.RetentionDays} days" });
+    }
 
     private async Task Pump<T>(IServerStreamWriter<T> stream, ServerCallContext context)
     {

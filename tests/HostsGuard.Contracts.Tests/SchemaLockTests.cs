@@ -83,6 +83,10 @@ public class SchemaLockTests
           RemoveBlocklistSubscription(BlocklistRequest) returns (Ack)
           SetAllowlists(AllowlistUrls) returns (Ack)
         service Monitoring
+          GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
+          GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)
+          GetHistorySettings(Empty) returns (HistorySettings)
+          SetHistorySettings(HistorySettings) returns (Ack)
           WatchConnections(Empty) returns (stream ConnectionEvent)
           WatchDns(Empty) returns (stream DnsEvent)
           WatchEvents(Empty) returns (stream ActivityEvent)

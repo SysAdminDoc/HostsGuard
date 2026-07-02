@@ -38,10 +38,13 @@ public sealed class ConnectionFeed : IDisposable
                 {
                     var key = (c.Protocol, c.LocalAddress, c.LocalPort, c.RemoteAddress, c.RemotePort, c.Pid);
                     current.Add(key);
-                    if (!seen.TryGetValue(key, out var state) || state != c.State)
+                    var isNew = !seen.TryGetValue(key, out var state);
+                    if (isNew || state != c.State)
                     {
                         seen[key] = c.State;
-                        _state.PublishConnection(c);
+                        // First sighting of a tuple also lands in the persistent
+                        // history (NET-070); state changes only update the stream.
+                        _state.PublishConnection(c, recordHistory: isNew);
                     }
                 }
 

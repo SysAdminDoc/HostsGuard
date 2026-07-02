@@ -394,6 +394,59 @@ service Monitoring {
   rpc WatchDns(Empty) returns (stream DnsEvent);
   rpc WatchConnections(Empty) returns (stream ConnectionEvent);
   rpc WatchEvents(Empty) returns (stream ActivityEvent);
+  // Persistent, retention-bounded connection history (NET-070). Recorded
+  // server-side on first sighting of a connection tuple; nothing leaves the
+  // machine.
+  rpc GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList);
+  // Per-app bandwidth timeline (NET-070): ETW kernel network byte counters
+  // aggregated per process per minute. Series are zero-filled and aligned,
+  // oldest → newest, one bucket per minute.
+  rpc GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList);
+  // History retention policy (default 30 days; prune runs opportunistically).
+  rpc GetHistorySettings(Empty) returns (HistorySettings);
+  rpc SetHistorySettings(HistorySettings) returns (Ack);
+}
+
+message ConnectionHistoryRequest {
+  int32 limit = 1;      // 0 = server default
+  string search = 2;    // substring match on process / remote address / country
+  string since = 3;     // ISO-8601 floor (optional)
+}
+
+message ConnectionHistoryRow {
+  string ts = 1;
+  string process = 2;
+  int32 pid = 3;
+  string protocol = 4;
+  string remote_addr = 5;
+  int32 remote_port = 6;
+  string country = 7;
+  string fw_status = 8; // "", "THREAT", …
+}
+
+message ConnectionHistoryList {
+  repeated ConnectionHistoryRow rows = 1;
+}
+
+message BandwidthRequest {
+  int32 minutes = 1;    // window width; 0 = server default (60)
+  int32 top = 2;        // max processes; 0 = server default (5)
+}
+
+message AppBandwidthSeries {
+  string process = 1;
+  repeated int64 bytes = 2;   // per-minute sent+recv, zero-filled, oldest → newest
+  int64 total_sent = 3;
+  int64 total_recv = 4;
+}
+
+message AppBandwidthList {
+  repeated AppBandwidthSeries series = 1;
+  bool counters_active = 2;   // ETW byte counters are running (elevation-gated)
+}
+
+message HistorySettings {
+  int32 retention_days = 1;   // clamp 1..365
 }
 
 message DnsEvent {

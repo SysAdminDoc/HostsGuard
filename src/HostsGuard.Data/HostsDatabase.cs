@@ -21,6 +21,14 @@ public sealed record FeedRow(
 public sealed record FwStateRow(
     string Name, string? Direction, string? Action, string? RemoteAddr, string? Protocol, string? Program);
 
+/// <summary>A recorded (historical) connection sighting (NET-070).</summary>
+public sealed record ConnHistoryRow(
+    string Ts, string Process, long Pid, string Protocol,
+    string RemoteAddr, long RemotePort, string Country, string FwStatus);
+
+/// <summary>A per-process per-minute bandwidth bucket (NET-070).</summary>
+public sealed record BandwidthRow(string Process, string Minute, long Sent, long Recv);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -30,7 +38,10 @@ public sealed record FwStateRow(
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 5;
+    public const int SchemaVersion = 6;
+
+    /// <summary>Default connection-history / bandwidth retention (days).</summary>
+    public const int DefaultHistoryRetentionDays = 30;
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -98,6 +109,15 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS feed_hourly(
                 root TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(root, hour));
             CREATE INDEX IF NOT EXISTS idx_feed_hourly_hour ON feed_hourly(hour);
+            CREATE TABLE IF NOT EXISTS conn_history(
+                id INTEGER PRIMARY KEY, ts TEXT, process TEXT, pid INTEGER, protocol TEXT,
+                remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT);
+            CREATE INDEX IF NOT EXISTS idx_conn_history_ts ON conn_history(ts);
+            CREATE INDEX IF NOT EXISTS idx_conn_history_process ON conn_history(process);
+            CREATE TABLE IF NOT EXISTS app_bandwidth(
+                process TEXT, minute TEXT, sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0,
+                PRIMARY KEY(process, minute));
+            CREATE INDEX IF NOT EXISTS idx_app_bandwidth_minute ON app_bandwidth(minute);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -355,6 +375,114 @@ public sealed class HostsDatabase : IDisposable
                 ORDER BY f.last_seen DESC LIMIT @limit
                 """,
                 new { limit }).ToList();
+        }
+    }
+
+    // ─── Connection history + per-app bandwidth (NET-070) ────────────────────
+
+    /// <summary>History/bandwidth retention in days (meta-backed, clamped 1–365).</summary>
+    public int HistoryRetentionDays
+    {
+        get => int.TryParse(GetMeta("history_retention_days"), out var d)
+            ? Math.Clamp(d, 1, 365)
+            : DefaultHistoryRetentionDays;
+        set => SetMeta("history_retention_days", Math.Clamp(value, 1, 365)
+            .ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Record a first-sighting connection. Opportunistically prunes rows older
+    /// than the retention window (indexed delete — cheap when there's nothing
+    /// to remove), so the table stays bounded without a scheduler.
+    /// </summary>
+    public void RecordConnection(ConnHistoryRow row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        var cutoff = DateTime.Now.AddDays(-HistoryRetentionDays)
+            .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status)
+                VALUES(@Ts,@Process,@Pid,@Protocol,@RemoteAddr,@RemotePort,@Country,@FwStatus)
+                """, row);
+            _conn.Execute("DELETE FROM conn_history WHERE ts < @cutoff", new { cutoff });
+        }
+    }
+
+    /// <summary>
+    /// Query recorded connections, newest first. <paramref name="search"/> is a
+    /// substring match across process, remote address, and country.
+    /// </summary>
+    public IReadOnlyList<ConnHistoryRow> GetConnectionHistory(int limit = 500, string? search = null, string? since = null)
+    {
+        var sql = """
+            SELECT ts AS Ts, process AS Process, pid AS Pid, protocol AS Protocol,
+                   remote_addr AS RemoteAddr, remote_port AS RemotePort,
+                   country AS Country, fw_status AS FwStatus
+            FROM conn_history WHERE 1=1
+            """;
+        var p = new DynamicParameters();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sql += " AND (process LIKE @s OR remote_addr LIKE @s OR country LIKE @s)";
+            p.Add("s", $"%{search.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(since))
+        {
+            sql += " AND ts >= @since";
+            p.Add("since", since);
+        }
+
+        sql += " ORDER BY ts DESC LIMIT @limit";
+        p.Add("limit", Math.Clamp(limit, 1, 10_000));
+        lock (_gate)
+        {
+            return _conn.Query<ConnHistoryRow>(sql, p).ToList();
+        }
+    }
+
+    /// <summary>Accumulate bytes into a per-process per-minute bucket.</summary>
+    public void AddBandwidth(string process, string minute, long sent, long recv)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(process);
+        ArgumentException.ThrowIfNullOrWhiteSpace(minute);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO app_bandwidth(process,minute,sent,recv) VALUES(@process,@minute,@sent,@recv)
+                ON CONFLICT(process,minute) DO UPDATE SET sent=sent+excluded.sent, recv=recv+excluded.recv
+                """,
+                new { process, minute, sent, recv });
+        }
+    }
+
+    /// <summary>Bandwidth buckets at or after <paramref name="sinceMinute"/> ("yyyy-MM-ddTHH:mm").</summary>
+    public IReadOnlyList<BandwidthRow> GetBandwidth(string sinceMinute)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sinceMinute);
+        lock (_gate)
+        {
+            return _conn.Query<BandwidthRow>(
+                """
+                SELECT process AS Process, minute AS Minute, sent AS Sent, recv AS Recv
+                FROM app_bandwidth WHERE minute >= @sinceMinute
+                """,
+                new { sinceMinute }).ToList();
+        }
+    }
+
+    /// <summary>Prune bandwidth buckets older than the retention window.</summary>
+    public void PruneBandwidth(DateTime now)
+    {
+        var cutoff = now.AddDays(-HistoryRetentionDays)
+            .ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM app_bandwidth WHERE minute < @cutoff", new { cutoff });
         }
     }
 

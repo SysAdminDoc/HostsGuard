@@ -92,6 +92,9 @@ public sealed class ServiceState : IDisposable
 
     public TempAllowScheduler TempAllows { get; }
 
+    /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
+    public BandwidthAggregator? Bandwidth { get; set; }
+
     public DateTime StartedAtUtc { get; }
 
     /// <summary>
@@ -118,14 +121,27 @@ public sealed class ServiceState : IDisposable
         });
     }
 
-    /// <summary>Publish a live connection sighting to WatchConnections streams.</summary>
-    public void PublishConnection(ConnectionInfo info)
+    /// <summary>
+    /// Publish a live connection sighting to WatchConnections streams; first
+    /// sightings also land in the retention-bounded connection history (NET-070).
+    /// </summary>
+    public void PublishConnection(ConnectionInfo info, bool recordHistory = false)
     {
         ArgumentNullException.ThrowIfNull(info);
         var category = string.Empty;
         if (info.RemotePort is 443 or 853 && Doh.CurrentIps().Contains(info.RemoteAddress))
         {
             category = "DoH/DoT"; // browser/app DNS tunneling detection
+        }
+
+        var country = GeoIp.Lookup(info.RemoteAddress);
+        var fwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT" : string.Empty;
+        if (recordHistory)
+        {
+            Db.RecordConnection(new ConnHistoryRow(
+                DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                info.Process, info.Pid, info.Protocol, info.RemoteAddress, info.RemotePort,
+                country, fwStatus));
         }
 
         Bus.Publish(new ConnectionEvent
@@ -139,8 +155,8 @@ public sealed class ServiceState : IDisposable
             Pid = info.Pid,
             State = info.State,
             Category = category,
-            Country = GeoIp.Lookup(info.RemoteAddress),
-            FwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT" : string.Empty,
+            Country = country,
+            FwStatus = fwStatus,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
     }

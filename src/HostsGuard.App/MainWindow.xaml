@@ -200,6 +200,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
@@ -328,7 +329,85 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Grid.Row="4" Margin="2,6,0,0"
+                        <!-- Persistent connection history + per-app bandwidth (NET-070) -->
+                        <Expander Grid.Row="4" Margin="0,8,0,0" Header="History &amp; bandwidth"
+                                  AutomationProperties.Name="Connection history and bandwidth">
+                            <Border Style="{StaticResource Hg.Card}">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="Load" Padding="10,2" Margin="6,0,0,0"
+                                                Command="{Binding LoadHistoryCommand}" />
+                                        <Button DockPanel.Dock="Right" Content="Set retention" Padding="10,2" Margin="6,0,0,0"
+                                                Command="{Binding SaveRetentionCommand}" />
+                                        <TextBox DockPanel.Dock="Right" Width="46" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                 Text="{Binding RetentionDays, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="History retention days"
+                                                 ToolTip="History retention in days (1-365)" />
+                                        <TextBox Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Search connection history"
+                                                 ToolTip="Substring match on process, remote address, or country" />
+                                    </DockPanel>
+                                    <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="When" Binding="{Binding Ts}" Width="170" />
+                                            <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="150" />
+                                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="56" />
+                                            <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="56" />
+                                            <DataGridTextColumn Header="Remote address" Binding="{Binding RemoteAddr}" Width="*" />
+                                            <DataGridTextColumn Header="Port" Binding="{Binding RemotePort}" Width="56" />
+                                            <DataGridTextColumn Header="Country" Binding="{Binding Country}" Width="70" />
+                                            <DataGridTextColumn Header="FW" Binding="{Binding FwStatus}" Width="80" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,0" />
+
+                                    <DockPanel LastChildFill="False" Margin="0,10,0,0">
+                                        <TextBlock DockPanel.Dock="Left" Text="Per-app bandwidth" FontWeight="SemiBold" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding BandwidthStatus}"
+                                                   Style="{StaticResource Hg.DimText}" />
+                                    </DockPanel>
+                                    <Grid Height="86" Margin="0,6,0,0" ClipToBounds="True">
+                                        <ItemsControl ItemsSource="{Binding Bandwidth}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Grid />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Viewbox Stretch="Fill">
+                                                        <Canvas Width="600" Height="100">
+                                                            <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
+                                                                      Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                                      StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding Bandwidth}" Margin="0,4,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+                                                    <Rectangle Width="10" Height="3" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                               Fill="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}" />
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Hg.DimText}" />
+                                                    <TextBlock Text="{Binding LegendText}" Style="{StaticResource Hg.DimText}" Margin="5,0,0,0" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <TextBlock Grid.Row="5" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
                 </TabItem>

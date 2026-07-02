@@ -84,6 +84,38 @@ public sealed partial class TimelineSeriesViewModel : ObservableObject
 
     [ObservableProperty]
     private int _colorIndex;
+
+    /// <summary>Legend suffix (e.g. bandwidth totals); empty for count series.</summary>
+    [ObservableProperty]
+    private string _legendText = string.Empty;
+}
+
+/// <summary>Row VM for a recorded (historical) connection (NET-070).</summary>
+public sealed partial class HistoryRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _ts = string.Empty;
+
+    [ObservableProperty]
+    private string _process = string.Empty;
+
+    [ObservableProperty]
+    private int _pid;
+
+    [ObservableProperty]
+    private string _protocol = string.Empty;
+
+    [ObservableProperty]
+    private string _remoteAddr = string.Empty;
+
+    [ObservableProperty]
+    private int _remotePort;
+
+    [ObservableProperty]
+    private string _country = string.Empty;
+
+    [ObservableProperty]
+    private string _fwStatus = string.Empty;
 }
 
 /// <summary>
@@ -296,6 +328,127 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         TimelineStatus = $"Top {top.Count} apps · last {TimelineMinutes} min · peak {peak}/min";
+    }
+
+    // ─── Connection history + per-app bandwidth (NET-070) ────────────────────
+
+    public ObservableCollection<HistoryRowViewModel> HistoryRows { get; } = new();
+
+    public ObservableCollection<TimelineSeriesViewModel> Bandwidth { get; } = new();
+
+    [ObservableProperty]
+    private string _historySearch = string.Empty;
+
+    [ObservableProperty]
+    private string _historyStatus = string.Empty;
+
+    [ObservableProperty]
+    private string _bandwidthStatus = "Not loaded";
+
+    [ObservableProperty]
+    private int _retentionDays = 30;
+
+    [RelayCommand]
+    public async Task LoadHistoryAsync()
+    {
+        var settings = await _client.Monitoring.GetHistorySettingsAsync(new Empty());
+        RetentionDays = settings.RetentionDays;
+        var history = await _client.Monitoring.GetConnectionHistoryAsync(new ConnectionHistoryRequest
+        {
+            Limit = 500,
+            Search = HistorySearch ?? string.Empty,
+        });
+        HistoryRows.Clear();
+        foreach (var row in history.Rows)
+        {
+            HistoryRows.Add(new HistoryRowViewModel
+            {
+                Ts = row.Ts,
+                Process = row.Process,
+                Pid = row.Pid,
+                Protocol = row.Protocol,
+                RemoteAddr = row.RemoteAddr,
+                RemotePort = row.RemotePort,
+                Country = row.Country,
+                FwStatus = row.FwStatus,
+            });
+        }
+
+        HistoryStatus = $"{HistoryRows.Count} recorded connections · retained {RetentionDays} days";
+        await LoadBandwidthAsync();
+    }
+
+    [RelayCommand]
+    public async Task SaveRetentionAsync()
+    {
+        var ack = await _client.Monitoring.SetHistorySettingsAsync(new HistorySettings { RetentionDays = RetentionDays });
+        HistoryStatus = ack.Message;
+    }
+
+    public async Task LoadBandwidthAsync()
+    {
+        var list = await _client.Monitoring.GetAppBandwidthAsync(new BandwidthRequest { Minutes = 60, Top = TimelineMaxSeries });
+        BuildBandwidthSeries(list);
+    }
+
+    /// <summary>Rebuild the bandwidth polylines from a fetched series list (pure; testable).</summary>
+    public void BuildBandwidthSeries(AppBandwidthList list)
+    {
+        ArgumentNullException.ThrowIfNull(list);
+        Bandwidth.Clear();
+        if (list.Series.Count == 0)
+        {
+            BandwidthStatus = list.CountersActive
+                ? "No traffic recorded yet"
+                : "Byte counters inactive (service not elevated)";
+            return;
+        }
+
+        var peak = Math.Max(1, list.Series.Max(s => s.Bytes.Count == 0 ? 0 : s.Bytes.Max()));
+        for (var i = 0; i < list.Series.Count; i++)
+        {
+            var s = list.Series[i];
+            var points = new System.Text.StringBuilder();
+            var stepX = s.Bytes.Count > 1 ? TimelineWidth / (s.Bytes.Count - 1) : 0;
+            for (var b = 0; b < s.Bytes.Count; b++)
+            {
+                var x = b * stepX;
+                var y = TimelineHeight - (s.Bytes[b] / (double)peak * (TimelineHeight - 6)) - 2;
+                if (b != 0)
+                {
+                    points.Append(' ');
+                }
+
+                points.Append(x.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))
+                      .Append(',')
+                      .Append(y.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            Bandwidth.Add(new TimelineSeriesViewModel
+            {
+                Name = s.Process,
+                PointsText = points.ToString(),
+                ColorIndex = i,
+                LegendText = $"↑{FormatBytes(s.TotalSent)} ↓{FormatBytes(s.TotalRecv)}",
+            });
+        }
+
+        BandwidthStatus = $"Top {list.Series.Count} apps · last 60 min · peak {FormatBytes(peak)}/min";
+    }
+
+    /// <summary>Humanized byte count ("1.4 MB").</summary>
+    public static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double value = Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
     }
 
     // ─── Consent history (WFCP-021): recent prompts with re-decide ───────────
