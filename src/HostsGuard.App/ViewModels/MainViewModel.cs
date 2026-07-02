@@ -104,6 +104,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await FwRules.RefreshAsync();
             Tools ??= new ToolsViewModel(_client, _confirm);
             await Tools.LoadSchedulesAsync();
+            await Tools.LoadServicesAsync();
             Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
             IsConnected = true;

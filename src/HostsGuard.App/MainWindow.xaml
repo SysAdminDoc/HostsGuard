@@ -504,6 +504,40 @@
 
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
+                                    <TextBlock Text="Blocked services" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="One-click hosts blocking of a service's primary domains. Best-effort: exact hostnames only; DoH can bypass it."
+                                               Style="{StaticResource Hg.DimText}" Margin="0,0,0,8" TextWrapping="Wrap" />
+                                    <ItemsControl ItemsSource="{Binding Services}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Content="{Binding Label}" Margin="0,0,8,8" Padding="10,5"
+                                                        ToolTip="{Binding Note}"
+                                                        Command="{Binding DataContext.ToggleServiceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Blocked}" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
                                     <TextBlock Text="Scheduled blocking" FontWeight="SemiBold" Margin="0,0,0,8" />
                                     <DataGrid ItemsSource="{Binding Schedules}" IsReadOnly="False" MinHeight="80" MaxHeight="220"
                                               CanUserAddRows="False">

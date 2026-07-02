@@ -63,6 +63,7 @@ public class SchemaLockTests
         service Policy
           GetSchedules(Empty) returns (ScheduleList)
           ListProfiles(Empty) returns (ProfileList)
+          ListServices(Empty) returns (ServiceStates)
           SetSchedules(ScheduleList) returns (Ack)
           SwitchProfile(ProfileRequest) returns (Ack)
           ToggleService(ServiceToggleRequest) returns (Ack)

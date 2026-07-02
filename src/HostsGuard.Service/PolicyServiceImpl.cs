@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Grpc.Core;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 
 namespace HostsGuard.Service;
 
@@ -73,7 +74,80 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         => Task.FromResult(Error("not_implemented", "network profiles arrive with the profile engine"));
 
     public override Task<Ack> ToggleService(ServiceToggleRequest request, ServerCallContext context)
-        => Task.FromResult(Error("not_implemented", "blocked-services toggles arrive with the services engine"));
+    {
+        var name = (request.Service ?? string.Empty).Trim();
+        var domains = BlockedServices.DomainsFor(name);
+        if (domains is null)
+        {
+            return Task.FromResult(Error("unknown_service", $"'{name}' is not a known service"));
+        }
+
+        var source = $"service:{name}";
+        if (request.Block)
+        {
+            var added = 0;
+            var newRows = new List<(string, string, string)>();
+            foreach (var d in domains)
+            {
+                var status = _state.Db.GetDomainStatus(d);
+
+                // A manual whitelist wins over the one-click toggle.
+                if (status == "whitelisted" && _state.Db.GetDomainSource(d) != source)
+                {
+                    continue;
+                }
+
+                if (_state.Hosts.Block(d))
+                {
+                    added++;
+                }
+
+                // Only rows this toggle creates carry the service source —
+                // pre-existing manual blocks keep their identity so the revert
+                // never claims them.
+                if (status is null)
+                {
+                    newRows.Add((d, "blocked", source));
+                }
+            }
+
+            _state.Db.AddDomainsBulk(newRows);
+            _state.Db.LogEvent(name, "blocked", details: $"service toggle ({domains.Count} domains)", reason: "service");
+            var note = name == BlockedServices.TelemetryService ? $" — {BlockedServices.TelemetryDefenderNote}" : string.Empty;
+            return Task.FromResult(Ok($"blocked {name} ({added} new of {domains.Count} domains){note}"));
+        }
+
+        // Self-owned revert: only rows this toggle created are removed.
+        var removed = 0;
+        foreach (var row in _state.Db.GetDomains(status: "blocked", source: source))
+        {
+            _state.Hosts.Unblock(row.Domain);
+            _state.Db.RemoveDomain(row.Domain);
+            removed++;
+        }
+
+        _state.Db.LogEvent(name, "unblocked", details: $"service toggle ({removed} domains)", reason: "service");
+        return Task.FromResult(Ok($"unblocked {name} ({removed} domains)"));
+    }
+
+    public override Task<ServiceStates> ListServices(Empty request, ServerCallContext context)
+    {
+        var states = new ServiceStates();
+        foreach (var name in BlockedServices.Services.Keys.Append(BlockedServices.TelemetryService))
+        {
+            var source = $"service:{name}";
+            var blockedCount = _state.Db.GetDomains(status: "blocked", source: source).Count;
+            states.Services.Add(new BlockableService
+            {
+                Name = name,
+                Blocked = blockedCount > 0,
+                DomainCount = BlockedServices.DomainsFor(name)!.Count,
+                Note = name == BlockedServices.TelemetryService ? BlockedServices.TelemetryDefenderNote : string.Empty,
+            });
+        }
+
+        return Task.FromResult(states);
+    }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 

@@ -56,10 +56,29 @@ public sealed partial class ScheduleRowViewModel : ObservableObject
     };
 }
 
+/// <summary>Row VM for a one-click blockable service.</summary>
+public sealed partial class BlockableServiceViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private bool _blocked;
+
+    [ObservableProperty]
+    private int _domainCount;
+
+    [ObservableProperty]
+    private string _note = string.Empty;
+
+    public string Label => $"{Name} ({DomainCount})";
+}
+
 /// <summary>
-/// Tools tab: DNS flush + resolver switching, scheduled-blocking editor,
-/// hosts backup, ACL hardening, redacted support-bundle export, and a domain
-/// inspector. Every action round-trips the service and surfaces the typed ack.
+/// Tools tab: DNS flush + resolver switching, one-click blocked services +
+/// Windows telemetry preset, scheduled-blocking editor, hosts backup, ACL
+/// hardening, redacted support-bundle export, and a domain inspector. Every
+/// action round-trips the service and surfaces the typed ack.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed partial class ToolsViewModel : ObservableObject
@@ -94,6 +113,8 @@ public sealed partial class ToolsViewModel : ObservableObject
     }
 
     public ObservableCollection<ScheduleRowViewModel> Schedules { get; } = new();
+
+    public ObservableCollection<BlockableServiceViewModel> Services { get; } = new();
 
     public static IReadOnlyList<string> ResolverNames { get; } = ResolverPresets.Select(p => p.Name).ToList();
 
@@ -156,6 +177,43 @@ public sealed partial class ToolsViewModel : ObservableObject
 
         var ack = await _client.Hosts.EmergencyResetAsync(new Empty());
         StatusText = ack.Message;
+    }
+
+    // ─── Blocked services ─────────────────────────────────────────────────────
+
+    [RelayCommand]
+    public async Task LoadServicesAsync()
+    {
+        var list = await _client.Policy.ListServicesAsync(new Empty());
+        Services.Clear();
+        foreach (var s in list.Services)
+        {
+            Services.Add(new BlockableServiceViewModel
+            {
+                Name = s.Name,
+                Blocked = s.Blocked,
+                DomainCount = s.DomainCount,
+                Note = s.Note,
+            });
+        }
+    }
+
+    [RelayCommand]
+    public async Task ToggleServiceAsync(BlockableServiceViewModel service)
+    {
+        if (!service.Blocked && service.Note.Length != 0 &&
+            !_confirm.Confirm($"Block {service.Name}", service.Note))
+        {
+            return;
+        }
+
+        var ack = await _client.Policy.ToggleServiceAsync(new ServiceToggleRequest
+        {
+            Service = service.Name,
+            Block = !service.Blocked,
+        });
+        StatusText = ack.Message;
+        await LoadServicesAsync();
     }
 
     // ─── Scheduled blocking ───────────────────────────────────────────────────

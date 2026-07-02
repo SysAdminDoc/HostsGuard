@@ -82,7 +82,14 @@ All notable changes to HostsGuard are documented in this file.
   subscriptions that whitelist + unblock and re-apply after every import. UI
   gained a Blocklists view (catalog grid, import with large-list confirm,
   refresh-all, allowlist URL editor).
-- 231 .NET tests; zero build warnings under warnings-as-errors.
+- Blocked services + telemetry preset (NET-032): one-click toggles for the 14
+  curated service sets and the 28-endpoint Windows telemetry preset (Defender
+  HostsFileHijack guidance surfaced before applying and in the ack). Toggles
+  are self-owned: reverting only removes rows the toggle created, manual
+  blocks keep their identity, and manual whitelists always win. Tools tab
+  gained the service toggle grid. (Scheduled blocking itself shipped with the
+  NET-023 enforcement engine.)
+- 236 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

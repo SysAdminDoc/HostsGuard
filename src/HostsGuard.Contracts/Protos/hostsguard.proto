@@ -312,6 +312,19 @@ service Policy {
   rpc SetSchedules(ScheduleList) returns (Ack);
   rpc GetSchedules(Empty) returns (ScheduleList);
   rpc ToggleService(ServiceToggleRequest) returns (Ack);
+  // One-click service sets + the Windows telemetry preset, with block state.
+  rpc ListServices(Empty) returns (ServiceStates);
+}
+
+message BlockableService {
+  string name = 1;
+  bool blocked = 2;
+  int32 domain_count = 3;
+  string note = 4; // e.g. Defender-exclusion guidance on the telemetry preset
+}
+
+message ServiceStates {
+  repeated BlockableService services = 1;
 }
 
 message ProfileList { repeated string names = 1; string active = 2; }
