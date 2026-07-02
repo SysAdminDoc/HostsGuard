@@ -13,6 +13,9 @@ All notable changes to HostsGuard are documented in this file.
 - Added confirmations for managed-domain removals and single firewall-rule
   deletion so context-menu destructive actions match the guarded bulk/reset
   flows.
+- Aligned headless-service discovery metadata: `/openapi.json` now advertises
+  the active `HG_PORT`, service startup copy lists the contract endpoint, and
+  release metadata version strings are guarded by tests.
 
 ## [v3.16.0] - 2026-07-02
 

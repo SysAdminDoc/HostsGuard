@@ -5714,12 +5714,16 @@ def _service_parse_json_body(raw,length):
     if not isinstance(obj,dict): raise ValueError("body must be a JSON object")
     return obj
 
-def _service_openapi():
+def _service_openapi(port=7847):
+    try:
+        port=_service_port(port)
+    except ValueError:
+        port=7847
     reasons=list(REASON_LABELS.keys())
     return {
         "openapi":"3.1.0",
         "info":{"title":APP,"version":SERVICE_API_VERSION,"description":"Local token-authenticated HostsGuard service API"},
-        "servers":[{"url":"http://127.0.0.1:7847"}],
+        "servers":[{"url":f"http://127.0.0.1:{port}"}],
         "components":{"securitySchemes":{"HgToken":{"type":"apiKey","in":"header","name":"X-HG-Token"}},
             "schemas":{"Error":{"type":"object","required":["ok","schema","error"]},
                 "Domain":{"type":"object","required":["domain","status","source","reason"]},
@@ -5884,7 +5888,7 @@ def _service():
                 rows=db.get_log(limit=params['limit'],since=params['since'],action_filter=params['action'],reason_filter=params['reason'])
                 s._json_reply(200,[{'ts':r[1],'domain':r[2],'action':r[3],'process':r[4],'details':r[5],'reason':r[6]} for r in rows])
             elif path=='/openapi.json':
-                s._json_reply(200,_service_openapi())
+                s._json_reply(200,_service_openapi(port))
             else:
                 s._json_reply(404,_service_error('not_found','unknown endpoint'))
         def do_POST(s):
@@ -5915,7 +5919,7 @@ def _service():
         def log_message(s,*a): pass
     srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
-    print("Endpoints: GET /status /domains /stats /log, POST /domains (action+domain)")
+    print("Endpoints: GET /status /domains /stats /log /openapi.json, POST /domains (action+domain)")
     if not token:
         print("WARNING: no auth token could be established - endpoint will reject all requests.")
     elif os.environ.get('HG_TOKEN','').strip():

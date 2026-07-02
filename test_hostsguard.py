@@ -121,6 +121,22 @@ class TestPackageBoundaries:
         assert hg_pkg.VER == VER
         assert hg_pkg.SCHEMA_VER == SCHEMA_VER
 
+    def test_release_metadata_versions_match_runtime(self):
+        readme = open(os.path.join(_ROOT, "README.md"), encoding="utf-8").read()
+        constraints = open(os.path.join(_ROOT, "constraints.txt"), encoding="utf-8").read()
+        installer = open(os.path.join(_ROOT, "installer.iss"), encoding="utf-8").read()
+        version_info = open(os.path.join(_ROOT, "version_info.txt"), encoding="utf-8").read()
+        major, minor, patch = (int(part) for part in VER.split("."))
+        assert f"version-{VER}-blue" in readme
+        assert f"HostsGuard-v{VER}-Setup.exe" in readme
+        assert f"HostsGuard v{VER}" in constraints
+        assert f'MyAppVersion "{VER}"' in installer
+        assert f'MyAppVersionInfo "{VER}.0"' in installer
+        assert f"filevers=({major}, {minor}, {patch}, 0)" in version_info
+        assert f"prodvers=({major}, {minor}, {patch}, 0)" in version_info
+        assert f"StringStruct('FileVersion', '{VER}.0')" in version_info
+        assert f"StringStruct('ProductVersion', '{VER}')" in version_info
+
 
 class TestLocalizationRegistry:
     def test_registry_formats_english_strings(self):
@@ -433,11 +449,14 @@ class TestServiceContract:
     def test_openapi_contract_lists_current_endpoints_and_schemas(self):
         spec = _service_openapi()
         assert spec["openapi"] == "3.1.0"
+        assert spec["servers"][0]["url"] == "http://127.0.0.1:7847"
+        assert _service_openapi(9001)["servers"][0]["url"] == "http://127.0.0.1:9001"
         assert set(spec["paths"]) == {"/status", "/domains", "/stats", "/log", "/openapi.json"}
         assert spec["components"]["securitySchemes"]["HgToken"]["name"] == "X-HG-Token"
         assert "reason" in spec["components"]["schemas"]["Domain"]["required"]
         log_params = {p["name"] for p in spec["paths"]["/log"]["get"]["parameters"]}
         assert {"limit", "since", "action", "reason"} <= log_params
+        assert "GET /status /domains /stats /log /openapi.json, POST /domains" in _SRC
 
 
 class _WebhookResp:
