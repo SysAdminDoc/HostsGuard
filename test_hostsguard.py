@@ -171,6 +171,14 @@ class TestBoundedResponseReads:
             _read_response_limited(io.BytesIO(b"abcd"), 3, "test payload")
 
 
+class TestDestructiveActionGuards:
+    def test_context_delete_actions_use_confirmations(self):
+        assert '_confirm(s,"Remove managed domain"' in _SRC
+        assert '_confirm(s,"Remove managed domains"' in _SRC
+        assert '_confirm(s,"Delete firewall rule"' in _SRC
+        assert 'm.addAction("Delete").triggered.connect(lambda:(fw.delete(name)' not in _SRC
+
+
 class TestBootstrapGuards:
     def test_freeze_support_runs_before_bootstrap_and_qt_imports(self):
         tree = ast.parse(_SRC)

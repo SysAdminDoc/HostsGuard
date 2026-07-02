@@ -10,6 +10,9 @@ All notable changes to HostsGuard are documented in this file.
   remote hosts/threat/allowlist/GeoIP/favicons reads enforce size limits, and
   service requests reject negative `Content-Length` plus invalid `HG_PORT`
   values before starting elevated mutation work.
+- Added confirmations for managed-domain removals and single firewall-rule
+  deletion so context-menu destructive actions match the guarded bulk/reset
+  flows.
 
 ## [v3.16.0] - 2026-07-02
 

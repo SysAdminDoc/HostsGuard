@@ -4189,12 +4189,12 @@ class HostsTab(QWidget):
         d=ds[0]; root=get_root(d); m=QMenu(s); m.setStyleSheet(CTX)
         if len(ds)>1:
             m.addAction(f"Toggle {len(ds)}").triggered.connect(lambda:s._tog_multi(ds))
-            m.addAction(f"Delete {len(ds)}").triggered.connect(lambda:s._del_multi(ds))
+            m.addAction(f"Remove {len(ds)}").triggered.connect(lambda:s._del_multi(ds))
         else:
             cur=s.db.get_domains(search=d); st=cur[0][1] if cur else 'blocked'
             m.addAction("Allow" if st=='blocked' else "Block").triggered.connect(lambda:s._tog(d,st))
             m.addAction(f"Block root ({root})").triggered.connect(lambda:(s.db.add_root(d,'blocked','manual'),s.hm.block(root),s._load_d()))
-            m.addSeparator(); m.addAction("Delete").triggered.connect(lambda:s._del(d))
+            m.addSeparator(); m.addAction("Remove").triggered.connect(lambda:s._del(d))
             src_val=(cur[0][3] if cur and cur[0][3] else None)
             if src_val:
                 sm=m.addMenu(f"Source: {src_val[:20]}"); sm.setStyleSheet(CTX)
@@ -4214,10 +4214,23 @@ class HostsTab(QWidget):
             new='whitelisted' if st=='blocked' else 'blocked'; s.db.update_status(d,new)
             (s.hm.block if new=='blocked' else s.hm.unblock)(d,flush=False); ct+=1
         s.hm._flush(); s._load_d(); s._toast(f"Toggled {ct} domains",C['blue'])
-    def _del(s,d): s.db.remove_domain(d); s.hm.unblock(d); s._load_d()
+    def _del(s,d):
+        if not _confirm(s,"Remove managed domain",
+            f"Remove {d} from Managed Domains and unblock it in the hosts file?\n\n"
+            "Backups and event history are left unchanged.",
+            "Remove Domain","Cancel",danger=True):
+            return
+        s.db.remove_domain(d); s.hm.unblock(d); s._load_d(); s._toast(f"Removed {d}",C['dim'])
     def _del_multi(s,ds):
-        for d in ds: s.db.remove_domain(d); s.hm.unblock(d)
-        s._load_d()
+        if not ds: return
+        if not _confirm(s,"Remove managed domains",
+            f"Remove {len(ds)} selected domains from Managed Domains and unblock them in the hosts file?\n\n"
+            "Backups and event history are left unchanged.",
+            "Remove Domains","Cancel",danger=True):
+            return
+        for d in ds:
+            s.db.remove_domain(d); s.hm.unblock(d,flush=False)
+        s.hm._flush(); s._load_d(); s._toast(f"Removed {len(ds)} domains",C['dim'])
     # Services (one-click block toggles)
     def _load_services(s):
         """Reflect actual hosts state: a service is checked only if ALL its domains are blocked."""
@@ -4626,6 +4639,17 @@ class FirewallTab(QWidget):
         else:
             s._toast("Re-bind failed",C['red'])
 
+    def _delete_rule(s,name):
+        if not _confirm(s,"Delete firewall rule",
+            f"Delete the Windows Firewall rule '{name}'?\n\n"
+            "This removes the live rule and its HostsGuard tracking record.",
+            "Delete Rule","Cancel",danger=True):
+            return
+        if fw.delete(name):
+            s._remove_local(name); s._apply(); s._toast(f"Deleted {name}",C['red'])
+        else:
+            s._toast(f"Couldn't delete {name}",C['red'])
+
     def _ctx(s,pos):
         row=s.tbl.currentRow()
         if row<0: return
@@ -4638,7 +4662,7 @@ class FirewallTab(QWidget):
         cur_act=rule.action if rule else "Allow"
         new_act="Allow" if cur_act=="Block" else "Block"
         m.addAction(f"Set to {new_act}").triggered.connect(lambda:(fw.set_action(name,new_act),s._set_action_local(name,new_act),s._apply(),s._toast(f"{name} -> {new_act}",C['red'] if new_act=='Block' else C['green'])))
-        m.addAction("Delete").triggered.connect(lambda:(fw.delete(name),s._remove_local(name),s._toast(f"Deleted {name}",C['dim'])))
+        m.addAction("Delete").triggered.connect(lambda:s._delete_rule(name))
         m.addSeparator()
         if rule:
             m.addAction("Duplicate / Edit").triggered.connect(lambda:s._dup(rule))
