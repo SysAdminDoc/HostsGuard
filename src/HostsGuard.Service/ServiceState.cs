@@ -48,6 +48,7 @@ public sealed class ServiceState : IDisposable
         };
         SecureRules = new SecureRulesGuard(firewall, db);
         CnameCloak = new CnameCloakGuard(hosts, db);
+        Lock = new SettingsLock(DataDir);
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)
@@ -93,6 +94,28 @@ public sealed class ServiceState : IDisposable
     public SecureRulesGuard SecureRules { get; }
 
     public CnameCloakGuard CnameCloak { get; }
+
+    /// <summary>Settings/rule lock (NET-079).</summary>
+    public SettingsLock Lock { get; }
+
+    /// <summary>
+    /// Refuse a mutating action when the settings lock is armed and not inside a
+    /// timed-unlock window (NET-079). Returns a locked-error Ack, else null.
+    /// </summary>
+    public Contracts.Ack? GateWhenLocked()
+    {
+        if (Lock.IsLocked(DateTime.UtcNow))
+        {
+            return new Contracts.Ack
+            {
+                Ok = false,
+                Message = "settings are locked — unlock with the settings-lock password to make changes",
+                ErrorCode = "hostsguard.error.v1/locked",
+            };
+        }
+
+        return null;
+    }
 
     public TempAllowScheduler TempAllows { get; }
 

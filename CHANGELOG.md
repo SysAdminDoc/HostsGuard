@@ -4,6 +4,19 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — settings/rule lock + hosts write protection (NET-079)
+- **Settings lock** — arm a password lock (Tools tab) that refuses filtering-
+  mode, firewall-posture, and HG_ rule changes until unlocked, with an optional
+  timed unlock (1–240 min) so you're not re-prompted constantly (TinyWall's
+  pattern). Password is PBKDF2-SHA256 (210k iterations, self-describing hash);
+  the lock state persists but the timed-unlock window resets on service restart.
+  Enforced service-side on SetMode, SetGlobalMode, SetDefaultOutbound,
+  CreateRule, DeleteRule, and per-app scope blocks.
+- **Hosts write protection** — one-click enforcement of the SYSTEM+Admins-only
+  DACL on the hosts file (Tools tab), so malware or a non-admin can't silently
+  rewrite it. New Policy RPCs GetLockState / SetLock / Unlock /
+  SetHostsProtection (schema-lock updated deliberately).
+
 ### Added — blocklist source health + mirror fallback (NET-077)
 - **Mirror fallback** — curated sources carry a fallback URL; when the primary
   fetch fails the importer retries the mirror before giving up (HaGezi,

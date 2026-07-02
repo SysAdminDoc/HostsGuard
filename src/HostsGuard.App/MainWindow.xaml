@@ -780,6 +780,36 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="8" DataContext="{Binding Tools}">
 
+                            <!-- Settings lock (NET-079) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="Settings lock" FontWeight="SemiBold" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding LockStatus}" Style="{StaticResource Hg.DimText}" />
+                                    </DockPanel>
+                                    <TextBlock Text="When locked, changing filtering mode, firewall posture, or HG_ rules requires the password."
+                                               Style="{StaticResource Hg.DimText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding LoadLockStateCommand}" Margin="6,0,0,0" Padding="10,2" />
+                                        <Button DockPanel.Dock="Right" Content="Protect hosts file" Command="{Binding ProtectHostsCommand}" Margin="6,0,0,0" Padding="10,2"
+                                                ToolTip="Enforce a SYSTEM+Admins-only DACL on the hosts file" />
+                                        <PasswordBox x:Name="LockPasswordBox" VerticalAlignment="Center"
+                                                     AutomationProperties.Name="Settings lock password" />
+                                    </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Left" Content="Arm lock" Command="{Binding EnableLockCommand}" Margin="0,0,6,0" Padding="10,2"
+                                                CommandParameter="{Binding ElementName=LockPasswordBox}" Click="OnLockPasswordSync" />
+                                        <Button DockPanel.Dock="Left" Content="Disarm" Command="{Binding DisableLockCommand}" Margin="0,0,6,0" Padding="10,2"
+                                                Click="OnLockPasswordSync" />
+                                        <Button DockPanel.Dock="Left" Content="Unlock" Command="{Binding UnlockCommand}" Margin="0,0,6,0" Padding="10,2"
+                                                Click="OnLockPasswordSync" />
+                                        <TextBox DockPanel.Dock="Left" Width="46" VerticalAlignment="Center"
+                                                 Text="{Binding UnlockMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Unlock minutes" ToolTip="Timed-unlock window in minutes" />
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="DNS" FontWeight="SemiBold" Margin="0,0,0,8" />

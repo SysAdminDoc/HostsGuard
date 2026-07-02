@@ -40,7 +40,7 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
         });
 
     public override Task<Ack> SetMode(FilteringMode request, ServerCallContext context)
-        => Task.FromResult(_state.Consent.SetMode(request.Mode));
+        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode));
 
     public override Task<DecisionHistory> GetDecisionHistory(HistoryRequest request, ServerCallContext context)
         => Task.FromResult(_state.Consent.History(request.Limit));

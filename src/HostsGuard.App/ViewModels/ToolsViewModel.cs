@@ -121,6 +121,19 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     private string _inspectResult = string.Empty;
 
+    // Settings lock (NET-079).
+    [ObservableProperty]
+    private bool _lockEnabled;
+
+    [ObservableProperty]
+    private string _lockPassword = string.Empty;
+
+    [ObservableProperty]
+    private int _unlockMinutes = 15;
+
+    [ObservableProperty]
+    private string _lockStatus = string.Empty;
+
     public ToolsViewModel(HostsServiceClient client, IConfirm confirm)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -137,6 +150,52 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task FlushDnsAsync()
     {
         var ack = await _client.Dns.FlushCacheAsync(new Empty());
+        StatusText = ack.Message;
+    }
+
+    // ─── Settings lock (NET-079) ─────────────────────────────────────────────
+
+    [RelayCommand]
+    public async Task LoadLockStateAsync()
+    {
+        var state = await _client.Policy.GetLockStateAsync(new Empty());
+        LockEnabled = state.Enabled;
+        LockStatus = state.Enabled
+            ? state.Unlocked ? "Locked (temporarily unlocked)" : "Locked"
+            : "Not locked";
+    }
+
+    [RelayCommand]
+    public async Task EnableLockAsync()
+    {
+        var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "enable", Password = LockPassword });
+        LockStatus = ack.Message;
+        LockPassword = string.Empty;
+        await LoadLockStateAsync();
+    }
+
+    [RelayCommand]
+    public async Task DisableLockAsync()
+    {
+        var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "disable", Password = LockPassword });
+        LockStatus = ack.Message;
+        LockPassword = string.Empty;
+        await LoadLockStateAsync();
+    }
+
+    [RelayCommand]
+    public async Task UnlockAsync()
+    {
+        var ack = await _client.Policy.UnlockAsync(new LockRequest { Password = LockPassword, Minutes = UnlockMinutes });
+        LockStatus = ack.Message;
+        LockPassword = string.Empty;
+        await LoadLockStateAsync();
+    }
+
+    [RelayCommand]
+    public async Task ProtectHostsAsync()
+    {
+        var ack = await _client.Policy.SetHostsProtectionAsync(new HostsProtectionRequest { Enabled = true });
         StatusText = ack.Message;
     }
 

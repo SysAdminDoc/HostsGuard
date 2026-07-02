@@ -637,6 +637,29 @@ service Policy {
   // Named rule-set profiles: snapshot, switch (with hosts reconcile), delete.
   rpc SaveProfile(ProfileRequest) returns (Ack);
   rpc DeleteProfile(ProfileRequest) returns (Ack);
+  // Settings/rule lock (NET-079): arm/disarm with a password and timed-unlock.
+  // When armed, mode/posture/rule mutations are refused until unlocked.
+  rpc GetLockState(Empty) returns (LockState);
+  rpc SetLock(LockRequest) returns (Ack);
+  rpc Unlock(LockRequest) returns (Ack);
+  // Hosts-file write protection (NET-079): enforce/relax the SYSTEM+Admins-only
+  // DACL that keeps third parties from writing the hosts file.
+  rpc SetHostsProtection(HostsProtectionRequest) returns (Ack);
+}
+
+message LockState {
+  bool enabled = 1;
+  bool unlocked = 2;   // inside a timed-unlock window right now
+}
+
+message LockRequest {
+  string action = 1;   // "enable" | "disable" | "unlock"
+  string password = 2;
+  int32 minutes = 3;   // unlock window (unlock only)
+}
+
+message HostsProtectionRequest {
+  bool enabled = 1;
 }
 
 message BlockableService {

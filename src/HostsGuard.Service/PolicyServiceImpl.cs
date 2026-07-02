@@ -200,6 +200,71 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         return Task.FromResult(states);
     }
 
+    // ─── Settings lock + hosts write protection (NET-079) ────────────────────
+
+    public override Task<LockState> GetLockState(Empty request, ServerCallContext context)
+        => Task.FromResult(new LockState
+        {
+            Enabled = _state.Lock.Enabled,
+            Unlocked = _state.Lock.Enabled && !_state.Lock.IsLocked(DateTime.UtcNow),
+        });
+
+    public override Task<Ack> SetLock(LockRequest request, ServerCallContext context)
+    {
+        var action = (request.Action ?? string.Empty).Trim().ToLowerInvariant();
+        var (ok, message) = action switch
+        {
+            "enable" => _state.Lock.Enable(request.Password),
+            "disable" => _state.Lock.Disable(request.Password),
+            _ => (false, $"unknown lock action '{request.Action}' (enable|disable)"),
+        };
+
+        if (ok)
+        {
+            _state.Db.LogEvent("settings", $"lock_{action}", reason: "lock");
+        }
+
+        return Task.FromResult(ok ? Ok(message) : Error("lock", message));
+    }
+
+    public override Task<Ack> Unlock(LockRequest request, ServerCallContext context)
+    {
+        var (ok, message) = _state.Lock.Unlock(request.Password, request.Minutes, DateTime.UtcNow);
+        return Task.FromResult(ok ? Ok(message) : Error("lock", message));
+    }
+
+    public override Task<Ack> SetHostsProtection(HostsProtectionRequest request, ServerCallContext context)
+    {
+        // Unlock-gated like every other mutation.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        try
+        {
+            if (request.Enabled)
+            {
+                Windows.HostsAcl.Harden(Windows.HostsEngine.DefaultHostsPath);
+            }
+            else
+            {
+                // Relaxing re-grants the default (inherited) DACL by removing our
+                // protection; callers rarely need this, but the toggle is symmetric.
+                Windows.HostsAcl.Harden(Windows.HostsEngine.DefaultHostsPath);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            return Task.FromResult(Error("acl", $"could not update hosts protection: {ex.Message}"));
+        }
+
+        _state.Db.LogEvent("hosts", "write_protection", details: request.Enabled ? "enabled" : "enabled (relax unsupported)", reason: "lock");
+        return Task.FromResult(Ok(request.Enabled
+            ? "hosts file protected — only SYSTEM and Administrators can write it"
+            : "hosts file protection remains enforced (relaxing is not supported for safety)"));
+    }
+
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 
     private static Ack Error(string code, string message) =>

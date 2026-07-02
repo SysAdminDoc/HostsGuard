@@ -87,6 +87,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Error("invalid_rule", "rule name is required"));
         }
 
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
         {
             name = FwRuleMapper.HostsGuardPrefix + name;
@@ -127,6 +132,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
+        }
+
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
         }
 
         var name = (request.Name ?? string.Empty).Trim();
@@ -349,6 +359,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         try
         {
             fw.SetDefaultOutboundBlock(request.Block);
@@ -449,6 +464,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         var mode = (request.Mode ?? string.Empty).Trim().ToLowerInvariant();
         bool block;
         switch (mode)
@@ -483,6 +503,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
+        }
+
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
         }
 
         var path = (request.ProgramPath ?? string.Empty).Trim();

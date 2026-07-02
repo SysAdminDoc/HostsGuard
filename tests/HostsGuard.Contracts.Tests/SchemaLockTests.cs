@@ -97,13 +97,17 @@ public class SchemaLockTests
           WatchEvents(Empty) returns (stream ActivityEvent)
         service Policy
           DeleteProfile(ProfileRequest) returns (Ack)
+          GetLockState(Empty) returns (LockState)
           GetSchedules(Empty) returns (ScheduleList)
           ListProfiles(Empty) returns (ProfileList)
           ListServices(Empty) returns (ServiceStates)
           SaveProfile(ProfileRequest) returns (Ack)
+          SetHostsProtection(HostsProtectionRequest) returns (Ack)
+          SetLock(LockRequest) returns (Ack)
           SetSchedules(ScheduleList) returns (Ack)
           SwitchProfile(ProfileRequest) returns (Ack)
           ToggleService(ServiceToggleRequest) returns (Ack)
+          Unlock(LockRequest) returns (Ack)
         """;
 
     [Fact]

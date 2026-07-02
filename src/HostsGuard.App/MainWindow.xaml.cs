@@ -46,6 +46,15 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>PasswordBox can't bind — push its value to the VM before the lock command runs.</summary>
+    private void OnLockPasswordSync(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel { Tools: { } tools } && LockPasswordBox is not null)
+        {
+            tools.LockPassword = LockPasswordBox.Password;
+        }
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         if (!_exiting)
