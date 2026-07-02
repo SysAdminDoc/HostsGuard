@@ -161,6 +161,20 @@
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
                                 <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
+                                <DataGridTemplateColumn Header="24h" Width="132">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Viewbox Width="120" Height="20" Stretch="Fill" HorizontalAlignment="Left"
+                                                     ToolTip="{Binding SparklineTip}">
+                                                <Canvas Width="120" Height="20">
+                                                    <Polyline Points="{Binding SparklinePoints, Converter={StaticResource PointsConverter}}"
+                                                              Stroke="{DynamicResource Hg.Series1}"
+                                                              StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                                </Canvas>
+                                            </Viewbox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen}" Width="170" />
                             </DataGrid.Columns>
                         </DataGrid>

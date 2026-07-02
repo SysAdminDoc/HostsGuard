@@ -214,6 +214,19 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(list);
     }
 
+    public override Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)
+    {
+        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var root = Domains.LooksLikeDomain(d) ? Domains.GetRoot(d) : d;
+        var sparkline = new Sparkline();
+        if (root.Length != 0)
+        {
+            sparkline.Hits.AddRange(_state.Db.GetHourlyHits(root, DateTime.Now));
+        }
+
+        return Task.FromResult(sparkline);
+    }
+
     public override Task<Ack> BackupHosts(Empty request, ServerCallContext context)
     {
         var backupDir = System.IO.Path.Combine(_state.DataDir, "backups");

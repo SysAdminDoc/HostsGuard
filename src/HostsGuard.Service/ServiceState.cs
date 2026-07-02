@@ -97,6 +97,7 @@ public sealed class ServiceState : IDisposable
         }
 
         Db.RecordFeed(d, process);
+        Db.RecordHourly(Core.Domains.GetRoot(d), DateTime.Now);
         Bus.Publish(new DnsEvent
         {
             Domain = d,

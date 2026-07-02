@@ -53,6 +53,22 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     private HostsControl.HostsControlClient Hosts(Grpc.Net.Client.GrpcChannel ch) => new(ch);
 
     [Fact]
+    public async Task Sparkline_reports_24h_hourly_hits_for_a_domain_root()
+    {
+        // Sightings on the same root roll up hourly; GetSparkline returns 24 buckets.
+        _state.RecordDns("ads.tracker.com");
+        _state.RecordDns("cdn.tracker.com"); // same root
+        _state.RecordDns("unrelated.net");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var spark = await Hosts(channel).GetSparklineAsync(new DomainRequest { Domain = "ads.tracker.com" });
+
+        spark.Hits.Should().HaveCount(24);
+        spark.Hits[^1].Should().Be(2);      // current hour: both tracker.com sightings
+        spark.Hits.Sum().Should().Be(2);    // unrelated.net excluded
+    }
+
+    [Fact]
     public async Task TempAllow_unblocks_now_and_lists_pending_window()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

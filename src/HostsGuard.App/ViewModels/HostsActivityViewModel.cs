@@ -58,6 +58,39 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
 
         StatusText = $"{Rows.Count} domains in feed";
+        await LoadSparklinesAsync();
+    }
+
+    /// <summary>
+    /// Fetch the 24h hourly sparkline once per distinct root and fan it out to
+    /// every row sharing that root (NET-042). Best-effort: a failed fetch just
+    /// leaves the row's sparkline blank.
+    /// </summary>
+    public async Task LoadSparklinesAsync()
+    {
+        foreach (var group in Rows.GroupBy(r => r.Root, StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(group.Key))
+            {
+                continue;
+            }
+
+            try
+            {
+                var spark = await _client.Hosts.GetSparklineAsync(new DomainRequest { Domain = group.Key });
+                var points = Sparklines.BuildPoints(spark.Hits);
+                var total = spark.Hits.Sum();
+                foreach (var row in group)
+                {
+                    row.SparklinePoints = points;
+                    row.SparklineTip = $"{total} hits in the last 24h";
+                }
+            }
+            catch (Exception ex) when (ex is RpcException or IOException)
+            {
+                // Sparkline is decorative — a fetch failure leaves it blank.
+            }
+        }
     }
 
     /// <summary>Start consuming the live DNS stream until disposed.</summary>

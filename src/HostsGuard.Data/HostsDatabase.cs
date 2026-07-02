@@ -26,7 +26,7 @@ public sealed record FeedRow(
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 4;
+    public const int SchemaVersion = 5;
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -91,6 +91,9 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS blocklist_subs(
                 name TEXT PRIMARY KEY, url TEXT, last_refresh TEXT, domain_count INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS allowlist_subs(url TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS feed_hourly(
+                root TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(root, hour));
+            CREATE INDEX IF NOT EXISTS idx_feed_hourly_hour ON feed_hourly(hour);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -280,6 +283,61 @@ public sealed class HostsDatabase : IDisposable
     }
 
     /// <summary>Recent feed rows (newest first), joined with managed-domain status.</summary>
+    /// <summary>
+    /// Increment the current-hour hit bucket for a domain root (NET-042
+    /// sparkline source). Opportunistically prunes buckets older than 48 h so
+    /// the table stays bounded without a scheduler.
+    /// </summary>
+    public void RecordHourly(string root, DateTime now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        var hour = now.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+        var cutoff = now.AddHours(-48).ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO feed_hourly(root,hour,hits) VALUES(@root,@hour,1)
+                ON CONFLICT(root,hour) DO UPDATE SET hits=hits+1
+                """,
+                new { root, hour });
+            _conn.Execute("DELETE FROM feed_hourly WHERE hour < @cutoff", new { cutoff });
+        }
+    }
+
+    /// <summary>
+    /// 24-hour hourly hit histogram for a domain root, oldest→newest, ending at
+    /// <paramref name="now"/>'s hour. Missing hours are zero-filled so the
+    /// sparkline is always <paramref name="hours"/> points wide.
+    /// </summary>
+    public IReadOnlyList<int> GetHourlyHits(string root, DateTime now, int hours = 24)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        var buckets = new int[Math.Clamp(hours, 1, 168)];
+        var top = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, now.Kind);
+        var byHour = new Dictionary<string, int>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            var earliest = top.AddHours(-(buckets.Length - 1))
+                .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+            foreach (var row in _conn.Query<(string Hour, long Hits)>(
+                "SELECT hour AS Hour, hits AS Hits FROM feed_hourly WHERE root=@root AND hour >= @earliest",
+                new { root, earliest }))
+            {
+                byHour[row.Hour] = (int)row.Hits;
+            }
+        }
+
+        for (var i = 0; i < buckets.Length; i++)
+        {
+            var hour = top.AddHours(-(buckets.Length - 1 - i))
+                .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+            buckets[i] = byHour.GetValueOrDefault(hour);
+        }
+
+        return buckets;
+    }
+
     public IReadOnlyList<FeedRow> GetFeed(int limit = 500)
     {
         lock (_gate)

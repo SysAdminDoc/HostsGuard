@@ -53,6 +53,7 @@ public class SchemaLockTests
           EmergencyReset(Empty) returns (Ack)
           GetActivity(ActivityRequest) returns (ActivityList)
           GetHostsText(Empty) returns (HostsText)
+          GetSparkline(DomainRequest) returns (Sparkline)
           HardenAcl(Empty) returns (Ack)
           HideRoot(DomainRequest) returns (Ack)
           ListBackups(Empty) returns (BackupList)

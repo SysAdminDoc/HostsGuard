@@ -30,6 +30,13 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     [ObservableProperty]
     private string _reason = string.Empty;
 
+    /// <summary>24h hourly hit sparkline as Polyline points ("" until loaded).</summary>
+    [ObservableProperty]
+    private string _sparklinePoints = string.Empty;
+
+    [ObservableProperty]
+    private string _sparklineTip = string.Empty;
+
     public static ActivityRowViewModel From(ActivityRow r) => new()
     {
         Domain = r.Domain,

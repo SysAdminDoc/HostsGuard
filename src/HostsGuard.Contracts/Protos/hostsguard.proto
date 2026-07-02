@@ -72,6 +72,8 @@ service HostsControl {
   rpc UnhideRoot(DomainRequest) returns (Ack);
   // Snapshot of recent DNS activity (the live delta streams via Monitoring.WatchDns).
   rpc GetActivity(ActivityRequest) returns (ActivityList);
+  // 24h hourly hit histogram for a domain root (inline per-feed sparkline).
+  rpc GetSparkline(DomainRequest) returns (Sparkline);
   // Copy the hosts file to a timestamped backup; path returned in Ack.message.
   rpc BackupHosts(Empty) returns (Ack);
   // Backup restore flow: enumerate the backups dir, then replace the live hosts
@@ -191,6 +193,10 @@ message ActivityRow {
 
 message ActivityList {
   repeated ActivityRow rows = 1;
+}
+
+message Sparkline {
+  repeated int32 hits = 1; // 24 hourly buckets, oldest → newest
 }
 
 message DomainRequest {

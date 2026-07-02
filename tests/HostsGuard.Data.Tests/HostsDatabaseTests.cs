@@ -37,6 +37,42 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Hourly_rollup_buckets_by_hour_and_zero_fills_the_window()
+    {
+        using var db = new HostsDatabase(DbPath("hourly.db"));
+        var now = new DateTime(2026, 7, 2, 14, 30, 0);
+
+        // 3 hits this hour, 1 two hours ago.
+        db.RecordHourly("example.com", now);
+        db.RecordHourly("example.com", now.AddMinutes(5));
+        db.RecordHourly("example.com", now.AddMinutes(20));
+        db.RecordHourly("example.com", now.AddHours(-2));
+        db.RecordHourly("other.com", now); // distinct root, must not bleed in
+
+        var hits = db.GetHourlyHits("example.com", now, hours: 24);
+
+        hits.Should().HaveCount(24);
+        hits[^1].Should().Be(3);   // current hour (newest)
+        hits[^3].Should().Be(1);   // two hours ago
+        hits[^2].Should().Be(0);   // one hour ago — zero-filled
+        hits.Sum().Should().Be(4); // other.com excluded
+    }
+
+    [Fact]
+    public void Hourly_rollup_prunes_buckets_older_than_48h()
+    {
+        using var db = new HostsDatabase(DbPath("prune.db"));
+        var now = new DateTime(2026, 7, 2, 14, 0, 0);
+
+        db.RecordHourly("example.com", now.AddHours(-72)); // stale
+        db.RecordHourly("example.com", now);               // triggers prune
+
+        using var conn = new SqliteConnection($"Data Source={DbPath("prune.db")}");
+        conn.Open();
+        conn.ExecuteScalar<long>("SELECT COUNT(*) FROM feed_hourly").Should().Be(1);
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");
