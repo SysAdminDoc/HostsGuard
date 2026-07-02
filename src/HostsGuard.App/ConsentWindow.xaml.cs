@@ -58,7 +58,16 @@ public partial class ConsentWindow : Window
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var entry = await System.Net.Dns.GetHostEntryAsync(ip).WaitAsync(cts.Token);
-            HostText.Text = string.IsNullOrEmpty(entry.HostName) || entry.HostName == remote ? "no PTR record" : entry.HostName;
+            if (string.IsNullOrEmpty(entry.HostName) || entry.HostName == remote)
+            {
+                HostText.Text = "no PTR record";
+            }
+            else
+            {
+                // Annotate with the curated purpose when known (NET-078).
+                var purpose = HostsGuard.Core.DomainPurpose.Lookup(entry.HostName);
+                HostText.Text = purpose.Length != 0 ? $"{entry.HostName}  ·  {purpose}" : entry.HostName;
+            }
         }
         catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException or TimeoutException or ArgumentException)
         {

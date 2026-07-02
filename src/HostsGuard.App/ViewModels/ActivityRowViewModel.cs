@@ -37,6 +37,10 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     [ObservableProperty]
     private string _sparklineTip = string.Empty;
 
+    /// <summary>Curated purpose label ("Google Analytics", "Akamai CDN"), or "".</summary>
+    [ObservableProperty]
+    private string _purpose = string.Empty;
+
     public static ActivityRowViewModel From(ActivityRow r) => new()
     {
         Domain = r.Domain,
@@ -47,5 +51,6 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         LastSeen = r.LastSeen,
         Hidden = r.Hidden,
         Reason = r.Reason,
+        Purpose = Core.DomainPurpose.Lookup(r.Domain),
     };
 }

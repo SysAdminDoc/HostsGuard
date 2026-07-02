@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Domain-purpose annotations (NET-078)** — a curated, offline domain→purpose
+  map (Little Snitch Research Assistant style) labels known domains ("Microsoft
+  telemetry", "Akamai CDN", "Google Analytics") in a new Purpose column on the
+  Hosts Activity feed and inline on the consent prompt's resolved hostname.
+  Longest-suffix match; unknown domains stay blank; no cloud lookup.
 - **CNAME-cloak reactive blocking (NET-075)** — an opt-in guard blocks a
   first-party host that resolves via CNAME to a blocked tracker, defeating
   CNAME-cloaking without a DNS forwarder. The ETW DNS monitor now parses the

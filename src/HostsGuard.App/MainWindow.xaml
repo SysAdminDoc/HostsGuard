@@ -158,6 +158,13 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
+                                <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}" Width="150">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
                                 <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
