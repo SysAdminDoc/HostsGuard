@@ -54,7 +54,7 @@ public sealed class ServiceHostIntegrationTests : IAsyncLifetime
     public async Task GetStatus_reports_engine_state()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);
-        var diag = new Diagnostics.DiagnosticsClient(channel);
+        var diag = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
 
         var status = await diag.GetStatusAsync(new Empty());
 
@@ -67,7 +67,7 @@ public sealed class ServiceHostIntegrationTests : IAsyncLifetime
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);
         var hosts = new HostsControl.HostsControlClient(channel);
-        var diag = new Diagnostics.DiagnosticsClient(channel);
+        var diag = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
 
         var ack = await hosts.BlockAsync(new DomainRequest { Domain = "ads.example.com", Source = "manual" });
         ack.Ok.Should().BeTrue();
@@ -99,7 +99,7 @@ public sealed class ServiceHostIntegrationTests : IAsyncLifetime
     public async Task Unauthorized_client_is_rejected()
     {
         using var channel = NamedPipeChannel.Create(SessionToken.Generate(), _pipe);
-        var diag = new Diagnostics.DiagnosticsClient(channel);
+        var diag = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
 
         var act = async () => await diag.GetStatusAsync(new Empty());
 

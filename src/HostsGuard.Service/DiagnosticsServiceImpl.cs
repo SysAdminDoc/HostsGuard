@@ -8,7 +8,7 @@ namespace HostsGuard.Service;
 
 /// <summary>Implements the Diagnostics gRPC service (health + counts).</summary>
 [SupportedOSPlatform("windows")]
-public sealed class DiagnosticsServiceImpl : Diagnostics.DiagnosticsBase
+public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.DiagnosticsBase
 {
     private readonly ServiceState _state;
 
