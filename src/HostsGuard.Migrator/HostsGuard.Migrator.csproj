@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HostsGuard.Core\HostsGuard.Core.csproj" />
+    <ProjectReference Include="..\HostsGuard.Data\HostsGuard.Data.csproj" />
+  </ItemGroup>
+
+</Project>

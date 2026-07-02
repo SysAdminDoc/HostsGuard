@@ -121,7 +121,13 @@ All notable changes to HostsGuard are documented in this file.
   a gzip-expansion cap (Core GzipLimited, the `_gzip_decompress_limited` port),
   and corrupt downloads are probe-validated so they never replace a working
   database. Tools tab gained refresh buttons for both.
-- 256 .NET tests; zero build warnings under warnings-as-errors.
+- Migrator (NET-053): HostsGuard.Migrator imports a Python-era profile
+  (%APPDATA%\HostsGuard → %ProgramData%\HostsGuard) — hostsguard.db (legacy
+  columns upgrade in place), config.json schedules / temp_allows / allowlist +
+  blocklist subscriptions, doh_resolvers.json, and backups — with a --dry-run
+  report, one-shot marker, and a never-overwrite guard on an existing target
+  database. Verified against a real v3.x-shaped profile with zero data loss.
+- 260 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 
