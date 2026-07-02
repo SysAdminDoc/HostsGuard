@@ -28,6 +28,7 @@ os.environ.setdefault("HOSTSGUARD_SKIP_BOOTSTRAP", "1")
 import hostsguard.app as hg
 import hostsguard.core as hg_core
 import hostsguard.firewall as hg_firewall
+import hostsguard.i18n as hg_i18n
 import hostsguard.network as hg_network
 import hostsguard.service as hg_service
 import hostsguard.ui as hg_ui
@@ -107,6 +108,21 @@ class TestPackageBoundaries:
 
     def test_version_is_current(self):
         assert re.match(r"^\d+\.\d+\.\d+$", VER)
+
+
+class TestLocalizationRegistry:
+    def test_registry_formats_english_strings(self):
+        assert hg_i18n.tr("app.window_title", app="HostsGuard", version="3.15.0") == "HostsGuard v3.15.0"
+
+    def test_missing_keys_and_languages_fall_back_safely(self):
+        assert hg_i18n.tr("missing.key", lang="zz") == "missing.key"
+        assert hg_i18n.tr("missing.key", fallback="Fallback") == "Fallback"
+        assert hg_i18n.tr("app.window_title", app="HostsGuard") == "HostsGuard v{version}"
+
+    def test_primary_tabs_route_through_registry(self):
+        for key in ("tabs.hosts_activity", "tabs.firewall_activity", "tabs.hosts_file", "tabs.firewall_rules", "tabs.tools"):
+            assert key in hg_i18n.registered_keys()
+            assert f'T("{key}"' in _SRC
 
 
 class TestBootstrapGuards:

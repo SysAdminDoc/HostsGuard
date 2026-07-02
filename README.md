@@ -36,7 +36,7 @@ winget install --id JRSoftware.InnoSetup -e
 
 ### Project Layout
 
-`HostsGuard.py` is a thin launcher. Runtime code lives under `hostsguard/`: `app.py` keeps the current application capsule, while `core.py`, `firewall.py`, `network.py`, `service.py`, and `ui.py` expose responsibility-focused package boundaries for tests and future refactors.
+`HostsGuard.py` is a thin launcher. Runtime code lives under `hostsguard/`: `app.py` keeps the current application capsule, `i18n.py` owns the English string registry, and `core.py`, `firewall.py`, `network.py`, `service.py`, and `ui.py` expose responsibility-focused package boundaries for tests and future refactors.
 
 ## Features
 
