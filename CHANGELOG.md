@@ -109,7 +109,12 @@ All notable changes to HostsGuard are documented in this file.
   Resources/Strings.resx with safe missing-key fallback to the English default;
   shell connection strings route through it as the pattern. Future locales are
   satellite-assembly drops, no code changes.
-- 248 .NET tests; zero build warnings under warnings-as-errors.
+- Defender integration (NET-036): one-click hosts-file exclusion through the
+  WMI MSFT_MpPreference "Add" method (PowerShell-free), idempotent with typed
+  unavailability errors, plus a revert-detection heuristic (hosts file empty of
+  blocks while the DB expects them = the classic post-remediation signature)
+  surfaced with HostsFileHijack guidance in the Tools tab.
+- 251 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

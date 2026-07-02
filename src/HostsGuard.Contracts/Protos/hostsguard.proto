@@ -26,6 +26,15 @@ service Diagnostics {
   // Writes a redacted support bundle zip under the service data dir; the
   // resulting path is returned in Ack.message. Never contains tokens/secrets.
   rpc ExportSupportBundle(Empty) returns (Ack);
+  // Windows Defender integration: exclusion state + hosts-revert heuristic.
+  rpc GetDefenderStatus(Empty) returns (DefenderStatus);
+}
+
+message DefenderStatus {
+  bool available = 1;
+  bool hosts_excluded = 2;      // hosts file present in Defender's ExclusionPath
+  bool possible_revert = 3;     // hosts file empty of blocks while the DB expects them
+  string guidance = 4;
 }
 
 message ServiceStatus {
@@ -67,6 +76,8 @@ service HostsControl {
   rpc BackupHosts(Empty) returns (Ack);
   // Re-apply the hardened ACL to the hosts file.
   rpc HardenAcl(Empty) returns (Ack);
+  // One-click: add the hosts file to Windows Defender's exclusions (WMI).
+  rpc AddDefenderExclusion(Empty) returns (Ack);
 }
 
 // ─── Blocklist / allowlist subscriptions ─────────────────────────────────────

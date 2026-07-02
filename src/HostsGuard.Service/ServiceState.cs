@@ -22,7 +22,8 @@ public sealed class ServiceState : IDisposable
         FirewallIdentity? identity = null,
         IDnsConfig? dns = null,
         string? dataDir = null,
-        IListFetcher? listFetcher = null)
+        IListFetcher? listFetcher = null,
+        IDefender? defender = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -38,6 +39,7 @@ public sealed class ServiceState : IDisposable
         Schedules = new ScheduleEnforcer(hosts, db);
         Doh = new DohIntelligence(DataDir);
         ListFetcher = listFetcher;
+        Defender = defender;
         if (listFetcher is not null)
         {
             Lists = new ListImporter(hosts, db, listFetcher);
@@ -64,6 +66,8 @@ public sealed class ServiceState : IDisposable
     public DohIntelligence Doh { get; }
 
     public IListFetcher? ListFetcher { get; }
+
+    public IDefender? Defender { get; }
 
     public EventBus Bus { get; }
 

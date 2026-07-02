@@ -166,6 +166,30 @@ public sealed partial class ToolsViewModel : ObservableObject
         InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
     }
 
+    [ObservableProperty]
+    private string _defenderStatusText = string.Empty;
+
+    [RelayCommand]
+    public async Task LoadDefenderStatusAsync()
+    {
+        var status = await _client.Diagnostics.GetDefenderStatusAsync(new Empty());
+        DefenderStatusText = !status.Available
+            ? "Defender: not accessible"
+            : status.HostsExcluded
+                ? "Defender: hosts file is excluded"
+                : status.PossibleRevert
+                    ? "Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)"
+                    : "Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)";
+    }
+
+    [RelayCommand]
+    public async Task AddDefenderExclusionAsync()
+    {
+        var ack = await _client.Hosts.AddDefenderExclusionAsync(new Empty());
+        StatusText = ack.Message;
+        await LoadDefenderStatusAsync();
+    }
+
     [RelayCommand]
     public async Task EmergencyResetAsync()
     {

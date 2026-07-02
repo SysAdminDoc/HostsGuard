@@ -86,6 +86,25 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         writer.Write(content);
     }
 
+    public override Task<DefenderStatus> GetDefenderStatus(Empty request, ServerCallContext context)
+    {
+        var status = new DefenderStatus
+        {
+            Guidance = Core.BlockedServices.TelemetryDefenderNote,
+        };
+        if (_state.Defender is { } defender && defender.IsAvailable())
+        {
+            status.Available = true;
+            status.HostsExcluded = defender.GetExclusionPaths()
+                .Any(p => string.Equals(p.TrimEnd('\\'), _state.Hosts.HostsPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Revert heuristic: the DB expects blocked domains but the live hosts
+        // file has none — the classic post-remediation signature.
+        status.PossibleRevert = _state.Hosts.GetBlocked().Count == 0 && _state.Db.GetStats().Blocked > 0;
+        return Task.FromResult(status);
+    }
+
     private static bool IsElevated()
     {
         try

@@ -223,6 +223,28 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             : Ok(path));
     }
 
+    public override Task<Ack> AddDefenderExclusion(Empty request, ServerCallContext context)
+    {
+        if (_state.Defender is not { } defender || !defender.IsAvailable())
+        {
+            return Task.FromResult(Error("defender_unavailable", "Windows Defender is not accessible on this system"));
+        }
+
+        var path = _state.Hosts.HostsPath;
+        if (defender.GetExclusionPaths().Any(p => string.Equals(p.TrimEnd('\\'), path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Task.FromResult(Ok("hosts file is already excluded"));
+        }
+
+        if (!defender.AddExclusion(path))
+        {
+            return Task.FromResult(Error("defender_failed", "Defender refused the exclusion (is the service elevated?)"));
+        }
+
+        _state.Db.LogEvent("defender", "exclusion_added", details: path);
+        return Task.FromResult(Ok($"added Defender exclusion for {path}"));
+    }
+
     public override Task<Ack> HardenAcl(Empty request, ServerCallContext context)
     {
         try

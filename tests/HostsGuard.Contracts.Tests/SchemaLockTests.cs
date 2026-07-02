@@ -17,6 +17,7 @@ public class SchemaLockTests
         package hostsguard.v1
         service Diagnostics
           ExportSupportBundle(Empty) returns (Ack)
+          GetDefenderStatus(Empty) returns (DefenderStatus)
           GetStatus(Empty) returns (ServiceStatus)
         service DnsControl
           FlushCache(Empty) returns (Ack)
@@ -34,6 +35,7 @@ public class SchemaLockTests
           SetRuleEnabled(RuleEnabledRequest) returns (Ack)
           UnblockEncryptedDns(Empty) returns (Ack)
         service HostsControl
+          AddDefenderExclusion(Empty) returns (Ack)
           Allow(DomainRequest) returns (Ack)
           BackupHosts(Empty) returns (Ack)
           Block(DomainRequest) returns (Ack)
