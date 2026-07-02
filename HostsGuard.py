@@ -852,6 +852,15 @@ def _ps_esc(v):
     """Escape a value for safe PowerShell single-quote interpolation."""
     return "'" + str(v).replace("'","''") + "'"
 
+def _system_dns_servers():
+    """The IPs currently configured as the machine's DNS resolvers — exempted from
+    DoH blocking so the user's own encrypted-DNS choice keeps working."""
+    ok,out=_ps("(Get-DnsClientServerAddress -AddressFamily IPv4,IPv6 -EA SilentlyContinue|"
+               "Select-Object -ExpandProperty ServerAddresses) -join ','",8)
+    if ok and out:
+        return {x.strip() for x in out.split(',') if x.strip()}
+    return set()
+
 def valid_fw_addr(v):
     """Accept the address forms New-NetFirewallRule takes: single IP, CIDR subnet,
     or dash range. The Block IP dialogs advertise ranges but block_ip previously
@@ -942,6 +951,36 @@ class FWEngine:
             n=s.block_ip(ip,d)
             if n: created.append(n)
         return created
+    # ── Encrypted-DNS (DoH/DoT/DoQ) blocking ──────────────────────────────────
+    DOH_RULES=("HG_DoH_IPs","HG_DoT_TCP","HG_DoT_UDP")
+    def block_doh(s,exempt=None):
+        """Block known DoH resolver IPs and DoT/DoQ port 853 outbound so apps and
+        browsers can't tunnel DNS past hosts-file blocking. `exempt` (the user's own
+        configured resolver IPs) is never blocked so their chosen DNS keeps working."""
+        exempt={str(e).strip() for e in (exempt or set())}
+        ips=[ip for ip in sorted(DOH_IPS) if ip not in exempt]
+        created=[]
+        if ips:
+            addr=",".join(_ps_esc(ip) for ip in ips)  # PowerShell string array: 'a','b',...
+            ok,_=_ps(f"New-NetFirewallRule -DisplayName {_ps_esc('HG_DoH_IPs')} -Direction Outbound "
+                     f"-Action Block -Enabled True -Profile Any -RemoteAddress {addr} "
+                     f"-Description {_ps_esc('HostsGuard: block DoH resolver IPs')}",20)
+            if ok: s._track('HG_DoH_IPs','Out','Block',','.join(ips)); created.append('HG_DoH_IPs')
+        for proto,name in (("TCP","HG_DoT_TCP"),("UDP","HG_DoT_UDP")):
+            ok,_=_ps(f"New-NetFirewallRule -DisplayName {_ps_esc(name)} -Direction Outbound "
+                     f"-Action Block -Enabled True -Profile Any -Protocol {proto} -RemotePort 853 "
+                     f"-Description {_ps_esc('HostsGuard: block DoT/DoQ (port 853)')}",15)
+            if ok: s._track(name,'Out','Block',protocol=proto); created.append(name)
+        s._inv()
+        return created
+    def unblock_doh(s):
+        for name in s.DOH_RULES:
+            _ps(f"Remove-NetFirewallRule -DisplayName {_ps_esc(name)} -EA SilentlyContinue",10)
+            s._untrack(name)
+        s._inv()
+    def doh_blocked(s):
+        """True if the DoH IP block rule currently exists."""
+        return s.exists('HG_DoH_IPs')
     def block_program(s,path,direction="Outbound"):
         sfx=f"_{direction[:2]}" if direction!="Outbound" else ""
         name=f"{FW_PFX}Block_{Path(path).stem}{sfx}"
@@ -3019,6 +3058,11 @@ class ToolsTab(QWidget):
         l1.addWidget(_tbtn("Flush DNS","primary",s._flush)); l1.addWidget(_tbtn("Winsock Reset","dim",s._winsock))
         l1.addWidget(_tbtn("DHCP Renew","dim",s._renew))
         l1.addWidget(_tbtn("Check Browser DoH","dim",s._check_browser_doh))
+        s._doh_cb=QCheckBox("Block Encrypted DNS (DoH/DoT)")
+        s._doh_cb.setToolTip("Firewall-block known DoH resolver IPs + DoT/DoQ port 853 so apps\n"
+                             "can't tunnel DNS past hosts blocking. Your own DNS resolver is exempt.\n"
+                             "Note: per-app DoH can't be fully closed without a driver/proxy.")
+        s._doh_cb.toggled.connect(s._toggle_doh); l1.addWidget(s._doh_cb)
         dr=QHBoxLayout(); dr.setSpacing(_dp(3))
         s._dns_cb=QComboBox(); s._dns_cb.addItems(["System Default","Cloudflare (1.1.1.1)","Google (8.8.8.8)","Quad9 (9.9.9.9)","AdGuard (94.140.14.14)","NextDNS (45.90.28.0)"])
         dr.addWidget(s._dns_cb,1); dr.addWidget(_btn("Apply","primary",s._apply_dns)); l1.addLayout(dr)
@@ -3063,6 +3107,26 @@ class ToolsTab(QWidget):
 
     def showEvent(s,e):
         super().showEvent(e); s._log(); s._upd_learn(); s._upd_rec()
+        # Reflect actual firewall state (rules persist across restarts) without re-toggling.
+        s._doh_cb.blockSignals(True); s._doh_cb.setChecked(load_cfg().get('block_doh',False)); s._doh_cb.blockSignals(False)
+    def _toggle_doh(s,on):
+        def _bg():
+            if on:
+                exempt=_system_dns_servers()
+                created=fw.block_doh(exempt=exempt)
+                cfg=load_cfg(); cfg['block_doh']=True; save_cfg(cfg)
+                msg=(f"Encrypted DNS blocked ({len(created)} rules)"+(f", exempting your resolver" if exempt else "")) if created else "Failed to create DoH block rules"
+                color=C['green'] if created else C['red']
+                if not created:
+                    def _revert():
+                        s._doh_cb.blockSignals(True); s._doh_cb.setChecked(False); s._doh_cb.blockSignals(False)
+                    ui_call(_revert)
+                ui_call(lambda:s._toast(msg,color))
+            else:
+                fw.unblock_doh()
+                cfg=load_cfg(); cfg['block_doh']=False; save_cfg(cfg)
+                ui_call(lambda:s._toast("Encrypted DNS block removed",C['dim']))
+        threading.Thread(target=_bg,daemon=True).start()
     def _upd_learn(s):
         t=len(s.learn._trusted); u=len(s.learn._untrusted)
         s.learn_st.setText(f"{'ON' if s.learn.enabled else 'OFF'} \u00B7 {t} trusted \u00B7 {u} untrusted")
@@ -3121,11 +3185,17 @@ class ToolsTab(QWidget):
                     if mode and mode!='off': findings.append(f"Chrome preferences: DoH mode={mode}")
                 except Exception: pass
             if findings:
-                ui_call(lambda:QMessageBox.warning(s,"Browser DoH Detected",
-                    "The following browsers have DNS-over-HTTPS enabled, which bypasses "
-                    "HostsGuard's DNS monitoring and hosts file blocking:\n\n"+'\n'.join(findings)+
-                    "\n\nTo disable: set DnsOverHttpsMode to 'off' via group policy or "
-                    "browser settings (chrome://settings/security)."))
+                def _prompt():
+                    r=QMessageBox.warning(s,"Browser DoH Detected",
+                        "These browsers have DNS-over-HTTPS enabled, which bypasses "
+                        "HostsGuard's DNS monitoring and hosts file blocking:\n\n"+'\n'.join(findings)+
+                        "\n\nBlock encrypted DNS now (firewall-block DoH resolver IPs + port 853, "
+                        "exempting your own resolver)?\n\n"
+                        "You can also disable it per-browser by setting DnsOverHttpsMode to 'off' "
+                        "(chrome://settings/security).",
+                        QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                    if r==QMessageBox.Yes: s._doh_cb.setChecked(True)  # triggers _toggle_doh
+                ui_call(_prompt)
             else:
                 ui_call(lambda:s._toast("No browser DoH detected",C['green']))
         threading.Thread(target=_bg,daemon=True).start()
