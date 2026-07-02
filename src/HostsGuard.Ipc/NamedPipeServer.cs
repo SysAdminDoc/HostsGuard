@@ -18,7 +18,8 @@ public static class NamedPipeServer
     public static WebApplication Build(
         string token,
         Action<WebApplication> mapServices,
-        string pipeName = NamedPipeSecurity.PipeName)
+        string pipeName = NamedPipeSecurity.PipeName,
+        Action<IServiceCollection>? configureServices = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         ArgumentNullException.ThrowIfNull(mapServices);
@@ -38,6 +39,7 @@ public static class NamedPipeServer
 
         builder.Services.AddGrpc(o => o.Interceptors.Add<TokenAuthInterceptor>());
         builder.Services.AddSingleton(new TokenAuthInterceptor(token));
+        configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();
         mapServices(app);
