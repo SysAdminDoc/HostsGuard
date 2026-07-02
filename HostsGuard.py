@@ -321,16 +321,25 @@ _IS_LIGHT=load_cfg().get('theme')=='light'
 def _load_theme():
     return dict(_LIGHT) if _IS_LIGHT else dict(_DARK)
 C=_load_theme()
+UI_SCALE_CHOICES=(90,100,110,125,150)
+def _coerce_ui_scale(value):
+    try: pct=int(str(value).replace("%","").strip())
+    except Exception: return 100
+    return pct if pct in UI_SCALE_CHOICES else min(UI_SCALE_CHOICES,key=lambda x:abs(x-pct))
+def _load_ui_scale_pct():
+    return _coerce_ui_scale(load_cfg().get('ui_scale_pct',100))
+_UI_SCALE_PCT=_load_ui_scale_pct()
 def _rgb(hexc):
     """'#rrggbb' -> 'r,g,b' for rgba() in stylesheets."""
     return ','.join(str(int(hexc.lstrip('#')[i:i+2],16)) for i in (0,2,4))
 
 def _dp(px):
+    scale=max(0.5,_UI_SCALE_PCT/100.0)
     try:
         s=QApplication.primaryScreen()
-        if s: return max(1,int(px*s.logicalDotsPerInch()/96.0))
+        if s: return max(1,int(px*scale*s.logicalDotsPerInch()/96.0))
     except: pass
-    return px
+    return max(1,int(px*scale))
 
 def _brand_mark(size=16):
     l=QLabel()
@@ -4637,6 +4646,12 @@ class ToolsTab(QWidget):
         l2.addWidget(_tbtn("Export Config","primary",s._export)); l2.addWidget(_tbtn("Import Config","dim",s._import))
         l2.addWidget(_tbtn("Export Connections","dim",s._export_conns))
         l2.addWidget(_tbtn("Export Support Bundle","dim",s._support_bundle))
+        scale_row=QHBoxLayout(); scale_row.setSpacing(_dp(5)); scale_row.addWidget(QLabel("UI Scale"))
+        s._scale_cb=QComboBox(); s._scale_cb.addItems([f"{p}%" for p in UI_SCALE_CHOICES])
+        s._scale_cb.setCurrentText(f"{_UI_SCALE_PCT}%"); s._scale_cb.setAccessibleName("UI scale")
+        s._scale_cb.setToolTip("Persisted interface scale. Restart HostsGuard to apply.")
+        s._scale_cb.currentTextChanged.connect(s._set_ui_scale)
+        scale_row.addWidget(s._scale_cb,1); l2.addLayout(scale_row)
         l2.addWidget(_tbtn("Prune History (30d)","dim",s._prune)); l2.addWidget(_tbtn("Clear Favicons","dim",s._clear_fav))
         l2.addWidget(_tbtn("Open Config Folder","dim",s._open)); l2.addStretch(); grid.addWidget(g2)
         g3=QGroupBox("Learning Mode"); l3=QVBoxLayout(g3); l3.setSpacing(_dp(4))
@@ -4931,6 +4946,10 @@ class ToolsTab(QWidget):
             except Exception as e:
                 ui_call(lambda e=e:s._toast(f"Support bundle failed: {e}",C['red']))
         threading.Thread(target=_bg,daemon=True).start()
+    def _set_ui_scale(s,text):
+        pct=_coerce_ui_scale(text)
+        cfg=load_cfg(); cfg['ui_scale_pct']=pct; save_cfg(cfg)
+        s._toast(f"UI scale saved: {pct}% (restart to apply)",C['blue'])
     def _migrate_policy(s):
         if _PORTABLE:
             s._toast("Portable mode keeps policy next to the app",C['dim']); return

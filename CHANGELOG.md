@@ -43,6 +43,9 @@ All notable changes to HostsGuard are documented in this file.
 - Added shared advanced search grammar across DNS activity, live connections,
   managed domains, firewall rules, and event log tables with `field:value`,
   `!term`, and `field!=value` filters plus inline placeholder examples.
+- Added a persisted UI scale setting in Tools with 90/100/110/125/150 percent
+  choices, wired through the shared `_dp()` sizing helper so fonts, tables,
+  dialogs, and fixed-format controls scale consistently after restart.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -95,6 +98,12 @@ All notable changes to HostsGuard are documented in this file.
   after the advanced search change.
 - Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
   artifact after the advanced search change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 112 tests after adding
+  UI scale coercion coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  after the UI scale change.
+- Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
+  artifact after the UI scale change.
 
 ## [v3.15.0] - 2026-07-02
 

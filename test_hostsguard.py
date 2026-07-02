@@ -47,6 +47,7 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
                "_migrate_policy_to_programdata",
                "_parse_search_query", "_search_record_text", "_search_matches",
+               "_coerce_ui_scale",
                "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
                "_load_fw_identity_cache", "_remember_fw_program_identity",
                "_remember_fw_program_identity_async", "_identity_hashes",
@@ -59,6 +60,7 @@ _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS", "_PORTABLE",
                 "USER_CONFIG_DIR", "PROGRAMDATA_CONFIG_DIR", "POLICY_FILES", "POLICY_SCOPE",
+                "UI_SCALE_CHOICES",
                 "FW_IDENTITY_CACHE_KEY",
                 "SUPPORT_REDACTION_MARKERS", "_SECRET_KEY_RE", "_URL_RE", "_DOMAIN_TEXT_RE", "_IP_TEXT_RE",
                 "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
@@ -127,6 +129,7 @@ _policy_status = _m["_policy_status"]
 _migrate_policy_to_programdata = _m["_migrate_policy_to_programdata"]
 _parse_search_query = _m["_parse_search_query"]
 _search_matches = _m["_search_matches"]
+_coerce_ui_scale = _m["_coerce_ui_scale"]
 _program_identity = _m["_program_identity"]
 _score_rebind_candidate = _m["_score_rebind_candidate"]
 _rank_rebind_candidates = _m["_rank_rebind_candidates"]
@@ -522,6 +525,17 @@ class TestAdvancedSearchGrammar:
         assert _search_matches(record, 'details:"1.2.3.4:443"')
         assert _search_matches(record, '"Foo Bar"')
         assert not _search_matches(record, 'details!="Firewall blocked 1.2.3.4:443 for C:\\Apps\\Foo Bar\\app.exe"')
+
+
+class TestUiScale:
+    def test_accepts_supported_scale_percentages(self):
+        for pct in (90, 100, 110, 125, 150):
+            assert _coerce_ui_scale(f"{pct}%") == pct
+
+    def test_invalid_scale_falls_back_or_snaps_to_nearest(self):
+        assert _coerce_ui_scale("bad") == 100
+        assert _coerce_ui_scale(118) == 125
+        assert _coerce_ui_scale(80) == 90
 
 
 class TestNormLine:

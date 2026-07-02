@@ -111,7 +111,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Persistent PowerShell | Keeps a single `powershell.exe` session alive — eliminates ~200ms spawn overhead per command |
 | Parallel Startup | Database, hosts file, and connection DB load in a background thread behind a splash screen |
 | Bandwidth Monitor | Real-time upload/download rates in the title bar via `psutil.net_io_counters` |
-| DPI Aware | Scales all UI elements for high-DPI displays |
+| DPI Aware | Scales all UI elements for high-DPI displays, with persisted 90/100/110/125/150 percent UI scale |
 | Auto-Elevation | Requests UAC admin privileges on launch (required for hosts file and firewall access) |
 | File Logging | Errors logged to `%APPDATA%\HostsGuard\hostsguard.log` (500KB rotating) |
 | Portable Mode | `--portable` stores all data next to the exe instead of `%APPDATA%` |
@@ -213,7 +213,7 @@ accounts. Portable mode continues to store data next to the executable.
 |------|---------|
 | `hostsguard.db` | Domain management, feed, event log, canonical reasons, FW state (SQLite WAL) |
 | `connections.db` | Connection history (SQLite WAL) |
-| `config.json` | Learning mode, trusted/untrusted processes, notification settings |
+| `config.json` | Learning mode, trusted/untrusted processes, notification settings, UI scale |
 | `doh_resolvers.json` | Refreshed DoH resolver intelligence: source, last update, SHA-256, and validated IP list |
 | `hostsguard.log` | Error log (500KB rotating, 1 backup) |
 | `backups/` | Timestamped hosts file backups |
