@@ -39,6 +39,12 @@ public static class BlocklistCatalog
         new("Privacy", "Windows Spy Blocker", "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt"),
         new("Privacy", "Frogeye 1st Party", "https://hostfiles.frogeye.fr/firstparty-trackers-hosts.txt"),
         new("Privacy", "Perflyst SmartTV", "https://raw.githubusercontent.com/Perflyst/PiHoleBlocklist/master/SmartTV.txt"),
+        // Encrypted-DNS bootstrap domains: apps/browsers with hardcoded DoH
+        // resolvers skip the OS resolver (and the hosts file) entirely. Blocking
+        // the bootstrap domains forces them back onto plaintext DNS where hosts
+        // blocking applies. Complements the DoH resolver-IP firewall intelligence.
+        new("Encrypted DNS", "HaGezi DoH Servers", "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/doh.txt"),
+        new("Encrypted DNS", "HaGezi DoH/VPN/Proxy Bypass", "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/doh-vpn-proxy-bypass.txt"),
         new("Malware", "Spam404", "https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt"),
         new("Malware", "Phishing Army", "https://phishing.army/download/phishing_army_blocklist.txt"),
         new("Malware", "URLHaus", "https://urlhaus.abuse.ch/downloads/hostfile/"),

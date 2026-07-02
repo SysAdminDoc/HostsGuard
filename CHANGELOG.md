@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **DoH-resolver bootstrap blocklist (NET-065)** — the curated blocklist catalog
+  gains an "Encrypted DNS" category (HaGeZi DoH Servers + DoH/VPN/Proxy Bypass).
+  Subscribing blocks the bootstrap domains that apps/browsers with hardcoded DoH
+  resolvers use to skip the OS resolver and the hosts file. Auto-updates with the
+  existing scheduled blocklist refresh; complements the DoH resolver-IP firewall
+  intelligence.
 - **Block QUIC / HTTP3 (NET-064)** — a Tools-tab toggle blocks outbound UDP/443
   via a `HG_QUIC_UDP443` firewall rule, forcing clients to fall back to TCP so
   DoH3 and general QUIC can't bypass hosts/SNI-based blocking. Opt-in, off by
