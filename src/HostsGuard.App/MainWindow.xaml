@@ -478,7 +478,10 @@
                                         <Button DockPanel.Dock="Left" Content="Harden hosts ACL"
                                                 Command="{Binding HardenAclCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Export support bundle (redacted)"
-                                                Command="{Binding ExportBundleCommand}" />
+                                                Command="{Binding ExportBundleCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Emergency reset hosts"
+                                                Style="{StaticResource Hg.DangerButton}"
+                                                Command="{Binding EmergencyResetCommand}" />
                                     </DockPanel>
                                 </StackPanel>
                             </Border>

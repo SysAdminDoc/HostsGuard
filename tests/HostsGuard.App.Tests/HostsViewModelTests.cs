@@ -54,7 +54,7 @@ public sealed class HostsViewModelTests : IAsyncLifetime
     [Fact]
     public async Task Block_command_writes_through_service_and_refreshes_grid()
     {
-        var vm = new HostsViewModel(_client) { NewDomain = "ads.example.com" };
+        var vm = new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "ads.example.com" };
 
         await vm.BlockCommand.ExecuteAsync(null);
 
@@ -66,10 +66,10 @@ public sealed class HostsViewModelTests : IAsyncLifetime
     [Fact]
     public async Task Refresh_filter_scopes_the_grid()
     {
-        await new HostsViewModel(_client) { NewDomain = "keep.me.com" }.BlockCommand.ExecuteAsync(null);
-        await new HostsViewModel(_client) { NewDomain = "other.site.com" }.BlockCommand.ExecuteAsync(null);
+        await new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "keep.me.com" }.BlockCommand.ExecuteAsync(null);
+        await new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "other.site.com" }.BlockCommand.ExecuteAsync(null);
 
-        var vm = new HostsViewModel(_client) { Filter = "keep" };
+        var vm = new HostsViewModel(_client, new FakeConfirm(true)) { Filter = "keep" };
         await vm.RefreshCommand.ExecuteAsync(null);
 
         vm.Domains.Should().OnlyContain(d => d.Domain.Contains("keep"));
@@ -78,10 +78,10 @@ public sealed class HostsViewModelTests : IAsyncLifetime
     [Fact]
     public async Task Unblock_removes_from_service_and_grid()
     {
-        var block = new HostsViewModel(_client) { NewDomain = "gone.example.com" };
+        var block = new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "gone.example.com" };
         await block.BlockCommand.ExecuteAsync(null);
 
-        var vm = new HostsViewModel(_client);
+        var vm = new HostsViewModel(_client, new FakeConfirm(true));
         await vm.UnblockCommand.ExecuteAsync("gone.example.com");
 
         vm.Domains.Should().NotContain(d => d.Domain == "gone.example.com");

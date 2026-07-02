@@ -53,7 +53,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
-    private MainViewModel CreateShell() => new(() => _client, _config, new ThemeManager());
+    private MainViewModel CreateShell() => new(() => _client, _config, new ThemeManager(), new FakeConfirm(true));
 
     [Fact]
     public async Task Connect_populates_status_and_hosts_tab()
@@ -75,7 +75,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task Failed_connect_reports_unavailable_instead_of_crashing()
     {
         var vm = new MainViewModel(
-            () => throw new IOException("pipe not found"), _config, new ThemeManager());
+            () => throw new IOException("pipe not found"), _config, new ThemeManager(), new FakeConfirm(true));
 
         await vm.ConnectCommand.ExecuteAsync(null);
 

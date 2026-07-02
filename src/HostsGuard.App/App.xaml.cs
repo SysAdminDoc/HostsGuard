@@ -24,10 +24,12 @@ public partial class App : Application
         var services = new ServiceCollection();
         services.AddSingleton<AppConfigStore>();
         services.AddSingleton<ThemeManager>();
+        services.AddSingleton<IConfirm, MessageBoxConfirm>();
         services.AddSingleton(sp => new MainViewModel(
             HostsServiceClient.Connect,
             sp.GetRequiredService<AppConfigStore>(),
-            sp.GetRequiredService<ThemeManager>()));
+            sp.GetRequiredService<ThemeManager>(),
+            sp.GetRequiredService<IConfirm>()));
         services.AddSingleton<MainWindow>();
         _provider = services.BuildServiceProvider();
 

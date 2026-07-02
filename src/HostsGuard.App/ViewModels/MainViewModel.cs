@@ -17,6 +17,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly Func<HostsServiceClient> _connectFactory;
     private readonly AppConfigStore _config;
     private readonly ThemeManager _themes;
+    private readonly IConfirm _confirm;
     private HostsServiceClient? _client;
 
     [ObservableProperty]
@@ -61,11 +62,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _uiScalePct;
 
-    public MainViewModel(Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes)
+    public MainViewModel(Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes, IConfirm confirm)
     {
         _connectFactory = connectFactory ?? throw new ArgumentNullException(nameof(connectFactory));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _themes = themes ?? throw new ArgumentNullException(nameof(themes));
+        _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _theme = config.Theme;
         _uiScalePct = config.UiScalePct;
     }
@@ -86,7 +88,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             HostsBlocked = status.HostsBlocked;
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
-            Hosts ??= new HostsViewModel(_client);
+            Hosts ??= new HostsViewModel(_client, _confirm);
             await Hosts.RefreshAsync();
             Activity ??= new HostsActivityViewModel(_client);
             await Activity.RefreshAsync();
@@ -95,9 +97,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await RawHosts.LoadAsync();
             FwActivity ??= new FwActivityViewModel(_client);
             FwActivity.StartWatching();
-            FwRules ??= new FwRulesViewModel(_client);
+            FwRules ??= new FwRulesViewModel(_client, _confirm);
             await FwRules.RefreshAsync();
-            Tools ??= new ToolsViewModel(_client);
+            Tools ??= new ToolsViewModel(_client, _confirm);
             await Tools.LoadSchedulesAsync();
             IsConnected = true;
             ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);

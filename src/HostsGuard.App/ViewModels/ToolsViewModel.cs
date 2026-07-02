@@ -73,6 +73,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     };
 
     private readonly HostsServiceClient _client;
+    private readonly IConfirm _confirm;
 
     [ObservableProperty]
     private string _statusText = "Ready";
@@ -86,8 +87,11 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     private string _inspectResult = string.Empty;
 
-    public ToolsViewModel(HostsServiceClient client)
-        => _client = client ?? throw new ArgumentNullException(nameof(client));
+    public ToolsViewModel(HostsServiceClient client, IConfirm confirm)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+    }
 
     public ObservableCollection<ScheduleRowViewModel> Schedules { get; } = new();
 
@@ -139,6 +143,19 @@ public sealed partial class ToolsViewModel : ObservableObject
             ? "no records"
             : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
         InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
+    }
+
+    [RelayCommand]
+    public async Task EmergencyResetAsync()
+    {
+        if (!_confirm.Confirm("Emergency reset",
+            "Reset the hosts file to Windows defaults? All HostsGuard blocks are removed from the file."))
+        {
+            return;
+        }
+
+        var ack = await _client.Hosts.EmergencyResetAsync(new Empty());
+        StatusText = ack.Message;
     }
 
     // ─── Scheduled blocking ───────────────────────────────────────────────────

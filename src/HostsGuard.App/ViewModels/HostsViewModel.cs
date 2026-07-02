@@ -19,6 +19,7 @@ public sealed partial class HostsViewModel : ObservableObject
     public static readonly IReadOnlyList<string> StatusFilters = new[] { "All", "blocked", "whitelisted" };
 
     private readonly HostsServiceClient _client;
+    private readonly IConfirm _confirm;
 
     [ObservableProperty]
     private string _newDomain = string.Empty;
@@ -32,7 +33,11 @@ public sealed partial class HostsViewModel : ObservableObject
     [ObservableProperty]
     private string _statusFilter = "All";
 
-    public HostsViewModel(HostsServiceClient client) => _client = client ?? throw new ArgumentNullException(nameof(client));
+    public HostsViewModel(HostsServiceClient client, IConfirm confirm)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+    }
 
     public ObservableCollection<ManagedDomainViewModel> Domains { get; } = new();
 
@@ -78,6 +83,11 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task UnblockAsync(string domain)
     {
+        if (!_confirm.Confirm("Remove domain", $"Remove {domain} from managed domains?"))
+        {
+            return;
+        }
+
         await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
         StatusText = $"Removed {domain}";
         await RefreshAsync();
@@ -118,7 +128,13 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task RemoveSelectedAsync(IList? selected)
     {
-        foreach (var domain in SelectedDomains(selected))
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0 || !_confirm.Confirm("Remove domains", $"Remove {domains.Count} selected domains?"))
+        {
+            return;
+        }
+
+        foreach (var domain in domains)
         {
             await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
         }

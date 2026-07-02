@@ -67,6 +67,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
 public sealed partial class FwRulesViewModel : ObservableObject
 {
     private readonly HostsServiceClient _client;
+    private readonly IConfirm _confirm;
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -96,8 +97,11 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [ObservableProperty]
     private string _newRuleProgram = string.Empty;
 
-    public FwRulesViewModel(HostsServiceClient client)
-        => _client = client ?? throw new ArgumentNullException(nameof(client));
+    public FwRulesViewModel(HostsServiceClient client, IConfirm confirm)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+    }
 
     public ObservableCollection<FwRuleViewModel> Rules { get; } = new();
 
@@ -147,6 +151,11 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand]
     public async Task DeleteRuleAsync(string name)
     {
+        if (!_confirm.Confirm("Delete firewall rule", $"Delete rule {name}?"))
+        {
+            return;
+        }
+
         var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -156,6 +165,11 @@ public sealed partial class FwRulesViewModel : ObservableObject
     public async Task DeleteSelectedAsync(IList? selected)
     {
         var names = selected?.OfType<FwRuleViewModel>().Select(r => r.Name).ToList() ?? new List<string>();
+        if (names.Count == 0 || !_confirm.Confirm("Delete firewall rules", $"Delete {names.Count} selected rules?"))
+        {
+            return;
+        }
+
         var deleted = 0;
         foreach (var name in names)
         {

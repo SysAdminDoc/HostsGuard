@@ -69,7 +69,11 @@ All notable changes to HostsGuard are documented in this file.
   (status/events/rules/schedules zip; public IPs and secrets pass through the
   redaction pipeline). Contract grew ExportSupportBundle, BackupHosts, and
   HardenAcl.
-- 215 .NET tests; zero build warnings under warnings-as-errors.
+- Destructive-action guardrails (NET-024): a shared IConfirm flow (port of the
+  Python `_confirm`) now gates domain remove, bulk remove, firewall rule
+  delete, bulk delete, and the new Emergency Reset button; view-model tests
+  prove a declined confirm leaves state untouched on every path.
+- 222 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 
