@@ -32,6 +32,10 @@ All notable changes to HostsGuard are documented in this file.
   HostsGuard rules, using cached signer/product/original filename/SHA-256
   evidence plus bounded replacement-path scanning and a preview step before
   applying the new executable path.
+- Added a redacted support bundle export in Tools that packages version/build
+  diagnostics, sanitized config, SQLite integrity status, recent redacted logs,
+  event history, firewall summary, hosts stats, dependency versions, and
+  Windows Event Log entries when available.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -66,6 +70,12 @@ All notable changes to HostsGuard are documented in this file.
   after the firewall rebind change.
 - Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
   artifact after the firewall rebind change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 104 tests after adding
+  support bundle redaction and zip payload coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  after the support bundle change.
+- Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
+  artifact after the support bundle change.
 
 ## [v3.15.0] - 2026-07-02
 

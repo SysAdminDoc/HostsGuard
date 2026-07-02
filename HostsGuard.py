@@ -7,7 +7,7 @@ import multiprocessing
 multiprocessing.freeze_support()
 
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac
-import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid
+import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid,zipfile,platform
 from pathlib import Path
 from collections import OrderedDict,defaultdict
 from dataclasses import dataclass,field
@@ -1147,6 +1147,162 @@ def valid_fw_addr(v):
             a,b=v.split('-',1); ipaddress.ip_address(a.strip()); ipaddress.ip_address(b.strip()); return True
         ipaddress.ip_address(v); return True
     except ValueError: return False
+
+SUPPORT_REDACTION_MARKERS={
+    "secret":"<REDACTED_SECRET>",
+    "url":"<REDACTED_URL>",
+    "domain":"<REDACTED_DOMAIN>",
+    "ip":"<REDACTED_IP>",
+    "path":"<REDACTED_PATH>",
+}
+_SECRET_KEY_RE=re.compile(r"(token|secret|password|passwd|credential|api[_-]?key|webhook)",re.I)
+_URL_RE=re.compile(r"https?://[^\s\"'<>]+",re.I)
+_DOMAIN_TEXT_RE=re.compile(r"\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b",re.I)
+_IP_TEXT_RE=re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+def _redaction_marker(kind,value):
+    h=hashlib.sha256(str(value or "").lower().encode("utf-8","ignore")).hexdigest()[:10]
+    base=SUPPORT_REDACTION_MARKERS.get(kind,f"<REDACTED_{kind.upper()}>")
+    return base[:-1]+f":{h}>"
+
+def _looks_like_url(value):
+    s=str(value or "").strip().lower()
+    return s.startswith(("http://","https://"))
+
+def _looks_like_public_ip(value):
+    try:
+        ip=ipaddress.ip_address(str(value or "").strip())
+        return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified)
+    except ValueError:
+        return False
+
+def _redact_support_scalar(key,value):
+    if value is None or isinstance(value,(bool,int,float)): return value
+    text=str(value)
+    k=str(key or "").lower()
+    if _looks_like_url(text): return _redaction_marker("url",text)
+    if _SECRET_KEY_RE.search(k): return SUPPORT_REDACTION_MARKERS["secret"]
+    if looks_like_domain(text.lower().strip(".")): return _redaction_marker("domain",text)
+    if _looks_like_public_ip(text): return _redaction_marker("ip",text)
+    if k in ("path","program","program_path") and ("\\" in text or "/" in text):
+        return str(Path(text).name) if Path(text).name else SUPPORT_REDACTION_MARKERS["path"]
+    return text
+
+def _redact_support_key(key):
+    text=str(key)
+    if _looks_like_url(text): return _redaction_marker("url",text)
+    if looks_like_domain(text.lower().strip(".")): return _redaction_marker("domain",text)
+    if _looks_like_public_ip(text): return _redaction_marker("ip",text)
+    if "\\" in text or "/" in text: return _redaction_marker("path",text)
+    return key
+
+def _redact_support_config(value,key=""):
+    if isinstance(value,dict):
+        return OrderedDict((_redact_support_key(k),_redact_support_config(v,k)) for k,v in value.items())
+    if isinstance(value,list):
+        return [_redact_support_config(v,key) for v in value]
+    return _redact_support_scalar(key,value)
+
+def _redact_support_text(text):
+    s=str(text or "")
+    s=_URL_RE.sub(lambda m:_redaction_marker("url",m.group(0)),s)
+    s=_IP_TEXT_RE.sub(lambda m:_redaction_marker("ip",m.group(0)) if _looks_like_public_ip(m.group(0)) else m.group(0),s)
+    s=_DOMAIN_TEXT_RE.sub(lambda m:_redaction_marker("domain",m.group(0)) if looks_like_domain(m.group(0).lower().strip(".")) else m.group(0),s)
+    s=re.sub(r"\b[0-9a-f]{32,}\b",SUPPORT_REDACTION_MARKERS["secret"],s,flags=re.I)
+    return s
+
+def _sqlite_integrity(conn):
+    try:
+        r=conn.execute("PRAGMA integrity_check").fetchone()
+        return r[0] if r else "unknown"
+    except Exception as e: return f"error: {e}"
+
+def _module_version(name):
+    try:
+        m=__import__(name)
+        return getattr(m,"__version__",getattr(m,"VERSION","installed"))
+    except Exception as e: return f"unavailable: {e.__class__.__name__}"
+
+def _dependency_versions():
+    return OrderedDict([
+        ("python",sys.version.split()[0]),
+        ("platform",platform.platform()),
+        ("qt",qVersion() if "qVersion" in globals() else ""),
+        ("PySide6",_module_version("PySide6")),
+        ("psutil",_module_version("psutil")),
+        ("maxminddb",_module_version("maxminddb")),
+        ("PyInstaller",_module_version("PyInstaller")),
+    ])
+
+def _tail_text(path,max_bytes=200_000):
+    try:
+        with open(path,"rb") as f:
+            f.seek(0,os.SEEK_END); size=f.tell(); f.seek(max(0,size-max_bytes))
+            return f.read().decode("utf-8","replace")
+    except Exception as e: return f"<unavailable: {e}>"
+
+def _fw_support_summary(rows):
+    rows=list(rows or [])
+    summary={"total":len(rows),"by_action":defaultdict(int),"by_direction":defaultdict(int),"rules":[]}
+    for name,direction,action,remote_addr,protocol,program,*_ in rows:
+        summary["by_action"][action or ""]+=1; summary["by_direction"][direction or ""]+=1
+        summary["rules"].append(OrderedDict([
+            ("name",name),("direction",direction),("action",action),("protocol",protocol),
+            ("remote_addr",_redact_support_text(remote_addr or "")),
+            ("program",Path(program).name if program else ""),
+        ]))
+    summary["by_action"]=dict(summary["by_action"]); summary["by_direction"]=dict(summary["by_direction"])
+    return summary
+
+def _event_rows_redacted(rows):
+    out=[]
+    for _id,ts,domain,action,proc,details,reason in rows or []:
+        out.append(OrderedDict([
+            ("ts",ts),("domain",_redact_support_text(domain)),("action",action),
+            ("reason",canonical_reason(reason,action=action,details=details)),
+            ("process",Path(proc).name if proc and ("\\" in proc or "/" in proc) else _redact_support_text(proc)),
+            ("details",_redact_support_text(details)),
+        ]))
+    return out
+
+def _support_bundle_payload(config,stats,db_integrity,conn_integrity,app_log_text="",event_rows=None,fw_rows=None,hosts_stats=None,dependency_versions=None,windows_events=None):
+    generated=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    diagnostics=OrderedDict([
+        ("app",APP),("version",VER),("schema",SCHEMA_VER),("generated",generated),
+        ("portable",_PORTABLE),("config_dir",SUPPORT_REDACTION_MARKERS["path"]),
+        ("db_integrity",db_integrity),("connections_integrity",conn_integrity),
+        ("stats",stats or {}),("hosts",hosts_stats or {}),
+        ("dependencies",dependency_versions or _dependency_versions()),
+        ("redaction_markers",SUPPORT_REDACTION_MARKERS),
+    ])
+    files=OrderedDict()
+    files["manifest.json"]=json.dumps(diagnostics,indent=2,ensure_ascii=False)
+    files["config.redacted.json"]=json.dumps(_redact_support_config(config or {}),indent=2,ensure_ascii=False)
+    files["firewall_state.redacted.json"]=json.dumps(_fw_support_summary(fw_rows),indent=2,ensure_ascii=False)
+    files["event_log.redacted.jsonl"]="".join(json.dumps(r,ensure_ascii=False)+"\n" for r in _event_rows_redacted(event_rows))
+    if windows_events is not None:
+        files["windows_event_log.redacted.json"]=json.dumps(_redact_support_config(windows_events),indent=2,ensure_ascii=False)
+    files["hostsguard.log.redacted.txt"]=_redact_support_text(app_log_text)
+    return files
+
+def _read_windows_events(limit=50):
+    if sys.platform!="win32": return []
+    cmd=(f"Get-WinEvent -FilterHashtable @{{LogName='Application';ProviderName={_ps_esc(APP)}}} "
+         f"-MaxEvents {int(limit)} -EA SilentlyContinue|Select TimeCreated,Id,LevelDisplayName,Message|ConvertTo-Json -Compress")
+    ok,out=_ps(cmd,8)
+    if not ok or not out.strip(): return []
+    try:
+        data=json.loads(out)
+        return data if isinstance(data,list) else [data]
+    except Exception: return [{"error":"could not parse Windows Event Log output"}]
+
+def _write_support_bundle(path,payload):
+    tmp=path+".tmp"
+    with zipfile.ZipFile(tmp,"w",compression=zipfile.ZIP_DEFLATED) as z:
+        for name,content in payload.items():
+            z.writestr(name,content if isinstance(content,str) else json.dumps(content,indent=2,ensure_ascii=False))
+    os.replace(tmp,path)
+    return path
 
 def _normalize_ip_set(values):
     if isinstance(values,(str,bytes)):
@@ -4321,6 +4477,7 @@ class ToolsTab(QWidget):
         g2=QGroupBox("Config + Data"); l2=QVBoxLayout(g2); l2.setSpacing(_dp(4))
         l2.addWidget(_tbtn("Export Config","primary",s._export)); l2.addWidget(_tbtn("Import Config","dim",s._import))
         l2.addWidget(_tbtn("Export Connections","dim",s._export_conns))
+        l2.addWidget(_tbtn("Export Support Bundle","dim",s._support_bundle))
         l2.addWidget(_tbtn("Prune History (30d)","dim",s._prune)); l2.addWidget(_tbtn("Clear Favicons","dim",s._clear_fav))
         l2.addWidget(_tbtn("Open Config Folder","dim",s._open)); l2.addStretch(); grid.addWidget(g2)
         g3=QGroupBox("Learning Mode"); l3=QVBoxLayout(g3); l3.setSpacing(_dp(4))
@@ -4584,6 +4741,28 @@ class ToolsTab(QWidget):
                     for r in rows: w.writerow(r)
             s._toast(f"Exported {len(rows)} connections",C['green'])
         except Exception as e: s._toast(f"Export failed: {e}",C['red'])
+    def _support_bundle(s):
+        p,_=QFileDialog.getSaveFileName(s,"Export Support Bundle",
+            os.path.join(CONFIG_DIR,f"hostsguard_support_{datetime.datetime.now():%Y%m%d_%H%M%S}.zip"),
+            "Zip (*.zip)")
+        if not p: return
+        if not p.lower().endswith(".zip"): p+=".zip"
+        s._toast("Building support bundle...",C['blue'])
+        def _bg():
+            try:
+                hosts_stats={"blocked_entries":len(s.hm.get_blocked()),
+                    "hosts_path":HOSTS_PATH,
+                    "hosts_exists":os.path.exists(HOSTS_PATH),
+                    "hosts_size":os.path.getsize(HOSTS_PATH) if os.path.exists(HOSTS_PATH) else 0}
+                payload=_support_bundle_payload(
+                    load_cfg(),s.db.get_stats(),_sqlite_integrity(s.db.conn),_sqlite_integrity(s.cdb.conn),
+                    _tail_text(os.path.join(CONFIG_DIR,"hostsguard.log")),
+                    s.db.get_log(limit=500),s.db.get_fw_state(),hosts_stats,_dependency_versions(),_read_windows_events())
+                _write_support_bundle(p,payload)
+                ui_call(lambda:s._toast(f"Support bundle exported: {Path(p).name}",C['green']))
+            except Exception as e:
+                ui_call(lambda e=e:s._toast(f"Support bundle failed: {e}",C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
     def _prune(s): s.cdb.prune(30); s._toast("Connection history pruned",C['green'])
     def _clear_fav(s):
         ct=0

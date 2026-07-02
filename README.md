@@ -99,6 +99,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Database Sync | Manual hosts-to-DB synchronization |
 | Session Recording | Record DNS + connection events to JSONL for analysis |
 | Export | Export connections as CSV/JSONL and config as JSON, including policy reasons |
+| Support Bundle | Export a redacted diagnostic zip with version/build info, sanitized config, DB integrity, logs, event history, firewall summary, hosts stats, and dependency versions |
 
 ### System Features
 
@@ -242,4 +243,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Issues and PRs welcome. If reporting a bug, include `%APPDATA%\HostsGuard\hostsguard.log` contents.
+Issues and PRs welcome. If reporting a bug, use Tools > Config + Data > **Export Support Bundle** and attach the redacted zip.

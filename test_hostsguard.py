@@ -20,7 +20,8 @@ import threading
 import types
 import urllib.request
 import urllib.error
-from collections import OrderedDict
+import zipfile
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 import pytest
 
@@ -36,6 +37,10 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
                "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
                "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text",
+               "_redaction_marker", "_looks_like_url", "_looks_like_public_ip",
+               "_redact_support_scalar", "_redact_support_key", "_redact_support_config", "_redact_support_text",
+               "_fw_support_summary", "_event_rows_redacted", "_support_bundle_payload",
+               "_write_support_bundle",
                "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
                "_load_fw_identity_cache", "_remember_fw_program_identity",
                "_remember_fw_program_identity_async", "_identity_hashes",
@@ -46,8 +51,9 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_service_parse_json_body", "_service_openapi"}
 _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
-                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS",
+                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS", "_PORTABLE",
                 "FW_IDENTITY_CACHE_KEY",
+                "SUPPORT_REDACTION_MARKERS", "_SECRET_KEY_RE", "_URL_RE", "_DOMAIN_TEXT_RE", "_IP_TEXT_RE",
                 "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
                 "SERVICE_BODY_LIMIT", "SERVICE_LOG_ACTIONS"}
 
@@ -75,7 +81,8 @@ def _extract():
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
           "Path": __import__("pathlib").Path,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
-          "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict}
+          "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict,
+          "defaultdict": defaultdict, "zipfile": zipfile}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -103,6 +110,10 @@ _current_doh_ips = _m["_current_doh_ips"]
 _doh_rule_ips = _m["_doh_rule_ips"]
 _parse_windows_doh_servers = _m["_parse_windows_doh_servers"]
 refresh_doh_intelligence = _m["refresh_doh_intelligence"]
+_redact_support_config = _m["_redact_support_config"]
+_redact_support_text = _m["_redact_support_text"]
+_support_bundle_payload = _m["_support_bundle_payload"]
+_write_support_bundle = _m["_write_support_bundle"]
 _program_identity = _m["_program_identity"]
 _score_rebind_candidate = _m["_score_rebind_candidate"]
 _rank_rebind_candidates = _m["_rank_rebind_candidates"]
@@ -370,6 +381,60 @@ class TestServiceContract:
         assert "reason" in spec["components"]["schemas"]["Domain"]["required"]
         log_params = {p["name"] for p in spec["paths"]["/log"]["get"]["parameters"]}
         assert {"limit", "since", "action", "reason"} <= log_params
+
+
+class TestSupportBundle:
+    def test_config_redaction_marks_webhooks_tokens_and_domains(self):
+        cfg = {
+            "webhook_url": "https://hooks.example.com/services/abc",
+            "service_token": "a" * 64,
+            "schedules": [{"target": "private.example.com"}],
+            "fw_program_identities": {r"C:\Users\me\AppData\Local\App\app.exe": {"path": r"C:\Users\me\AppData\Local\App\app.exe"}},
+            "blocklist_refresh_hours": 24,
+        }
+        redacted = _redact_support_config(cfg)
+        assert redacted["webhook_url"].startswith("<REDACTED_URL:")
+        assert redacted["service_token"] == "<REDACTED_SECRET>"
+        assert redacted["schedules"][0]["target"].startswith("<REDACTED_DOMAIN:")
+        assert all("Users" not in k for k in redacted["fw_program_identities"])
+        assert list(redacted["fw_program_identities"].values())[0]["path"] == "app.exe"
+        assert redacted["blocklist_refresh_hours"] == 24
+
+    def test_payload_redacts_private_values_and_writes_zip(self, tmp_path):
+        event_rows = [
+            (1, "2026-07-02T10:00:00", "secret.example.com", "blocked", r"C:\Apps\browser.exe",
+             "Blocked 8.8.8.8 via https://hooks.example.com/" + "b" * 40, "manual")
+        ]
+        fw_rows = [
+            ("HG_Block_App", "Out", "Block", "8.8.8.8", "Any", r"C:\Program Files\App\app.exe", "2026")
+        ]
+        payload = _support_bundle_payload(
+            {"webhook_url": "https://hooks.example.com/services/abc"},
+            {"blocked": 1},
+            "ok",
+            "ok",
+            "token=" + ("c" * 40) + " domain=secret.example.com ip=8.8.8.8",
+            event_rows,
+            fw_rows,
+            {"blocked_entries": 1},
+            {"python": "3.12"},
+            [],
+        )
+        joined = "\n".join(payload.values())
+        assert "secret.example.com" not in joined
+        assert "https://hooks.example.com" not in joined
+        assert "8.8.8.8" not in joined
+        assert "b" * 40 not in joined
+        assert "<REDACTED_DOMAIN:" in joined
+        assert "<REDACTED_URL:" in joined
+        assert "<REDACTED_IP:" in joined
+        assert "<REDACTED_SECRET>" in joined
+        out = tmp_path / "support.zip"
+        _write_support_bundle(str(out), payload)
+        with zipfile.ZipFile(out) as z:
+            names = set(z.namelist())
+            assert {"manifest.json", "config.redacted.json", "firewall_state.redacted.json",
+                    "event_log.redacted.jsonl", "hostsguard.log.redacted.txt"} <= names
 
 
 class TestNormLine:
