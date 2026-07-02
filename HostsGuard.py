@@ -246,14 +246,14 @@ def save_cfg(c):
     os.replace(tmp,CFG_PATH)
 
 # ─── Theme ──────────────────────────────────────────────────────────────────
-_DARK={"bg":"#0f0f17","base":"#181824","mantle":"#13131f","crust":"#0f0f17","s0":"#252540","s1":"#333355","s2":"#444466",
-   "text":"#e4e6f0","sub":"#9ea0b8","dim":"#6a6c88","blue":"#7aa2f7","green":"#9ece6a","red":"#f7768e",
-   "peach":"#ff9e64","yellow":"#e0af68","mauve":"#bb9af7","teal":"#73daca","sky":"#7dcfff",
-   "sel":"rgba(122,162,247,0.12)","onsel":"#111"}
-_LIGHT={"bg":"#eff1f5","base":"#e6e9ef","mantle":"#dce0e8","crust":"#ccd0da","s0":"#bcc0cc","s1":"#acb0be","s2":"#9ca0b0",
-   "text":"#4c4f69","sub":"#5c5f77","dim":"#7c7f93","blue":"#1e66f5","green":"#40a02b","red":"#d20f39",
-   "peach":"#fe640b","yellow":"#df8e1d","mauve":"#8839ef","teal":"#179299","sky":"#04a5e5",
-   "sel":"rgba(30,102,245,0.12)","onsel":"#fff"}
+_DARK={"bg":"#0b0d12","base":"#141821","mantle":"#10141c","crust":"#090b10","s0":"#242b38","s1":"#354052","s2":"#4a5870",
+   "text":"#edf1f7","sub":"#b8c1d1","dim":"#8490a3","blue":"#77a7ff","green":"#8bd17c","red":"#ff7f9a",
+   "peach":"#ffb16c","yellow":"#e7c36f","mauve":"#c4a3ff","teal":"#66d9cf","sky":"#78d5ff","focus":"#a8c7ff",
+   "sel":"rgba(119,167,255,0.16)","onsel":"#071019"}
+_LIGHT={"bg":"#f4f7fb","base":"#ffffff","mantle":"#eef3f8","crust":"#e2e9f2","s0":"#cfd9e6","s1":"#b9c6d6","s2":"#93a4ba",
+   "text":"#273142","sub":"#455368","dim":"#68778d","blue":"#1f68e5","green":"#207a36","red":"#c91d42",
+   "peach":"#c95c17","yellow":"#9a6700","mauve":"#7b3bd8","teal":"#087d79","sky":"#147bb6","focus":"#1f68e5",
+   "sel":"rgba(31,104,229,0.12)","onsel":"#ffffff"}
 _IS_LIGHT=load_cfg().get('theme')=='light'
 def _load_theme():
     return dict(_LIGHT) if _IS_LIGHT else dict(_DARK)
@@ -273,48 +273,63 @@ STYLE=f"""
 *{{font-family:'Segoe UI Variable','Segoe UI','Inter',sans-serif;}}
 QMainWindow,QDialog{{background:{C['bg']};}}
 QWidget{{background:transparent;color:{C['text']};}}
-QPushButton{{background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};padding:7px 16px;border-radius:8px;font-weight:600;}}
-QPushButton:hover{{background:{C['s1']};color:{C['text']};}}
-QPushButton:pressed{{background:{C['s0']};}}
-QPushButton:disabled{{color:{C['dim']};}}
-QPushButton[class="primary"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #5b7ee5,stop:1 {C['blue']});color:#fff;border:none;font-weight:700;}}
-QPushButton[class="primary"]:hover{{background:#8ab4ff;}}
-QPushButton[class="danger"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #d5496a,stop:1 {C['red']});color:#fff;border:none;}}
-QPushButton[class="danger"]:hover{{background:#ff8ea5;}}
-QPushButton[class="success"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #7ab85a,stop:1 {C['green']});color:#111;border:none;}}
+QPushButton{{background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};padding:7px 16px;border-radius:8px;font-weight:650;}}
+QPushButton:hover{{background:{C['s1']};color:{C['text']};border-color:{C['s2']};}}
+QPushButton:focus{{border:1px solid {C['focus']};color:{C['text']};}}
+QPushButton:pressed{{background:{C['mantle']};padding-top:8px;padding-bottom:6px;}}
+QPushButton:disabled{{color:{C['dim']};background:{C['mantle']};border-color:{C['s0']};}}
+QPushButton[class="primary"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['blue']},stop:1 {C['teal']});color:#071019;border:1px solid rgba({_rgb(C['blue'])},0.55);font-weight:800;}}
+QPushButton[class="primary"]:hover{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['sky']},stop:1 {C['teal']});}}
+QPushButton[class="primary"]:focus{{border:1px solid {C['focus']};}}
+QPushButton[class="danger"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['red']},stop:1 #b83252);color:#fff;border:1px solid rgba({_rgb(C['red'])},0.55);font-weight:800;}}
+QPushButton[class="danger"]:hover{{background:#df3f62;}}
+QPushButton[class="success"]{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['green']},stop:1 {C['teal']});color:#071019;border:1px solid rgba({_rgb(C['green'])},0.55);font-weight:800;}}
 QPushButton[class="dim"]{{background:{C['s0']};color:{C['dim']};border:1px solid {C['s1']};}}
 QPushButton[class="dim"]:hover{{color:{C['text']};background:{C['s1']};}}
 QLineEdit,QTextEdit,QPlainTextEdit{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:8px 12px;selection-background-color:{C['blue']};selection-color:{C['onsel']};}}
-QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus{{border-color:{C['blue']};}}
+QLineEdit:hover,QTextEdit:hover,QPlainTextEdit:hover{{border-color:{C['s1']};}}
+QLineEdit:focus,QTextEdit:focus,QPlainTextEdit:focus{{border-color:{C['focus']};background:{C['base']};}}
 QComboBox{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:7px 12px;min-width:80px;}}
+QComboBox:hover{{border-color:{C['s1']};}}
+QComboBox:focus{{border-color:{C['focus']};background:{C['base']};}}
 QComboBox::drop-down{{border:none;width:24px;}}QComboBox::down-arrow{{image:none;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid {C['sub']};margin-right:8px;}}
-QComboBox QAbstractItemView{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};selection-background-color:{C['blue']};selection-color:{C['onsel']};outline:none;border-radius:6px;padding:4px;}}
+QComboBox QAbstractItemView{{background:{C['base']};color:{C['text']};border:1px solid {C['s1']};selection-background-color:{C['sel']};selection-color:{C['text']};outline:none;border-radius:6px;padding:4px;}}
 QTabWidget::pane{{border:none;background:{C['base']};}}
 QTabBar{{background:{C['crust']};qproperty-drawBase:0;}}
-QTabBar::tab{{background:transparent;color:{C['dim']};padding:12px 24px;border:none;border-bottom:2px solid transparent;font-weight:700;font-size:12px;}}
-QTabBar::tab:selected{{color:{C['blue']};border-bottom-color:{C['blue']};background:rgba({_rgb(C['blue'])},0.05);}}
+QTabBar::tab{{background:transparent;color:{C['dim']};padding:12px 24px;border:none;border-bottom:2px solid transparent;font-weight:750;font-size:12px;}}
+QTabBar::tab:selected{{color:{C['blue']};border-bottom-color:{C['blue']};background:rgba({_rgb(C['blue'])},0.08);}}
 QTabBar::tab:hover:!selected{{color:{C['text']};}}
+QTabBar::tab:focus{{color:{C['text']};border-bottom-color:{C['focus']};}}
 QTabBar::tab:first{{margin-left:12px;}}
-QTableWidget{{background:{C['mantle']};alternate-background-color:rgba({_rgb(C['mantle'])},0.5);color:{C['text']};border:1px solid {C['s0']};border-radius:10px;gridline-color:rgba({_rgb(C['s1'])},0.3);selection-background-color:{C['sel']};selection-color:{C['text']};outline:none;}}
-QTableWidget::item{{padding:5px 10px;border:none;}}QTableWidget::item:selected{{background:{C['sel']};}}
+QTableWidget{{background:{C['mantle']};alternate-background-color:rgba({_rgb(C['base'])},0.42);color:{C['text']};border:1px solid {C['s0']};border-radius:10px;gridline-color:rgba({_rgb(C['s1'])},0.28);selection-background-color:{C['sel']};selection-color:{C['text']};outline:none;}}
+QTableWidget::item{{padding:5px 10px;border:none;}}
+QTableWidget::item:hover{{background:rgba({_rgb(C['blue'])},0.06);}}
+QTableWidget::item:selected{{background:{C['sel']};}}
 QHeaderView{{background:transparent;}}
-QHeaderView::section{{background:{C['crust']};color:{C['dim']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba({_rgb(C['s1'])},0.2);padding:8px 12px;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;}}
-QScrollBar:vertical{{background:transparent;width:6px;margin:4px 0;}}QScrollBar::handle:vertical{{background:{C['s1']};border-radius:3px;min-height:40px;}}
+QHeaderView::section{{background:{C['crust']};color:{C['sub']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba({_rgb(C['s1'])},0.2);padding:8px 12px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;}}
+QScrollBar:vertical{{background:transparent;width:10px;margin:4px 1px;}}QScrollBar::handle:vertical{{background:{C['s1']};border-radius:4px;min-height:40px;}}
 QScrollBar::handle:vertical:hover{{background:{C['s2']};}}QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}
-QScrollBar:horizontal{{background:transparent;height:6px;}}QScrollBar::handle:horizontal{{background:{C['s1']};border-radius:3px;}}
+QScrollBar:horizontal{{background:transparent;height:10px;margin:1px 4px;}}QScrollBar::handle:horizontal{{background:{C['s1']};border-radius:4px;}}
 QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}
 QGroupBox{{border:1px solid {C['s0']};border-radius:12px;margin-top:1.5em;padding:16px 12px 12px;background:{C['mantle']};}}
-QGroupBox::title{{subcontrol-origin:margin;left:14px;padding:0 8px;color:{C['blue']};font-size:11px;font-weight:700;}}
+QGroupBox::title{{subcontrol-origin:margin;left:14px;padding:0 8px;color:{C['blue']};font-size:11px;font-weight:800;background:{C['base']};}}
 QProgressBar{{background:{C['s0']};border:none;border-radius:6px;text-align:center;color:#fff;font-weight:700;min-height:10px;}}
-QProgressBar::chunk{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #5b7ee5,stop:1 {C['teal']});border-radius:6px;}}
-QCheckBox{{color:{C['text']};spacing:8px;}}QCheckBox::indicator{{width:18px;height:18px;border:2px solid {C['s1']};border-radius:5px;background:{C['mantle']};}}
+QProgressBar::chunk{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {C['blue']},stop:1 {C['teal']});border-radius:6px;}}
+QCheckBox{{color:{C['text']};spacing:8px;}}
+QCheckBox:hover{{color:{C['sub']};}}
+QCheckBox:focus{{color:{C['text']};}}
+QCheckBox::indicator{{width:18px;height:18px;border:2px solid {C['s1']};border-radius:4px;background:{C['mantle']};}}
+QCheckBox::indicator:hover{{border-color:{C['focus']};}}
 QCheckBox::indicator:checked{{background:{C['blue']};border-color:{C['blue']};}}
 QToolTip{{background:{C['s0']};color:{C['text']};border:1px solid {C['s1']};padding:6px 10px;border-radius:8px;}}
 QSplitter::handle{{background:{C['s0']};width:2px;}}QLabel{{color:{C['text']};background:transparent;}}
 QScrollArea{{background:transparent;border:none;}}
 QTableWidget:focus{{border:1px solid {C['blue']};}}
+QMessageBox{{background:{C['base']};}}
+QMessageBox QLabel{{color:{C['text']};font-size:12px;line-height:18px;}}
+QMessageBox QPushButton{{min-width:86px;min-height:28px;}}
 """
-CTX=f"QMenu{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s1']};border-radius:10px;padding:6px;}}QMenu::item{{padding:7px 20px;border-radius:5px;}}QMenu::item:selected{{background:{C['s0']};}}QMenu::separator{{height:1px;background:{C['s0']};margin:4px 8px;}}"
+CTX=f"QMenu{{background:{C['base']};color:{C['text']};border:1px solid {C['s1']};border-radius:10px;padding:6px;}}QMenu::item{{padding:8px 20px;border-radius:6px;}}QMenu::item:selected{{background:{C['sel']};color:{C['text']};}}QMenu::item:disabled{{color:{C['dim']};}}QMenu::separator{{height:1px;background:{C['s0']};margin:5px 8px;}}"
 
 # ─── Thread-safe UI dispatch ────────────────────────────────────────────────
 class _UiBridge(QObject):
@@ -1691,9 +1706,9 @@ class Splash(QWidget):
         t.setStyleSheet(f"color:{C['blue']};"); t.setAlignment(Qt.AlignCenter); lo.addWidget(t)
         s._step=QLabel("Initializing..."); s._step.setAlignment(Qt.AlignCenter)
         s._step.setStyleSheet(f"color:{C['sub']};font-size:11px;font-weight:600;"); lo.addWidget(s._step)
-        s._bar=QProgressBar(); s._bar.setRange(0,100); s._bar.setValue(0); s._bar.setFixedHeight(6)
+        s._bar=QProgressBar(); s._bar.setRange(0,100); s._bar.setValue(0); s._bar.setFixedHeight(10)
         s._bar.setTextVisible(False)
-        s._bar.setStyleSheet(f"QProgressBar{{background:{C['s0']};border:none;border-radius:3px;}}QProgressBar::chunk{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #5b7ee5,stop:1 {C['teal']});border-radius:3px;}}")
+        s._bar.setStyleSheet(f"QProgressBar{{background:{C['s0']};border:none;border-radius:4px;}}QProgressBar::chunk{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {C['blue']},stop:1 {C['teal']});border-radius:4px;}}")
         lo.addWidget(s._bar); lo.addStretch()
         v=QLabel(f"v{VER}"); v.setAlignment(Qt.AlignCenter); v.setStyleSheet(f"color:{C['dim']};font-size:9px;"); lo.addWidget(v)
     def update_progress(s,step,pct): s._step.setText(step); s._bar.setValue(pct)
@@ -1705,17 +1720,24 @@ class LoadingOverlay(QWidget):
         super().__init__(parent); s.setVisible(False)
         s.setAttribute(Qt.WA_TransparentForMouseEvents,False)
         s._label=QLabel("Loading...",s); s._label.setAlignment(Qt.AlignCenter)
-        s._label.setStyleSheet(f"color:{C['blue']};font-size:13px;font-weight:700;background:transparent;")
+        s._label.setStyleSheet(f"background:{C['base']};color:{C['text']};font-size:{_dp(12)}px;font-weight:800;border:1px solid {C['s1']};border-radius:{_dp(10)}px;padding:{_dp(12)}px;")
         s._dots=0; s._tmr=QTimer(s); s._tmr.timeout.connect(s._anim); s._tmr.setInterval(400)
     def show_loading(s,text="Loading"):
-        s._text=text; s._dots=0; s.setVisible(True); s.raise_(); s._tmr.start(); s._update_geom()
-    def hide_loading(s): s.setVisible(False); s._tmr.stop()
+        s._text=text; s._dots=0; s.setVisible(True); s.raise_(); s._tmr.start(); s._set_parent_loading(True); s._update_geom()
+    def hide_loading(s):
+        s.setVisible(False); s._tmr.stop(); s._set_parent_loading(False)
     def _anim(s): s._dots=(s._dots+1)%4; s._label.setText(f"{s._text}{'.'*s._dots}")
+    def _set_parent_loading(s,on):
+        p=s.parent()
+        if hasattr(p,"set_loading_state"): p.set_loading_state(on)
     def _update_geom(s):
-        if s.parent(): s.setGeometry(s.parent().rect()); s._label.setGeometry(s.rect())
+        if s.parent():
+            s.setGeometry(s.parent().rect())
+            w=min(_dp(320),max(_dp(220),s.width()-_dp(64))); h=_dp(58)
+            s._label.setGeometry((s.width()-w)//2,(s.height()-h)//2,w,h)
     def resizeEvent(s,e): super().resizeEvent(e); s._update_geom()
     def paintEvent(s,e):
-        p=QPainter(s); sc=QColor(C['bg']); sc.setAlpha(180); p.fillRect(s.rect(),sc); p.end()
+        p=QPainter(s); sc=QColor(C['bg']); sc.setAlpha(196); p.fillRect(s.rect(),sc); p.end()
 
 # ─── Learning Mode ──────────────────────────────────────────────────────────
 class LearnDB:
@@ -1825,9 +1847,40 @@ def _tbtn(text,cls="dim",cb=None,w=None):
     if cb: b.clicked.connect(cb)
     return b
 
-def _pill(text,color):
+class PremiumTableWidget(QTableWidget):
+    """QTableWidget with a built-in theme-aware empty state."""
+    def __init__(s,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        s._empty_title="No rows to show"
+        s._empty_detail="Adjust filters or refresh."
+        s._loading=False
+        s._empty=QLabel(s.viewport())
+        s._empty.setAlignment(Qt.AlignCenter)
+        s._empty.setWordWrap(True)
+        s._empty.setAttribute(Qt.WA_TransparentForMouseEvents,True)
+        s._empty.setStyleSheet(f"color:{C['dim']};font-size:{_dp(11)}px;font-weight:650;background:transparent;padding:{_dp(18)}px;")
+        s._empty.hide()
+    def set_empty_state(s,title,detail=""):
+        s._empty_title=title; s._empty_detail=detail; s._sync_empty()
+    def set_loading_state(s,on):
+        s._loading=on; s._sync_empty()
+    def setRowCount(s,rows):
+        super().setRowCount(rows); s._sync_empty()
+    def resizeEvent(s,e):
+        super().resizeEvent(e); s._place_empty()
+    def showEvent(s,e):
+        super().showEvent(e); s._sync_empty()
+    def _place_empty(s):
+        s._empty.setGeometry(s.viewport().rect().adjusted(_dp(28),_dp(28),-_dp(28),-_dp(28)))
+    def _sync_empty(s):
+        s._place_empty()
+        detail=f"\n{s._empty_detail}" if s._empty_detail else ""
+        s._empty.setText(f"{s._empty_title}{detail}")
+        s._empty.setVisible(not s._loading and s.rowCount()==0)
+
+def _badge(text,color):
     l=QLabel(text); l.setAlignment(Qt.AlignCenter)
-    l.setStyleSheet(f"background:rgba({_rgb(color)},0.15);color:{color};font-size:{_dp(9)}px;font-weight:700;border-radius:{_dp(10)}px;padding:{_dp(2)}px {_dp(8)}px;letter-spacing:0.3px;")
+    l.setStyleSheet(f"background:rgba({_rgb(color)},0.14);color:{color};font-size:{_dp(9)}px;font-weight:800;border:1px solid rgba({_rgb(color)},0.32);border-radius:{_dp(6)}px;padding:{_dp(2)}px {_dp(7)}px;letter-spacing:0.3px;")
     return l
 def _row_tint():
     """Subtle blocked-row background that reads in both themes (was a fixed dark-red RGBA)."""
@@ -1853,13 +1906,14 @@ def _stat(label,value="0",color=C['blue'],icon=""):
 def _sv(card,v): card.findChild(QLabel,"val").setText(str(v))
 
 def _tbl(cols,stretch=0,row_h=32):
-    t=QTableWidget(0,len(cols)); t.setHorizontalHeaderLabels(cols)
+    t=PremiumTableWidget(0,len(cols)); t.setHorizontalHeaderLabels(cols)
     t.horizontalHeader().setSectionResizeMode(stretch,QHeaderView.Stretch)
     t.setAlternatingRowColors(True); t.setEditTriggers(QTableWidget.NoEditTriggers)
     t.verticalHeader().setVisible(False); t.setShowGrid(False)
     t.setSelectionBehavior(QTableWidget.SelectRows); t.setSelectionMode(QTableWidget.ExtendedSelection)
     t.setIconSize(QSize(_dp(16),_dp(16))); t.verticalHeader().setDefaultSectionSize(_dp(row_h))
     t.setSortingEnabled(True); t.setContextMenuPolicy(Qt.CustomContextMenu)
+    t.set_empty_state("No rows to show","Adjust filters or refresh this view.")
     return t
 
 # ─── Scheduled Blocking Dialog ─────────────────────────────────────────────
@@ -1875,6 +1929,7 @@ class ScheduleDlg(QDialog):
         desc=QLabel("Block a domain or service on a recurring weekly schedule. Windows may cross midnight.")
         desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
         s.tbl=_tbl(["Target","Days","Start","End"],0,row_h=26)
+        s.tbl.set_empty_state("No schedules yet","Add a recurring domain or service window below.")
         s.tbl.setColumnWidth(1,_dp(150)); s.tbl.setColumnWidth(2,_dp(60)); s.tbl.setColumnWidth(3,_dp(60))
         s.tbl.setMaximumHeight(_dp(160)); lo.addWidget(s.tbl)
         # Editor row
@@ -2144,6 +2199,7 @@ class HostsActivityTab(QWidget):
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         tb.addWidget(_tbtn("Scan","primary",s._scan,55)); lo.addLayout(tb)
         s.tbl=_tbl(["Domain","Status","Process","Hits","Last Seen"],0,row_h=30)
+        s.tbl.set_empty_state("No DNS activity shown","Start a scan, clear filters, or browse normally to populate this feed.")
         s.tbl.setColumnWidth(1,_dp(90)); s.tbl.setColumnWidth(2,_dp(130)); s.tbl.setColumnWidth(3,_dp(50)); s.tbl.setColumnWidth(4,_dp(140))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
         lo.addWidget(s.tbl,1)
@@ -2198,7 +2254,7 @@ class HostsActivityTab(QWidget):
             s.tbl.setItem(i,0,it0)
             hc={'blocked':C['red'],'whitelisted':C['green']}.get(status,C['dim'])
             ht={'blocked':'BLOCKED','whitelisted':'ALLOWED'}.get(status,'\u2014')
-            s.tbl.setCellWidget(i,1,_pill(ht,hc))
+            s.tbl.setCellWidget(i,1,_badge(ht,hc))
             s.tbl.setItem(i,2,QTableWidgetItem(proc or ""))
             s.tbl.setItem(i,3,_num_item(hits))
             s.tbl.setItem(i,4,QTableWidgetItem((ls or "")[:19]))
@@ -2420,6 +2476,7 @@ class FWActivityTab(QWidget):
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         lo.addLayout(tb)
         s.tbl=_tbl(["Host / IP","Process","Port","FW Status","Country","Category"],0,row_h=30)
+        s.tbl.set_empty_state("No live connections shown","Connection monitoring starts automatically. Clear filters if traffic is active.")
         s.tbl.setColumnWidth(1,_dp(130)); s.tbl.setColumnWidth(2,_dp(55)); s.tbl.setColumnWidth(3,_dp(90))
         s.tbl.setColumnWidth(4,_dp(55)); s.tbl.setColumnWidth(5,_dp(100))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
@@ -2494,10 +2551,10 @@ class FWActivityTab(QWidget):
             h_blocked=c.host in blocked_hosts if c.host not in ('-','') else False
             t_ip=c.ra in _threat_ips
             t_dom=c.host.lower() in _threat_domains if c.host not in ('-','') else False
-            if t_ip or t_dom: s.tbl.setCellWidget(i,3,_pill("THREAT",C['peach']))
-            elif f_blocked: s.tbl.setCellWidget(i,3,_pill("FW BLOCK",C['mauve']))
-            elif h_blocked: s.tbl.setCellWidget(i,3,_pill("HOSTS",C['red']))
-            else: s.tbl.setCellWidget(i,3,_pill("\u2014",C['dim']))
+            if t_ip or t_dom: s.tbl.setCellWidget(i,3,_badge("THREAT",C['peach']))
+            elif f_blocked: s.tbl.setCellWidget(i,3,_badge("FW BLOCK",C['mauve']))
+            elif h_blocked: s.tbl.setCellWidget(i,3,_badge("HOSTS",C['red']))
+            else: s.tbl.setCellWidget(i,3,_badge("\u2014",C['dim']))
             s.tbl.setItem(i,4,QTableWidgetItem(c.cc or ""))
             s.tbl.setItem(i,5,QTableWidgetItem(c.category))
             if f_blocked or h_blocked:
@@ -2667,6 +2724,7 @@ class HostsTab(QWidget):
         tr.addWidget(_tbtn("+ Add","primary",s._add,60)); tr.addWidget(_tbtn("Sync > Hosts","dim",s._sync,100))
         dl.addLayout(tr)
         s.d_tbl=_tbl(["Domain","Status","Source","Hits","Modified"],0)
+        s.d_tbl.set_empty_state("No managed domains","Add a domain, import a list, or sync the hosts file to build a policy.")
         s.d_tbl.setColumnWidth(1,_dp(85)); s.d_tbl.setColumnWidth(2,_dp(90)); s.d_tbl.setColumnWidth(3,_dp(50)); s.d_tbl.setColumnWidth(4,_dp(140))
         s.d_tbl.customContextMenuRequested.connect(s._d_ctx); dl.addWidget(s.d_tbl,1)
         s.d_info=QLabel(""); s.d_info.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); dl.addWidget(s.d_info)
@@ -2790,7 +2848,7 @@ class HostsTab(QWidget):
         s.d_tbl.setSortingEnabled(False); s.d_tbl.setRowCount(len(rows))
         for i,(domain,status,cat,source,added,mod,hits,notes) in enumerate(rows):
             _icon_item(s.d_tbl,i,0,domain,domain)
-            s.d_tbl.setCellWidget(i,1,_pill(status.upper(),C['red'] if status=='blocked' else C['green']))
+            s.d_tbl.setCellWidget(i,1,_badge(status.upper(),C['red'] if status=='blocked' else C['green']))
             s.d_tbl.setItem(i,2,QTableWidgetItem((source or "")[:20]))
             s.d_tbl.setItem(i,3,_num_item(hits)); s.d_tbl.setItem(i,4,QTableWidgetItem((mod or "")[:19]))
         s.d_tbl.setSortingEnabled(True)
@@ -3093,6 +3151,7 @@ class FirewallTab(QWidget):
         qa.addWidget(_tbtn("Show Drift","dim",s._show_drift,80)); qa.addStretch()
         qa.addWidget(_tbtn("Delete All HG","danger",s._del_all_hg,115)); lo.addLayout(qa)
         s.tbl=_tbl(["","Name","Dir","Action","Proto","Remote","Program","Src"],1,row_h=28)
+        s.tbl.set_empty_state("No firewall rules shown","Refresh rules or clear the current search/filter.")
         s.tbl.setColumnWidth(0,_dp(28)); s.tbl.setColumnWidth(2,_dp(38)); s.tbl.setColumnWidth(3,_dp(48))
         s.tbl.setColumnWidth(4,_dp(50)); s.tbl.setColumnWidth(5,_dp(135)); s.tbl.setColumnWidth(6,_dp(135)); s.tbl.setColumnWidth(7,_dp(65))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
@@ -3389,6 +3448,7 @@ class ToolsTab(QWidget):
         s.log_f.currentIndexChanged.connect(s._log); lr.addWidget(s.log_f)
         lr.addWidget(_tbtn("Clear","danger",lambda:(s.db.clear_log(),s._log()),65)); ll.addLayout(lr)
         s.log_tbl=_tbl(["Time","Domain","Action","Process","Details"],1,row_h=26)
+        s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.")
         s.log_tbl.setColumnWidth(0,_dp(140)); s.log_tbl.setColumnWidth(2,_dp(75)); s.log_tbl.setColumnWidth(3,_dp(95)); s.log_tbl.setColumnWidth(4,_dp(170))
         ll.addWidget(s.log_tbl,1); lo.addWidget(lg,1)
 
@@ -3771,19 +3831,19 @@ class MainWindow(QMainWindow):
         logo.setStyleSheet(f"color:{C['blue']};letter-spacing:-0.3px;"); tb.addWidget(logo)
         vl=QLabel(f"v{VER}"); vl.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;padding-top:1px;"); tb.addWidget(vl)
         sep=QFrame(); sep.setFixedSize(1,_dp(20)); sep.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep)
-        s._dot=QLabel(); s._dot.setFixedSize(_dp(7),_dp(7)); s._dot.setStyleSheet(f"background:{C['dim']};border-radius:{_dp(3)}px;"); tb.addWidget(s._dot)
+        s._dot=QLabel(); s._dot.setFixedSize(_dp(10),_dp(10)); s._dot.setStyleSheet(f"background:{C['dim']};border-radius:{_dp(4)}px;"); tb.addWidget(s._dot)
         s._status=QLabel("STARTING"); s._status.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;"); tb.addWidget(s._status)
         try: adm=ctypes.windll.shell32.IsUserAnAdmin()!=0
         except: adm=False
         ac=C['green'] if adm else C['peach']
         ab=QLabel("ADMIN" if adm else "USER"); ab.setToolTip("Running elevated — hosts file and firewall changes are available" if adm else "Not elevated — hosts/firewall changes will fail. Relaunch as Administrator.")
-        ab.setStyleSheet(f"color:{ac};font-size:{_dp(8)}px;font-weight:700;background:rgba({_rgb(ac)},0.12);border-radius:{_dp(3)}px;padding:1px 5px;"); tb.addWidget(ab)
+        ab.setStyleSheet(f"color:{ac};font-size:{_dp(8)}px;font-weight:800;background:rgba({_rgb(ac)},0.12);border:1px solid rgba({_rgb(ac)},0.28);border-radius:{_dp(4)}px;padding:1px 6px;"); tb.addWidget(ab)
         tb.addStretch()
         s._bw_up=QLabel("\u25B2 --"); s._bw_up.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_up)
         s._bw_dn=QLabel("\u25BC --"); s._bw_dn.setStyleSheet(f"color:{C['teal']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_dn)
         sep2=QFrame(); sep2.setFixedSize(1,_dp(20)); sep2.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep2)
         s._cbtn=QPushButton("CONNECTIONS: OFF"); s._cbtn.setCursor(Qt.PointingHandCursor); s._cbtn.setFixedHeight(_dp(24))
-        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
         s._cbtn.clicked.connect(s._toggle_conns); tb.addWidget(s._cbtn)
         # Notification mute toggle
         s._notif_muted=load_cfg().get('notif_muted',False)
@@ -3793,12 +3853,12 @@ class MainWindow(QMainWindow):
         s._upd_mute_btn(); s._mbtn.clicked.connect(s._toggle_mute); tb.addWidget(s._mbtn)
         s._prof_cb=QComboBox(); s._prof_cb.setFixedHeight(_dp(24)); s._prof_cb.setFixedWidth(_dp(100))
         s._prof_cb.setToolTip("Network profile — different rule sets per network")
-        s._prof_cb.setStyleSheet(f"background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(5)}px;font-size:{_dp(8)}px;padding:0 {_dp(4)}px;")
+        s._prof_cb.setStyleSheet(f"background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(6)}px;font-size:{_dp(8)}px;padding:0 {_dp(4)}px;")
         tb.addWidget(s._prof_cb)
         s._tbtn=QPushButton("LIGHT" if load_cfg().get('theme')=='light' else "DARK")
         s._tbtn.setCursor(Qt.PointingHandCursor); s._tbtn.setFixedHeight(_dp(24))
         s._tbtn.setToolTip("Switch between dark and light theme (requires restart)")
-        s._tbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        s._tbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
         s._tbtn.clicked.connect(s._toggle_theme); tb.addWidget(s._tbtn)
         root.addWidget(top)
         # Tabs
@@ -3839,8 +3899,8 @@ class MainWindow(QMainWindow):
     def _upd_mute_btn(s):
         on=not s._notif_muted
         s._mbtn.setText("NOTIF: ON" if on else "NOTIF: OFF")
-        if on: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['green']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
-        else: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        if on: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['green']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
+        else: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
     def _toggle_theme(s):
         cfg=load_cfg(); cur=cfg.get('theme','dark')
         new='light' if cur!='light' else 'dark'; cfg['theme']=new; save_cfg(cfg)
@@ -3906,13 +3966,13 @@ class MainWindow(QMainWindow):
         s._conn_w.need_dns.connect(s._dns_w.add); s._conn_w.need_geo.connect(s._geo_w.add); s._conn_w.need_sig.connect(s._sig_w.add)
         s._conn_w.start(); s._conn_on=True; s._set_st("All Active")
         s._cbtn.setText("CONNECTIONS: ON")
-        s._cbtn.setStyleSheet(f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #5b7ee5,stop:1 {C['blue']});color:#fff;padding:2px 12px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        s._cbtn.setStyleSheet(f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {C['blue']},stop:1 {C['teal']});color:#071019;padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid rgba({_rgb(C['blue'])},0.55);letter-spacing:0.5px;")
 
     def _stop_conns(s):
         if s._conn_w: s._conn_w.stop()
         s._conn_on=False; s._set_st("DNS Only")
         s._cbtn.setText("CONNECTIONS: OFF")
-        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(5)}px;font-weight:700;font-size:{_dp(8)}px;border:none;letter-spacing:0.5px;")
+        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
 
     def _toggle_conns(s):
         if s._conn_on: s._stop_conns()
@@ -3952,7 +4012,7 @@ class MainWindow(QMainWindow):
         threading.Thread(target=lambda:_evt_log(f"CRITICAL: DataBasePath registry tamper detected: {val}",'Error'),daemon=True).start()
     def _set_st(s,msg):
         on=s._monitoring or s._conn_on; c=C['green'] if on else C['red']
-        s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(3)}px;")
+        s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(4)}px;")
         s._status.setText(msg.upper()[:25]); s._status.setStyleSheet(f"color:{c};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;")
     def _upd_bw(s):
         up,dn=bw.rates(); s._bw_up.setText(f"\u25B2 {bw.fmt(up)}"); s._bw_dn.setText(f"\u25BC {bw.fmt(dn)}")
