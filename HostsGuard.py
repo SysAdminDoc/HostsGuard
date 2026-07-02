@@ -1738,6 +1738,43 @@ class LearnDB:
     def mark_prompted(s,key): s._prompted.add(key)
     def clear_prompted(s): s._prompted.clear()
 
+# ─── Mini Monitor (always-on-top thumbnail) ────────────────────────────────
+class MiniMonitor(QWidget):
+    """Compact frameless always-on-top glance widget: live up/down rates and
+    live/blocked-today counts. Draggable; fed by the existing bandwidth + connection
+    workers. Toggled from the tray."""
+    def __init__(s):
+        super().__init__(None)
+        s.setWindowFlags(Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint|Qt.Tool)
+        s.setAttribute(Qt.WA_TranslucentBackground)
+        s.setFixedSize(_dp(190),_dp(74)); s._drag=None
+        lo=QVBoxLayout(s); lo.setContentsMargins(_dp(12),_dp(8),_dp(12),_dp(8)); lo.setSpacing(_dp(2))
+        t=QLabel(f"◆ {APP}"); t.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:800;letter-spacing:0.5px;"); lo.addWidget(t)
+        bwr=QHBoxLayout(); bwr.setSpacing(_dp(8))
+        s._up=QLabel("▲ --"); s._up.setStyleSheet(f"color:{C['blue']};font-size:{_dp(10)}px;font-weight:700;font-family:'Cascadia Code','Consolas',monospace;")
+        s._dn=QLabel("▼ --"); s._dn.setStyleSheet(f"color:{C['teal']};font-size:{_dp(10)}px;font-weight:700;font-family:'Cascadia Code','Consolas',monospace;")
+        bwr.addWidget(s._up); bwr.addWidget(s._dn); bwr.addStretch(); lo.addLayout(bwr)
+        cr=QHBoxLayout(); cr.setSpacing(_dp(8))
+        s._conns=QLabel("0 conns"); s._conns.setStyleSheet(f"color:{C['sub']};font-size:{_dp(9)}px;")
+        s._blk=QLabel("0 blocked"); s._blk.setStyleSheet(f"color:{C['red']};font-size:{_dp(9)}px;font-weight:700;")
+        cr.addWidget(s._conns); cr.addWidget(s._blk); cr.addStretch(); lo.addLayout(cr)
+    def paintEvent(s,e):
+        p=QPainter(s); p.setRenderHint(QPainter.Antialiasing)
+        p.setBrush(QColor(C['base'])); p.setPen(QPen(QColor(C['s1']),1))
+        p.drawRoundedRect(s.rect().adjusted(1,1,-1,-1),_dp(10),_dp(10)); p.end()
+    def update_stats(s,up,dn,conns,blocked_today):
+        s._up.setText(f"▲ {BWTracker.fmt(up)}"); s._dn.setText(f"▼ {BWTracker.fmt(dn)}")
+        s._conns.setText(f"{conns} conns"); s._blk.setText(f"{blocked_today} today")
+    def place_top_right(s):
+        scr=QApplication.primaryScreen()
+        if scr: g=scr.availableGeometry(); s.move(g.right()-s.width()-_dp(16),g.top()+_dp(16))
+    def mousePressEvent(s,e):
+        if e.button()==Qt.LeftButton: s._drag=e.globalPosition().toPoint()-s.frameGeometry().topLeft()
+    def mouseMoveEvent(s,e):
+        if s._drag is not None and e.buttons()&Qt.LeftButton: s.move(e.globalPosition().toPoint()-s._drag)
+    def mouseReleaseEvent(s,e): s._drag=None
+    def mouseDoubleClickEvent(s,e): s.hide()
+
 # ─── Toast ──────────────────────────────────────────────────────────────────
 class Toast(QFrame):
     def __init__(s,text,color=C['blue'],parent=None):
@@ -3628,7 +3665,7 @@ class MainWindow(QMainWindow):
         super().__init__(); s.setWindowTitle(f"{APP} v{VER}")
         s.setMinimumSize(_dp(1200),_dp(720)); s.resize(_dp(1440),_dp(860))
         s._launch_time=time.time(); s._notif_cd={}; s._live_keys=set()
-        s._monitoring=False; s._conn_on=False
+        s._monitoring=False; s._conn_on=False; s._mini=None; s._last_conn_count=0
         # Use pre-loaded data from StartupLoader
         s.db=results['db']; s.hm=results['hm']; s.cdb=results['cdb']
         s.learn=LearnDB(s.db)
@@ -3878,7 +3915,7 @@ class MainWindow(QMainWindow):
         else: s._start_conns()
 
     def _on_conns(s,conns):
-        s._fw_act.update_conns(conns)
+        s._fw_act.update_conns(conns); s._last_conn_count=len(conns)
         live=[c for c in conns if c.ra and c.ra!="*" and c.dir!="Listen"]
         if live:
             # Record each connection once when it is first observed — inserting
@@ -3915,6 +3952,14 @@ class MainWindow(QMainWindow):
         s._status.setText(msg.upper()[:25]); s._status.setStyleSheet(f"color:{c};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;")
     def _upd_bw(s):
         up,dn=bw.rates(); s._bw_up.setText(f"\u25B2 {bw.fmt(up)}"); s._bw_dn.setText(f"\u25BC {bw.fmt(dn)}")
+        if s._mini and s._mini.isVisible():
+            try: today=s.db.get_stats()['today_hits']
+            except Exception: today=0
+            s._mini.update_stats(up,dn,s._last_conn_count,today)
+    def _toggle_mini(s):
+        if s._mini is None: s._mini=MiniMonitor()
+        if s._mini.isVisible(): s._mini.hide()
+        else: s._mini.place_top_right(); s._mini.show(); s._upd_bw()
 
     def _build_tray(s):
         s._tray=None
@@ -3928,6 +3973,7 @@ class MainWindow(QMainWindow):
         m.addAction("Hosts File").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._hosts_tab)))
         m.addAction("FW Rules").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._fw_tab)))
         m.addSeparator()
+        m.addAction("Mini Monitor").triggered.connect(s._toggle_mini)
         m.addAction("Quit").triggered.connect(s._quit)
         s._tray.setContextMenu(m)
         s._tray.activated.connect(lambda r:s.show() if r==QSystemTrayIcon.DoubleClick else None)
@@ -3939,6 +3985,7 @@ class MainWindow(QMainWindow):
 
     def _quit(s):
         try:
+            if s._mini: s._mini.close()
             workers=[]
             if s._dns_mon: s._dns_mon.stop(); workers.append(s._dns_mon)
             if s._conn_w: s._conn_w.stop(); workers.append(s._conn_w)
