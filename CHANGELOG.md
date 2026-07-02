@@ -114,7 +114,14 @@ All notable changes to HostsGuard are documented in this file.
   unavailability errors, plus a revert-detection heuristic (hosts file empty of
   blocks while the DB expects them = the classic post-remediation signature)
   surfaced with HostsFileHijack guidance in the Tools tab.
-- 251 .NET tests; zero build warnings under warnings-as-errors.
+- Threat intel + offline GeoIP (NET-035): Feodo Tracker IP overlay (persisted
+  across restarts, empty-list refreshes rejected keeping the prior set) flags
+  live connections as THREAT; DB-IP Lite country MMDB via MaxMind.Db feeds the
+  FW Activity country column, memory-mapped, with a streaming download cap AND
+  a gzip-expansion cap (Core GzipLimited, the `_gzip_decompress_limited` port),
+  and corrupt downloads are probe-validated so they never replace a working
+  database. Tools tab gained refresh buttons for both.
+- 256 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

@@ -15,6 +15,8 @@ internal sealed class FakeListFetcher : IListFetcher
 {
     public Dictionary<string, string> Responses { get; } = new(StringComparer.Ordinal);
 
+    public Dictionary<string, byte[]> BinaryResponses { get; } = new(StringComparer.Ordinal);
+
     public List<string> Fetched { get; } = new();
 
     public Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
@@ -32,6 +34,22 @@ internal sealed class FakeListFetcher : IListFetcher
         }
 
         return Task.FromResult(text);
+    }
+
+    public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
+    {
+        Fetched.Add(url);
+        if (!BinaryResponses.TryGetValue(url, out var data))
+        {
+            throw new InvalidOperationException($"no fake binary response for {url}");
+        }
+
+        if (data.Length > maxBytes)
+        {
+            throw new InvalidOperationException($"list at {url} exceeds {maxBytes} bytes");
+        }
+
+        return Task.FromResult(data);
     }
 }
 

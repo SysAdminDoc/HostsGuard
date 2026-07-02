@@ -38,6 +38,8 @@ public sealed class ServiceState : IDisposable
         TempAllows.Resume();
         Schedules = new ScheduleEnforcer(hosts, db);
         Doh = new DohIntelligence(DataDir);
+        Threats = new ThreatIntel(DataDir);
+        GeoIp = new GeoIpService(DataDir);
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)
@@ -68,6 +70,10 @@ public sealed class ServiceState : IDisposable
     public IListFetcher? ListFetcher { get; }
 
     public IDefender? Defender { get; }
+
+    public ThreatIntel Threats { get; }
+
+    public GeoIpService GeoIp { get; }
 
     public EventBus Bus { get; }
 
@@ -119,12 +125,15 @@ public sealed class ServiceState : IDisposable
             Pid = info.Pid,
             State = info.State,
             Category = category,
+            Country = GeoIp.Lookup(info.RemoteAddress),
+            FwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT" : string.Empty,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
     }
 
     public void Dispose()
     {
+        GeoIp.Dispose();
         Lists?.Dispose();
         Schedules.Dispose();
         TempAllows.Dispose();

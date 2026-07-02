@@ -139,6 +139,9 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
         public Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
             => throw new InvalidOperationException("no fetcher attached");
+
+        public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
+            => throw new InvalidOperationException("no fetcher attached");
     }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };

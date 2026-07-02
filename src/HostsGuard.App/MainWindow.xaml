@@ -630,6 +630,10 @@
                                                 Command="{Binding HardenAclCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Export support bundle (redacted)"
                                                 Command="{Binding ExportBundleCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Refresh threat intel"
+                                                Command="{Binding RefreshThreatIntelCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Refresh GeoIP"
+                                                Command="{Binding RefreshGeoIpCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Exclude hosts in Defender"
                                                 Command="{Binding AddDefenderExclusionCommand}" Margin="0,0,10,0" />
                                         <Button DockPanel.Dock="Left" Content="Emergency reset hosts"

@@ -191,6 +191,22 @@ public sealed partial class ToolsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task RefreshThreatIntelAsync()
+    {
+        StatusText = "Refreshing threat intel…";
+        var ack = await _client.Lists.RefreshThreatIntelAsync(new Empty());
+        StatusText = ack.Message;
+    }
+
+    [RelayCommand]
+    public async Task RefreshGeoIpAsync()
+    {
+        StatusText = "Downloading GeoIP database…";
+        var ack = await _client.Lists.RefreshGeoIpAsync(new Empty());
+        StatusText = ack.Message;
+    }
+
+    [RelayCommand]
     public async Task EmergencyResetAsync()
     {
         if (!_confirm.Confirm("Emergency reset",

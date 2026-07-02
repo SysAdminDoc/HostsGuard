@@ -172,6 +172,44 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         }
     }
 
+    public override async Task<Ack> RefreshThreatIntel(Empty request, ServerCallContext context)
+    {
+        if (_state.ListFetcher is not { } fetcher)
+        {
+            return new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" };
+        }
+
+        try
+        {
+            var count = await _state.Threats.RefreshAsync(fetcher, context.CancellationToken);
+            _state.Db.LogEvent("threat-intel", "refreshed", details: $"{count} IPs");
+            return new Ack { Ok = true, Message = $"threat intel refreshed: {count} IPs" };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            return new Ack { Ok = false, Message = $"refresh failed: {ex.Message}", ErrorCode = "hostsguard.error.v1/import_failed" };
+        }
+    }
+
+    public override async Task<Ack> RefreshGeoIp(Empty request, ServerCallContext context)
+    {
+        if (_state.ListFetcher is not { } fetcher)
+        {
+            return new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" };
+        }
+
+        try
+        {
+            await _state.GeoIp.RefreshAsync(fetcher, url: null, context.CancellationToken);
+            _state.Db.LogEvent("geoip", "refreshed");
+            return new Ack { Ok = true, Message = "GeoIP database refreshed" };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            return new Ack { Ok = false, Message = $"refresh failed: {ex.Message}", ErrorCode = "hostsguard.error.v1/import_failed" };
+        }
+    }
+
     private static BlocklistResult ListsUnavailable() => new()
     {
         Ok = false,

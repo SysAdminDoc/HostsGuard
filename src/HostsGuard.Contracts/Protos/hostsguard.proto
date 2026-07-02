@@ -95,6 +95,9 @@ service ListControl {
   rpc GetAllowlists(Empty) returns (AllowlistUrls);
   rpc SetAllowlists(AllowlistUrls) returns (Ack);
   rpc RefreshAllowlists(Empty) returns (Ack);
+  // Threat-intel IP overlay (Feodo) and the offline GeoIP database.
+  rpc RefreshThreatIntel(Empty) returns (Ack);
+  rpc RefreshGeoIp(Empty) returns (Ack);
 }
 
 message BlocklistRequest {

@@ -7,6 +7,9 @@ public interface IListFetcher
 {
     /// <summary>Fetch a text list, enforcing a hard byte cap while streaming.</summary>
     Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct);
+
+    /// <summary>Fetch a binary payload (e.g. a gzipped MMDB), byte-capped while streaming.</summary>
+    Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct);
 }
 
 /// <summary>
@@ -25,6 +28,9 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
     }
 
     public async Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
+        => System.Text.Encoding.UTF8.GetString(await FetchBytesAsync(url, maxBytes, ct));
+
+    public async Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
     {
         using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
@@ -43,7 +49,7 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
             buffer.Write(chunk, 0, read);
         }
 
-        return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+        return buffer.ToArray();
     }
 
     public void Dispose() => _http.Dispose();
