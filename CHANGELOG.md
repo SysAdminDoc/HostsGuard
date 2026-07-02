@@ -4,7 +4,61 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
-### Added — .NET 8 restructure (engine v0.3.0, in progress)
+### Added — .NET 8 engine v0.4.0 (WFC parity, packaging, hardening)
+- **WFC notification parity (WFCP-000..022)** — the reactive allow/block prompt
+  on unruled connections, reaching feature parity with Malwarebytes Windows
+  Firewall Control. Detection is the Security event **5157/5152** stream
+  (`BlockedConnectionWatch` + `EventLogWatcher`, audit enabled via
+  `AuditSetSystemPolicy` with an `auditpol` fallback) — the only user-mode
+  signal for *blocked* connections, which the TCP-table poller structurally
+  cannot see. NT device paths resolve to DOS paths via a cached
+  `QueryDosDevice` mapper. The `ConsentBroker` dedups app+dir+remote+proto
+  bursts, skips apps a live HG rule already covers, and per filtering **mode**
+  either drops (Normal), auto-allows + records (Learning), or pushes a
+  `ConnectionDecisionRequest` to the UI (Notify) with a 60 s pending TTL
+  (timeout = stays blocked, recorded, no rule). Decisions write `HG_Consent_`
+  permanent or `HG_Once_` reaped-after-15-min COM rules with identity
+  remembered. A top-most themed **consent window** (Allow/Block × once/always,
+  remote scoping, countdown) surfaces the prompt — a LocalSystem service cannot
+  toast into a user session. Posture safety rails: arming Notify/Learning saves
+  per-profile default-outbound and sets Block; returning to Normal *or stopping
+  the service* restores the exact prior posture (mode persists to re-arm on
+  restart). Tray mode switch, status-bar mode indicator, and a recent-decisions
+  view with re-decide.
+- **Phase 2 residuals** — hosts **backup restore** (guarded list + restore,
+  traversal-safe), FW Activity per-app **connections-per-minute timeline**,
+  orphan-rule **rebind** (identity-scored candidate scan + manual file-pick
+  fallback), lockdown/learning/observe toggles (lockdown = per-profile
+  default-outbound posture via `INetFwPolicy2`).
+- **Packaging (NET-050/051/054)** — `build/publish.ps1` produces single-file
+  self-contained win-x64 builds of service/app/cli gated by `release-smoke`;
+  `installer-dotnet.iss` registers `HostsGuardSvc` (LocalSystem, auto-start,
+  `depends= MpsSvc`, restart-on-failure) and unwinds it on uninstall
+  (posture restore + HG_ rule removal). New `HostsGuard.Cli`:
+  status/block/allow/unblock/export/mode over the pipe + `release-smoke`
+  (runtime, deps, signing, service reachability) + `uninstall-cleanup`.
+  Cross-session pipe/handshake ACLs (SYSTEM+Admins own, Authenticated Users
+  connect, token authorizes) let the unelevated UI reach the LocalSystem
+  service.
+- **Hardening (NET-061/062/062b/063)** — seeded property/fuzz suite over the
+  parsing + gRPC-boundary surface (which caught a missing RFC-1035 domain
+  length cap). Security review remediation: the `%ProgramData%\HostsGuard`
+  data dir is now DACL-locked to SYSTEM+Admins before any state file is
+  created (was world-readable/plantable); client list URLs pass an **SSRF
+  guard** (reject loopback/RFC1918/link-local/CGNAT/ULA/metadata, redirects
+  refused) before the LocalSystem service fetches them; consent posture is
+  restored on service stop. Per-profile posture restore, `HardenAcl`
+  short-circuit, and single-reconcile allowlist reapply. Dependency CVE scan
+  clean (native SQLite bundle 3.0.3 past GHSA-2m69-gcr7-jv3q; test-only 4.3.0
+  transitives pinned). Observability: canonical `EventTaxonomy` + a redacted
+  `diagnostics.json` (event counts by category, consent mode/posture) in the
+  support bundle.
+- **Per-domain 24h sparkline (NET-042)** — schema v5 `feed_hourly` rollup, a
+  `GetSparkline` RPC, and an inline mini-polyline per Hosts Activity row.
+- **367 .NET tests**; headless WPF smoke constructs every window in both
+  themes; zero build warnings under warnings-as-errors.
+
+### Added — .NET 8 restructure (engine v0.3.0)
 - Began the C#/.NET 8 rewrite (`src/` + `tests/`, `HostsGuard.sln`) on a
   split-trust architecture: an elevated LocalSystem service owns all privileged
   mutation; the unelevated UI/CLI talk to it over gRPC on an ACL'd named pipe.
