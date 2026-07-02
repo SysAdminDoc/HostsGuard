@@ -69,6 +69,12 @@ public sealed class ConsentBroker : IDisposable
     /// <summary>Threat-intel membership test for a remote IP (NET-066 prompt enrichment).</summary>
     public Func<string, bool>? LookupThreat { get; set; }
 
+    /// <summary>
+    /// PID→sole-owning-service resolution (NET-073): (SCM key, display name),
+    /// or null when the process hosts no service or several.
+    /// </summary>
+    public Func<int, (string Key, string Display)?>? LookupSoleService { get; set; }
+
     public ConsentBroker(HostsDatabase db, EventBus bus, IFirewallEngine? firewall, FirewallIdentity? identity, string dataDir)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
@@ -229,9 +235,14 @@ public sealed class ConsentBroker : IDisposable
             }
         }
 
+        // svchost attribution (NET-073): the responsible service, when exactly
+        // one owns the PID. Resolved before the covering-rule check so a
+        // service-scoped rule only covers its own service's connections.
+        var service = SafeInvoke(() => LookupSoleService?.Invoke(blocked.ProcessId));
+
         // Apps that already have an HG rule covering this direction were
         // decided already — never re-prompt (WFCP-010 trust check).
-        if (HasCoveringRule(blocked.Application, blocked.Direction))
+        if (HasCoveringRule(blocked.Application, blocked.Direction, service?.Key))
         {
             return;
         }
@@ -264,6 +275,8 @@ public sealed class ConsentBroker : IDisposable
             Country = SafeInvoke(() => LookupCountry?.Invoke(blocked.RemoteAddress)) ?? string.Empty,
             Threat = SafeInvoke(() => LookupThreat?.Invoke(blocked.RemoteAddress)) ?? false,
             Signer = SafeSigner(blocked.Application),
+            Service = service?.Display ?? string.Empty,
+            ServiceKey = service?.Key ?? string.Empty,
         };
         lock (_gate)
         {
@@ -303,7 +316,7 @@ public sealed class ConsentBroker : IDisposable
         }
     }
 
-    private bool HasCoveringRule(string application, string direction)
+    private bool HasCoveringRule(string application, string direction, string? serviceKey = null)
     {
         if (_firewall is not { } fw)
         {
@@ -318,6 +331,14 @@ public sealed class ConsentBroker : IDisposable
             }
 
             if (!r.Program.Split(',')[0].Trim().Equals(application, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // A service-scoped rule (NET-073) only covers connections from that
+            // service — svchost's other services still get their own prompt.
+            if (r.ServiceName.Length != 0 &&
+                !r.ServiceName.Equals(serviceKey ?? string.Empty, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -463,6 +484,16 @@ public sealed class ConsentBroker : IDisposable
             ? decision.RemotePort.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : "Any";
 
+        // Service scope (NET-073): narrow the rule to the one SCM service that
+        // owns the connection, so blocking Dnscache doesn't block all of svchost.
+        var serviceKey = decision.ScopeService && decision.ServiceKey.Length != 0
+            ? decision.ServiceKey.Trim()
+            : string.Empty;
+        if (serviceKey.Length != 0)
+        {
+            stem = $"{stem}.{serviceKey}";
+        }
+
         // Duration (NET-067): "always" → permanent COM rule; "once"/"1h"/"session"
         // → ephemeral HG_Once_ rule. Blank falls back to the legacy permanent flag.
         var (permanent, expiresUtc, label) = ResolveDuration(decision.Duration, decision.Permanent);
@@ -471,7 +502,8 @@ public sealed class ConsentBroker : IDisposable
             ? $"{ConsentPrefix}{action}_{stem}_{direction}"
             : $"{OncePrefix}{action}_{stem}_{direction}_{Guid.NewGuid().ToString("N")[..8]}";
 
-        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, protocol, application, "hostsguard", RemotePorts: ports));
+        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, protocol, application, "hostsguard",
+            RemotePorts: ports, ServiceName: serviceKey));
         if (created)
         {
             _db.UpsertFwState(name, direction, action, remote, protocol, application);

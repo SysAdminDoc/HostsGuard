@@ -95,6 +95,9 @@ public sealed class ServiceState : IDisposable
     /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
     public BandwidthAggregator? Bandwidth { get; set; }
 
+    /// <summary>PID→service display attribution (NET-073); wired by the host.</summary>
+    public Func<int, string>? LookupService { get; set; }
+
     public DateTime StartedAtUtc { get; }
 
     /// <summary>
@@ -157,6 +160,7 @@ public sealed class ServiceState : IDisposable
             Category = category,
             Country = country,
             FwStatus = fwStatus,
+            Service = LookupService?.Invoke(info.Pid) ?? string.Empty,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
     }

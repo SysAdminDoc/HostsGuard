@@ -107,7 +107,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             FwRuleMapper.MapProtocol(request.Protocol),
             (request.Program ?? string.Empty).Trim(),
             "hostsguard",
-            FwRuleMapper.MapPorts(request.RemotePorts));
+            FwRuleMapper.MapPorts(request.RemotePorts),
+            FwRuleMapper.MapService(request.ServiceName));
         var created = fw.CreateRule(rule);
         if (created)
         {
@@ -181,6 +182,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
                 Source = r.Source,
                 Orphaned = FirewallIdentity.IsOrphaned(r),
                 RemotePorts = r.RemotePorts,
+                ServiceName = r.ServiceName,
             });
         }
 

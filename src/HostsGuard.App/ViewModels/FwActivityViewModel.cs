@@ -44,6 +44,10 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     [ObservableProperty]
     private string _fwStatus = string.Empty;
 
+    /// <summary>Owning SCM service display name(s) (NET-073); "" for plain apps.</summary>
+    [ObservableProperty]
+    private string _service = string.Empty;
+
     public string Key => $"{Protocol}|{LocalAddr}:{LocalPort}|{RemoteAddr}:{RemotePort}|{Pid}";
 }
 
@@ -245,6 +249,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             ["state"] = row.State,
             ["country"] = row.Country,
             ["fw"] = row.FwStatus,
+            ["service"] = row.Service,
         }, Filter, FilterAliases);
     }
 
@@ -317,6 +322,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             State = ev.State,
             Country = ev.Country,
             FwStatus = ev.FwStatus,
+            Service = ev.Service,
         });
         while (Rows.Count > MaxRows)
         {

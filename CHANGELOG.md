@@ -4,6 +4,19 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — svchost per-service attribution + per-service rules (NET-073)
+- **Service attribution** — connections and consent prompts from service-hosted
+  processes (svchost, dllhost) now show the responsible Windows service
+  (SCM enumeration, no elevation needed; cached). New Service column in FW
+  Activity (searchable via `service:`) and a Service row on the consent prompt.
+- **Per-service rules** — when exactly one service owns the connection's PID,
+  the consent prompt offers "Only the '<service>' service": the resulting HG_
+  rule is scoped via the firewall COM serviceName, so blocking Dnscache no
+  longer blocks everything else svchost hosts. The covering-rule check is
+  service-aware (a Dnscache-scoped allow doesn't silence prompts for other
+  services in the same process), rules list shows the service scope, and
+  CreateRule accepts a service name. No Windows competitor does this cleanly.
+
 ### Added — group-by-app connections view + live search (NET-071)
 - **FW Activity grouped view** — live connections now group under their owning
   process (collapsible per-app sections with connection counts; toggleable

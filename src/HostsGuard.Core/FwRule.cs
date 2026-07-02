@@ -12,7 +12,8 @@ public sealed record FwRule(
     string Protocol,
     string Program,
     string Source,    // "hostsguard" | "system"
-    string RemotePorts = "Any");
+    string RemotePorts = "Any",
+    string ServiceName = ""); // SCM short name — scopes the rule to one service (NET-073)
 
 /// <summary>
 /// Shape-tolerant mapping of raw firewall-rule scalar values into <see cref="FwRule"/>.
@@ -33,7 +34,8 @@ public static class FwRuleMapper
         object? remoteAddresses,
         object? protocol,
         string? program,
-        object? remotePorts = null)
+        object? remotePorts = null,
+        string? serviceName = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -45,7 +47,15 @@ public static class FwRuleMapper
             Protocol: MapProtocol(protocol),
             Program: program ?? string.Empty,
             Source: n.StartsWith(HostsGuardPrefix, StringComparison.Ordinal) ? "hostsguard" : "system",
-            RemotePorts: MapPorts(remotePorts));
+            RemotePorts: MapPorts(remotePorts),
+            ServiceName: MapService(serviceName));
+    }
+
+    /// <summary>Normalize the COM serviceName value ("*" means any/none for our model).</summary>
+    public static string MapService(string? v)
+    {
+        var s = (v ?? string.Empty).Trim();
+        return s is "*" ? string.Empty : s;
     }
 
     public static string MapPorts(object? v)

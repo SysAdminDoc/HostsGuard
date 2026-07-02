@@ -324,6 +324,7 @@ message FirewallRule {
   bool orphaned = 9;    // program path no longer exists on disk
   bool drifted = 10;    // HG_ rule tracked in the DB but missing live (or vice versa)
   string remote_ports = 11; // "Any" or a COM port list, e.g. "853" (TCP/UDP only)
+  string service_name = 12; // SCM short name the rule is scoped to (NET-073); "" = whole program
 }
 
 message FirewallRuleList {
@@ -471,6 +472,7 @@ message ConnectionEvent {
   string category = 11;
   string fw_status = 12; // "", "HOSTS", "FW BLOCK", "THREAT"
   google.protobuf.Timestamp ts = 13;
+  string service = 14;   // owning SCM service display name(s) (NET-073); "" for plain apps
 }
 
 message ActivityEvent {
@@ -525,6 +527,11 @@ message ConnectionDecisionRequest {
   string country = 9;         // ISO country code of the remote IP (GeoIP)
   bool threat = 10;           // remote IP is on the threat-intel overlay
   string signer = 11;         // Authenticode signer subject of the application
+  // svchost attribution (NET-073). service = display text; service_key = the
+  // SCM short name when exactly ONE service owns the PID (else blank — a
+  // per-service rule would be ambiguous).
+  string service = 12;
+  string service_key = 13;
 }
 
 message ConnectionDecision {
@@ -540,6 +547,8 @@ message ConnectionDecision {
   bool scope_port = 10;       // restrict the rule to remote_port (implies TCP/UDP protocol)
   bool scope_protocol = 11;   // restrict the rule to protocol
   string duration = 12;       // "once" | "1h" | "session" | "always" (blank = legacy permanent flag)
+  bool scope_service = 13;    // restrict the rule to the owning service (NET-073)
+  string service_key = 14;    // echoed request.service_key (SCM short name)
 }
 
 message FilteringMode {

@@ -272,6 +272,7 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
+                                <DataGridTextColumn Header="Service" Binding="{Binding Service}" Width="140" />
                                 <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60" />
                                 <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />
                                 <DataGridTextColumn Header="Remote address" Binding="{Binding RemoteAddr}" Width="*" />
@@ -681,6 +682,7 @@
                                 <DataGridTextColumn Header="Remote" Binding="{Binding RemoteAddr}" Width="*" />
                                 <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />
                                 <DataGridTextColumn Header="Program" Binding="{Binding Program}" Width="*" />
+                                <DataGridTextColumn Header="Service" Binding="{Binding ServiceName}" Width="110" />
                                 <DataGridTextColumn Header="Flags" Binding="{Binding Flags}" Width="110">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">

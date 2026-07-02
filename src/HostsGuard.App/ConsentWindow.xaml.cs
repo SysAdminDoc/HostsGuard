@@ -35,6 +35,21 @@ public partial class ConsentWindow : Window
         CountryText.Text = request.Country.Length != 0 ? request.Country : "unknown";
         SignerText.Text = request.Signer.Length != 0 ? request.Signer : "unsigned / unknown";
         ThreatBanner.Visibility = request.Threat ? Visibility.Visible : Visibility.Collapsed;
+
+        // svchost attribution (NET-073): show the owning service; offer the
+        // per-service scope only when it's unambiguous (one service, known key).
+        if (request.Service.Length != 0)
+        {
+            ServiceLabel.Visibility = ServiceText.Visibility = Visibility.Visible;
+            ServiceText.Text = request.Service;
+        }
+
+        if (request.ServiceKey.Length != 0)
+        {
+            ScopeService.Visibility = Visibility.Visible;
+            ScopeService.Content = $"Only the '{request.ServiceKey}' service";
+        }
+
         _ = ResolveHostAsync(request.RemoteAddress);
 
         _deadline = DateTime.UtcNow + DecisionWindow;
@@ -106,6 +121,8 @@ public partial class ConsentWindow : Window
             ScopeRemote = ScopeRemote.IsChecked == true,
             ScopePort = ScopePort.IsChecked == true,
             ScopeProtocol = ScopeProtocol.IsChecked == true,
+            ScopeService = ScopeService.IsChecked == true,
+            ServiceKey = _request.ServiceKey,
             Duration = SelectedDuration(),
         };
         Close();

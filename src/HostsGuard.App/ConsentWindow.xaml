@@ -36,6 +36,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
+                    <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Remote" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
@@ -49,6 +50,10 @@
                 <TextBlock Grid.Row="4" Grid.Column="1" x:Name="PidText" />
                 <TextBlock Grid.Row="5" Grid.Column="0" Text="Signer" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,0" />
                 <TextBlock Grid.Row="5" Grid.Column="1" x:Name="SignerText" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="6" Grid.Column="0" x:Name="ServiceLabel" Text="Service" Visibility="Collapsed"
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,3,14,0" />
+                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="ServiceText" Visibility="Collapsed"
+                           Margin="0,3,0,0" TextWrapping="Wrap" />
             </Grid>
 
             <TextBlock Text="Scope" Margin="0,14,0,4" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
@@ -59,15 +64,19 @@
                 <CheckBox x:Name="ScopePort" Content="This port" Margin="0,0,16,0" TabIndex="1"
                           AutomationProperties.Name="Restrict the rule to this remote port"
                           Foreground="{DynamicResource Hg.Sub}" />
-                <CheckBox x:Name="ScopeProtocol" Content="This protocol" TabIndex="2"
+                <CheckBox x:Name="ScopeProtocol" Content="This protocol" Margin="0,0,16,0" TabIndex="2"
                           AutomationProperties.Name="Restrict the rule to this protocol"
+                          Foreground="{DynamicResource Hg.Sub}" />
+                <CheckBox x:Name="ScopeService" Content="This service only" Visibility="Collapsed" TabIndex="3"
+                          AutomationProperties.Name="Restrict the rule to the owning Windows service"
+                          ToolTip="Blocks only this service, not everything hosted by the same process (svchost)"
                           Foreground="{DynamicResource Hg.Sub}" />
             </WrapPanel>
 
             <DockPanel Margin="0,12,0,0" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="Duration" VerticalAlignment="Center"
                            Margin="0,0,10,0" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
-                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3" TabIndex="3"
+                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3" TabIndex="4"
                           AutomationProperties.Name="Rule duration">
                     <ComboBoxItem Tag="once" Content="Once (15 min)" />
                     <ComboBoxItem Tag="1h" Content="1 hour" />
@@ -80,10 +89,10 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition /> <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="AllowButton" Grid.Column="0" Content="Allow" Margin="0,0,6,0" Padding="8,8" TabIndex="4"
+                <Button x:Name="AllowButton" Grid.Column="0" Content="Allow" Margin="0,0,6,0" Padding="8,8" TabIndex="5"
                         AutomationProperties.Name="Allow this connection"
                         Style="{StaticResource Hg.AccentButton}" Click="OnAllow" />
-                <Button Grid.Column="1" Content="Block" Padding="8,8" TabIndex="5"
+                <Button Grid.Column="1" Content="Block" Padding="8,8" TabIndex="6"
                         AutomationProperties.Name="Block this connection"
                         Style="{StaticResource Hg.DangerButton}" Click="OnBlock" />
             </Grid>

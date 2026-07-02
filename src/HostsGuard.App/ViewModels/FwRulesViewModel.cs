@@ -41,6 +41,10 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private bool _drifted;
 
+    /// <summary>SCM short name the rule is scoped to (NET-073); "" = whole program.</summary>
+    [ObservableProperty]
+    private string _serviceName = string.Empty;
+
     public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty) + (Drifted ? "⚠ drifted" : string.Empty);
 
     public static FwRuleViewModel From(FirewallRule r) => new()
@@ -55,6 +59,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
         Source = r.Source,
         Orphaned = r.Orphaned,
         Drifted = r.Drifted,
+        ServiceName = r.ServiceName,
     };
 }
 

@@ -62,6 +62,12 @@ if (bandwidthStatus == DnsMonitorStatus.Started)
 state.Bandwidth = bandwidth;
 db.LogEvent("bandwidth", "monitor_start", details: bandwidthStatus.ToString());
 
+// svchost per-service attribution (NET-073): SCM enumeration, cached; feeds
+// both the live connection stream and the consent prompt.
+var serviceAttribution = new ServiceAttribution();
+state.LookupService = serviceAttribution.DisplayFor;
+state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(
