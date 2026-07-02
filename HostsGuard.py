@@ -187,6 +187,27 @@ SOURCES={
         ("TikTok","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.tiktok.extended.txt"),
         ("Samsung","https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/native.samsung.txt")]}
 _DEFENDER_WARN={"Windows/Office","HaGezi Ultimate","StevenBlack Unified","Windows Spy Blocker"}
+
+# One-click "block this service" domain sets (apex + primary sub/CDN domains).
+# Hosts blocking matches exact hostnames (no wildcards), so this is best-effort for
+# the common browser/app case — it will not catch every rotating subdomain, and DoH
+# can bypass it (use the "Block Encrypted DNS" toggle alongside).
+BLOCK_SERVICES={
+    "YouTube":["youtube.com","www.youtube.com","m.youtube.com","youtu.be","youtubei.googleapis.com","youtube-nocookie.com","yt3.ggpht.com","googlevideo.com"],
+    "TikTok":["tiktok.com","www.tiktok.com","tiktokcdn.com","tiktokv.com","byteoversea.com","ibytedtos.com","musical.ly"],
+    "Facebook":["facebook.com","www.facebook.com","m.facebook.com","fbcdn.net","fb.com","fbsbx.com","facebook.net"],
+    "Instagram":["instagram.com","www.instagram.com","cdninstagram.com","ig.me"],
+    "X (Twitter)":["twitter.com","www.twitter.com","x.com","www.x.com","twimg.com","t.co"],
+    "Reddit":["reddit.com","www.reddit.com","old.reddit.com","redd.it","redditstatic.com","redditmedia.com"],
+    "Discord":["discord.com","discord.gg","discordapp.com","discordapp.net","discord.media"],
+    "Snapchat":["snapchat.com","www.snapchat.com","sc-cdn.net","snap.com"],
+    "Netflix":["netflix.com","www.netflix.com","nflxvideo.net","nflximg.net","nflxext.com","nflxso.net"],
+    "Twitch":["twitch.tv","www.twitch.tv","ttvnw.net","jtvnw.net","twitchcdn.net"],
+    "WhatsApp":["whatsapp.com","www.whatsapp.com","whatsapp.net","wa.me"],
+    "Telegram":["telegram.org","telegram.me","t.me","tdesktop.com","telegra.ph"],
+    "LinkedIn":["linkedin.com","www.linkedin.com","licdn.com","lnkd.in"],
+    "Pinterest":["pinterest.com","www.pinterest.com","pinimg.com"],
+}
 # Lists large enough to bloat the hosts file to the point the Windows DNS Client
 # (svchost) spikes CPU and resolution slows. Warn before importing these.
 _LARGE_LISTS={"HaGezi Ultimate","OISD Full","StevenBlack Unified","HOSTShield Combined"}
@@ -2563,8 +2584,24 @@ class HostsTab(QWidget):
         sr.addWidget(_tbtn("Subscribe Checked","dim",s._subscribe,130)); sr.addStretch()
         sgl.addLayout(sr); bl.addWidget(sg)
         s._sub.addTab(bw,"Blocklists")
+        # Services — one-click block toggles for popular services
+        sw=QWidget(); svl=QVBoxLayout(sw); svl.setContentsMargins(0,_dp(6),0,0); svl.setSpacing(_dp(6))
+        sd=QLabel("One-click block popular services via the hosts file. Best-effort (exact "
+                  "hostnames, no wildcards); pair with Block Encrypted DNS so apps can't bypass it.")
+        sd.setWordWrap(True); sd.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); svl.addWidget(sd)
+        sscroll=QScrollArea(); sscroll.setWidgetResizable(True); sscroll.setFrameShape(QFrame.NoFrame)
+        sinner=QWidget(); sgl=QVBoxLayout(sinner); sgl.setContentsMargins(0,0,0,0); sgl.setSpacing(_dp(2))
+        s._svc_cbs={}
+        for name,domains in BLOCK_SERVICES.items():
+            row=QWidget(); rl=QHBoxLayout(row); rl.setContentsMargins(_dp(4),0,_dp(4),0); rl.setSpacing(_dp(6))
+            cb=QCheckBox(name); cb.setStyleSheet(f"font-size:{_dp(12)}px;")
+            cb.toggled.connect(lambda on,n=name:s._toggle_service(n,on)); rl.addWidget(cb,1)
+            dl=QLabel(f"{len(domains)} domains"); dl.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); rl.addWidget(dl)
+            sgl.addWidget(row); s._svc_cbs[name]=cb
+        sgl.addStretch(); sscroll.setWidget(sinner); svl.addWidget(sscroll,1)
+        s._sub.addTab(sw,"Services")
         lo.addWidget(s._sub)
-        s._sub.currentChanged.connect(lambda i: s._sync_and_load() if i==0 else s._reload() if i==1 else None)
+        s._sub.currentChanged.connect(lambda i: s._sync_and_load() if i==0 else s._reload() if i==1 else s._load_services() if i==3 else None)
 
     def showEvent(s,e):
         super().showEvent(e)
@@ -2647,6 +2684,25 @@ class HostsTab(QWidget):
     def _del_multi(s,ds):
         for d in ds: s.db.remove_domain(d); s.hm.unblock(d)
         s._load_d()
+    # Services (one-click block toggles)
+    def _load_services(s):
+        """Reflect actual hosts state: a service is checked only if ALL its domains are blocked."""
+        blocked=s.hm.get_blocked()
+        for name,cb in s._svc_cbs.items():
+            on=all(d.lower() in blocked for d in BLOCK_SERVICES[name])
+            cb.blockSignals(True); cb.setChecked(on); cb.blockSignals(False)
+    def _toggle_service(s,name,on):
+        domains=BLOCK_SERVICES.get(name,[])
+        if not domains: return
+        if on:
+            ct=s.hm.block_bulk(domains)
+            s.db.add_domains_bulk([(d.lower(),'blocked',f'service:{name}') for d in domains])
+            s._toast(f"Blocked {name} ({ct} new)",C['red'])
+        else:
+            for d in domains: s.hm.unblock(d,flush=False); s.db.remove_domain(d)
+            s.hm._flush()
+            s._toast(f"Unblocked {name}",C['green'])
+        if s._sub.currentIndex()==0: s._load_d()
     def _toggle_src(s,source,new_status):
         s.db.toggle_source(source,new_status)
         domains=s.db.get_domains(source=source)
