@@ -330,9 +330,43 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Recent consent decisions with re-decide (WFCP-021) -->
+                        <!-- Recent consent decisions with re-decide (WFCP-021) + learning review (NET-074) -->
                         <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                             <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="Learning review" FontWeight="SemiBold" />
+                                    <Button DockPanel.Dock="Right" Content="Discard all" Padding="10,2" Margin="6,0,0,0"
+                                            Command="{Binding DiscardAllLearnedCommand}"
+                                            ToolTip="Remove every auto-allow — apps prompt again next time" />
+                                    <Button DockPanel.Dock="Right" Content="Keep all" Padding="10,2" Margin="6,0,0,0"
+                                            Command="{Binding PromoteAllLearnedCommand}"
+                                            ToolTip="Promote every auto-allow to a permanent allow rule" />
+                                    <Button DockPanel.Dock="Right" Content="Refresh" Padding="10,2"
+                                            Command="{Binding LoadLearnedCommand}" />
+                                </DockPanel>
+                                <DataGrid ItemsSource="{Binding Learned}" MaxHeight="130" Margin="0,6,0,0">
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Keep (permanent allow)"
+                                                      Command="{Binding PlacementTarget.DataContext.PromoteLearnedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Reverse (permanent block)"
+                                                      Command="{Binding PlacementTarget.DataContext.BlockLearnedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Discard (prompt again)"
+                                                      Command="{Binding PlacementTarget.DataContext.DiscardLearnedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="2*" />
+                                        <DataGridTextColumn Header="Service" Binding="{Binding ServiceName}" Width="120" />
+                                        <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="46" />
+                                        <DataGridTextColumn Header="Rule" Binding="{Binding RuleName}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock Text="{Binding LearnedStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,6" />
+
                                 <DockPanel LastChildFill="False">
                                     <TextBlock DockPanel.Dock="Left" Text="Recent connection decisions" FontWeight="SemiBold" />
                                     <Button DockPanel.Dock="Right" Content="Refresh"

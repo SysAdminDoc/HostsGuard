@@ -502,6 +502,32 @@ service Consent {
   // that never prompt, and proactively write their allow rules.
   rpc GetBaseline(Empty) returns (BaselineList);
   rpc ApplyBaseline(Empty) returns (Ack);
+  // "Decide later" review (NET-074): Learning mode auto-allows and records —
+  // these RPCs list the recorded auto-decisions (HG_Learn_ rules) and let the
+  // user batch-promote them to permanent consent rules, reverse them to
+  // blocks, or discard them (back to prompting).
+  rpc GetLearned(Empty) returns (LearnedList);
+  rpc ReviewLearned(LearnedReviewRequest) returns (Ack);
+}
+
+message LearnedEntry {
+  string rule_name = 1;
+  string application = 2;
+  string direction = 3;   // "In" | "Out"
+  string service_name = 4; // SCM scope when present
+}
+
+message LearnedList {
+  repeated LearnedEntry entries = 1;
+}
+
+message LearnedReviewAction {
+  string rule_name = 1;
+  string action = 2;      // "promote" | "block" | "discard"
+}
+
+message LearnedReviewRequest {
+  repeated LearnedReviewAction actions = 1;
 }
 
 message BaselineItem {

@@ -4,6 +4,15 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — "decide later" review for Learning mode (NET-074)
+- **Learning review** — Learning mode auto-allows and records; a new review
+  panel (FW Activity) lists those auto-decisions (`HG_Learn_` rules) so prompt
+  fatigue doesn't turn into silent permanent allows. Per row or in bulk:
+  **Keep** promotes to a permanent consent allow, **Reverse** flips it to a
+  permanent block, **Discard** removes it so the app prompts again next time.
+  Little Snitch "Silent Mode" pattern; new Consent RPCs GetLearned /
+  ReviewLearned (schema-lock updated deliberately).
+
 ### Added — svchost per-service attribution + per-service rules (NET-073)
 - **Service attribution** — connections and consent prompts from service-hosted
   processes (svchost, dllhost) now show the responsible Windows service

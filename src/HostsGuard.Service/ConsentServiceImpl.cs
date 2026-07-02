@@ -67,4 +67,10 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
         var created = _state.Consent.ApplyBaseline();
         return Task.FromResult(new Ack { Ok = true, Message = $"applied {created} known-safe baseline allow rules" });
     }
+
+    public override Task<LearnedList> GetLearned(Empty request, ServerCallContext context)
+        => Task.FromResult(_state.Consent.ListLearned());
+
+    public override Task<Ack> ReviewLearned(LearnedReviewRequest request, ServerCallContext context)
+        => Task.FromResult(_state.Consent.ReviewLearned(request));
 }

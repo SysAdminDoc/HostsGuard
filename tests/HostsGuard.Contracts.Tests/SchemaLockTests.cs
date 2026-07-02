@@ -20,7 +20,9 @@ public class SchemaLockTests
           Decide(ConnectionDecision) returns (Ack)
           GetBaseline(Empty) returns (BaselineList)
           GetDecisionHistory(HistoryRequest) returns (DecisionHistory)
+          GetLearned(Empty) returns (LearnedList)
           GetMode(Empty) returns (FilteringMode)
+          ReviewLearned(LearnedReviewRequest) returns (Ack)
           SetMode(FilteringMode) returns (Ack)
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics

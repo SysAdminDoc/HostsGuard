@@ -96,6 +96,22 @@ public sealed partial class TimelineSeriesViewModel : ObservableObject
     private string _legendText = string.Empty;
 }
 
+/// <summary>Row VM for a Learning-mode auto-decision awaiting review (NET-074).</summary>
+public sealed partial class LearnedRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _ruleName = string.Empty;
+
+    [ObservableProperty]
+    private string _application = string.Empty;
+
+    [ObservableProperty]
+    private string _direction = string.Empty;
+
+    [ObservableProperty]
+    private string _serviceName = string.Empty;
+}
+
 /// <summary>Row VM for a recorded (historical) connection (NET-070).</summary>
 public sealed partial class HistoryRowViewModel : ObservableObject
 {
@@ -584,6 +600,68 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             Permanent = true,
         });
         StatusText = ack.Message;
+        await LoadConsentHistoryAsync();
+    }
+
+    // ─── "Decide later" review of Learning-mode auto-decisions (NET-074) ─────
+
+    public ObservableCollection<LearnedRowViewModel> Learned { get; } = new();
+
+    [ObservableProperty]
+    private string _learnedStatus = string.Empty;
+
+    [RelayCommand]
+    public async Task LoadLearnedAsync()
+    {
+        var list = await _client.Consent.GetLearnedAsync(new Empty());
+        Learned.Clear();
+        foreach (var e in list.Entries)
+        {
+            Learned.Add(new LearnedRowViewModel
+            {
+                RuleName = e.RuleName,
+                Application = e.Application,
+                Direction = e.Direction,
+                ServiceName = e.ServiceName,
+            });
+        }
+
+        LearnedStatus = Learned.Count == 0
+            ? "No learning-mode decisions awaiting review"
+            : $"{Learned.Count} auto-allowed apps awaiting review";
+    }
+
+    [RelayCommand]
+    public Task PromoteLearnedAsync(LearnedRowViewModel row) => ReviewLearnedAsync("promote", row);
+
+    [RelayCommand]
+    public Task BlockLearnedAsync(LearnedRowViewModel row) => ReviewLearnedAsync("block", row);
+
+    [RelayCommand]
+    public Task DiscardLearnedAsync(LearnedRowViewModel row) => ReviewLearnedAsync("discard", row);
+
+    [RelayCommand]
+    public Task PromoteAllLearnedAsync() => ReviewLearnedAsync("promote", Learned.ToArray());
+
+    [RelayCommand]
+    public Task DiscardAllLearnedAsync() => ReviewLearnedAsync("discard", Learned.ToArray());
+
+    private async Task ReviewLearnedAsync(string action, params LearnedRowViewModel[] rows)
+    {
+        if (rows.Length == 0)
+        {
+            return;
+        }
+
+        var request = new LearnedReviewRequest();
+        foreach (var row in rows.Where(r => r is not null))
+        {
+            request.Actions.Add(new LearnedReviewAction { RuleName = row.RuleName, Action = action });
+        }
+
+        var ack = await _client.Consent.ReviewLearnedAsync(request);
+        LearnedStatus = ack.Message;
+        await LoadLearnedAsync();
         await LoadConsentHistoryAsync();
     }
 
