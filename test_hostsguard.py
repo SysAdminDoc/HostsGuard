@@ -16,6 +16,8 @@ import time
 import json
 import hashlib
 import hmac
+import shutil
+import tempfile
 import threading
 import types
 import urllib.request
@@ -41,6 +43,8 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_redact_support_scalar", "_redact_support_key", "_redact_support_config", "_redact_support_text",
                "_fw_support_summary", "_event_rows_redacted", "_support_bundle_payload",
                "_write_support_bundle",
+               "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
+               "_migrate_policy_to_programdata",
                "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
                "_load_fw_identity_cache", "_remember_fw_program_identity",
                "_remember_fw_program_identity_async", "_identity_hashes",
@@ -52,6 +56,7 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
 _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS", "_PORTABLE",
+                "USER_CONFIG_DIR", "PROGRAMDATA_CONFIG_DIR", "POLICY_FILES", "POLICY_SCOPE",
                 "FW_IDENTITY_CACHE_KEY",
                 "SUPPORT_REDACTION_MARKERS", "_SECRET_KEY_RE", "_URL_RE", "_DOMAIN_TEXT_RE", "_IP_TEXT_RE",
                 "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
@@ -79,10 +84,11 @@ def _extract():
     ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
+          "CONFIG_DIR": os.getcwd(),
           "Path": __import__("pathlib").Path,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
           "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict,
-          "defaultdict": defaultdict, "zipfile": zipfile}
+          "defaultdict": defaultdict, "zipfile": zipfile, "shutil": shutil, "tempfile": tempfile}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -114,6 +120,8 @@ _redact_support_config = _m["_redact_support_config"]
 _redact_support_text = _m["_redact_support_text"]
 _support_bundle_payload = _m["_support_bundle_payload"]
 _write_support_bundle = _m["_write_support_bundle"]
+_policy_status = _m["_policy_status"]
+_migrate_policy_to_programdata = _m["_migrate_policy_to_programdata"]
 _program_identity = _m["_program_identity"]
 _score_rebind_candidate = _m["_score_rebind_candidate"]
 _rank_rebind_candidates = _m["_rank_rebind_candidates"]
@@ -390,6 +398,7 @@ class TestSupportBundle:
             "service_token": "a" * 64,
             "schedules": [{"target": "private.example.com"}],
             "fw_program_identities": {r"C:\Users\me\AppData\Local\App\app.exe": {"path": r"C:\Users\me\AppData\Local\App\app.exe"}},
+            "active_dir": r"C:\Users\me\AppData\Roaming\HostsGuard",
             "blocklist_refresh_hours": 24,
         }
         redacted = _redact_support_config(cfg)
@@ -397,7 +406,8 @@ class TestSupportBundle:
         assert redacted["service_token"] == "<REDACTED_SECRET>"
         assert redacted["schedules"][0]["target"].startswith("<REDACTED_DOMAIN:")
         assert all("Users" not in k for k in redacted["fw_program_identities"])
-        assert list(redacted["fw_program_identities"].values())[0]["path"] == "app.exe"
+        assert list(redacted["fw_program_identities"].values())[0]["path"].startswith("<REDACTED_PATH:")
+        assert redacted["active_dir"].startswith("<REDACTED_PATH:")
         assert redacted["blocklist_refresh_hours"] == 24
 
     def test_payload_redacts_private_values_and_writes_zip(self, tmp_path):
@@ -435,6 +445,54 @@ class TestSupportBundle:
             names = set(z.namelist())
             assert {"manifest.json", "config.redacted.json", "firewall_state.redacted.json",
                     "event_log.redacted.jsonl", "hostsguard.log.redacted.txt"} <= names
+
+
+class TestPolicyMigration:
+    def test_policy_status_reports_user_machine_drift(self, tmp_path):
+        user = tmp_path / "user"
+        machine = tmp_path / "machine"
+        user.mkdir(); machine.mkdir()
+        (user / "config.json").write_text('{"mode":"user"}', encoding="utf-8")
+        (machine / "config.json").write_text('{"mode":"machine"}', encoding="utf-8")
+        st = _policy_status(str(user), str(user), str(machine), portable=False)
+        assert st["scope"] == "user"
+        assert st["active_dir"] == str(user.resolve())
+        assert st["user_files"] == ["config.json"]
+        assert st["machine_files"] == ["config.json"]
+        assert st["drift"] == ["config.json"]
+        machine_active = _policy_status(str(machine), str(user), str(machine), portable=False)
+        assert machine_active["scope"] == "machine"
+
+    def test_policy_migration_copies_policy_files(self, tmp_path):
+        src = tmp_path / "src"
+        dst = tmp_path / "ProgramData"
+        src.mkdir()
+        (src / "hostsguard.db").write_text("db", encoding="utf-8")
+        (src / "config.json").write_text("cfg", encoding="utf-8")
+        result = _migrate_policy_to_programdata(str(src), str(dst), portable=False)
+        assert sorted(result["files"]) == ["config.json", "hostsguard.db"]
+        assert (dst / "hostsguard.db").read_text(encoding="utf-8") == "db"
+        assert (dst / "config.json").read_text(encoding="utf-8") == "cfg"
+
+    def test_policy_migration_rolls_back_partial_target_replace(self, tmp_path, monkeypatch):
+        src = tmp_path / "src"
+        dst = tmp_path / "ProgramData"
+        src.mkdir(); dst.mkdir()
+        (src / "hostsguard.db").write_text("new-db", encoding="utf-8")
+        (src / "config.json").write_text("new-cfg", encoding="utf-8")
+        (dst / "config.json").write_text("old-cfg", encoding="utf-8")
+        real_replace = os.replace
+        calls = {"n": 0}
+        def flaky_replace(src_path, dst_path):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise OSError("forced replace failure")
+            return real_replace(src_path, dst_path)
+        monkeypatch.setattr(os, "replace", flaky_replace)
+        with pytest.raises(OSError, match="forced"):
+            _migrate_policy_to_programdata(str(src), str(dst), portable=False)
+        assert not (dst / "hostsguard.db").exists()
+        assert (dst / "config.json").read_text(encoding="utf-8") == "old-cfg"
 
 
 class TestNormLine:

@@ -36,6 +36,10 @@ All notable changes to HostsGuard are documented in this file.
   diagnostics, sanitized config, SQLite integrity status, recent redacted logs,
   event history, firewall summary, hosts stats, dependency versions, and
   Windows Event Log entries when available.
+- Added machine-wide policy drift handling: HostsGuard now detects user versus
+  ProgramData policy files, reports active policy scope/owner/drift in Tools and
+  support diagnostics, and can copy per-user policy DB/config/DoH intelligence
+  into ProgramData with rollback protection while leaving portable mode unchanged.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -76,6 +80,12 @@ All notable changes to HostsGuard are documented in this file.
   after the support bundle change.
 - Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
   artifact after the support bundle change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 107 tests after adding
+  policy drift detection and ProgramData migration rollback coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  after the policy migration change.
+- Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
+  artifact after the policy migration change.
 
 ## [v3.15.0] - 2026-07-02
 

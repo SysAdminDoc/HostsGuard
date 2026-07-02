@@ -114,11 +114,16 @@ with _warnings.catch_warnings():
 APP="HostsGuard"; VER="3.15.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 _PORTABLE='--portable' in sys.argv
+USER_CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
+PROGRAMDATA_CONFIG_DIR=os.path.join(os.environ.get('ProgramData',r"C:\ProgramData" if sys.platform=='win32' else os.path.expanduser('~')),APP)
+POLICY_FILES=("hostsguard.db","config.json","doh_resolvers.json")
 if _PORTABLE:
     _base=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent
     CONFIG_DIR=str(_base / "data")
 else:
-    CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
+    _machine_policy_exists=any(os.path.exists(os.path.join(PROGRAMDATA_CONFIG_DIR,n)) for n in POLICY_FILES)
+    CONFIG_DIR=PROGRAMDATA_CONFIG_DIR if _machine_policy_exists else USER_CONFIG_DIR
+POLICY_SCOPE="portable" if _PORTABLE else ("machine" if os.path.normcase(os.path.abspath(CONFIG_DIR))==os.path.normcase(os.path.abspath(PROGRAMDATA_CONFIG_DIR)) else "user")
 DB_PATH=os.path.join(CONFIG_DIR,"hostsguard.db")
 CONN_DB=os.path.join(CONFIG_DIR,"connections.db")
 FAV_DIR=os.path.join(CONFIG_DIR,"favicons")
@@ -1184,8 +1189,9 @@ def _redact_support_scalar(key,value):
     if _SECRET_KEY_RE.search(k): return SUPPORT_REDACTION_MARKERS["secret"]
     if looks_like_domain(text.lower().strip(".")): return _redaction_marker("domain",text)
     if _looks_like_public_ip(text): return _redaction_marker("ip",text)
-    if k in ("path","program","program_path") and ("\\" in text or "/" in text):
-        return str(Path(text).name) if Path(text).name else SUPPORT_REDACTION_MARKERS["path"]
+    if ("\\" in text or "/" in text) and (k in ("path","program","program_path") or k.endswith(("_path","_dir")) or "directory" in k or "folder" in k):
+        if k in ("program","program_path"): return str(Path(text).name) if Path(text).name else SUPPORT_REDACTION_MARKERS["path"]
+        return _redaction_marker("path",text)
     return text
 
 def _redact_support_key(key):
@@ -1265,13 +1271,14 @@ def _event_rows_redacted(rows):
         ]))
     return out
 
-def _support_bundle_payload(config,stats,db_integrity,conn_integrity,app_log_text="",event_rows=None,fw_rows=None,hosts_stats=None,dependency_versions=None,windows_events=None):
+def _support_bundle_payload(config,stats,db_integrity,conn_integrity,app_log_text="",event_rows=None,fw_rows=None,hosts_stats=None,dependency_versions=None,windows_events=None,policy_status=None):
     generated=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     diagnostics=OrderedDict([
         ("app",APP),("version",VER),("schema",SCHEMA_VER),("generated",generated),
         ("portable",_PORTABLE),("config_dir",SUPPORT_REDACTION_MARKERS["path"]),
         ("db_integrity",db_integrity),("connections_integrity",conn_integrity),
         ("stats",stats or {}),("hosts",hosts_stats or {}),
+        ("policy",_redact_support_config(policy_status or _policy_status())),
         ("dependencies",dependency_versions or _dependency_versions()),
         ("redaction_markers",SUPPORT_REDACTION_MARKERS),
     ])
@@ -1303,6 +1310,83 @@ def _write_support_bundle(path,payload):
             z.writestr(name,content if isinstance(content,str) else json.dumps(content,indent=2,ensure_ascii=False))
     os.replace(tmp,path)
     return path
+
+def _policy_file_hash(path):
+    try:
+        h=hashlib.sha256()
+        with open(path,"rb") as f:
+            for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+        return h.hexdigest()
+    except Exception: return ""
+
+def _path_owner(path):
+    p=str(path or "")
+    if sys.platform=="win32" and p:
+        try:
+            ok,out=_ps(f"(Get-Acl -LiteralPath {_ps_esc(p)}).Owner",5)
+            if ok and out.strip(): return out.strip()
+        except Exception: pass
+    return os.environ.get("USERNAME") or os.environ.get("USER") or ""
+
+def _policy_existing_files(base,files=POLICY_FILES):
+    names=[]
+    for name in files:
+        p=os.path.join(base,name)
+        if os.path.exists(p): names.append(name)
+        if name.endswith(".db"):
+            for suffix in ("-wal","-shm"):
+                sp=p+suffix
+                if os.path.exists(sp): names.append(name+suffix)
+    return names
+
+def _policy_status(config_dir=CONFIG_DIR,user_dir=USER_CONFIG_DIR,machine_dir=PROGRAMDATA_CONFIG_DIR,portable=_PORTABLE):
+    active=os.path.abspath(config_dir)
+    scope="portable" if portable else ("machine" if os.path.normcase(active)==os.path.normcase(os.path.abspath(machine_dir)) else "user")
+    user_files=_policy_existing_files(user_dir)
+    machine_files=_policy_existing_files(machine_dir)
+    drift=[]
+    for name in sorted(set(user_files)&set(machine_files)):
+        uh=_policy_file_hash(os.path.join(user_dir,name)); mh=_policy_file_hash(os.path.join(machine_dir,name))
+        if uh and mh and uh!=mh: drift.append(name)
+    return OrderedDict([
+        ("scope",scope),("active_dir",active),("owner",_path_owner(active) if os.path.exists(active) else ""),
+        ("user_dir",os.path.abspath(user_dir)),("machine_dir",os.path.abspath(machine_dir)),
+        ("user_files",user_files),("machine_files",machine_files),("drift",drift),
+        ("portable",portable),
+    ])
+
+def _migrate_policy_to_programdata(src_dir=CONFIG_DIR,dst_dir=PROGRAMDATA_CONFIG_DIR,files=POLICY_FILES,portable=_PORTABLE):
+    if portable: return {"skipped":"portable","files":[],"target":dst_dir,"backup":""}
+    src=os.path.abspath(src_dir); dst=os.path.abspath(dst_dir)
+    if os.path.normcase(src)==os.path.normcase(dst): return {"skipped":"already_machine","files":[],"target":dst,"backup":""}
+    names=_policy_existing_files(src,files)
+    if not names: raise FileNotFoundError("No policy files found to migrate")
+    os.makedirs(dst,exist_ok=True)
+    stage=tempfile.mkdtemp(prefix=".policy_stage_",dir=dst)
+    backup_dir=os.path.join(dst,"backups",f"policy_migration_{datetime.datetime.now():%Y%m%d_%H%M%S}")
+    backups={}; applied=[]
+    try:
+        for name in names:
+            s_path=os.path.join(src,name); staged=os.path.join(stage,name)
+            os.makedirs(os.path.dirname(staged),exist_ok=True); shutil.copy2(s_path,staged)
+        for name in names:
+            target=os.path.join(dst,name); staged=os.path.join(stage,name); tmp=target+".tmp"
+            os.makedirs(os.path.dirname(target),exist_ok=True)
+            if os.path.exists(target):
+                os.makedirs(backup_dir,exist_ok=True)
+                b=os.path.join(backup_dir,name); shutil.copy2(target,b); backups[name]=b
+            shutil.copy2(staged,tmp); os.replace(tmp,target); applied.append((name,target,name in backups))
+        return {"skipped":"","files":names,"target":dst,"backup":backup_dir if backups else ""}
+    except Exception:
+        for name,target,had_backup in reversed(applied):
+            try:
+                if had_backup: shutil.copy2(backups[name],target)
+                elif os.path.exists(target): os.remove(target)
+            except Exception as e: log.warning(f"policy rollback {name}: {e}")
+        raise
+    finally:
+        try: shutil.rmtree(stage,ignore_errors=True)
+        except Exception: pass
 
 def _normalize_ip_set(values):
     if isinstance(values,(str,bytes)):
@@ -4490,6 +4574,7 @@ class ToolsTab(QWidget):
         l4.addWidget(_tbtn("Restore Hosts from DB","primary",s._restore_hosts))
         l4.addWidget(_tbtn("Restore Firewall Rules","primary",s._restore_fw))
         l4.addWidget(_tbtn("Sync Hosts File to DB","dim",s._sync_hosts_db))
+        l4.addWidget(_tbtn("Use Machine Policy","dim",s._migrate_policy))
         l4.addWidget(_tbtn("Backup Hosts Now","dim",lambda:(s.hm.backup(),s._toast("Backed up",C['green']))))
         l4.addWidget(_tbtn("Save Current to Profile","dim",s._save_profile))
         l4.addWidget(_tbtn("Re-baseline (accept current)","dim",s._rebaseline))
@@ -4595,7 +4680,10 @@ class ToolsTab(QWidget):
         db_allowed=len(s.db.get_domains(status='whitelisted'))
         fw_tracked=len(s.db.get_fw_state())
         hosts_blocked=len(s.hm.get_blocked())
-        s.rec_st.setText(f"DB: {db_blocked} blocked, {db_allowed} allowed\nFW tracked: {fw_tracked} rules\nHosts file: {hosts_blocked} entries")
+        pol=_policy_status(); drift=len(pol.get("drift") or [])
+        ptxt=f"Policy: {pol['scope']} ({pol.get('owner') or 'owner unknown'})"
+        if drift: ptxt+=f" | {drift} file drift"
+        s.rec_st.setText(f"DB: {db_blocked} blocked, {db_allowed} allowed\nFW tracked: {fw_tracked} rules\nHosts file: {hosts_blocked} entries\n{ptxt}")
     def _log(s):
         q=s.log_s.text().strip() or None; f=s.log_f.currentText()
         af={'All':'all','Blocked':'blocked','Allowed':'whitelisted','Firewall Blocked':'fw_blocked'}.get(f,'all')
@@ -4757,11 +4845,29 @@ class ToolsTab(QWidget):
                 payload=_support_bundle_payload(
                     load_cfg(),s.db.get_stats(),_sqlite_integrity(s.db.conn),_sqlite_integrity(s.cdb.conn),
                     _tail_text(os.path.join(CONFIG_DIR,"hostsguard.log")),
-                    s.db.get_log(limit=500),s.db.get_fw_state(),hosts_stats,_dependency_versions(),_read_windows_events())
+                    s.db.get_log(limit=500),s.db.get_fw_state(),hosts_stats,_dependency_versions(),_read_windows_events(),_policy_status())
                 _write_support_bundle(p,payload)
                 ui_call(lambda:s._toast(f"Support bundle exported: {Path(p).name}",C['green']))
             except Exception as e:
                 ui_call(lambda e=e:s._toast(f"Support bundle failed: {e}",C['red']))
+        threading.Thread(target=_bg,daemon=True).start()
+    def _migrate_policy(s):
+        if _PORTABLE:
+            s._toast("Portable mode keeps policy next to the app",C['dim']); return
+        if POLICY_SCOPE=="machine":
+            s._toast("Already using machine-wide policy",C['green']); return
+        s._toast("Preparing machine-wide policy...",C['blue'])
+        def _bg():
+            try:
+                try: s.db.conn.execute("PRAGMA wal_checkpoint(FULL)")
+                except Exception: pass
+                result=_migrate_policy_to_programdata(CONFIG_DIR,PROGRAMDATA_CONFIG_DIR)
+                msg=f"Machine policy prepared ({len(result.get('files',[]))} files). Restart HostsGuard to use ProgramData."
+                ui_call(lambda:(s._upd_rec(),s._toast(msg,C['green'])))
+            except PermissionError:
+                ui_call(lambda:s._toast("Machine policy migration needs Administrator rights",C['red']))
+            except Exception as e:
+                ui_call(lambda e=e:s._toast(f"Machine policy migration failed: {e}",C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _prune(s): s.cdb.prune(30); s._toast("Connection history pruned",C['green'])
     def _clear_fav(s):

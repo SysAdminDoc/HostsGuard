@@ -100,6 +100,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Session Recording | Record DNS + connection events to JSONL for analysis |
 | Export | Export connections as CSV/JSONL and config as JSON, including policy reasons |
 | Support Bundle | Export a redacted diagnostic zip with version/build info, sanitized config, DB integrity, logs, event history, firewall summary, hosts stats, and dependency versions |
+| Machine Policy Migration | Copy per-user policy DB/config into ProgramData for consistent hosts/firewall policy across Windows accounts |
 
 ### System Features
 
@@ -200,6 +201,12 @@ Importable directly from the Hosts File tab:
 ## Configuration
 
 All data is stored in `%APPDATA%\HostsGuard\`:
+
+Non-portable installs can be migrated from the per-user folder to a machine-wide
+policy folder in `%ProgramData%\HostsGuard\` from Tools > Backup + Recovery >
+**Use Machine Policy**. Once a machine policy exists, future launches use
+ProgramData so global hosts and firewall state do not drift between Windows
+accounts. Portable mode continues to store data next to the executable.
 
 | File | Purpose |
 |------|---------|
