@@ -4,6 +4,8 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+## [v3.16.0] - 2026-07-02
+
 ### Fixed
 - Hardened packaged startup by running `multiprocessing.freeze_support()` before
   bootstrap/Qt imports, skipping runtime dependency installation inside frozen
@@ -153,6 +155,9 @@ All notable changes to HostsGuard are documented in this file.
   after wiring the localization registry.
 - Rebuilt the PyInstaller onedir artifact and passed the frozen `release-smoke`
   process exit check after the localization registry change.
+- Bumped release metadata to v3.16.0 and re-verified 122 tests, py_compile,
+  source CLI status/release-smoke, a clean PyInstaller onedir build, and the
+  frozen `release-smoke` process exit check.
 
 ## [v3.15.0] - 2026-07-02
 

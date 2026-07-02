@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-3.15.0-blue)
+![Version](https://img.shields.io/badge/version-3.16.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
@@ -31,7 +31,7 @@ py -3.12 HostsGuard.py release-smoke # Prints tested dependency versions
 pyinstaller HostsGuard.spec          # Builds to dist/HostsGuard/
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
-# Produces installer_output/HostsGuard-v3.15.0-Setup.exe
+# Produces installer_output/HostsGuard-v3.16.0-Setup.exe
 ```
 
 ### Project Layout

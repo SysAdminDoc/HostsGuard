@@ -112,7 +112,7 @@ class TestPackageBoundaries:
 
 class TestLocalizationRegistry:
     def test_registry_formats_english_strings(self):
-        assert hg_i18n.tr("app.window_title", app="HostsGuard", version="3.15.0") == "HostsGuard v3.15.0"
+        assert hg_i18n.tr("app.window_title", app="HostsGuard", version="3.16.0") == "HostsGuard v3.16.0"
 
     def test_missing_keys_and_languages_fall_back_safely(self):
         assert hg_i18n.tr("missing.key", lang="zz") == "missing.key"
@@ -189,7 +189,7 @@ class LearnStub:
 class TestImportPlanning:
     def test_import_plan_validates_and_counts_rows(self):
         plan = _build_import_plan({
-            "version": "3.15.0",
+            "version": "3.16.0",
             "schema": SCHEMA_VER,
             "domains": [
                 {"domain": "Example.COM.", "status": "allowed", "source": "manual"},

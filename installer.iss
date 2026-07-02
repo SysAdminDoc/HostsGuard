@@ -1,6 +1,6 @@
 #define MyAppName "HostsGuard"
-#define MyAppVersion "3.15.0"
-#define MyAppVersionInfo "3.15.0.0"
+#define MyAppVersion "3.16.0"
+#define MyAppVersionInfo "3.16.0.0"
 
 [Setup]
 AppId=HostsGuard

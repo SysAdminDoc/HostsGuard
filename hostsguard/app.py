@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HostsGuard v3.15.0 - Network Privacy Manager
+HostsGuard v3.16.0 - Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
 import multiprocessing
@@ -163,7 +163,7 @@ with _warnings.catch_warnings():
         except Exception: pass
 
 # ─── Constants ──────────────────────────────────────────────────────────────
-APP="HostsGuard"; VER="3.15.0"; FW_PFX="HG_"
+APP="HostsGuard"; VER="3.16.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 _PORTABLE='--portable' in sys.argv
 USER_CONFIG_DIR=os.path.join(os.environ.get('APPDATA',os.path.expanduser('~')),APP)
