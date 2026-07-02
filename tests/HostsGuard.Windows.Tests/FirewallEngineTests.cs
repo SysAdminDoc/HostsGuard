@@ -29,6 +29,39 @@ public class FirewallEngineTests
     }
 
     [Fact]
+    public void Posture_reads_three_profiles_and_round_trips_when_elevated()
+    {
+        var engine = new FirewallEngine();
+        var posture = engine.GetPosture(); // reading posture needs no elevation
+        posture.Select(p => p.Name).Should().Equal("Domain", "Private", "Public");
+
+        if (!IsElevated())
+        {
+            return;
+        }
+
+        // Only flip when the current posture is uniform — the all-profiles
+        // setter cannot faithfully restore a mixed per-profile state.
+        if (posture.Select(p => p.OutboundBlock).Distinct().Count() != 1)
+        {
+            return;
+        }
+
+        var original = posture[0].OutboundBlock;
+        try
+        {
+            engine.SetDefaultOutboundBlock(!original);
+            engine.GetPosture().Should().OnlyContain(p => p.OutboundBlock == !original);
+        }
+        finally
+        {
+            engine.SetDefaultOutboundBlock(original);
+        }
+
+        engine.GetPosture().Should().OnlyContain(p => p.OutboundBlock == original);
+    }
+
+    [Fact]
     public void Create_then_delete_round_trip_when_elevated()
     {
         if (!IsElevated())
