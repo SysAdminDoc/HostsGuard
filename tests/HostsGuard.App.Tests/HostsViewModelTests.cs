@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.Versioning;
 using FluentAssertions;
 using HostsGuard.App.Services;

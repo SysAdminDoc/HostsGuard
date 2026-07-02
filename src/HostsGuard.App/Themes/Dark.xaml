@@ -1,0 +1,33 @@
+<!-- HostsGuard dark theme tokens — ported verbatim from the Python v3.14 _DARK
+     palette (hostsguard/app.py). Keys must stay in parity with Light.xaml;
+     a test enforces it. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="Hg.Bg" Color="#0b0d12" />
+    <SolidColorBrush x:Key="Hg.Base" Color="#141821" />
+    <SolidColorBrush x:Key="Hg.Mantle" Color="#10141c" />
+    <SolidColorBrush x:Key="Hg.Crust" Color="#090b10" />
+    <SolidColorBrush x:Key="Hg.S0" Color="#242b38" />
+    <SolidColorBrush x:Key="Hg.S1" Color="#354052" />
+    <SolidColorBrush x:Key="Hg.S2" Color="#4a5870" />
+    <SolidColorBrush x:Key="Hg.Text" Color="#edf1f7" />
+    <SolidColorBrush x:Key="Hg.Sub" Color="#b8c1d1" />
+    <SolidColorBrush x:Key="Hg.Dim" Color="#8490a3" />
+    <SolidColorBrush x:Key="Hg.Blue" Color="#77a7ff" />
+    <SolidColorBrush x:Key="Hg.Green" Color="#8bd17c" />
+    <SolidColorBrush x:Key="Hg.Red" Color="#ff7f9a" />
+    <SolidColorBrush x:Key="Hg.Danger2" Color="#c84b69" />
+    <SolidColorBrush x:Key="Hg.DangerHover" Color="#ff9aac" />
+    <SolidColorBrush x:Key="Hg.OnDanger" Color="#ffffff" />
+    <SolidColorBrush x:Key="Hg.Peach" Color="#ffb16c" />
+    <SolidColorBrush x:Key="Hg.Yellow" Color="#e7c36f" />
+    <SolidColorBrush x:Key="Hg.Mauve" Color="#c4a3ff" />
+    <SolidColorBrush x:Key="Hg.Teal" Color="#66d9cf" />
+    <SolidColorBrush x:Key="Hg.Sky" Color="#78d5ff" />
+    <SolidColorBrush x:Key="Hg.Focus" Color="#a8c7ff" />
+    <!-- sel = rgba(119,167,255,0.16) -->
+    <SolidColorBrush x:Key="Hg.Sel" Color="#2977a7ff" />
+    <SolidColorBrush x:Key="Hg.OnSel" Color="#071019" />
+
+</ResourceDictionary>

@@ -4,6 +4,41 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — .NET 8 restructure (engine v0.2.0, in progress)
+- Began the C#/.NET 8 rewrite (`src/` + `tests/`, `HostsGuard.sln`) on a
+  split-trust architecture: an elevated LocalSystem service owns all privileged
+  mutation; the unelevated UI/CLI talk to it over gRPC on an ACL'd named pipe.
+  The Python v3.x build (`hostsguard/`) is frozen as the parity reference.
+- HostsGuard.Core: pure domain logic ported from Python (domains/TLD, hosts
+  parse + idempotent clean, firewall-address + rule mapping, reason taxonomy,
+  scheduling, search DSL, DNS normalization, redaction) — 124 tests.
+- HostsGuard.Contracts: versioned gRPC contract (hostsguard.v1) with a schema-lock.
+- HostsGuard.Ipc: gRPC over an ACL'd named pipe + per-session token auth
+  (constant-time), verified end-to-end.
+- HostsGuard.Windows: transactional hosts engine (atomic write + SHA-512
+  self-write hash), native ACL hardening, INetFwPolicy2 COM firewall engine +
+  shape-tolerant rule mapper, real-time FileSystemWatcher tamper watch + registry
+  DataBasePath check, IPHLPAPI PID-attributed connection monitor, ETW DNS monitor
+  (TraceEvent), firewall program-identity cache + orphan detection.
+- HostsGuard.Data: SQLite (Microsoft.Data.Sqlite + Dapper) with schema v1 mapped
+  from Python v7, legacy column-rename migration, data-preserving/allowlist-wins
+  UPSERT.
+- HostsGuard.Diagnostics: Serilog redacting sink (secrets never reach a sink).
+- HostsGuard.Service: LocalSystem host wiring the engines to Diagnostics +
+  HostsControl gRPC impls; end-to-end Block round-trip verified.
+- HostsGuard.App: WPF service-client + MVVM Hosts ViewModel foundation (UI drives
+  the service through the pipe).
+- HostsGuard.App shell (NET-020): DI composition root, five-tab MainWindow
+  (Hosts Activity / FW Activity / Hosts File / FW Rules / Tools), dark+light
+  theme token dictionaries ported from the Python v3.14 palette with runtime
+  switching, UI scale (90–150%) via LayoutTransform, tray icon with
+  hide-to-tray, non-fatal service connection with status-bar health, and a
+  config store that shares %APPDATA%\HostsGuard\config.json with the Python
+  build while preserving Python-owned keys. Verified interactively: launches
+  unelevated, renders all tabs, live theme toggle, correct "service
+  unavailable" degradation.
+- 189 .NET tests; zero build warnings under warnings-as-errors.
+
 ## [v3.17.0] - 2026-07-02
 
 ### Fixed

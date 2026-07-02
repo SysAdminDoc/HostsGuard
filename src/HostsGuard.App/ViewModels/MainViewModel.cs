@@ -1,0 +1,101 @@
+using System.Runtime.Versioning;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using HostsGuard.App.Services;
+using HostsGuard.Contracts;
+
+namespace HostsGuard.App.ViewModels;
+
+/// <summary>
+/// Shell ViewModel: owns the service connection, the per-tab ViewModels, the
+/// status-bar state, and the theme/scale settings. The service-client factory
+/// is injected so tests can point the whole shell at an in-process service.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed partial class MainViewModel : ObservableObject, IDisposable
+{
+    private readonly Func<HostsServiceClient> _connectFactory;
+    private readonly AppConfigStore _config;
+    private readonly ThemeManager _themes;
+    private HostsServiceClient? _client;
+
+    [ObservableProperty]
+    private bool _isConnected;
+
+    [ObservableProperty]
+    private string _connectionText = "Connecting to service…";
+
+    [ObservableProperty]
+    private string _serviceVersion = string.Empty;
+
+    [ObservableProperty]
+    private int _hostsBlocked;
+
+    [ObservableProperty]
+    private int _dbBlocked;
+
+    [ObservableProperty]
+    private int _dbAllowed;
+
+    [ObservableProperty]
+    private HostsViewModel? _hosts;
+
+    [ObservableProperty]
+    private string _theme;
+
+    [ObservableProperty]
+    private int _uiScalePct;
+
+    public MainViewModel(Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes)
+    {
+        _connectFactory = connectFactory ?? throw new ArgumentNullException(nameof(connectFactory));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+        _themes = themes ?? throw new ArgumentNullException(nameof(themes));
+        _theme = config.Theme;
+        _uiScalePct = config.UiScalePct;
+    }
+
+    /// <summary>LayoutTransform scale factor derived from the persisted percent.</summary>
+    public double UiScale => UiScalePct / 100.0;
+
+    public static IReadOnlyList<int> UiScaleChoices => AppConfigStore.UiScaleChoices;
+
+    [RelayCommand]
+    public async Task ConnectAsync()
+    {
+        try
+        {
+            _client ??= _connectFactory();
+            var status = await _client.Diagnostics.GetStatusAsync(new Empty());
+            ServiceVersion = status.Version;
+            HostsBlocked = status.HostsBlocked;
+            DbBlocked = status.DbBlocked;
+            DbAllowed = status.DbAllowed;
+            Hosts ??= new HostsViewModel(_client);
+            await Hosts.RefreshAsync();
+            IsConnected = true;
+            ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
+        }
+        catch (Exception ex)
+        {
+            IsConnected = false;
+            ConnectionText = $"Service unavailable — {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public void ToggleTheme()
+    {
+        Theme = Theme == "dark" ? "light" : "dark";
+        _themes.Apply(Theme);
+        _config.Save(Theme, UiScalePct);
+    }
+
+    partial void OnUiScalePctChanged(int value)
+    {
+        OnPropertyChanged(nameof(UiScale));
+        _config.Save(Theme, value);
+    }
+
+    public void Dispose() => _client?.Dispose();
+}
