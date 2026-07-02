@@ -16,17 +16,18 @@
 ```bash
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
-python HostsGuard.py  # Auto-installs dependencies, requests admin elevation
+python HostsGuard.py  # Auto-installs constrained dependencies, requests admin elevation
 ```
 
 **Requirements:** Python 3.8+, Windows 10/11, Administrator privileges
 
-Dependencies (`PySide6`, `psutil`, `maxminddb`) are auto-installed on first run. No manual setup needed.
+Dependencies (`PySide6`, `psutil`, `maxminddb`) are installed from `constraints.txt` on first run when missing. For deterministic local setup, run `py -3.12 -m pip install -r requirements.txt`.
 
 ### Building
 
 ```powershell
-pip install pyinstaller
+py -3.12 -m pip install -r requirements.txt pyinstaller
+py -3.12 HostsGuard.py release-smoke # Prints tested dependency versions
 pyinstaller HostsGuard.spec          # Builds to dist/HostsGuard/
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
@@ -125,7 +126,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Scheduled Blocklist Refresh | Auto-update subscribed blocklists on configurable interval |
 | Rule Groups | Filter and bulk-manage domains by source (blocklist, manual, etc.) |
 | Firewall Drift Detection | Save baseline, detect added/removed/changed rules |
-| CLI Interface | `block/allow/unblock/status/export` commands without launching GUI |
+| CLI Interface | `block/allow/unblock/status/export/release-smoke` commands without launching GUI |
 | ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
 | Per-App Bandwidth Chart | Stacked area chart showing connection activity per process over time |
 | Network Profiles | Save/switch named rule sets — different blocking for home/work/public |
@@ -237,7 +238,7 @@ Run `ipconfig /flushdns` (available in the Tools tab) or wait for the DNS cache 
 Hosts File tab > **Restore** restores the most recent backup. **Emergency Reset** rewrites the hosts file to Windows defaults. Firewall Rules tab > **Delete HG Rules** removes all HostsGuard-created firewall rules.
 
 **Q: Can I run this headless / via CLI?**
-Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, `GET /openapi.json`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts; `/domains` and `/log` include canonical reason values; `/log` supports validated `limit`, `since`, `action`, and `reason` query params such as `/log?reason=firewall&limit=50`. Errors use a stable `hostsguard.error.v1` JSON shape, and POST bodies over 1 MB are rejected instead of truncated. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
+Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export`, `release-smoke` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, `GET /openapi.json`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts; `/domains` and `/log` include canonical reason values; `/log` supports validated `limit`, `since`, `action`, and `reason` query params such as `/log?reason=firewall&limit=50`. Errors use a stable `hostsguard.error.v1` JSON shape, and POST bodies over 1 MB are rejected instead of truncated. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
 
 **Q: How do I keep encrypted-DNS blocking current?**
 Use Tools > DNS + Network > **Refresh DoH List**. HostsGuard merges Windows known DoH servers with the built-in resolver list and, if configured, a remote resolver list from `config.json` keys `doh_resolver_url` and `doh_resolver_sha256`. Remote lists are rejected without a SHA-256 value, failed refreshes leave the previous `doh_resolvers.json` intact, and enabling **Block Encrypted DNS** always exempts your current DNS resolver.

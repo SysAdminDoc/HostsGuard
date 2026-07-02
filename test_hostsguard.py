@@ -24,6 +24,8 @@ import types
 import urllib.request
 import urllib.error
 import zipfile
+import platform
+import importlib.metadata as importlib_metadata
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 import pytest
@@ -44,6 +46,7 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_redact_support_scalar", "_redact_support_key", "_redact_support_config", "_redact_support_text",
                "_fw_support_summary", "_event_rows_redacted", "_support_bundle_payload",
                "_write_support_bundle",
+               "_module_version", "_dependency_versions",
                "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
                "_migrate_policy_to_programdata",
                "_parse_search_query", "_search_record_text", "_search_matches",
@@ -93,7 +96,7 @@ def _extract():
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
           "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict,
           "defaultdict": defaultdict, "zipfile": zipfile, "shutil": shutil, "tempfile": tempfile,
-          "shlex": shlex}
+          "shlex": shlex, "platform": platform, "importlib_metadata": importlib_metadata}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -125,6 +128,7 @@ _redact_support_config = _m["_redact_support_config"]
 _redact_support_text = _m["_redact_support_text"]
 _support_bundle_payload = _m["_support_bundle_payload"]
 _write_support_bundle = _m["_write_support_bundle"]
+_dependency_versions = _m["_dependency_versions"]
 _policy_status = _m["_policy_status"]
 _migrate_policy_to_programdata = _m["_migrate_policy_to_programdata"]
 _parse_search_query = _m["_parse_search_query"]
@@ -183,7 +187,7 @@ class TestBootstrapGuards:
 
     def test_bootstrap_skips_runtime_pip_when_frozen(self):
         skip_pos = _SRC.index("if _is_frozen(): return")
-        pip_pos = _SRC.index("subprocess.check_call([sys.executable,'-m','pip','install'")
+        pip_pos = _SRC.index("_pip_install_dependency(pkg,_cf)")
         assert skip_pos < pip_pos
 
     def test_frozen_detection_uses_meipass(self, monkeypatch):
@@ -536,6 +540,21 @@ class TestUiScale:
         assert _coerce_ui_scale("bad") == 100
         assert _coerce_ui_scale(118) == 125
         assert _coerce_ui_scale(80) == 90
+
+
+class TestReleaseConstraints:
+    def test_constraints_pin_core_release_dependencies(self):
+        path = os.path.join(os.path.dirname(__file__), "constraints.txt")
+        text = open(path, encoding="utf-8").read()
+        for name in ("PySide6", "psutil", "maxminddb", "pyinstaller"):
+            assert re.search(rf"^{re.escape(name)}==\d", text, re.IGNORECASE | re.MULTILINE), name
+
+    def test_dependency_versions_report_release_smoke_tools(self):
+        versions = _dependency_versions()
+        for name in ("PySide6", "psutil", "maxminddb", "PyInstaller"):
+            assert name in versions
+            assert versions[name]
+            assert "unavailable" not in str(versions[name]).lower()
 
 
 class TestNormLine:

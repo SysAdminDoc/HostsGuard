@@ -5,7 +5,7 @@ a = Analysis(
     ['HostsGuard.py'],
     pathex=[],
     binaries=[],
-    datas=[('icon.png', '.'), ('icon.ico', '.')],
+    datas=[('icon.png', '.'), ('icon.ico', '.'), ('constraints.txt', '.')],
     hiddenimports=['psutil', 'maxminddb'],
     hookspath=[],
     hooksconfig={},

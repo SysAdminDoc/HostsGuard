@@ -46,6 +46,10 @@ All notable changes to HostsGuard are documented in this file.
 - Added a persisted UI scale setting in Tools with 90/100/110/125/150 percent
   choices, wired through the shared `_dp()` sizing helper so fonts, tables,
   dialogs, and fixed-format controls scale consistently after restart.
+- Added a checked `constraints.txt` release dependency set, constrained runtime
+  bootstrap installs, bundled the constraints file into PyInstaller output, and
+  exposed `release-smoke` to print the tested PySide6/psutil/maxminddb/
+  PyInstaller versions before shipping.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -104,6 +108,14 @@ All notable changes to HostsGuard are documented in this file.
   after the UI scale change.
 - Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
   artifact after the UI scale change.
+- Passed `py -3.12 -m pip install -r requirements.txt pyinstaller` using
+  `constraints.txt`.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 114 tests after adding
+  release constraint coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
+  `py -3.12 HostsGuard.py status`, and `py -3.12 HostsGuard.py release-smoke`.
+- Rebuilt the PyInstaller onedir artifact with `constraints.txt` bundled and
+  passed the frozen `release-smoke` process exit check.
 
 ## [v3.15.0] - 2026-07-02
 

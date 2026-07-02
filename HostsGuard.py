@@ -8,6 +8,7 @@ multiprocessing.freeze_support()
 
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac,shlex
 import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid,zipfile,platform
+import importlib.metadata as importlib_metadata
 from pathlib import Path
 from collections import OrderedDict,defaultdict
 from dataclasses import dataclass,field
@@ -60,10 +61,38 @@ def _kill_remnants():
             except: continue
     except: pass
 
-CLI_CMDS=('block','allow','unblock','status','export','help')
+CLI_CMDS=('block','allow','unblock','status','export','release-smoke','help')
+DEPENDENCY_PACKAGES=(('PySide6','PySide6'),('psutil','psutil'),('maxminddb','maxminddb'))
+CONSTRAINTS_FILENAME="constraints.txt"
 def _is_cli_invocation():
     args=[a for a in sys.argv[1:] if not a.startswith('--')]
     return bool(args and args[0] in CLI_CMDS)
+
+def _dependency_constraints_path():
+    try: return Path(__file__).resolve().parent / CONSTRAINTS_FILENAME
+    except Exception: return Path(CONSTRAINTS_FILENAME)
+
+def _pip_install_dependency(pkg,creationflags):
+    constraints=_dependency_constraints_path()
+    base=[sys.executable,'-m','pip','install','-q']
+    if constraints.exists(): base+=['-c',str(constraints)]
+    base.append(pkg)
+    attempts=[]
+    for extra in ([],['--user']):
+        cmd=base+extra
+        try:
+            r=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,**creationflags)
+        except Exception as e:
+            attempts.append((cmd,f"launch failed: {e}")); continue
+        if r.returncode==0: return True
+        detail=(r.stderr or r.stdout or f"exit {r.returncode}").strip()
+        attempts.append((cmd,detail[-1200:]))
+    print(f"Failed to install dependency {pkg}.")
+    if constraints.exists(): print(f"Constraint file: {constraints}")
+    for cmd,detail in attempts:
+        print(f"Command: {subprocess.list2cmdline(cmd)}")
+        if detail: print(detail)
+    return False
 
 def _bootstrap():
     is_cli=_is_cli_invocation()
@@ -88,12 +117,10 @@ def _bootstrap():
     if sys.version_info<(3,8): print("Python 3.8+ required"); sys.exit(1)
     if _is_frozen(): return
     _cf={'creationflags':NOWIN} if sys.platform=='win32' else {}
-    for pkg in ['PySide6','psutil','maxminddb']:
-        try: __import__(pkg)
+    for import_name,pkg in DEPENDENCY_PACKAGES:
+        try: __import__(import_name)
         except ImportError:
-            for f in [[],['--user']]:
-                try: subprocess.check_call([sys.executable,'-m','pip','install',pkg,'-q']+f,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,**_cf); break
-                except: continue
+            _pip_install_dependency(pkg,_cf)
 _bootstrap()
 
 import psutil
@@ -1284,7 +1311,11 @@ def _sqlite_integrity(conn):
         return r[0] if r else "unknown"
     except Exception as e: return f"error: {e}"
 
-def _module_version(name):
+def _module_version(name,dist_name=None):
+    try:
+        return importlib_metadata.version(dist_name or name)
+    except Exception:
+        pass
     try:
         m=__import__(name)
         return getattr(m,"__version__",getattr(m,"VERSION","installed"))
@@ -1295,10 +1326,10 @@ def _dependency_versions():
         ("python",sys.version.split()[0]),
         ("platform",platform.platform()),
         ("qt",qVersion() if "qVersion" in globals() else ""),
-        ("PySide6",_module_version("PySide6")),
-        ("psutil",_module_version("psutil")),
-        ("maxminddb",_module_version("maxminddb")),
-        ("PyInstaller",_module_version("PyInstaller")),
+        ("PySide6",_module_version("PySide6","PySide6")),
+        ("psutil",_module_version("psutil","psutil")),
+        ("maxminddb",_module_version("maxminddb","maxminddb")),
+        ("PyInstaller",_module_version("PyInstaller","pyinstaller")),
     ])
 
 def _tail_text(path,max_bytes=200_000):
@@ -5441,9 +5472,16 @@ def _cli(args):
             for r in db.get_domains(): print(f"{r[1]}\t{r[0]}\t{r[3] or ''}\t{r[8] or ''}")
         except (BrokenPipeError,OSError): pass  # piped into head/findstr that exited early
         return 0
+    elif cmd=='release-smoke':
+        constraints=_dependency_constraints_path()
+        print(f"{APP} v{VER}")
+        print(f"Constraints: {constraints if constraints.exists() else 'missing'}")
+        for name,version in _dependency_versions().items():
+            print(f"{name}: {version}")
+        return 0 if constraints.exists() else 1
     else:
         print(f"{APP} v{VER} - CLI")
-        print("Commands: block <domain>, allow <domain>, unblock <domain>, status, export")
+        print("Commands: block <domain>, allow <domain>, unblock <domain>, status, export, release-smoke")
         print("GUI: run without arguments"); return 0
 
 # ═════════════════════════════════════════════════════════════════════════════
