@@ -13,11 +13,16 @@
     <Deterministic>true</Deterministic>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Shared product version — single source of truth for every assembly.
-         0.3.0: Phase 2 UI parity (five-tab WPF shell, hosts/firewall/tools
-         views, confirm guardrails) + Phase 3 feature parity (blocklists,
-         allowlists, blocked services, DoH/DoT blocking, profiles, threat
-         intel, GeoIP, Defender, i18n) + the Python-profile migrator. -->
-    <Version>0.3.0</Version>
+         0.4.0: WFC-parity consent loop (Security 5157/5152 detection →
+         dedup/trust broker → top-most consent window → HG_ rule write, with
+         Normal/Notify/Learning modes, decision history, and posture safety
+         rails), Phase 2 residuals (backup restore, FW activity timeline, orphan
+         rebind, mode toggles), Phase 5 packaging (single-file publish, Inno
+         service installer, release-smoke, HostsGuard.Cli), and Phase 6
+         hardening (fuzz/property suite, security review with ProgramData ACL +
+         SSRF guard + posture-restore-on-stop, dependency CVE remediation,
+         observability event taxonomy, per-domain 24h sparkline). -->
+    <Version>0.4.0</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

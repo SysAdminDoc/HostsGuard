@@ -7,8 +7,8 @@
 ; Build: build\publish.ps1 first, then `iscc installer-dotnet.iss`.
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.3.0"
-#define MyAppVersionInfo "0.3.0.0"
+#define MyAppVersion "0.4.0"
+#define MyAppVersionInfo "0.4.0.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
