@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-HostsGuard v3.14.0 — Network Privacy Manager
+HostsGuard v3.14.1 — Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
-import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io
+import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html
 import tempfile,webbrowser,socket,datetime,logging,multiprocessing,ipaddress,uuid
 from pathlib import Path
 from collections import OrderedDict,defaultdict
@@ -103,7 +103,7 @@ with _warnings.catch_warnings():
         except Exception: pass
 
 # ─── Constants ──────────────────────────────────────────────────────────────
-APP="HostsGuard"; VER="3.14.0"; FW_PFX="HG_"
+APP="HostsGuard"; VER="3.14.1"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 _PORTABLE='--portable' in sys.argv
 if _PORTABLE:
@@ -269,8 +269,20 @@ def _dp(px):
     except: pass
     return px
 
+def _brand_mark(size=16):
+    l=QLabel()
+    try:
+        px=QPixmap(str(_branding_icon_path()))
+        if not px.isNull():
+            d=_dp(size); l.setPixmap(px.scaled(d,d,Qt.KeepAspectRatio,Qt.SmoothTransformation)); l.setFixedSize(d,d)
+            l.setAccessibleName(APP); return l
+    except Exception:
+        pass
+    l.setText(APP[:1]); l.setAccessibleName(APP)
+    return l
+
 STYLE=f"""
-*{{font-family:'Segoe UI Variable','Segoe UI','Inter',sans-serif;}}
+*{{font-family:'Segoe UI','Segoe UI Symbol','Arial',sans-serif;}}
 QMainWindow,QDialog{{background:{C['bg']};}}
 QWidget{{background:transparent;color:{C['text']};}}
 QPushButton{{background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};padding:7px 16px;border-radius:8px;font-weight:650;}}
@@ -306,25 +318,31 @@ QTableWidget::item{{padding:5px 10px;border:none;}}
 QTableWidget::item:hover{{background:rgba({_rgb(C['blue'])},0.06);}}
 QTableWidget::item:selected{{background:{C['sel']};}}
 QHeaderView{{background:transparent;}}
-QHeaderView::section{{background:{C['crust']};color:{C['sub']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba({_rgb(C['s1'])},0.2);padding:8px 12px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:0.8px;}}
+QHeaderView::section{{background:{C['crust']};color:{C['sub']};border:none;border-bottom:1px solid {C['s0']};border-right:1px solid rgba({_rgb(C['s1'])},0.2);padding:8px 12px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:0;}}
 QScrollBar:vertical{{background:transparent;width:10px;margin:4px 1px;}}QScrollBar::handle:vertical{{background:{C['s1']};border-radius:4px;min-height:40px;}}
 QScrollBar::handle:vertical:hover{{background:{C['s2']};}}QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}
 QScrollBar:horizontal{{background:transparent;height:10px;margin:1px 4px;}}QScrollBar::handle:horizontal{{background:{C['s1']};border-radius:4px;}}
 QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}
 QGroupBox{{border:1px solid {C['s0']};border-radius:12px;margin-top:1.5em;padding:16px 12px 12px;background:{C['mantle']};}}
 QGroupBox::title{{subcontrol-origin:margin;left:14px;padding:0 8px;color:{C['blue']};font-size:11px;font-weight:800;background:{C['base']};}}
-QProgressBar{{background:{C['s0']};border:none;border-radius:6px;text-align:center;color:#fff;font-weight:700;min-height:10px;}}
+QProgressBar{{background:{C['s0']};border:none;border-radius:6px;text-align:center;color:{C['onsel']};font-weight:700;min-height:10px;}}
 QProgressBar::chunk{{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {C['blue']},stop:1 {C['teal']});border-radius:6px;}}
-QCheckBox{{color:{C['text']};spacing:8px;}}
+QCheckBox{{color:{C['text']};spacing:8px;border:1px solid transparent;border-radius:6px;padding:2px;}}
 QCheckBox:hover{{color:{C['sub']};}}
-QCheckBox:focus{{color:{C['text']};}}
+QCheckBox:focus{{color:{C['text']};border-color:{C['focus']};}}
 QCheckBox::indicator{{width:18px;height:18px;border:2px solid {C['s1']};border-radius:4px;background:{C['mantle']};}}
 QCheckBox::indicator:hover{{border-color:{C['focus']};}}
 QCheckBox::indicator:checked{{background:{C['blue']};border-color:{C['blue']};}}
+QCheckBox::indicator:disabled{{background:{C['crust']};border-color:{C['s0']};}}
+QAbstractSpinBox{{background:{C['mantle']};color:{C['text']};border:1px solid {C['s0']};border-radius:8px;padding:6px 10px;selection-background-color:{C['blue']};selection-color:{C['onsel']};}}
+QAbstractSpinBox:hover{{border-color:{C['s1']};}}
+QAbstractSpinBox:focus{{border-color:{C['focus']};background:{C['base']};}}
+QAbstractSpinBox::up-button,QAbstractSpinBox::down-button{{background:{C['s0']};border:none;width:16px;}}
+QAbstractSpinBox::up-button:hover,QAbstractSpinBox::down-button:hover{{background:{C['s1']};}}
 QToolTip{{background:{C['s0']};color:{C['text']};border:1px solid {C['s1']};padding:6px 10px;border-radius:8px;}}
 QSplitter::handle{{background:{C['s0']};width:2px;}}QLabel{{color:{C['text']};background:transparent;}}
 QScrollArea{{background:transparent;border:none;}}
-QTableWidget:focus{{border:1px solid {C['blue']};}}
+QTableWidget:focus{{border:1px solid {C['focus']};}}
 QMessageBox{{background:{C['base']};}}
 QMessageBox QLabel{{color:{C['text']};font-size:12px;line-height:18px;}}
 QMessageBox QPushButton{{min-width:86px;min-height:28px;}}
@@ -1537,7 +1555,7 @@ class SigWorker(QThread):
                     # are otherwise treated as wildcards and fail to resolve.
                     ok,out=_ps(f"(Get-AuthenticodeSignature -LiteralPath {_ps_esc(path)}).Status",5)
                     status=out.strip() if ok else 'Unknown'
-                    label={'Valid':'✔','NotSigned':'✘','HashMismatch':'⚠'}.get(status,'?')
+                    label={'Valid':'Signed','NotSigned':'Unsigned','HashMismatch':'Changed'}.get(status,'Unknown')
                     sig_c.put(path,label); s.resolved.emit(path,label)
                 except Exception: sig_c.put(path,'?')
             except Empty: pass
@@ -1699,11 +1717,12 @@ class Splash(QWidget):
     def paintEvent(s,e):
         p=QPainter(s); p.setRenderHint(QPainter.Antialiasing)
         p.setBrush(QColor(C['base'])); p.setPen(QPen(QColor(C['s1']),1))
-        p.drawRoundedRect(s.rect().adjusted(1,1,-1,-1),16,16); p.end()
+        p.drawRoundedRect(s.rect().adjusted(1,1,-1,-1),_dp(12),_dp(12)); p.end()
     def setup(s):
         lo=QVBoxLayout(s); lo.setContentsMargins(30,24,30,20); lo.setSpacing(10)
-        t=QLabel(f"\u25C6  {APP}"); t.setFont(QFont("Segoe UI Variable Display",18,QFont.Bold))
-        t.setStyleSheet(f"color:{C['blue']};"); t.setAlignment(Qt.AlignCenter); lo.addWidget(t)
+        brand=QHBoxLayout(); brand.addStretch(); brand.addWidget(_brand_mark(28))
+        t=QLabel(APP); t.setFont(QFont("Segoe UI",18,QFont.Bold))
+        t.setStyleSheet(f"color:{C['blue']};"); brand.addWidget(t); brand.addStretch(); lo.addLayout(brand)
         s._step=QLabel("Initializing..."); s._step.setAlignment(Qt.AlignCenter)
         s._step.setStyleSheet(f"color:{C['sub']};font-size:11px;font-weight:600;"); lo.addWidget(s._step)
         s._bar=QProgressBar(); s._bar.setRange(0,100); s._bar.setValue(0); s._bar.setFixedHeight(10)
@@ -1775,7 +1794,8 @@ class MiniMonitor(QWidget):
         s.setAttribute(Qt.WA_TranslucentBackground)
         s.setFixedSize(_dp(190),_dp(74)); s._drag=None
         lo=QVBoxLayout(s); lo.setContentsMargins(_dp(12),_dp(8),_dp(12),_dp(8)); lo.setSpacing(_dp(2))
-        t=QLabel(f"◆ {APP}"); t.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:800;letter-spacing:0.5px;"); lo.addWidget(t)
+        tr=QHBoxLayout(); tr.setSpacing(_dp(6)); tr.addWidget(_brand_mark(14))
+        t=QLabel(APP); t.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:800;letter-spacing:0;"); tr.addWidget(t); tr.addStretch(); lo.addLayout(tr)
         bwr=QHBoxLayout(); bwr.setSpacing(_dp(8))
         s._up=QLabel("▲ --"); s._up.setStyleSheet(f"color:{C['blue']};font-size:{_dp(10)}px;font-weight:700;font-family:'Cascadia Code','Consolas',monospace;")
         s._dn=QLabel("▼ --"); s._dn.setStyleSheet(f"color:{C['teal']};font-size:{_dp(10)}px;font-weight:700;font-family:'Cascadia Code','Consolas',monospace;")
@@ -1805,10 +1825,11 @@ class MiniMonitor(QWidget):
 class Toast(QFrame):
     def __init__(s,text,color=C['blue'],parent=None):
         super().__init__(parent)
-        s.setFixedHeight(_dp(34)); s.setMinimumWidth(_dp(220)); s.setMaximumWidth(_dp(420))
+        s.setMinimumHeight(_dp(38)); s.setMinimumWidth(_dp(240)); s.setMaximumWidth(_dp(460))
+        s.setAccessibleName(text)
         s.setStyleSheet(f"QFrame{{background:{C['s0']};border:1px solid {color};border-radius:{_dp(8)}px;border-left:3px solid {color};}}")
-        lo=QHBoxLayout(s); lo.setContentsMargins(_dp(12),0,_dp(12),0)
-        lbl=QLabel(text); lbl.setStyleSheet(f"color:{C['text']};font-size:{_dp(11)}px;font-weight:600;"); lo.addWidget(lbl)
+        lo=QHBoxLayout(s); lo.setContentsMargins(_dp(12),_dp(8),_dp(12),_dp(8))
+        lbl=QLabel(text); lbl.setWordWrap(True); lbl.setStyleSheet(f"color:{C['text']};font-size:{_dp(11)}px;font-weight:600;"); lo.addWidget(lbl)
         s.setAttribute(Qt.WA_DeleteOnClose)
     def showEvent(s,e): super().showEvent(e); QTimer.singleShot(2500,s.close)
 
@@ -1838,48 +1859,68 @@ def _button_qss(cls,font_px=11,pad_x=8):
                 f"color:{C['onsel']};border:1px solid rgba({_rgb(C['blue'])},0.55);border-radius:{_dp(radius)}px;"
                 f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
                 f"QPushButton:hover{{background:{C['sky']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:pressed{{background:{C['blue']};padding-top:1px;}}"
                 f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
     if cls=="danger":
         return (f"QPushButton{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['red']},stop:1 {C['danger2']});"
                 f"color:{C['on_danger']};border:1px solid rgba({_rgb(C['red'])},0.55);border-radius:{_dp(radius)}px;"
                 f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
                 f"QPushButton:hover{{background:{C['danger_hover']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:pressed{{background:{C['danger2']};padding-top:1px;}}"
                 f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
     if cls=="success":
         return (f"QPushButton{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {C['green']},stop:1 {C['teal']});"
                 f"color:{C['onsel']};border:1px solid rgba({_rgb(C['green'])},0.55);border-radius:{_dp(radius)}px;"
                 f"font-size:{_dp(font_px)}px;font-weight:800;padding:0 {_dp(pad_x)}px;}}"
                 f"QPushButton:hover{{background:{C['green']};}}QPushButton:focus{{border:1px solid {C['focus']};}}"
+                f"QPushButton:pressed{{background:{C['teal']};padding-top:1px;}}"
                 f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
     return (f"QPushButton{{background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(radius)}px;"
             f"font-size:{_dp(font_px)}px;font-weight:700;padding:0 {_dp(pad_x)}px;}}"
             f"QPushButton:hover{{background:{C['s1']};color:{C['text']};border-color:{C['s2']};}}"
             f"QPushButton:focus{{border:1px solid {C['focus']};color:{C['text']};}}"
+            f"QPushButton:pressed{{background:{C['mantle']};padding-top:1px;}}"
             f"QPushButton:disabled{{background:{C['mantle']};color:{C['dim']};border-color:{C['s0']};}}")
+
+def _style_btn(b,cls="dim",font_px=11,pad_x=8):
+    b.setProperty("class",cls); b.setStyleSheet(_button_qss(cls,font_px,pad_x))
+    b.style().unpolish(b); b.style().polish(b)
+    return b
 
 def _btn(text,cls="dim",cb=None,tip=None):
     b=QPushButton(text); b.setProperty("class",cls); b.setCursor(Qt.PointingHandCursor)
     b.setFixedHeight(_dp(26)); b.setMinimumWidth(_dp(16))
     b.setSizePolicy(QSizePolicy.Preferred,QSizePolicy.Fixed)
-    b.setStyleSheet(_button_qss(cls,11,8))
+    _style_btn(b,cls,11,8)
     if cb: b.clicked.connect(cb)
     b.setAccessibleName(tip or text)
     if tip:
         b.setToolTip(tip); b.setAccessibleDescription(tip)
-    b.style().unpolish(b); b.style().polish(b)
     return b
 
 def _tbtn(text,cls="dim",cb=None,w=None,tip=None):
     b=QPushButton(text); b.setProperty("class",cls); b.setCursor(Qt.PointingHandCursor)
     b.setFixedHeight(_dp(30))
-    b.setStyleSheet(_button_qss(cls,10,10))
+    _style_btn(b,cls,10,10)
     if w: b.setFixedWidth(_dp(w))
     if cb: b.clicked.connect(cb)
-    b.setAccessibleName(text)
+    b.setAccessibleName(tip or text)
     if tip:
         b.setToolTip(tip); b.setAccessibleDescription(tip)
-    b.style().unpolish(b); b.style().polish(b)
     return b
+
+def _chrome_button(text,tip,width=None,cls="dim"):
+    b=QPushButton(text); b.setCursor(Qt.PointingHandCursor); b.setFixedHeight(_dp(26))
+    if width: b.setFixedWidth(_dp(width))
+    b.setAccessibleName(tip or text); b.setToolTip(tip)
+    _style_btn(b,cls,8,10)
+    return b
+
+def _set_chrome_button(b,text,cls="dim",tip=None):
+    b.setText(text)
+    if tip:
+        b.setToolTip(tip); b.setAccessibleDescription(tip); b.setAccessibleName(tip)
+    _style_btn(b,cls,8,10)
 
 class PremiumTableWidget(QTableWidget):
     """QTableWidget with a built-in theme-aware empty state."""
@@ -1887,15 +1928,18 @@ class PremiumTableWidget(QTableWidget):
         super().__init__(*args,**kwargs)
         s._empty_title="No rows to show"
         s._empty_detail="Adjust filters or refresh."
+        s._empty_icon="◇"
         s._loading=False
         s._empty=QLabel(s.viewport())
         s._empty.setAlignment(Qt.AlignCenter)
         s._empty.setWordWrap(True)
+        s._empty.setTextFormat(Qt.RichText)
         s._empty.setAttribute(Qt.WA_TransparentForMouseEvents,True)
-        s._empty.setStyleSheet(f"color:{C['dim']};font-size:{_dp(11)}px;font-weight:650;background:transparent;padding:{_dp(18)}px;")
+        s._empty.setAccessibleName("Empty table state")
+        s._empty.setStyleSheet(f"background:transparent;padding:{_dp(18)}px;")
         s._empty.hide()
-    def set_empty_state(s,title,detail=""):
-        s._empty_title=title; s._empty_detail=detail; s._sync_empty()
+    def set_empty_state(s,title,detail="",icon="◇"):
+        s._empty_title=title; s._empty_detail=detail; s._empty_icon=icon; s._sync_empty()
     def set_loading_state(s,on):
         s._loading=on; s._sync_empty()
     def setRowCount(s,rows):
@@ -1908,13 +1952,22 @@ class PremiumTableWidget(QTableWidget):
         s._empty.setGeometry(s.viewport().rect().adjusted(_dp(28),_dp(28),-_dp(28),-_dp(28)))
     def _sync_empty(s):
         s._place_empty()
-        detail=f"\n{s._empty_detail}" if s._empty_detail else ""
-        s._empty.setText(f"{s._empty_title}{detail}")
+        title=html.escape(s._empty_title)
+        detail=html.escape(s._empty_detail)
+        icon=html.escape(s._empty_icon)
+        detail_html=f"<div style='font-size:{_dp(10)}px;color:{C['dim']};font-weight:500;margin-top:4px;'>{detail}</div>" if detail else ""
+        s._empty.setText(
+            f"<div style='color:{C['dim']};'>"
+            f"<div style='font-size:{_dp(20)}px;color:{C['s2']};font-weight:800;'>{icon}</div>"
+            f"<div style='font-size:{_dp(12)}px;color:{C['sub']};font-weight:800;'>{title}</div>"
+            f"{detail_html}</div>"
+        )
         s._empty.setVisible(not s._loading and s.rowCount()==0)
 
 def _badge(text,color):
     l=QLabel(text); l.setAlignment(Qt.AlignCenter)
-    l.setStyleSheet(f"background:rgba({_rgb(color)},0.14);color:{color};font-size:{_dp(9)}px;font-weight:800;border:1px solid rgba({_rgb(color)},0.32);border-radius:{_dp(6)}px;padding:{_dp(2)}px {_dp(7)}px;letter-spacing:0.3px;")
+    l.setAccessibleName(text)
+    l.setStyleSheet(f"background:rgba({_rgb(color)},0.14);color:{color};font-size:{_dp(9)}px;font-weight:800;border:1px solid rgba({_rgb(color)},0.32);border-radius:{_dp(6)}px;padding:{_dp(2)}px {_dp(7)}px;letter-spacing:0;")
     return l
 def _row_tint():
     """Subtle blocked-row background that reads in both themes (was a fixed dark-red RGBA)."""
@@ -1930,11 +1983,10 @@ def _stat(label,value="0",color=C['blue'],icon=""):
     lo=QVBoxLayout(f); lo.setContentsMargins(_dp(14),_dp(8),_dp(14),_dp(8)); lo.setSpacing(_dp(1))
     top=QHBoxLayout(); top.setSpacing(_dp(4))
     v=QLabel(str(value)); v.setObjectName("val")
-    v.setStyleSheet(f"font-size:{_dp(24)}px;font-weight:800;color:{color};letter-spacing:-0.5px;font-family:'Segoe UI Variable Display','Segoe UI',sans-serif;")
+    v.setStyleSheet(f"font-size:{_dp(24)}px;font-weight:800;color:{color};letter-spacing:0;font-family:'Segoe UI','Arial',sans-serif;")
     top.addWidget(v); top.addStretch()
-    if icon: ic=QLabel(icon); ic.setStyleSheet(f"font-size:{_dp(14)}px;color:{color};"); top.addWidget(ic)
     lo.addLayout(top)
-    ll=QLabel(label.upper()); ll.setStyleSheet(f"font-size:{_dp(8)}px;color:{C['dim']};letter-spacing:1.2px;font-weight:700;")
+    ll=QLabel(label.upper()); ll.setStyleSheet(f"font-size:{_dp(8)}px;color:{C['dim']};letter-spacing:0;font-weight:700;")
     lo.addWidget(ll); return f
 
 def _sv(card,v): card.findChild(QLabel,"val").setText(str(v))
@@ -1947,8 +1999,49 @@ def _tbl(cols,stretch=0,row_h=32):
     t.setSelectionBehavior(QTableWidget.SelectRows); t.setSelectionMode(QTableWidget.ExtendedSelection)
     t.setIconSize(QSize(_dp(16),_dp(16))); t.verticalHeader().setDefaultSectionSize(_dp(row_h))
     t.setSortingEnabled(True); t.setContextMenuPolicy(Qt.CustomContextMenu)
-    t.set_empty_state("No rows to show","Adjust filters or refresh this view.")
+    t.set_empty_state("No rows to show","Adjust filters or refresh this view.","◇")
     return t
+
+def _confirm(parent,title,text,confirm="Continue",cancel="Cancel",danger=False,icon=QMessageBox.Warning):
+    mb=QMessageBox(parent)
+    mb.setIcon(icon); mb.setWindowTitle(title); mb.setText(text)
+    mb.setStandardButtons(QMessageBox.NoButton)
+    cancel_btn=mb.addButton(cancel,QMessageBox.RejectRole)
+    confirm_btn=mb.addButton(confirm,QMessageBox.AcceptRole)
+    _style_btn(cancel_btn,"dim",11,12)
+    _style_btn(confirm_btn,"danger" if danger else "primary",11,12)
+    mb.setDefaultButton(cancel_btn)
+    mb.setEscapeButton(cancel_btn)
+    mb.exec()
+    return mb.clickedButton()==confirm_btn
+
+class TextPromptDlg(QDialog):
+    def __init__(s,title,label,placeholder="",initial="",helper="",validator=None,parent=None,confirm="Apply"):
+        super().__init__(parent); s._validator=validator; s.value=""
+        s.setWindowTitle(title); s.setFixedWidth(_dp(460)); s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
+        lo=QVBoxLayout(s); lo.setContentsMargins(_dp(20),_dp(16),_dp(20),_dp(16)); lo.setSpacing(_dp(8))
+        hdr=QLabel(title); hdr.setStyleSheet(f"font-size:{_dp(16)}px;font-weight:850;color:{C['text']};"); lo.addWidget(hdr)
+        lab=QLabel(label); lab.setStyleSheet(f"color:{C['sub']};font-size:{_dp(10)}px;font-weight:700;"); lo.addWidget(lab)
+        s.edit=QLineEdit(initial); s.edit.setPlaceholderText(placeholder); s.edit.setAccessibleName(label)
+        s.edit.returnPressed.connect(s._try_accept); lo.addWidget(s.edit)
+        s.err=QLabel(helper); s.err.setWordWrap(True)
+        s.err.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;font-weight:650;"); lo.addWidget(s.err)
+        br=QHBoxLayout(); br.addStretch()
+        br.addWidget(_btn("Cancel","dim",s.reject))
+        br.addWidget(_btn(confirm,"primary",s._try_accept))
+        lo.addLayout(br)
+        QTimer.singleShot(0,s.edit.setFocus)
+    def _try_accept(s):
+        v=s.edit.text().strip()
+        err=s._validator(v) if s._validator else ""
+        if err:
+            s.err.setText(err); s.err.setStyleSheet(f"color:{C['peach']};font-size:{_dp(10)}px;font-weight:800;")
+            s.edit.setFocus(); return
+        s.value=v; s.accept()
+
+def _prompt_text(parent,title,label,placeholder="",initial="",helper="",validator=None,confirm="Apply"):
+    dlg=TextPromptDlg(title,label,placeholder,initial,helper,validator,parent,confirm)
+    return dlg.value if dlg.exec_()==QDialog.Accepted else None
 
 # ─── Scheduled Blocking Dialog ─────────────────────────────────────────────
 class ScheduleDlg(QDialog):
@@ -1963,7 +2056,7 @@ class ScheduleDlg(QDialog):
         desc=QLabel("Block a domain or service on a recurring weekly schedule. Windows may cross midnight.")
         desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
         s.tbl=_tbl(["Target","Days","Start","End"],0,row_h=26)
-        s.tbl.set_empty_state("No schedules yet","Add a recurring domain or service window below.")
+        s.tbl.set_empty_state("No schedules yet","Add a recurring domain or service window below.","□")
         s.tbl.setColumnWidth(1,_dp(150)); s.tbl.setColumnWidth(2,_dp(60)); s.tbl.setColumnWidth(3,_dp(60))
         s.tbl.setMaximumHeight(_dp(160)); lo.addWidget(s.tbl)
         # Editor row
@@ -2050,10 +2143,10 @@ class DNSInspectDlg(QDialog):
                         elif rtype==5: val=s._read_name(data,rdata_off)[0] or '(unresolved)'
                         else: val=rdata.hex()
                         lines.append(f"{label:6s}  {name:40s}  TTL={ttl:<6d}  {val}")
-            except Exception as e: lines.append(f"{label:6s}  Error: {e}")
+            except Exception as e: lines.append(f"{label:6s}  Lookup failed: {e}")
         latency=int((time.time()-t0)*1000)
         blocked='(BLOCKED by hosts)' if domain.lower() in (s.parent().db.get_blocked_set() if hasattr(s.parent(),'db') else set()) else ''
-        header=f"Query: {domain} {blocked}\nResolver latency: {latency}ms\n{'─'*60}\n"
+        header=f"Query: {domain} {blocked}\nResolver latency: {latency}ms\n{'-'*60}\n"
         ui_call(lambda:s._result.setPlainText(header+('\n'.join(lines) if lines else 'No records found')))
     @staticmethod
     def _dns_query(domain,qtype):
@@ -2109,7 +2202,7 @@ class DNSInspectDlg(QDialog):
 class ConnDetailDlg(QDialog):
     def __init__(s,ci,db,hm,learn,parent=None):
         super().__init__(parent); s.ci=ci; s.db=db; s.hm=hm; s.learn=learn; s.result_action=None
-        s.setWindowTitle(f"Connection: {ci.proc} \u2192 {ci.host if ci.host not in ('-','') else ci.ra}")
+        s.setWindowTitle(f"Connection: {ci.proc} -> {ci.host if ci.host not in ('-','') else ci.ra}")
         s.setFixedWidth(_dp(640)); s.setStyleSheet(f"QDialog{{background:{C['base']};}}")
         lo=QVBoxLayout(s); lo.setSpacing(_dp(10)); lo.setContentsMargins(_dp(20),_dp(14),_dp(20),_dp(14))
         hdr=QLabel(ci.proc); hdr.setStyleSheet(f"font-size:{_dp(16)}px;font-weight:800;color:{C['text']};"); lo.addWidget(hdr)
@@ -2121,7 +2214,7 @@ class ConnDetailDlg(QDialog):
             ("Hostname",ci.host if ci.host not in ('-','') else "(unresolved)",1,0),("Protocol",ci.proto,1,2),
             ("Direction",ci.dir,2,0),("State",ci.state,2,2),("Country",ci.country,3,0),("Category",ci.category or "Unknown",3,2)]
         for label,val,row,col in fields:
-            ll=QLabel(label); ll.setStyleSheet(f"color:{C['dim']};font-size:{_dp(8)}px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;")
+            ll=QLabel(label); ll.setStyleSheet(f"color:{C['dim']};font-size:{_dp(8)}px;font-weight:700;text-transform:uppercase;letter-spacing:0;")
             vl=QLabel(str(val)); vl.setStyleSheet(f"color:{C['text']};font-size:{_dp(11)}px;font-weight:600;"); vl.setTextInteractionFlags(Qt.TextSelectableByMouse)
             gl.addWidget(ll,row,col); gl.addWidget(vl,row,col+1)
         lo.addWidget(grid)
@@ -2154,7 +2247,7 @@ class ConnDetailDlg(QDialog):
         ll2.addWidget(_btn("Untrust","danger",lambda:s._do('untrust',ci.proc)))
         ll2.addWidget(_btn("Reset","dim",lambda:s._do('reset_trust',ci.proc)))
         ll2.addStretch(); lo.addWidget(lg)
-        br=QHBoxLayout(); br.addWidget(_btn("Research \u2192","dim",lambda:open_research(host_d or ci.ra)))
+        br=QHBoxLayout(); br.addWidget(_btn("Research Online","dim",lambda:open_research(host_d or ci.ra)))
         br.addWidget(_btn("Copy IP","dim",lambda:QApplication.clipboard().setText(ci.ra)))
         br.addStretch(); br.addWidget(_btn("Close","dim",lambda:s.reject())); lo.addLayout(br)
     def _do(s,a,t): s.result_action=(a,t); s.accept()
@@ -2225,15 +2318,18 @@ class LearnPopup(QDialog):
         s.setStyleSheet(f"QDialog{{background:{C['base']};border:1px solid {C['s1']};border-radius:{_dp(12)}px;}}")
         lo=QVBoxLayout(s); lo.setContentsMargins(_dp(16),_dp(10),_dp(16),_dp(10)); lo.setSpacing(_dp(6))
         hl=QHBoxLayout()
-        tag=QLabel("NEW CONNECTION"); tag.setStyleSheet(f"color:{C['peach']};font-size:{_dp(9)}px;font-weight:800;letter-spacing:1px;")
+        tag=QLabel("NEW CONNECTION"); tag.setStyleSheet(f"color:{C['peach']};font-size:{_dp(9)}px;font-weight:800;letter-spacing:0;")
         hl.addWidget(tag); hl.addStretch()
-        x=QPushButton("\u2715"); x.setFixedSize(_dp(20),_dp(20)); x.setCursor(Qt.PointingHandCursor)
-        x.setStyleSheet(f"background:transparent;color:{C['dim']};border:none;font-size:{_dp(12)}px;")
+        x=QPushButton("\u2715"); x.setFixedSize(_dp(24),_dp(24)); x.setCursor(Qt.PointingHandCursor)
+        x.setAccessibleName("Dismiss learning prompt"); x.setToolTip("Dismiss this prompt")
+        x.setStyleSheet(f"QPushButton{{background:transparent;color:{C['dim']};border:1px solid transparent;border-radius:{_dp(6)}px;font-size:{_dp(12)}px;}}"
+                        f"QPushButton:hover{{color:{C['text']};background:{C['s0']};}}"
+                        f"QPushButton:focus{{border-color:{C['focus']};color:{C['text']};}}")
         x.clicked.connect(s.close); hl.addWidget(x); lo.addLayout(hl)
         pl=QLabel(ci.proc); pl.setStyleSheet(f"font-size:{_dp(14)}px;font-weight:700;color:{C['text']};"); lo.addWidget(pl)
         dest=ci.host if ci.host not in ('-','','...') else ci.ra
         port_s=PORTS.get(int(ci.rp),ci.rp) if ci.rp.isdigit() else ci.rp
-        dl=QLabel(f"\u2192 {dest}:{port_s}"); dl.setStyleSheet(f"color:{C['sub']};font-size:{_dp(11)}px;"); lo.addWidget(dl)
+        dl=QLabel(f"-> {dest}:{port_s}"); dl.setStyleSheet(f"color:{C['sub']};font-size:{_dp(11)}px;"); lo.addWidget(dl)
         br=QHBoxLayout(); br.setSpacing(_dp(5))
         br.addWidget(_btn("Allow","success",lambda:s._a('trust'))); br.addWidget(_btn("Block","danger",lambda:s._a('untrust')))
         br.addWidget(_btn("Details","dim",lambda:s._a('details'))); br.addWidget(_btn("Ignore","dim",lambda:s.close()))
@@ -2273,7 +2369,7 @@ class HostsActivityTab(QWidget):
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         tb.addWidget(_tbtn("Scan","primary",s._scan,55)); lo.addLayout(tb)
         s.tbl=_tbl(["Domain","Status","Process","Hits","Last Seen"],0,row_h=30)
-        s.tbl.set_empty_state("No DNS activity shown","Start a scan, clear filters, or browse normally to populate this feed.")
+        s.tbl.set_empty_state("No DNS activity shown","Start a scan, clear filters, or browse normally to populate this feed.","◎")
         s.tbl.setAccessibleName("DNS activity table")
         s.tbl.setColumnWidth(1,_dp(90)); s.tbl.setColumnWidth(2,_dp(130)); s.tbl.setColumnWidth(3,_dp(50)); s.tbl.setColumnWidth(4,_dp(140))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
@@ -2284,7 +2380,9 @@ class HostsActivityTab(QWidget):
         ib.addStretch(); lo.addLayout(ib)
     def showEvent(s,e):
         super().showEvent(e)
-        if s._first_load: s._overlay.show_loading("Loading activity"); s._first_load=False
+        if s._first_load:
+            if s.tbl.rowCount()==0: s._overlay.show_loading("Loading activity")
+            s._first_load=False
     def set_monitor(s,mon): s._monitor=mon
     def _on_search(s): s._last_hash=0; s._refresh()
     def _scan(s):
@@ -2328,7 +2426,7 @@ class HostsActivityTab(QWidget):
                 it0.setToolTip(f"{'Blocked' if status=='blocked' else 'Allowed'} by: {source}")
             s.tbl.setItem(i,0,it0)
             hc={'blocked':C['red'],'whitelisted':C['green']}.get(status,C['dim'])
-            ht={'blocked':'BLOCKED','whitelisted':'ALLOWED'}.get(status,'\u2014')
+            ht={'blocked':'BLOCKED','whitelisted':'ALLOWED'}.get(status,'-')
             s.tbl.setCellWidget(i,1,_badge(ht,hc))
             s.tbl.setItem(i,2,QTableWidgetItem(proc or ""))
             s.tbl.setItem(i,3,_num_item(hits))
@@ -2373,7 +2471,7 @@ class HostsActivityTab(QWidget):
                 m.addAction(f"Hide root ({root})").triggered.connect(lambda:s._act_hide_root(d))
             m.addSeparator()
             m.addAction("DNS Inspect").triggered.connect(lambda:DNSInspectDlg(d,s).exec_())
-            m.addAction("Research \u2192").triggered.connect(lambda:open_research(d))
+            m.addAction("Research Online").triggered.connect(lambda:open_research(d))
             m.addAction("Copy").triggered.connect(lambda:QApplication.clipboard().setText(d))
         m.exec_(s.tbl.viewport().mapToGlobal(pos))
     def _dbl(s,idx):
@@ -2537,12 +2635,12 @@ class FWActivityTab(QWidget):
     def _build(s):
         lo=QVBoxLayout(s); lo.setContentsMargins(_dp(16),_dp(12),_dp(16),_dp(8)); lo.setSpacing(_dp(8))
         sr=QHBoxLayout(); sr.setSpacing(_dp(8))
-        s.c_live=_stat("Connections","0",C['sky'],"\u21C4"); s.c_fw=_stat("FW Rules","0",C['mauve'],"\u229B")
+        s.c_live=_stat("Connections","0",C['sky'],"\u21C4"); s.c_fw=_stat("Rules","0",C['mauve'],"\u229B")
         s.c_fwb=_stat("FW Blocked","0",C['red'],"\u2718"); s.c_procs=_stat("Processes","0",C['teal'],"\u25A3")
         for c in [s.c_live,s.c_fw,s.c_fwb,s.c_procs]: sr.addWidget(c)
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.search=QLineEdit(); s.search.setPlaceholderText("Search host, IP, process, or category...")
+        s.search=QLineEdit(); s.search.setPlaceholderText("Search live connections...")
         s.search.setAccessibleName("Search live connections")
         s.search.setFixedHeight(_dp(30)); s.search.setClearButtonEnabled(True)
         s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
@@ -2553,10 +2651,10 @@ class FWActivityTab(QWidget):
         s.filt.currentIndexChanged.connect(s._on_search); tb.addWidget(s.filt)
         lo.addLayout(tb)
         s.tbl=_tbl(["Host / IP","Process","Port","FW Status","Country","Category"],0,row_h=30)
-        s.tbl.set_empty_state("No live connections shown","Connection monitoring starts automatically. Clear filters if traffic is active.")
+        s.tbl.set_empty_state("No live connections shown","Connection monitoring starts automatically. Clear filters if traffic is active.","⇄")
         s.tbl.setAccessibleName("Live connections table")
-        s.tbl.setColumnWidth(1,_dp(130)); s.tbl.setColumnWidth(2,_dp(55)); s.tbl.setColumnWidth(3,_dp(90))
-        s.tbl.setColumnWidth(4,_dp(55)); s.tbl.setColumnWidth(5,_dp(100))
+        s.tbl.setColumnWidth(1,_dp(150)); s.tbl.setColumnWidth(2,_dp(64)); s.tbl.setColumnWidth(3,_dp(104))
+        s.tbl.setColumnWidth(4,_dp(72)); s.tbl.setColumnWidth(5,_dp(120))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
         lo.addWidget(s.tbl,1)
         s._overlay=LoadingOverlay(s.tbl)
@@ -2566,17 +2664,19 @@ class FWActivityTab(QWidget):
         ib.addStretch()
         s.lock_cb=QCheckBox("Lockdown"); s.lock_cb.setChecked(load_cfg().get('lockdown',False))
         s.lock_cb.toggled.connect(s._toggle_lockdown)
-        s.lock_cb.setToolTip("Block all outbound — whitelist programs via right-click"); ib.addWidget(s.lock_cb)
+        s.lock_cb.setToolTip("Block all outbound - whitelist programs via right-click"); ib.addWidget(s.lock_cb)
         s.obs_cb=QCheckBox("Observe"); s.obs_cb.setChecked(s.learn.observe)
         s.obs_cb.toggled.connect(lambda v:s.learn.set_observe(v))
-        s.obs_cb.setToolTip("Allow all, log silently — review and create rules later"); ib.addWidget(s.obs_cb)
+        s.obs_cb.setToolTip("Allow all, log silently - review and create rules later"); ib.addWidget(s.obs_cb)
         s.learn_cb=QCheckBox("Learning"); s.learn_cb.setChecked(s.learn.enabled)
         s.learn_cb.toggled.connect(lambda v:s.learn.set_enabled(v))
         s.learn_cb.setToolTip("Prompt when new processes connect"); ib.addWidget(s.learn_cb)
         lo.addLayout(ib)
     def showEvent(s,e):
         super().showEvent(e)
-        if s._first_load: s._overlay.show_loading("Waiting for connections"); s._first_load=False
+        if s._first_load:
+            if s.tbl.rowCount()==0: s._overlay.show_loading("Waiting for connections")
+            s._first_load=False
     def _on_search(s): s._last_hash=0; s._refresh()
     def _auto_refresh(s): s._refresh()
     def _rebuild_fw_cache(s):
@@ -2619,7 +2719,7 @@ class FWActivityTab(QWidget):
         for i,c in enumerate(conns):
             host=c.host if c.host not in ('-','') else c.ra
             _icon_item(s.tbl,i,0,host,c.host if c.host not in ('-','') else None)
-            proc_label=f"{c.sig} {c.proc} ({c.pid})" if c.sig else f"{c.proc} ({c.pid})"
+            proc_label=f"{c.sig} - {c.proc} ({c.pid})" if c.sig else f"{c.proc} ({c.pid})"
             pi=QTableWidgetItem(proc_label)
             if c.pproc: pi.setToolTip(f"Parent: {c.pproc} (PID {c.ppid})")
             s.tbl.setItem(i,1,pi)
@@ -2632,7 +2732,7 @@ class FWActivityTab(QWidget):
             if t_ip or t_dom: s.tbl.setCellWidget(i,3,_badge("THREAT",C['peach']))
             elif f_blocked: s.tbl.setCellWidget(i,3,_badge("FW BLOCK",C['mauve']))
             elif h_blocked: s.tbl.setCellWidget(i,3,_badge("HOSTS",C['red']))
-            else: s.tbl.setCellWidget(i,3,_badge("\u2014",C['dim']))
+            else: s.tbl.setCellWidget(i,3,_badge("-",C['dim']))
             s.tbl.setItem(i,4,QTableWidgetItem(c.cc or ""))
             s.tbl.setItem(i,5,QTableWidgetItem(c.category))
             if f_blocked or h_blocked:
@@ -2695,7 +2795,7 @@ class FWActivityTab(QWidget):
             fm.addAction(f"Block {c.proc} Out").triggered.connect(lambda:s._fw_prog(c.path))
             fm.addAction(f"Block {c.proc} In+Out").triggered.connect(lambda:s._fw_prog_both(c.path))
             fm.addAction(f"Allow {c.proc} Out").triggered.connect(lambda:s._fw_allow_prog(c.path))
-        fm.addAction("Custom Rule \u2192").triggered.connect(lambda:s._fw_custom(c))
+        fm.addAction("Custom Rule...").triggered.connect(lambda:s._fw_custom(c))
         if c.host not in ('-','','...') and c.proc not in ('?','System'):
             pm=m.addMenu("Per-Process Rules"); pm.setStyleSheet(CTX)
             pm.addAction(f"Block {c.host} for {c.proc}").triggered.connect(lambda:(s.db.add_proc_rule(c.proc,c.host,'block'),s._toast(f"Blocked {c.host} for {c.proc}",C['red'])))
@@ -2706,7 +2806,7 @@ class FWActivityTab(QWidget):
         m.addSeparator()
         if c.pid>0: m.addAction(f"Kill (PID {c.pid})").triggered.connect(lambda:s._kill(c.pid,c.proc))
         if c.host not in ('-','','...'): m.addAction("DNS Inspect").triggered.connect(lambda:DNSInspectDlg(c.host,s).exec_())
-        m.addAction("Research \u2192").triggered.connect(lambda:open_research(c.host if c.host not in ('-','') else c.ra))
+        m.addAction("Research Online").triggered.connect(lambda:open_research(c.host if c.host not in ('-','') else c.ra))
         m.addAction("Copy IP").triggered.connect(lambda:QApplication.clipboard().setText(c.ra))
         m.exec_(s.tbl.viewport().mapToGlobal(pos))
     def _dbl(s,idx):
@@ -2736,16 +2836,16 @@ class FWActivityTab(QWidget):
     # Actions — Firewall
     def _fw_ip(s,ip):
         n=fw.block_ip(ip); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
-        s._toast(f"FW blocked {ip} out" if n else "Exists",C['red'] if n else C['dim'])
+        s._toast(f"Firewall blocked {ip} outbound" if n else "Rule already exists",C['red'] if n else C['dim'])
     def _fw_ip_both(s,ip):
         created=fw.block_ip_both(ip); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
-        s._toast(f"Blocked {ip} in+out ({len(created)} rules)" if created else "Exists",C['red'] if created else C['dim'])
+        s._toast(f"Blocked {ip} in+out ({len(created)} rules)" if created else "Rules already exist",C['red'] if created else C['dim'])
     def _fw_prog(s,path):
         n=fw.block_program(path); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
-        s._toast(f"FW blocked {Path(path).name} out" if n else "Exists",C['red'] if n else C['dim'])
+        s._toast(f"Firewall blocked {Path(path).name} outbound" if n else "Rule already exists",C['red'] if n else C['dim'])
     def _fw_prog_both(s,path):
         created=fw.block_program_both(path); s._rebuild_fw_cache(); s._last_hash=0; s._refresh()
-        s._toast(f"Blocked {Path(path).name} in+out ({len(created)} rules)" if created else "Exists",C['red'] if created else C['dim'])
+        s._toast(f"Blocked {Path(path).name} in+out ({len(created)} rules)" if created else "Rules already exist",C['red'] if created else C['dim'])
     def _fw_allow_prog(s,path):
         name=f"{FW_PFX}Allow_{Path(path).stem}"
         if not fw.exists(name):
@@ -2766,7 +2866,7 @@ class FWActivityTab(QWidget):
             ok,_=_ps(f'Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultOutboundAction {action}',10)
             if ok:
                 cfg=load_cfg(); cfg['lockdown']=on; save_cfg(cfg)
-                msg=f"Lockdown {'ON — all outbound blocked' if on else 'OFF — outbound allowed'}"
+                msg=f"Lockdown {'ON - all outbound blocked' if on else 'OFF - outbound allowed'}"
                 ui_call(lambda:s._toast(msg,C['red'] if on else C['green']))
             else:
                 # Don't pretend: revert the checkbox and say the policy change failed.
@@ -2800,10 +2900,10 @@ class HostsTab(QWidget):
         s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.setAccessibleName("Filter managed domains by status"); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
         s.d_src=QComboBox(); s.d_src.addItem("All Sources"); s.d_src.setAccessibleName("Filter managed domains by source"); s.d_src.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_src)
         tr.addWidget(_tbtn("Refresh","dim",s._sync_and_load,65))
-        tr.addWidget(_tbtn("+ Add","primary",s._add,60)); tr.addWidget(_tbtn("Sync > Hosts","dim",s._sync,100))
+        tr.addWidget(_tbtn("Add Domain","primary",s._add,88)); tr.addWidget(_tbtn("Sync to Hosts","dim",s._sync,105))
         dl.addLayout(tr)
         s.d_tbl=_tbl(["Domain","Status","Source","Hits","Modified"],0)
-        s.d_tbl.set_empty_state("No managed domains","Add a domain, import a list, or sync the hosts file to build a policy.")
+        s.d_tbl.set_empty_state("No managed domains","Add a domain, import a list, or sync the hosts file to build a policy.","◆")
         s.d_tbl.setAccessibleName("Managed domains table")
         s.d_tbl.setColumnWidth(1,_dp(85)); s.d_tbl.setColumnWidth(2,_dp(90)); s.d_tbl.setColumnWidth(3,_dp(50)); s.d_tbl.setColumnWidth(4,_dp(140))
         s.d_tbl.customContextMenuRequested.connect(s._d_ctx); dl.addWidget(s.d_tbl,1)
@@ -2829,8 +2929,8 @@ class HostsTab(QWidget):
         bd=QLabel("Import community blocklists. Each adds 0.0.0.0 entries for ad/tracking/malware domains.")
         bd.setWordWrap(True); bd.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); bl.addWidget(bd)
         btb=QHBoxLayout(); btb.setSpacing(_dp(5))
-        btb.addWidget(_tbtn("Import Selected","primary",s._imp_sel,115)); btb.addWidget(_tbtn("All","dim",s._sel_all,40))
-        btb.addWidget(_tbtn("None","dim",s._clr_all,45)); btb.addStretch()
+        btb.addWidget(_tbtn("Import Selected","primary",s._imp_sel,115)); btb.addWidget(_tbtn("Select All","dim",s._sel_all,76))
+        btb.addWidget(_tbtn("Clear","dim",s._clr_all,56)); btb.addStretch()
         s.bl_prog=QProgressBar(); s.bl_prog.setFixedHeight(_dp(8)); s.bl_prog.setVisible(False); btb.addWidget(s.bl_prog,1)
         s.bl_st=QLabel(""); s.bl_st.setStyleSheet(f"color:{C['sub']};font-size:{_dp(10)}px;"); btb.addWidget(s.bl_st)
         bl.addLayout(btb)
@@ -2838,7 +2938,7 @@ class HostsTab(QWidget):
         inner=QWidget(); s._slo=QVBoxLayout(inner); s._slo.setContentsMargins(0,0,0,0); s._slo.setSpacing(_dp(2))
         s._chk={}
         for cat,sources in SOURCES.items():
-            lbl=QLabel(cat.upper()); lbl.setStyleSheet(f"color:{C['blue']};font-size:{_dp(10)}px;font-weight:800;letter-spacing:1.5px;padding:{_dp(6)}px 0 {_dp(2)}px {_dp(4)}px;")
+            lbl=QLabel(cat.upper()); lbl.setStyleSheet(f"color:{C['blue']};font-size:{_dp(10)}px;font-weight:800;letter-spacing:0;padding:{_dp(6)}px 0 {_dp(2)}px {_dp(4)}px;")
             s._slo.addWidget(lbl)
             for name,url in sources:
                 row=QWidget(); rl=QHBoxLayout(row); rl.setContentsMargins(_dp(4),0,_dp(4),0); rl.setSpacing(_dp(6))
@@ -2850,7 +2950,7 @@ class HostsTab(QWidget):
         scroll.setWidget(inner); bl.addWidget(scroll,1)
         mg=QGroupBox("Paste Domains"); mgl=QVBoxLayout(mg)
         s.paste=QPlainTextEdit(); s.paste.setPlaceholderText("Paste domains, one per line"); s.paste.setAccessibleName("Paste domains"); s.paste.setMaximumHeight(_dp(60)); mgl.addWidget(s.paste)
-        mr=QHBoxLayout(); mr.addWidget(_tbtn("Add to Hosts","primary",s._paste_h,100)); mr.addWidget(_tbtn("DB Only","dim",s._paste_db,70)); mr.addStretch()
+        mr=QHBoxLayout(); mr.addWidget(_tbtn("Add to Hosts","primary",s._paste_h,100)); mr.addWidget(_tbtn("Database Only","dim",s._paste_db,105)); mr.addStretch()
         mgl.addLayout(mr); bl.addWidget(mg)
         sg=QGroupBox("Auto-Refresh"); sgl=QVBoxLayout(sg)
         sr=QHBoxLayout(); sr.setSpacing(_dp(5))
@@ -2955,7 +3055,7 @@ class HostsTab(QWidget):
                 sm=m.addMenu(f"Source: {src_val[:20]}"); sm.setStyleSheet(CTX)
                 sm.addAction("Allow all from this source").triggered.connect(lambda:s._toggle_src(src_val,'whitelisted'))
                 sm.addAction("Block all from this source").triggered.connect(lambda:s._toggle_src(src_val,'blocked'))
-            m.addSeparator(); m.addAction("Research \u2192").triggered.connect(lambda:open_research(d))
+            m.addSeparator(); m.addAction("Research Online").triggered.connect(lambda:open_research(d))
             m.addAction("Copy").triggered.connect(lambda:QApplication.clipboard().setText(d))
         m.exec_(s.d_tbl.viewport().mapToGlobal(pos))
 
@@ -3001,9 +3101,12 @@ class HostsTab(QWidget):
         s.hm._flush(); s._load_d()
         s._toast(f"{'Blocked' if new_status=='blocked' else 'Allowed'} all from {source}",C['red'] if new_status=='blocked' else C['green'])
     def _add(s):
-        d,ok=QInputDialog.getText(s,"Block Domain","Domain to block:"); d=d.strip().lower()
-        if ok and d:
-            if not looks_like_domain(d): s._toast(f"Invalid: {d}",C['peach']); return
+        d=_prompt_text(s,"Block Domain","Domain","example.com",
+            helper="Enter a domain such as example.com. HostsGuard will add a 0.0.0.0 hosts entry.",
+            validator=lambda v: "" if looks_like_domain(v.lower()) else "Enter a valid domain, such as example.com.",
+            confirm="Block Domain")
+        if d:
+            d=d.lower()
             s.db.add_domain(d,'blocked','manual'); s.hm.block(d); s._load_d(); s._toast(f"Blocked {d}",C['red'])
     def _sync(s):
         blocked=s.db.get_domains(status='blocked')
@@ -3027,7 +3130,7 @@ class HostsTab(QWidget):
         for r in blocked: hg_lines.append(f"0.0.0.0 {r[0]}\n")
         text=''.join(preserved).rstrip('\n')+'\n'+'\n'.join(hg_lines)
         err=s.hm.save_raw(text)
-        s._toast(f"Synced {len(blocked)} domains (preserved existing)" if not err else f"Error: {err}",C['green'] if not err else C['red'])
+        s._toast(f"Synced {len(blocked)} domains to hosts file" if not err else f"Sync failed: {err}",C['green'] if not err else C['red'])
     def _reload(s):
         """Reload editor from hosts file. Always does a fresh read."""
         s.hm.read(); s._update_editor()
@@ -3038,29 +3141,29 @@ class HostsTab(QWidget):
         s.e_info.setText(f"{len(lines)} lines \u00B7 {active} entries")
     def _save(s):
         err=s.hm.save_raw(s.editor.toPlainText())
-        if err: s._toast(f"Error: {err}",C['red']); return
-        s._toast("Saved",C['green'])
+        if err: s._toast(f"Save failed: {err}",C['red']); return
+        s._toast("Hosts file saved",C['green'])
         # save_raw already re-read the file, just update editor from memory
         s._update_editor()
         # Sync to DB in background so Managed Domains reflects the save
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
     def _clean(s):
         result=s.hm.save_clean()
-        if result[1]: s._toast(f"Error: {result[1]}",C['red']); return
+        if result[1]: s._toast(f"Clean failed: {result[1]}",C['red']); return
         st=result[0]
         s._toast(f"Cleaned: {st['active']} active",C['green'])
         s._update_editor()
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
     def _backup(s):
-        p=s.hm.backup(); s._toast(f"Backed up: {Path(p).name}" if p else "Failed",C['green'] if p else C['red'])
+        p=s.hm.backup(); s._toast(f"Backed up: {Path(p).name}" if p else "Backup failed",C['green'] if p else C['red'])
     def _restore(s):
-        if s.hm.restore(): s._toast("Restored",C['green']); s._reload()
-        else: s._toast("No backup",C['peach'])
+        if s.hm.restore(): s._toast("Restored latest hosts backup",C['green']); s._reload()
+        else: s._toast("No hosts backup found",C['peach'])
     def _unlock(s):
-        if QMessageBox.question(s,"Reset hosts file",
+        if not _confirm(s,"Reset hosts file",
             "Reset the hosts file to the Windows default template?\n\n"
             "HostsGuard creates a backup first, then removes current custom hosts entries.",
-            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            "Reset Hosts File","Cancel",danger=True):
             return
         if s.hm.emergency_unlock(): s._toast("Reset to defaults",C['green']); s._reload()
     # Blocklists
@@ -3070,7 +3173,7 @@ class HostsTab(QWidget):
         for cb,_,_ in s._chk.values(): cb.setChecked(False)
     def _imp_sel(s):
         sel=[(n,u) for n,(cb,u,_) in s._chk.items() if cb.isChecked()]
-        if not sel: s._toast("Select sources",C['peach']); return
+        if not sel: s._toast("Select at least one blocklist",C['peach']); return
         s._run_imp(sel)
     def _imp_one(s,n,u): s._run_imp([(n,u)])
     def _run_imp(s,sources):
@@ -3080,29 +3183,29 @@ class HostsTab(QWidget):
             s._toast("An import is already running",C['peach']); return
         warn=[n for n,_ in sources if n in _DEFENDER_WARN]
         if warn:
-            r=QMessageBox.warning(s,"Windows Defender Warning",
+            if not _confirm(s,"Windows Defender Warning",
                 f"These lists block Microsoft telemetry domains:\n{', '.join(warn)}\n\n"
                 "Windows Defender may flag your hosts file as "
                 "'SettingsModifier:Win32/HostsFileHijack' (Severe).\n\n"
                 "To prevent this, add the hosts file path to Defender exclusions:\n"
-                "Settings → Virus & Threat Protection → Exclusions → Add\n"
+                "Settings > Virus & threat protection > Exclusions > Add\n"
                 f"Path: {HOSTS_PATH}\n\nContinue importing?",
-                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if r!=QMessageBox.Yes: return
+                "Continue Import","Cancel"):
+                return
         # Warn if importing a very large list, or if the hosts file is already large.
         big=[n for n,_ in sources if n in _LARGE_LISTS]
         cur=len(s.hm.get_blocked())
         if big or cur>=LARGE_HOSTS_WARN:
             reason=(f"selected lists ({', '.join(big)}) each add 100k+ domains" if big
                     else f"your hosts file already has {cur:,} entries")
-            r=QMessageBox.warning(s,"Large hosts file",
-                f"Heads up — {reason}.\n\n"
+            if not _confirm(s,"Large hosts file",
+                f"Heads up - {reason}.\n\n"
                 "A very large hosts file (100k+ entries) can make the Windows DNS "
                 "Client (svchost) spike CPU and slow name resolution. For blocking at "
                 "this scale, firewall IP rules or a network-wide DNS blocker are lighter.\n\n"
                 "Continue importing?",
-                QMessageBox.Yes|QMessageBox.No,QMessageBox.No)
-            if r!=QMessageBox.Yes: return
+                "Import Anyway","Cancel"):
+                return
         s._importing=True
         s.bl_prog.setVisible(True); s.bl_prog.setRange(0,len(sources)); s.bl_prog.setValue(0)
         s._iq=list(sources); s._ii=0; s._it=0; s._do_next()
@@ -3114,19 +3217,19 @@ class HostsTab(QWidget):
             s._toast(f"Imported {s._it} from {len(s._iq)} sources",C['green']); s._sync_and_load()
             total=len(s.hm.get_blocked())
             if total>=LARGE_HOSTS_WARN:
-                s._toast(f"Hosts file now {total:,} entries — watch DNS Client CPU",C['peach'])
+                s._toast(f"Hosts file now {total:,} entries - watch DNS Client CPU",C['peach'])
             return
         name,url=s._iq[s._ii]; s.bl_st.setText(f"{name}...")
-        if name in s._chk: s._chk[name][2].setText("\u2026")
+        if name in s._chk: s._chk[name][2].setText("...")
         s._cw=ImpWorker(name,url,s.hm,s.db); s._cw.done.connect(s._on_imp); s._cw.start()
     def _on_imp(s,name,ct,total,err):
         if name in s._chk:
             if err:
-                s._chk[name][2].setText("\u2717")
+                s._chk[name][2].setText("ERR")
                 s._chk[name][2].setStyleSheet(f"color:{C['red']};font-size:{_dp(10)}px;min-width:{_dp(45)}px;")
             else:
                 existing=total-ct
-                lbl=f"\u2713 +{ct}" if ct else f"\u2713 {total}"
+                lbl=f"OK +{ct}" if ct else f"OK {total}"
                 if existing>0 and ct>0: lbl+=f" ({existing} dup)"
                 s._chk[name][2].setText(lbl)
                 s._chk[name][2].setStyleSheet(f"color:{C['green']};font-size:{_dp(10)}px;min-width:{_dp(45)}px;")
@@ -3154,11 +3257,11 @@ class HostsTab(QWidget):
         urls=[u.strip() for u in s.allow_urls.toPlainText().splitlines() if u.strip().startswith(('http://','https://'))]
         cfg=load_cfg(); cfg['allowlist_subscriptions']=urls; save_cfg(cfg)
         if not urls: s.allow_st.setText("No allowlist URLs"); return
-        s.allow_st.setText("Applying…")
+        s.allow_st.setText("Applying...")
         s._aw=AllowWorker(urls,s.hm,s.db); s._aw.done.connect(s._on_allow); s._aw.start()
     def _on_allow(s,count,err):
-        if err: s.allow_st.setText("✗ "+err); s._toast(f"Allowlist error: {err}",C['red']); return
-        s.allow_st.setText(f"✓ {count} allowed")
+        if err: s.allow_st.setText("Couldn't apply allowlist: "+err); s._toast(f"Allowlist failed: {err}",C['red']); return
+        s.allow_st.setText(f"Applied {count} allowed domains")
         s._toast(f"Allowlisted {count} domains",C['green']); s._load_d()
     def _reapply_db_allowlist(s):
         """Remove any currently-blocked hosts entry whose DB status is whitelisted —
@@ -3225,7 +3328,7 @@ class FirewallTab(QWidget):
         s.fw_s=QLineEdit(); s.fw_s.setPlaceholderText("Search rule name, program, or remote address..."); s.fw_s.setFixedHeight(_dp(30))
         s.fw_s.setAccessibleName("Search firewall rules"); s.fw_s.setClearButtonEnabled(True)
         s.fw_s.textChanged.connect(s._apply); tb.addWidget(s.fw_s,1)
-        s.fw_f=QComboBox(); s.fw_f.addItems(["All","HG Only","Block","Allow","Inbound","Outbound"])
+        s.fw_f=QComboBox(); s.fw_f.addItems(["All","HostsGuard Only","Block","Allow","Inbound","Outbound"])
         s.fw_f.setAccessibleName("Filter firewall rules")
         s.fw_f.currentIndexChanged.connect(s._apply); tb.addWidget(s.fw_f)
         tb.addWidget(_tbtn("\u21BB Refresh","primary",s._refresh,75))
@@ -3237,12 +3340,12 @@ class FirewallTab(QWidget):
         qa.addWidget(_tbtn("Enable Profiles","dim",s._profiles,110))
         qa.addWidget(_tbtn("Save Baseline","dim",s._save_baseline,95))
         qa.addWidget(_tbtn("Show Drift","dim",s._show_drift,80)); qa.addStretch()
-        qa.addWidget(_tbtn("Delete All HG","danger",s._del_all_hg,115)); lo.addLayout(qa)
-        s.tbl=_tbl(["","Name","Dir","Action","Proto","Remote","Program","Src"],1,row_h=28)
-        s.tbl.set_empty_state("No firewall rules shown","Refresh rules or clear the current search/filter.")
+        qa.addWidget(_tbtn("Delete HG Rules","danger",s._del_all_hg,115)); lo.addLayout(qa)
+        s.tbl=_tbl(["On","Name","Dir","Action","Proto","Remote","Program","Src"],1,row_h=28)
+        s.tbl.set_empty_state("No firewall rules shown","Refresh rules or clear the current search/filter.","⊙")
         s.tbl.setAccessibleName("Firewall rules table")
-        s.tbl.setColumnWidth(0,_dp(28)); s.tbl.setColumnWidth(2,_dp(38)); s.tbl.setColumnWidth(3,_dp(48))
-        s.tbl.setColumnWidth(4,_dp(50)); s.tbl.setColumnWidth(5,_dp(135)); s.tbl.setColumnWidth(6,_dp(135)); s.tbl.setColumnWidth(7,_dp(65))
+        s.tbl.setColumnWidth(0,_dp(46)); s.tbl.setColumnWidth(2,_dp(56)); s.tbl.setColumnWidth(3,_dp(72))
+        s.tbl.setColumnWidth(4,_dp(70)); s.tbl.setColumnWidth(5,_dp(150)); s.tbl.setColumnWidth(6,_dp(170)); s.tbl.setColumnWidth(7,_dp(78))
         s.tbl.customContextMenuRequested.connect(s._ctx); s.tbl.doubleClicked.connect(s._dbl)
         lo.addWidget(s.tbl,1)
         bi=QHBoxLayout()
@@ -3268,19 +3371,19 @@ class FirewallTab(QWidget):
     def _load_prof(s):
         profs=fw.get_profiles()
         parts=[f"{n}: {'ON' if e else 'OFF'}" for n,e in profs.items()]
-        ui_call(lambda:s.prof.setText("Profiles: "+' \u00B7 '.join(parts)))
+        ui_call(lambda:s.prof.setText("Profiles: "+' | '.join(parts)))
     def _apply(s):
         try:
             q=s.fw_s.text().strip().lower(); f=s.fw_f.currentText(); rules=list(s._rules)
             if q: rules=[r for r in rules if q in (r.name or "").lower() or q in (r.program or "").lower() or q in (r.remote_addr or "").lower()]
-            if "HG" in f: rules=[r for r in rules if r.source=="hostsguard"]
+            if f=="HostsGuard Only": rules=[r for r in rules if r.source=="hostsguard"]
             elif f=="Block": rules=[r for r in rules if r.action=="Block"]
             elif f=="Allow": rules=[r for r in rules if r.action=="Allow"]
             elif f=="Inbound": rules=[r for r in rules if r.direction=="In"]
             elif f=="Outbound": rules=[r for r in rules if r.direction=="Out"]
             s.tbl.setSortingEnabled(False); s.tbl.setRowCount(len(rules))
             for i,r in enumerate(rules):
-                ei=QTableWidgetItem("\u2713" if r.enabled else "\u2717"); ei.setForeground(QColor(C['green'] if r.enabled else C['red'])); s.tbl.setItem(i,0,ei)
+                ei=QTableWidgetItem("On" if r.enabled else "Off"); ei.setForeground(QColor(C['green'] if r.enabled else C['red'])); s.tbl.setItem(i,0,ei)
                 ni=QTableWidgetItem(r.name or "")
                 if r.source=="hostsguard": ni.setForeground(QColor(C['blue']))
                 s.tbl.setItem(i,1,ni)
@@ -3291,17 +3394,17 @@ class FirewallTab(QWidget):
                 try: prog=Path(r.program).name if r.program else ""
                 except: prog=r.program or ""
                 orphan=s._is_orphan(r)
-                pit=QTableWidgetItem((prog+"  \u26A0") if orphan else prog)
+                pit=QTableWidgetItem((prog+" (orphaned)") if orphan else prog)
                 if orphan:
                     pit.setForeground(QColor(C['peach']))
-                    pit.setToolTip(f"Program no longer exists \u2014 this rule matches nothing (likely moved by an update):\n{r.program}\nRight-click \u2192 Re-bind program.")
+                    pit.setToolTip(f"Program no longer exists - this rule matches nothing (likely moved by an update):\n{r.program}\nRight-click > Re-bind program.")
                 s.tbl.setItem(i,6,pit)
                 si=QTableWidgetItem(r.source or ""); si.setForeground(QColor(C['blue'] if r.source=="hostsguard" else C['dim'])); s.tbl.setItem(i,7,si)
             s.tbl.setSortingEnabled(True)
             hg=sum(1 for r in s._rules if r.source=="hostsguard")
             orph=sum(1 for r in s._rules if s._is_orphan(r))
-            s.info.setText(f"{len(rules)} shown \u00B7 {len(s._rules)} total \u00B7 {hg} HG"+(f" \u00B7 \u26A0 {orph} orphaned" if orph else ""))
-        except Exception as e: s.info.setText(f"Error: {e}")
+            s.info.setText(f"{len(rules)} shown | {len(s._rules)} total | {hg} HG"+(f" | {orph} orphaned" if orph else ""))
+        except Exception as e: s.info.setText(f"Couldn't render firewall rules: {e}")
     @staticmethod
     def _is_orphan(r):
         """HG program rule whose target executable no longer exists \u2014 it silently
@@ -3332,12 +3435,12 @@ class FirewallTab(QWidget):
         ni=s.tbl.item(row,1)
         if not ni: return
         name=ni.text(); rule=next((r for r in s._rules if r.name==name),None)
-        ei=s.tbl.item(row,0); is_on=ei and ei.text()=="\u2713"
+        ei=s.tbl.item(row,0); is_on=ei and ei.text()=="On"
         m=QMenu(s); m.setStyleSheet(CTX)
         m.addAction("Disable" if is_on else "Enable").triggered.connect(lambda:(fw.enable(name,not is_on),s._toggle_local(name,not is_on),s._apply()))
         cur_act=rule.action if rule else "Allow"
         new_act="Allow" if cur_act=="Block" else "Block"
-        m.addAction(f"Set to {new_act}").triggered.connect(lambda:(fw.set_action(name,new_act),s._set_action_local(name,new_act),s._apply(),s._toast(f"{name} \u2192 {new_act}",C['red'] if new_act=='Block' else C['green'])))
+        m.addAction(f"Set to {new_act}").triggered.connect(lambda:(fw.set_action(name,new_act),s._set_action_local(name,new_act),s._apply(),s._toast(f"{name} -> {new_act}",C['red'] if new_act=='Block' else C['green'])))
         m.addAction("Delete").triggered.connect(lambda:(fw.delete(name),s._remove_local(name),s._toast(f"Deleted {name}",C['dim'])))
         m.addSeparator()
         if rule:
@@ -3377,18 +3480,20 @@ class FirewallTab(QWidget):
         if dlg.exec_()==QDialog.Accepted: s._create_from_dialog(dlg.data())
 
     def _qblock_ip(s):
-        ip,ok=QInputDialog.getText(s,"Block outbound address","IP address, CIDR subnet, or range:")
-        if ok and ip.strip():
-            ip=ip.strip()
-            if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
+        ip=_prompt_text(s,"Block Outbound Address","Remote address","8.8.8.8, 10.0.0.0/8, or 192.168.1.1-192.168.1.50",
+            helper="Accepts a single IP, CIDR subnet, or IP range.",
+            validator=lambda v: "" if valid_fw_addr(v) else "Enter a valid IP address, CIDR subnet, or IP range.",
+            confirm="Block Outbound")
+        if ip:
             n=fw.block_ip(ip)
             if n: s._inject_rule(n,"Out","Block",remote_addr=ip); s._toast(f"Blocked {ip} outbound",C['red'])
             else: s._toast("Rule already exists",C['dim'])
     def _qblock_ip_both(s):
-        ip,ok=QInputDialog.getText(s,"Block address in both directions","IP address, CIDR subnet, or range:")
-        if ok and ip.strip():
-            ip=ip.strip()
-            if not valid_fw_addr(ip): s._toast(f"Invalid address: {ip}",C['peach']); return
+        ip=_prompt_text(s,"Block Address Both Directions","Remote address","8.8.8.8, 10.0.0.0/8, or 192.168.1.1-192.168.1.50",
+            helper="Creates inbound and outbound firewall rules for this address.",
+            validator=lambda v: "" if valid_fw_addr(v) else "Enter a valid IP address, CIDR subnet, or IP range.",
+            confirm="Block Both Directions")
+        if ip:
             created=fw.block_ip_both(ip)
             if created:
                 for n in created:
@@ -3411,14 +3516,14 @@ class FirewallTab(QWidget):
         s._apply()
     def _profiles(s):
         ok,_=_ps("Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled True",10)
-        s._toast("Enabled all profiles" if ok else "Failed to enable profiles",C['green'] if ok else C['red'])
+        s._toast("Firewall profiles enabled" if ok else "Couldn't enable firewall profiles",C['green'] if ok else C['red'])
     def _del_all_hg(s):
         hg=[r.name for r in s._rules if r.source=="hostsguard" and r.name]
-        if not hg: s._toast("No HG rules to delete",C['dim']); return
-        if QMessageBox.question(s,"Delete HostsGuard firewall rules",
+        if not hg: s._toast("No HostsGuard rules to delete",C['dim']); return
+        if not _confirm(s,"Delete HostsGuard firewall rules",
             f"Delete {len(hg)} HostsGuard-created firewall rules?\n\n"
             "Only HG_ rules are removed. Windows and third-party firewall rules are left untouched.",
-            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            "Delete HG Rules","Cancel",danger=True):
             return
         def _bg():
             for n in hg:
@@ -3521,7 +3626,7 @@ class ToolsTab(QWidget):
         g4=QGroupBox("Backup + Recovery"); l4=QVBoxLayout(g4); l4.setSpacing(_dp(4))
         s.rec_st=QLabel(""); s.rec_st.setWordWrap(True); s.rec_st.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); l4.addWidget(s.rec_st)
         l4.addWidget(_tbtn("Restore Hosts from DB","primary",s._restore_hosts))
-        l4.addWidget(_tbtn("Restore FW Rules from DB","primary",s._restore_fw))
+        l4.addWidget(_tbtn("Restore Firewall Rules","primary",s._restore_fw))
         l4.addWidget(_tbtn("Sync Hosts File to DB","dim",s._sync_hosts_db))
         l4.addWidget(_tbtn("Backup Hosts Now","dim",lambda:(s.hm.backup(),s._toast("Backed up",C['green']))))
         l4.addWidget(_tbtn("Save Current to Profile","dim",s._save_profile))
@@ -3538,12 +3643,12 @@ class ToolsTab(QWidget):
         s.log_s=QLineEdit(); s.log_s.setPlaceholderText("Search domain, action, process, or details..."); s.log_s.setFixedHeight(_dp(28))
         s.log_s.setAccessibleName("Search event log"); s.log_s.setClearButtonEnabled(True)
         s.log_s.textChanged.connect(s._log); lr.addWidget(s.log_s,1)
-        s.log_f=QComboBox(); s.log_f.addItems(["All","blocked","whitelisted","fw_blocked"])
+        s.log_f=QComboBox(); s.log_f.addItems(["All","Blocked","Allowed","Firewall Blocked"])
         s.log_f.setAccessibleName("Filter event log by action")
         s.log_f.currentIndexChanged.connect(s._log); lr.addWidget(s.log_f)
         lr.addWidget(_tbtn("Clear Log","danger",s._clear_log,90,"Delete all event log rows")); ll.addLayout(lr)
         s.log_tbl=_tbl(["Time","Domain","Action","Process","Details"],1,row_h=26)
-        s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.")
+        s.log_tbl.set_empty_state("No events recorded","Block, allow, import, and firewall actions will appear here.","◇")
         s.log_tbl.setAccessibleName("Event log table")
         s.log_tbl.setColumnWidth(0,_dp(140)); s.log_tbl.setColumnWidth(2,_dp(75)); s.log_tbl.setColumnWidth(3,_dp(95)); s.log_tbl.setColumnWidth(4,_dp(170))
         ll.addWidget(s.log_tbl,1); lo.addWidget(lg,1)
@@ -3559,14 +3664,13 @@ class ToolsTab(QWidget):
         ScheduleDlg(s.window()).exec_()
     def _toggle_telemetry(s,on):
         if on:
-            r=QMessageBox.warning(s,"Windows Defender Warning",
+            if not _confirm(s,"Windows Defender Warning",
                 f"Blocking Microsoft telemetry endpoints ({len(MS_TELEMETRY)} domains) will likely "
                 "trip Windows Defender's 'SettingsModifier:Win32/HostsFileHijack' (Severe).\n\n"
                 "Add a Defender exclusion for the hosts file first:\n"
-                "Settings → Virus & Threat Protection → Exclusions → Add\n"
+                "Settings > Virus & threat protection > Exclusions > Add\n"
                 f"Path: {HOSTS_PATH}\n\nContinue?",
-                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if r!=QMessageBox.Yes:
+                "Block Telemetry","Cancel"):
                 s._tel_cb.blockSignals(True); s._tel_cb.setChecked(False); s._tel_cb.blockSignals(False); return
             ct=s.hm.block_bulk(MS_TELEMETRY)
             s.db.add_domains_bulk([(d.lower(),'blocked','telemetry') for d in MS_TELEMETRY])
@@ -3603,7 +3707,8 @@ class ToolsTab(QWidget):
         hosts_blocked=len(s.hm.get_blocked())
         s.rec_st.setText(f"DB: {db_blocked} blocked, {db_allowed} allowed\nFW tracked: {fw_tracked} rules\nHosts file: {hosts_blocked} entries")
     def _log(s):
-        q=s.log_s.text().strip() or None; f=s.log_f.currentText(); af='all' if f=='All' else f
+        q=s.log_s.text().strip() or None; f=s.log_f.currentText()
+        af={'All':'all','Blocked':'blocked','Allowed':'whitelisted','Firewall Blocked':'fw_blocked'}.get(f,'all')
         rows=s.db.get_log(limit=500,domain_filter=q,action_filter=af)
         s.log_tbl.setSortingEnabled(False); s.log_tbl.setRowCount(len(rows))
         for i,(_id,ts,domain,action,proc,det) in enumerate(rows):
@@ -3613,10 +3718,10 @@ class ToolsTab(QWidget):
             s.log_tbl.setItem(i,2,ai); s.log_tbl.setItem(i,3,QTableWidgetItem(proc or "")); s.log_tbl.setItem(i,4,QTableWidgetItem(det or ""))
         s.log_tbl.setSortingEnabled(True)
     def _clear_log(s):
-        if QMessageBox.question(s,"Clear event log",
+        if not _confirm(s,"Clear event log",
             "Delete all HostsGuard event log rows?\n\n"
             "This does not change hosts entries, firewall rules, or connection history.",
-            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            "Clear Event Log","Cancel",danger=True):
             return
         s.db.clear_log(); s._log(); s._toast("Event log cleared",C['dim'])
     def _toggle_rec(s):
@@ -3658,15 +3763,15 @@ class ToolsTab(QWidget):
                 except Exception: pass
             if findings:
                 def _prompt():
-                    r=QMessageBox.warning(s,"Browser DoH Detected",
+                    if _confirm(s,"Browser DoH Detected",
                         "These browsers have DNS-over-HTTPS enabled, which bypasses "
                         "HostsGuard's DNS monitoring and hosts file blocking:\n\n"+'\n'.join(findings)+
                         "\n\nBlock encrypted DNS now (firewall-block DoH resolver IPs + port 853, "
                         "exempting your own resolver)?\n\n"
                         "You can also disable it per-browser by setting DnsOverHttpsMode to 'off' "
                         "(chrome://settings/security).",
-                        QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-                    if r==QMessageBox.Yes: s._doh_cb.setChecked(True)  # triggers _toggle_doh
+                        "Block Encrypted DNS","Not Now"):
+                        s._doh_cb.setChecked(True)  # triggers _toggle_doh
                 ui_call(_prompt)
             else:
                 ui_call(lambda:s._toast("No browser DoH detected",C['green']))
@@ -3691,7 +3796,7 @@ class ToolsTab(QWidget):
             ui_call(lambda:s._toast("Winsock reset (reboot needed)" if ok else "Winsock reset failed",C['green'] if ok else C['red']))
         threading.Thread(target=_bg,daemon=True).start()
     def _renew(s):
-        s._toast("Renewing...",C['blue'])
+        s._toast("Renewing IP lease...",C['blue'])
         def _bg():
             # '&&' is a parse error in Windows PowerShell 5.1 — the command silently did nothing
             ok,_=_ps("ipconfig /release; ipconfig /renew",30)
@@ -3726,7 +3831,7 @@ class ToolsTab(QWidget):
             for proc in data.get('untrusted',[]):
                 if isinstance(proc,str): s.learn.untrust(proc)
             fwct=len(data.get('fw_state',[]))
-            s._toast(f"Imported {ct} domains, {fwct} FW rules — use Restore buttons to apply",C['green']); s._upd_learn()
+            s._toast(f"Imported {ct} domains, {fwct} firewall rules - use Restore buttons to apply",C['green']); s._upd_learn()
         except Exception as e: s._toast(f"Import failed: {e}",C['red'])
     def _export_conns(s):
         p,_=QFileDialog.getSaveFileName(s,"Export Connections",os.path.join(CONFIG_DIR,f"connections_{datetime.datetime.now():%Y%m%d_%H%M}"),"CSV (*.csv);;JSONL (*.jsonl)")
@@ -3743,7 +3848,7 @@ class ToolsTab(QWidget):
                     for r in rows: w.writerow(r)
             s._toast(f"Exported {len(rows)} connections",C['green'])
         except Exception as e: s._toast(f"Export failed: {e}",C['red'])
-    def _prune(s): s.cdb.prune(30); s._toast("Pruned",C['green'])
+    def _prune(s): s.cdb.prune(30); s._toast("Connection history pruned",C['green'])
     def _clear_fav(s):
         ct=0
         for f in Path(FAV_DIR).glob("*.png"):
@@ -3757,10 +3862,10 @@ class ToolsTab(QWidget):
     def _show_t(s): QMessageBox.information(s,"Trusted",'\n'.join(sorted(s.learn._trusted) or ["(none)"]))
     def _show_u(s): QMessageBox.information(s,"Untrusted",'\n'.join(sorted(s.learn._untrusted) or ["(none)"]))
     def _clear_t(s):
-        if QMessageBox.question(s,"Clear learning decisions",
+        if not _confirm(s,"Clear learning decisions",
             "Clear all trusted and untrusted process decisions?\n\n"
             "Learning Mode will prompt again as those processes connect.",
-            QMessageBox.Yes|QMessageBox.No,QMessageBox.No)!=QMessageBox.Yes:
+            "Clear Decisions","Cancel",danger=True):
             return
         s.learn._trusted.clear(); s.learn._untrusted.clear(); s.learn.save(); s._upd_learn(); s._toast("Learning decisions cleared",C['dim'])
     def _restore_hosts(s):
@@ -3807,10 +3912,10 @@ class ToolsTab(QWidget):
                     if hasattr(w,'_watcher'): w._watcher.update_hash()
                     ui_call(lambda:s._toast("Restored from StevenBlack upstream",C['green']))
             except Exception as e: ui_call(lambda:s._toast(f"Download failed: {e}",C['red']))
-        if QMessageBox.question(s,"Restore from Upstream",
+        if not _confirm(s,"Restore from Upstream",
             "Replace your hosts file with the StevenBlack unified hosts list?\n"
             "A backup of the current file will be created first.",
-            QMessageBox.Yes|QMessageBox.No)!=QMessageBox.Yes: return
+            "Restore Hosts File","Cancel",danger=True): return
         s._toast("Downloading StevenBlack hosts...",C['blue'])
         threading.Thread(target=_bg,daemon=True).start()
     def _save_profile(s):
@@ -3822,7 +3927,7 @@ class ToolsTab(QWidget):
         s.hm.backup(); s.hm.read(); s.db.sync_hosts_to_db(s.hm)
         w=s.window()
         if hasattr(w,'_watcher'): w._watcher.update_hash()
-        s._toast("Baseline updated — current hosts file accepted as known-good",C['green']); s._upd_rec()
+        s._toast("Baseline updated - current hosts file accepted as known-good",C['green']); s._upd_rec()
     def _toggle_auto_restore(s,v):
         cfg=load_cfg(); cfg['auto_restore_on_tamper']=v; save_cfg(cfg)
         s._toast(f"Auto-restore {'ON' if v else 'OFF'}",C['green'] if v else C['dim'])
@@ -3936,53 +4041,44 @@ class MainWindow(QMainWindow):
         top=QWidget(); top.setFixedHeight(_dp(44))
         top.setStyleSheet(f"QWidget{{background:{C['crust']};border-bottom:1px solid {C['s0']};}}")
         tb=QHBoxLayout(top); tb.setContentsMargins(_dp(16),0,_dp(16),0); tb.setSpacing(_dp(8))
-        logo=QLabel(f"\u25C6  {APP}"); logo.setFont(QFont("Segoe UI Variable Display",_dp(12),QFont.Bold))
-        logo.setStyleSheet(f"color:{C['blue']};letter-spacing:-0.3px;"); tb.addWidget(logo)
+        tb.addWidget(_brand_mark(18))
+        logo=QLabel(APP); logo.setFont(QFont("Segoe UI",_dp(12),QFont.Bold))
+        logo.setStyleSheet(f"color:{C['blue']};letter-spacing:0;"); tb.addWidget(logo)
         vl=QLabel(f"v{VER}"); vl.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;padding-top:1px;"); tb.addWidget(vl)
         sep=QFrame(); sep.setFixedSize(1,_dp(20)); sep.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep)
         s._dot=QLabel(); s._dot.setFixedSize(_dp(10),_dp(10)); s._dot.setStyleSheet(f"background:{C['dim']};border-radius:{_dp(4)}px;"); tb.addWidget(s._dot)
-        s._status=QLabel("STARTING"); s._status.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;"); tb.addWidget(s._status)
+        s._status=QLabel("STARTING"); s._status.setStyleSheet(f"color:{C['dim']};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0;"); tb.addWidget(s._status)
         s._status.setAccessibleName("Monitoring status")
         s._status.setToolTip("Current DNS and connection monitoring state")
         try: adm=ctypes.windll.shell32.IsUserAnAdmin()!=0
         except: adm=False
         ac=C['green'] if adm else C['peach']
-        ab=QLabel("ADMIN" if adm else "USER"); ab.setToolTip("Running elevated — hosts file and firewall changes are available" if adm else "Not elevated — hosts/firewall changes will fail. Relaunch as Administrator.")
+        ab=QLabel("ADMIN" if adm else "LIMITED"); ab.setToolTip("Running elevated - hosts file and firewall changes are available" if adm else "Not elevated - hosts/firewall changes will fail. Relaunch as Administrator.")
         ab.setStyleSheet(f"color:{ac};font-size:{_dp(8)}px;font-weight:800;background:rgba({_rgb(ac)},0.12);border:1px solid rgba({_rgb(ac)},0.28);border-radius:{_dp(4)}px;padding:1px 6px;"); tb.addWidget(ab)
         tb.addStretch()
         s._bw_up=QLabel("\u25B2 --"); s._bw_up.setStyleSheet(f"color:{C['blue']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_up)
         s._bw_dn=QLabel("\u25BC --"); s._bw_dn.setStyleSheet(f"color:{C['teal']};font-size:{_dp(9)}px;font-weight:600;font-family:'Cascadia Code','Consolas',monospace;"); tb.addWidget(s._bw_dn)
         sep2=QFrame(); sep2.setFixedSize(1,_dp(20)); sep2.setStyleSheet(f"background:{C['s0']};"); tb.addWidget(sep2)
-        s._cbtn=QPushButton("CONNECTIONS: OFF"); s._cbtn.setCursor(Qt.PointingHandCursor); s._cbtn.setFixedHeight(_dp(24))
-        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
-        s._cbtn.setAccessibleName("Toggle live connection monitoring")
-        s._cbtn.setToolTip("Start or stop live connection monitoring")
+        s._cbtn=_chrome_button("Connections Off","Start or stop live connection monitoring",118,"dim")
         s._cbtn.clicked.connect(s._toggle_conns); tb.addWidget(s._cbtn)
         # Notification mute toggle
         s._notif_muted=load_cfg().get('notif_muted',False)
-        s._mbtn=QPushButton("NOTIF: OFF" if s._notif_muted else "NOTIF: ON")
-        s._mbtn.setCursor(Qt.PointingHandCursor); s._mbtn.setFixedHeight(_dp(24))
-        s._mbtn.setAccessibleName("Toggle blocked-domain notifications")
-        s._mbtn.setToolTip("Toggle desktop notifications for blocked domains")
+        s._mbtn=_chrome_button("Notifications Muted" if s._notif_muted else "Notifications On","Toggle desktop notifications for blocked domains",126,"dim")
         s._upd_mute_btn(); s._mbtn.clicked.connect(s._toggle_mute); tb.addWidget(s._mbtn)
         s._prof_cb=QComboBox(); s._prof_cb.setFixedHeight(_dp(24)); s._prof_cb.setFixedWidth(_dp(100))
         s._prof_cb.setAccessibleName("Network profile")
         s._prof_cb.setToolTip("Network profile — different rule sets per network")
         s._prof_cb.setStyleSheet(f"background:{C['s0']};color:{C['sub']};border:1px solid {C['s1']};border-radius:{_dp(6)}px;font-size:{_dp(8)}px;padding:0 {_dp(4)}px;")
         tb.addWidget(s._prof_cb)
-        s._tbtn=QPushButton("LIGHT" if load_cfg().get('theme')=='light' else "DARK")
-        s._tbtn.setCursor(Qt.PointingHandCursor); s._tbtn.setFixedHeight(_dp(24))
-        s._tbtn.setAccessibleName("Toggle theme")
-        s._tbtn.setToolTip("Switch between dark and light theme (requires restart)")
-        s._tbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
+        s._tbtn=_chrome_button("Light Theme" if load_cfg().get('theme')=='light' else "Dark Theme","Switch between dark and light theme (requires restart)",88,"dim")
         s._tbtn.clicked.connect(s._toggle_theme); tb.addWidget(s._tbtn)
         root.addWidget(top)
         # Tabs
         s._tabs=QTabWidget(); s._tabs.setDocumentMode(True)
         s._hosts_act=HostsActivityTab(s.db,s.hm,s.learn); s._tabs.addTab(s._hosts_act,"Hosts Activity")
-        s._fw_act=FWActivityTab(s.db,s.hm,s.cdb,s.learn); s._tabs.addTab(s._fw_act,"FW Activity")
+        s._fw_act=FWActivityTab(s.db,s.hm,s.cdb,s.learn); s._tabs.addTab(s._fw_act,"Firewall Activity")
         s._hosts_tab=HostsTab(s.db,s.hm); s._tabs.addTab(s._hosts_tab,"Hosts File")
-        s._fw_tab=FirewallTab(); s._tabs.addTab(s._fw_tab,"FW Rules")
+        s._fw_tab=FirewallTab(); s._tabs.addTab(s._fw_tab,"Firewall Rules")
         s._tools=ToolsTab(s.db,s.hm,s.cdb,s.learn); s._tabs.addTab(s._tools,"Tools")
         root.addWidget(s._tabs)
         s._toasts=ToastMgr(s)
@@ -4014,21 +4110,19 @@ class MainWindow(QMainWindow):
         s._toasts.toast("Notifications OFF" if s._notif_muted else "Notifications ON",C['dim'] if s._notif_muted else C['green'])
     def _upd_mute_btn(s):
         on=not s._notif_muted
-        s._mbtn.setText("NOTIF: ON" if on else "NOTIF: OFF")
-        if on: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['green']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
-        else: s._mbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 10px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
+        _set_chrome_button(s._mbtn,"Notifications On" if on else "Notifications Muted","success" if on else "dim","Toggle desktop notifications for blocked domains")
     def _toggle_theme(s):
         cfg=load_cfg(); cur=cfg.get('theme','dark')
         new='light' if cur!='light' else 'dark'; cfg['theme']=new; save_cfg(cfg)
-        s._tbtn.setText(new.upper())
+        _set_chrome_button(s._tbtn,"Light Theme" if new=="light" else "Dark Theme","dim","Switch between dark and light theme (requires restart)")
         # The stylesheet is baked at import time, so offer an immediate restart
         # rather than leaving the user with a half-applied theme.
-        if QMessageBox.question(s,"Restart to apply theme",
+        if _confirm(s,"Restart to apply theme",
                 f"Theme set to {new}. Restart HostsGuard now to apply it?",
-                QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)==QMessageBox.Yes:
+                "Restart Now","Later",icon=QMessageBox.Information):
             s._restart()
         else:
-            s._toasts.toast(f"Theme set to {new} — applies on next start",C['blue'])
+            s._toasts.toast(f"Theme set to {new} - applies on next start",C['blue'])
     def _restart(s):
         """Relaunch the app and quit this instance."""
         try:
@@ -4039,7 +4133,7 @@ class MainWindow(QMainWindow):
                 ctypes.windll.shell32.ShellExecuteW(None,"runas" if not ctypes.windll.shell32.IsUserAnAdmin() else "open",sys.executable,params,None,1)
             else:
                 os.execv(sys.executable,[sys.executable]+args)
-        except Exception as e: log.warning(f"Restart failed: {e}"); s._toasts.toast("Restart failed — please reopen manually",C['red']); return
+        except Exception as e: log.warning(f"Restart failed: {e}"); s._toasts.toast("Restart failed - please reopen manually",C['red']); return
         s._quit()
     def _refresh_profiles(s):
         s._prof_cb.blockSignals(True)
@@ -4052,8 +4146,11 @@ class MainWindow(QMainWindow):
         s._prof_cb.blockSignals(False)
     def _switch_profile(s,name):
         if name=="+ New Profile...":
-            n,ok=QInputDialog.getText(s,"New Profile","Profile name:")
-            if ok and n.strip():
+            n=_prompt_text(s,"New Profile","Profile name","Work laptop",
+                helper="Profiles keep separate domain and firewall policy snapshots.",
+                validator=lambda v: "" if v.strip() and v.strip()!="+ New Profile..." else "Enter a profile name.",
+                confirm="Create Profile")
+            if n:
                 n=n.strip(); s.db.create_profile(n); s.db.save_profile_snapshot(n)
                 s._refresh_profiles(); s._prof_cb.setCurrentText(n)
                 s._toasts.toast(f"Profile '{n}' created from current rules",C['green'])
@@ -4081,14 +4178,12 @@ class MainWindow(QMainWindow):
         s._conn_w.ready.connect(s._on_conns)
         s._conn_w.need_dns.connect(s._dns_w.add); s._conn_w.need_geo.connect(s._geo_w.add); s._conn_w.need_sig.connect(s._sig_w.add)
         s._conn_w.start(); s._conn_on=True; s._set_st("All Active")
-        s._cbtn.setText("CONNECTIONS: ON")
-        s._cbtn.setStyleSheet(f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {C['blue']},stop:1 {C['teal']});color:#071019;padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid rgba({_rgb(C['blue'])},0.55);letter-spacing:0.5px;")
+        _set_chrome_button(s._cbtn,"Connections On","primary","Stop live connection monitoring")
 
     def _stop_conns(s):
         if s._conn_w: s._conn_w.stop()
         s._conn_on=False; s._set_st("DNS Only")
-        s._cbtn.setText("CONNECTIONS: OFF")
-        s._cbtn.setStyleSheet(f"background:{C['s0']};color:{C['dim']};padding:2px 12px;border-radius:{_dp(6)}px;font-weight:800;font-size:{_dp(8)}px;border:1px solid {C['s1']};letter-spacing:0.5px;")
+        _set_chrome_button(s._cbtn,"Connections Off","dim","Start live connection monitoring")
 
     def _toggle_conns(s):
         if s._conn_on: s._stop_conns()
@@ -4129,7 +4224,7 @@ class MainWindow(QMainWindow):
     def _set_st(s,msg):
         on=s._monitoring or s._conn_on; c=C['green'] if on else C['red']
         s._dot.setStyleSheet(f"background:{c};border-radius:{_dp(4)}px;")
-        s._status.setText(msg.upper()[:25]); s._status.setStyleSheet(f"color:{c};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0.5px;")
+        s._status.setText(msg.upper()[:25]); s._status.setStyleSheet(f"color:{c};font-size:{_dp(9)}px;font-weight:700;letter-spacing:0;")
         s._status.setToolTip(f"Monitoring status: {msg}")
     def _upd_bw(s):
         up,dn=bw.rates(); s._bw_up.setText(f"\u25B2 {bw.fmt(up)}"); s._bw_dn.setText(f"\u25BC {bw.fmt(dn)}")
@@ -4150,9 +4245,9 @@ class MainWindow(QMainWindow):
         m.addAction("Show").triggered.connect(lambda:(s.show(),s.raise_(),s.activateWindow()))
         m.addSeparator()
         m.addAction("Hosts Activity").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._hosts_act)))
-        m.addAction("FW Activity").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._fw_act)))
+        m.addAction("Firewall Activity").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._fw_act)))
         m.addAction("Hosts File").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._hosts_tab)))
-        m.addAction("FW Rules").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._fw_tab)))
+        m.addAction("Firewall Rules").triggered.connect(lambda:(s.show(),s._tabs.setCurrentWidget(s._fw_tab)))
         m.addSeparator()
         m.addAction("Mini Monitor").triggered.connect(s._toggle_mini)
         m.addAction("Quit").triggered.connect(s._quit)
@@ -4227,7 +4322,7 @@ def _cli(args):
         except (BrokenPipeError,OSError): pass  # piped into head/findstr that exited early
         return 0
     else:
-        print(f"{APP} v{VER} — CLI")
+        print(f"{APP} v{VER} - CLI")
         print("Commands: block <domain>, allow <domain>, unblock <domain>, status, export")
         print("GUI: run without arguments"); return 0
 
@@ -4237,7 +4332,7 @@ def _cli(args):
 def _service():
     """Run HostsGuard as a headless background service with HTTP JSON-RPC."""
     import http.server,json as _json,hmac as _hmac
-    print(f"{APP} v{VER} — Headless Service Mode")
+    print(f"{APP} v{VER} - Headless Service Mode")
     db=DB(); hm=HostsMgr(); cdb=ConnDB()
     hm.backup(); db.sync_hosts_to_db(hm)
     cdb.prune(30); db.prune_log()
@@ -4397,11 +4492,11 @@ def _service():
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
     print("Endpoints: GET /status /domains /stats /log, POST /domains (action+domain)")
     if not token:
-        print("WARNING: no auth token could be established — endpoint will reject all requests.")
+        print("WARNING: no auth token could be established - endpoint will reject all requests.")
     elif os.environ.get('HG_TOKEN','').strip():
         print("Auth: send header 'X-HG-Token: <your HG_TOKEN>' on every request.")
     else:
-        print(f"Auth: send header 'X-HG-Token: <token>' — token stored at {tok_path}")
+        print(f"Auth: send header 'X-HG-Token: <token>' - token stored at {tok_path}")
     print("Press Ctrl+C to stop")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nShutting down...")
