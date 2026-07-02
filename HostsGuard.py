@@ -327,6 +327,19 @@ def ui_call(f):
     if _ui_bridge: _ui_bridge.call.emit(f)
     else: QTimer.singleShot(0,f)
 
+def _post_webhook(event,data):
+    """Best-effort JSON POST of an event to config['webhook_url'] (fire-and-forget).
+    Used for blocked-domain and tamper alerts so external systems can react."""
+    url=load_cfg().get('webhook_url','').strip()
+    if not url or not url.startswith(('http://','https://')): return
+    def _bg():
+        try:
+            body=json.dumps({'app':APP,'ver':VER,'event':event,'ts':datetime.datetime.now().isoformat(),**data}).encode()
+            req=urllib.request.Request(url,data=body,headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
+            urllib.request.urlopen(req,timeout=5).close()
+        except Exception as e: log.debug(f"webhook: {e}")
+    threading.Thread(target=_bg,daemon=True).start()
+
 _evt_src_ok=False
 def _evt_log(msg,level='Warning'):
     """Write structured event to Windows Application event log."""
@@ -829,6 +842,10 @@ class ConnDB:
     def prune(s,days=30):
         cut=(datetime.datetime.now()-datetime.timedelta(days=days)).isoformat()
         with s._lock: s.conn.execute("DELETE FROM conns WHERE ts<?",(cut,)); s.conn.commit()
+    def count(s):
+        with s._lock:
+            try: return s.conn.execute("SELECT COUNT(*) FROM conns").fetchone()[0]
+            except Exception: return 0
     def close(s):
         try:
             with s._lock: s.conn.close()
@@ -3880,6 +3897,7 @@ class MainWindow(QMainWindow):
         threading.Thread(target=lambda:s.db.sync_hosts_to_db(s.hm),daemon=True).start()
         s._toasts.toast("Hosts file changed externally",C['peach'])
         threading.Thread(target=lambda:_evt_log("Hosts file modified externally"),daemon=True).start()
+        _post_webhook('tamper',{'msg':'hosts file modified externally'})
         cfg=load_cfg()
         if cfg.get('auto_restore_on_tamper',False):
             if s.hm.restore(): s._toasts.toast("Auto-restored hosts from backup",C['green']); s._watcher.update_hash()
@@ -4019,6 +4037,7 @@ def _service():
                             if d in blocked:
                                 db.log_event(d,'blocked','','Blocked by hosts')
                                 threading.Thread(target=_evt_log,args=(f"Blocked: {d}",),daemon=True).start()
+                                _post_webhook('blocked',{'domain':d})
                     if len(seen)>20000: seen.clear()
             except Exception: pass
             stop_evt.wait(3)
@@ -4066,6 +4085,7 @@ def _service():
                     if not hm.is_self_change(d):
                         hm.read(); db.sync_hosts_to_db(hm)
                         _evt_log("Hosts file modified externally")
+                        _post_webhook('tamper',{'msg':'hosts file modified externally'})
                         cfg=load_cfg()
                         if cfg.get('auto_restore_on_tamper',False):
                             hm.restore(); last=_fhash()  # accept restored content, no re-trigger
@@ -4110,6 +4130,15 @@ def _service():
                     'bw_up':up,'bw_dn':dn})
             elif s.path=='/domains':
                 s._json_reply(200,[{'domain':r[0],'status':r[1],'source':r[3]} for r in db.get_domains()])
+            elif s.path=='/stats':
+                st=db.get_stats()
+                s._json_reply(200,{'blocked':st['blocked'],'whitelisted':st['whitelisted'],
+                    'feed_total':st['feed_total'],'today_hits':st['today_hits'],
+                    'top_blocked':[{'domain':d,'count':c} for d,c in st['top_blocked']],
+                    'connections_total':cdb.count() if hasattr(cdb,'count') else None})
+            elif s.path=='/log':
+                rows=db.get_log(limit=200)
+                s._json_reply(200,[{'ts':r[1],'domain':r[2],'action':r[3],'process':r[4],'details':r[5]} for r in rows])
             else:
                 s._json_reply(404,{'ok':False,'error':'unknown endpoint'})
         def do_POST(s):
@@ -4138,7 +4167,7 @@ def _service():
     port=int(os.environ.get('HG_PORT','7847'))
     srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
-    print("Endpoints: GET /status, GET /domains, POST /domains (action+domain)")
+    print("Endpoints: GET /status /domains /stats /log, POST /domains (action+domain)")
     if not token:
         print("WARNING: no auth token could be established — endpoint will reject all requests.")
     elif os.environ.get('HG_TOKEN','').strip():
