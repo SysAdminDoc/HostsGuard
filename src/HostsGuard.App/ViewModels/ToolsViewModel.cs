@@ -56,6 +56,21 @@ public sealed partial class ScheduleRowViewModel : ObservableObject
     };
 }
 
+/// <summary>Row VM for a hosts-file backup available to restore.</summary>
+public sealed partial class BackupRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _fileName = string.Empty;
+
+    [ObservableProperty]
+    private string _created = string.Empty;
+
+    [ObservableProperty]
+    private long _sizeBytes;
+
+    public string Label => $"{FileName} — {Created} ({SizeBytes / 1024.0:0.#} KB)";
+}
+
 /// <summary>Row VM for a one-click blockable service.</summary>
 public sealed partial class BlockableServiceViewModel : ObservableObject
 {
@@ -140,6 +155,55 @@ public sealed partial class ToolsViewModel : ObservableObject
     {
         var ack = await _client.Hosts.BackupHostsAsync(new Empty());
         StatusText = ack.Ok ? $"Backup written: {ack.Message}" : ack.Message;
+        await LoadBackupsAsync();
+    }
+
+    // ─── Backup restore ───────────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private BackupRowViewModel? _selectedBackup;
+
+    public ObservableCollection<BackupRowViewModel> Backups { get; } = new();
+
+    [RelayCommand]
+    public async Task LoadBackupsAsync()
+    {
+        var list = await _client.Hosts.ListBackupsAsync(new Empty());
+        Backups.Clear();
+        foreach (var entry in list.Entries)
+        {
+            Backups.Add(new BackupRowViewModel
+            {
+                FileName = entry.FileName,
+                Created = entry.Created,
+                SizeBytes = entry.SizeBytes,
+            });
+        }
+
+        SelectedBackup = Backups.FirstOrDefault();
+    }
+
+    [RelayCommand]
+    public async Task RestoreBackupAsync()
+    {
+        if (SelectedBackup is null)
+        {
+            StatusText = "No backup selected";
+            return;
+        }
+
+        if (!_confirm.Confirm("Restore hosts backup",
+            $"Replace the live hosts file with '{SelectedBackup.FileName}'? The current file is backed up first."))
+        {
+            return;
+        }
+
+        var ack = await _client.Hosts.RestoreBackupAsync(new BackupRequest { FileName = SelectedBackup.FileName });
+        StatusText = ack.Message;
+        if (ack.Ok)
+        {
+            await LoadBackupsAsync();
+        }
     }
 
     [RelayCommand]

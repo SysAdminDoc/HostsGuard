@@ -108,6 +108,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadDohStatusAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadDefenderStatusAsync();
+            await Tools.LoadBackupsAsync();
             Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
             IsConnected = true;

@@ -187,6 +187,42 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Backup_restore_round_trip_replaces_hosts_content()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var hosts = new HostsControl.HostsControlClient(channel);
+
+        _state.Hosts.Block("restore-me.example.com");
+        var backupAck = await hosts.BackupHostsAsync(new Empty());
+        backupAck.Ok.Should().BeTrue();
+
+        _state.Hosts.EmergencyReset();
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+
+        var list = await hosts.ListBackupsAsync(new Empty());
+        list.Entries.Should().NotBeEmpty();
+        list.Entries.Should().OnlyContain(e => e.FileName.EndsWith(".bak") && !e.FileName.Contains('\\'));
+
+        var restore = await hosts.RestoreBackupAsync(new BackupRequest { FileName = Path.GetFileName(backupAck.Message) });
+        restore.Ok.Should().BeTrue();
+        _state.Hosts.GetBlocked().Should().Contain("restore-me.example.com");
+    }
+
+    [Fact]
+    public async Task Restore_rejects_traversal_and_unknown_names()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var hosts = new HostsControl.HostsControlClient(channel);
+
+        (await hosts.RestoreBackupAsync(new BackupRequest { FileName = @"..\hosts.bak" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_backup");
+        (await hosts.RestoreBackupAsync(new BackupRequest { FileName = "settings.json" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_backup");
+        (await hosts.RestoreBackupAsync(new BackupRequest { FileName = "hosts_never_written.bak" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/backup_missing");
+    }
+
+    [Fact]
     public async Task Harden_acl_reports_typed_result()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

@@ -74,6 +74,11 @@ service HostsControl {
   rpc GetActivity(ActivityRequest) returns (ActivityList);
   // Copy the hosts file to a timestamped backup; path returned in Ack.message.
   rpc BackupHosts(Empty) returns (Ack);
+  // Backup restore flow: enumerate the backups dir, then replace the live hosts
+  // file with a chosen backup. Restore snapshots the current file first and
+  // routes the write through the transactional engine.
+  rpc ListBackups(Empty) returns (BackupList);
+  rpc RestoreBackup(BackupRequest) returns (Ack);
   // Re-apply the hardened ACL to the hosts file.
   rpc HardenAcl(Empty) returns (Ack);
   // One-click: add the hosts file to Windows Defender's exclusions (WMI).
@@ -150,6 +155,20 @@ message TempAllowList {
 
 message HostsText {
   string text = 1;
+}
+
+message BackupEntry {
+  string file_name = 1;   // name only — never a path
+  string created = 2;     // local "yyyy-MM-dd HH:mm:ss"
+  int64 size_bytes = 3;
+}
+
+message BackupList {
+  repeated BackupEntry entries = 1;
+}
+
+message BackupRequest {
+  string file_name = 1;   // must match a BackupEntry.file_name
 }
 
 message ActivityRequest {

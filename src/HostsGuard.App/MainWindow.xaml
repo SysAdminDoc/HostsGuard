@@ -640,6 +640,19 @@
                                                 Style="{StaticResource Hg.DangerButton}"
                                                 Command="{Binding EmergencyResetCommand}" />
                                     </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <TextBlock DockPanel.Dock="Left" Text="Restore backup:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <ComboBox DockPanel.Dock="Left" Width="320" Margin="0,0,8,0"
+                                                  ItemsSource="{Binding Backups}"
+                                                  SelectedItem="{Binding SelectedBackup}"
+                                                  DisplayMemberPath="Label"
+                                                  ToolTip="Hosts-file backups in the service data directory" />
+                                        <Button DockPanel.Dock="Left" Content="Restore"
+                                                Style="{StaticResource Hg.DangerButton}"
+                                                Command="{Binding RestoreBackupCommand}" Margin="0,0,10,0" />
+                                        <Button DockPanel.Dock="Left" Content="Refresh list"
+                                                Command="{Binding LoadBackupsCommand}" />
+                                    </DockPanel>
                                     <TextBlock Text="{Binding DefenderStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>

@@ -223,6 +223,59 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             : Ok(path));
     }
 
+    public override Task<BackupList> ListBackups(Empty request, ServerCallContext context)
+    {
+        var list = new BackupList();
+        var backupDir = System.IO.Path.Combine(_state.DataDir, "backups");
+        if (!System.IO.Directory.Exists(backupDir))
+        {
+            return Task.FromResult(list);
+        }
+
+        foreach (var file in new System.IO.DirectoryInfo(backupDir).GetFiles("*.bak")
+                     .OrderByDescending(f => f.LastWriteTime))
+        {
+            list.Entries.Add(new BackupEntry
+            {
+                FileName = file.Name,
+                Created = file.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+                SizeBytes = file.Length,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> RestoreBackup(BackupRequest request, ServerCallContext context)
+    {
+        const int MaxBytes = 10 * 1024 * 1024;
+        var name = request.FileName ?? string.Empty;
+        // Name must be a plain .bak file name inside the backups dir — no traversal.
+        if (name.Length == 0 || name != System.IO.Path.GetFileName(name) ||
+            !name.EndsWith(".bak", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(Error("invalid_backup", "backup must be a .bak file name"));
+        }
+
+        var backupDir = System.IO.Path.Combine(_state.DataDir, "backups");
+        var path = System.IO.Path.Combine(backupDir, name);
+        if (!System.IO.File.Exists(path))
+        {
+            return Task.FromResult(Error("backup_missing", $"no backup named {name}"));
+        }
+
+        if (new System.IO.FileInfo(path).Length > MaxBytes)
+        {
+            return Task.FromResult(Error("too_large", "backup exceeds 10 MB"));
+        }
+
+        var text = System.IO.File.ReadAllText(path);
+        _state.Hosts.Backup(backupDir); // snapshot the current file before replacing it
+        _state.Hosts.SaveRaw(text);
+        _state.Db.LogEvent("hosts", "backup_restored", details: name);
+        return Task.FromResult(Ok($"restored {name}"));
+    }
+
     public override Task<Ack> AddDefenderExclusion(Empty request, ServerCallContext context)
     {
         if (_state.Defender is not { } defender || !defender.IsAvailable())
