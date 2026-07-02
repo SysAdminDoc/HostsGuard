@@ -23,7 +23,10 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
 
     public HttpListFetcher()
     {
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+        // Redirects OFF: an https→https 302 could smuggle a fetch to a private
+        // host past the SSRF pre-check. Callers validate the URL first.
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = false };
+        _http = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HostsGuard/1.0");
     }
 
@@ -32,7 +35,17 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
 
     public async Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
     {
+        // Every real egress passes here — validate the target is public https
+        // before the LocalSystem service issues the request (SSRF guard).
+        await SsrfGuard.EnsurePublicHttpsAsync(url, ct);
+
         using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        if ((int)response.StatusCode is >= 300 and < 400)
+        {
+            // A redirect on a client-supplied URL is refused, not chased.
+            throw new InvalidOperationException($"list at {url} redirected ({(int)response.StatusCode}); refusing to follow");
+        }
+
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);

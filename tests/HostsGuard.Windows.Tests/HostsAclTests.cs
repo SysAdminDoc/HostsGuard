@@ -23,7 +23,22 @@ public sealed class HostsAclTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
+        try { Directory.Delete(_dir, true); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* best effort */ }
+    }
+
+    /// <summary>Re-grant the current user so the hardened temp dir can be cleaned up.</summary>
+    private static void RestoreOwnAccess(string dir)
+    {
+        var info = new DirectoryInfo(dir);
+        var sec = info.GetAccessControl();
+        sec.SetAccessRuleProtection(false, false);
+        var me = WindowsIdentity.GetCurrent().User!;
+        sec.AddAccessRule(new FileSystemAccessRule(
+            me, FileSystemRights.FullControl,
+            InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            PropagationFlags.None, AccessControlType.Allow));
+        info.SetAccessControl(sec);
     }
 
     [Fact]
@@ -53,5 +68,32 @@ public sealed class HostsAclTests : IDisposable
         HostsAcl.Harden(_file);
         var acl = new FileInfo(_file).GetAccessControl();
         acl.AreAccessRulesProtected.Should().BeTrue(); // inheritance removed
+    }
+
+    [Fact]
+    public void HardenDirectory_locks_out_broad_principals_and_removes_inheritance()
+    {
+        var dataDir = Path.Combine(_dir, "data");
+
+        HostsAcl.HardenDirectory(dataDir);
+
+        HostsAcl.DirectoryHasBroadAccess(dataDir).Should().BeFalse();
+        var acl = new DirectoryInfo(dataDir).GetAccessControl();
+        acl.AreAccessRulesProtected.Should().BeTrue(); // inheritance removed
+
+        var sids = acl.GetAccessRules(true, true, typeof(SecurityIdentifier))
+            .Cast<FileSystemAccessRule>()
+            .Where(r => r.AccessControlType == AccessControlType.Allow)
+            .Select(r => (SecurityIdentifier)r.IdentityReference)
+            .ToList();
+        // Only SYSTEM + Administrators are on the DACL — no standard-user
+        // principal can read the DB or plant a trusted state file.
+        sids.Should().Contain(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null));
+        sids.Should().Contain(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null));
+        sids.Should().NotContain(new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null));
+        sids.Should().NotContain(new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null));
+        sids.Should().NotContain(new SecurityIdentifier(WellKnownSidType.WorldSid, null));
+
+        RestoreOwnAccess(dataDir); // the lockout is real — regain access to clean up
     }
 }

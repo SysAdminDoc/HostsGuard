@@ -61,6 +61,50 @@ public static class HostsAcl
         info.SetAccessControl(security);
     }
 
+    /// <summary>
+    /// Enforce an inheritance-disabled DACL on a directory: SYSTEM + Administrators
+    /// full control, inheritable to children, nothing else. The service data dir
+    /// (`%ProgramData%\HostsGuard`) holds the activity DB, consent state, threat
+    /// list, and backups — all of which the elevated service reads back and
+    /// trusts, so a standard user must not be able to read or plant them.
+    /// Idempotent; apply before any state file is created so children inherit it.
+    /// </summary>
+    public static void HardenDirectory(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        Directory.CreateDirectory(path);
+        var inheritAll = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+        var security = new DirectorySecurity();
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(
+            System, FileSystemRights.FullControl, inheritAll, PropagationFlags.None, AccessControlType.Allow));
+        security.AddAccessRule(new FileSystemAccessRule(
+            Admins, FileSystemRights.FullControl, inheritAll, PropagationFlags.None, AccessControlType.Allow));
+        new DirectoryInfo(path).SetAccessControl(security);
+    }
+
+    /// <summary>True if a broad principal can access a directory's DACL (for tests).</summary>
+    public static bool DirectoryHasBroadAccess(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        var acl = new DirectoryInfo(path).GetAccessControl();
+        foreach (FileSystemAccessRule rule in acl.GetAccessRules(true, true, typeof(SecurityIdentifier)))
+        {
+            if (rule.AccessControlType != AccessControlType.Allow)
+            {
+                continue;
+            }
+
+            var id = rule.IdentityReference;
+            if (id.Equals(Users) || id.Equals(AuthedUsers) || id.Equals(Everyone))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>SIDs granted any access by the current DACL (for verification).</summary>
     public static IReadOnlyList<SecurityIdentifier> GrantedSids(string path)
     {

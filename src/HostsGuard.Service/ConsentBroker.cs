@@ -167,6 +167,26 @@ public sealed class ConsentBroker : IDisposable
         _state.PriorOutboundBlock = null;
     }
 
+    /// <summary>
+    /// Restore the pre-arm default-outbound posture on service stop/uninstall so
+    /// the machine is never left in default-block with the only way back sitting
+    /// in a state file a stopped service will never read. Safe to call always;
+    /// no-op when disarmed. Keeps the persisted mode so a restart re-arms.
+    /// </summary>
+    public void RestorePostureOnShutdown()
+    {
+        lock (_gate)
+        {
+            if (_state.Mode is ModeNotify or ModeLearning && _state.PriorOutboundBlock is { Count: > 0 })
+            {
+                RestorePosture();
+                SaveState();
+                _db.LogEvent("consent", "posture_restored_on_stop",
+                    details: "default outbound restored for service shutdown; mode persists for restart");
+            }
+        }
+    }
+
     /// <summary>Entry point for blocked-connection events (watch or tests).</summary>
     public void OnBlocked(BlockedConnection blocked)
     {

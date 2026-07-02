@@ -277,6 +277,33 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Shutdown_restores_posture_but_keeps_mode_for_restart()
+    {
+        _fw.OutboundBlock.Should().BeFalse();
+        _state.Consent.SetMode("notify");
+        _fw.OutboundBlock.Should().BeTrue(); // armed
+
+        _state.Consent.RestorePostureOnShutdown();
+
+        _fw.OutboundBlock.Should().BeFalse(); // posture restored on stop
+        _state.Consent.Mode.Should().Be("notify"); // mode persists
+
+        // A fresh broker over the same state re-arms (crash/restart path).
+        using var restarted = new ConsentBroker(_state.Db, _state.Bus, _fw, _state.Identity, _dir);
+        restarted.ArmDetection = () => true;
+        restarted.ResumeFromPersistedMode();
+        restarted.Mode.Should().Be("notify");
+    }
+
+    [Fact]
+    public void Shutdown_restore_is_a_noop_in_normal_mode()
+    {
+        _fw.OutboundBlock = true; // user's own lockdown, unrelated to consent
+        _state.Consent.RestorePostureOnShutdown();
+        _fw.OutboundBlock.Should().BeTrue(); // untouched
+    }
+
+    [Fact]
     public void Startup_reaps_leftover_once_rules_from_a_prior_run()
     {
         var app = WriteExe("stale.exe");
