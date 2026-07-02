@@ -4,6 +4,17 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Removed — Python implementation retired (v0.5.1)
+- **Python codebase removed (NET-055, cutover part 1)** — the v3.17.0
+  Python/PySide6 implementation (`hostsguard/`, `HostsGuard.py`,
+  `test_hostsguard.py`, `HostsGuard.spec`, `installer.iss`, `requirements.txt`,
+  `constraints.txt`, `runtime_hook_mp.py`, `version_info.txt`) is deleted from
+  the tree. .NET 8 is the sole implementation going forward. The final Python
+  build is preserved at the `python-eol` git tag for reference (it remains the
+  NET-070 history/bandwidth reference and the parity oracle of record).
+  `HostsGuard.Migrator` still imports Python-era profiles. README rewritten for
+  the .NET build; no engine code changes.
+
 ### Added — .NET 8 engine v0.5.0 (DNS-bypass defenses + consent-prompt quality)
 - **Accessibility pass on the consent prompt (NET-080)** — the focus-stealing,
   time-boxed consent window now carries AutomationProperties names on every

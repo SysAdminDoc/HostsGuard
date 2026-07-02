@@ -1,4 +1,0 @@
--c constraints.txt
-PySide6
-psutil
-maxminddb

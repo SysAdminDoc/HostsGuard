@@ -1,14 +1,7 @@
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
 dist/
 build/*
 !build/publish.ps1
-*.egg
 .env
-.venv/
-venv/
 *.bak
 installer_output/
 CLAUDE.md
