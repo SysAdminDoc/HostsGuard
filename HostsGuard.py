@@ -595,14 +595,43 @@ class DB:
         os.makedirs(bdir,exist_ok=True)
         ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         return os.path.join(bdir,f"hostsguard_db_v{old_v}_to_v{SCHEMA_VER}_{ts}.sqlite")
+    def _manual_backup_path(s,label):
+        p=str(DB_PATH or '')
+        if not p or p==":memory:" or p.startswith("file::memory:"): return None
+        if not os.path.exists(p) or not s._has_user_tables(): return None
+        bdir=os.path.join(os.path.dirname(os.path.abspath(p)) or ".","backups")
+        os.makedirs(bdir,exist_ok=True)
+        safe=re.sub(r'[^a-z0-9_-]+','_',str(label or 'manual').lower()).strip('_') or 'manual'
+        ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        return os.path.join(bdir,f"hostsguard_db_{safe}_{ts}.sqlite")
+    def _backup_to(s,dst,kind):
+        if not dst: return None
+        with sqlite3.connect(dst) as bk:
+            s.conn.backup(bk)
+        log.warning(f"DB {kind} backup created: {dst}")
+        return dst
+    def backup_now(s,label='manual'):
+        try: return s._backup_to(s._manual_backup_path(label),label)
+        except Exception as e:
+            log.warning(f"DB {label} backup failed: {e}")
+            raise
+    def restore_backup(s,path):
+        if not path: return False
+        try:
+            s.conn.rollback()
+            with sqlite3.connect(path) as src:
+                src.backup(s.conn)
+            s.conn.commit(); s._blocked_cache=None
+            log.warning(f"DB restored from backup: {path}")
+            return True
+        except Exception as e:
+            log.warning(f"DB restore failed from {path}: {e}")
+            raise
     def _backup_before_migration(s,old_v):
         dst=s._db_backup_path(old_v)
         if not dst: return None
         try:
-            with sqlite3.connect(dst) as bk:
-                s.conn.backup(bk)
-            log.warning(f"DB migration backup created: {dst}")
-            return dst
+            return s._backup_to(dst,'migration')
         except Exception as e:
             log.warning(f"DB migration backup failed: {e}")
             raise
@@ -2061,6 +2090,101 @@ def _confirm(parent,title,text,confirm="Continue",cancel="Cancel",danger=False,i
     mb.setEscapeButton(cancel_btn)
     mb.exec()
     return mb.clickedButton()==confirm_btn
+
+def _import_status(v):
+    st=str(v or 'blocked').strip().lower()
+    if st in ('blocked','block','deny'): return 'blocked'
+    if st in ('whitelisted','whitelist','allowed','allow'): return 'whitelisted'
+    return None
+
+def _import_list(data,key,errors):
+    v=data.get(key,[])
+    if v is None: return []
+    if not isinstance(v,list):
+        errors.append(f"{key}: expected a list")
+        return []
+    return v
+
+def _build_import_plan(data):
+    if not isinstance(data,dict): raise ValueError("not a HostsGuard config file")
+    errors=[]; schema=data.get('schema',0)
+    try: schema_i=int(schema or 0)
+    except Exception: raise ValueError("import schema must be a number")
+    if schema_i>SCHEMA_VER:
+        raise ValueError(f"import schema {schema_i} is newer than supported schema {SCHEMA_VER}")
+    rows=[]; seen=set()
+    for i,d in enumerate(_import_list(data,'domains',errors),1):
+        if not isinstance(d,dict):
+            errors.append(f"domains[{i}]: expected an object"); continue
+        dom=str(d.get('domain','')).strip().lower().rstrip('.')
+        if not looks_like_domain(dom):
+            errors.append(f"domains[{i}]: invalid domain"); continue
+        st=_import_status(d.get('status','blocked'))
+        if not st:
+            errors.append(f"domains[{i}]: invalid status"); continue
+        if dom in seen:
+            errors.append(f"domains[{i}]: duplicate domain {dom}"); continue
+        seen.add(dom); rows.append((dom,st,str(d.get('source','import') or 'import')[:120]))
+    fw_rows=[]
+    for i,r in enumerate(_import_list(data,'fw_state',errors),1):
+        if not isinstance(r,dict):
+            errors.append(f"fw_state[{i}]: expected an object"); continue
+        name=str(r.get('name','')).strip()
+        if not name:
+            errors.append(f"fw_state[{i}]: rule name is required"); continue
+        direction=str(r.get('direction','')).strip()
+        if direction and direction not in ('In','Out'):
+            errors.append(f"fw_state[{i}]: direction must be In or Out"); continue
+        action=str(r.get('action','Block')).strip().title()
+        if action not in ('Block','Allow'):
+            errors.append(f"fw_state[{i}]: action must be Block or Allow"); continue
+        remote=str(r.get('remote_addr','') or '').strip()
+        if remote and not valid_fw_addr(remote):
+            errors.append(f"fw_state[{i}]: invalid remote address"); continue
+        fw_rows.append({'name':name,'direction':direction,'action':action,'remote_addr':remote,
+            'protocol':str(r.get('protocol','') or '').strip(),'program':str(r.get('program','') or '').strip()})
+    trusted=[]; untrusted=[]; proc_seen=set()
+    for key,out in (('trusted',trusted),('untrusted',untrusted)):
+        for i,p in enumerate(_import_list(data,key,errors),1):
+            if not isinstance(p,str) or not p.strip():
+                errors.append(f"{key}[{i}]: expected a process name"); continue
+            proc=p.strip().lower()
+            if (key,proc) in proc_seen: continue
+            proc_seen.add((key,proc)); out.append(proc)
+    return {'version':str(data.get('version','unknown')),'schema':schema_i,'domains':rows,
+        'fw_state':fw_rows,'trusted':trusted,'untrusted':untrusted,'errors':errors}
+
+def _format_import_plan(plan):
+    lines=[
+        f"Source version: {plan.get('version','unknown')}  |  Schema: {plan.get('schema',0)}",
+        f"Domains: {len(plan['domains'])}",
+        f"Firewall rule records: {len(plan['fw_state'])}",
+        f"Trusted processes: {len(plan['trusted'])}",
+        f"Untrusted processes: {len(plan['untrusted'])}",
+    ]
+    if plan['errors']:
+        lines.append(f"Skipped invalid entries: {len(plan['errors'])}")
+        lines.extend(" - "+e for e in plan['errors'][:8])
+        if len(plan['errors'])>8: lines.append(f" - ...and {len(plan['errors'])-8} more")
+    return "\n".join(lines)
+
+def _apply_import_plan(db,learn,plan):
+    backup=db.backup_now('import')
+    trusted_before=set(getattr(learn,'_trusted',set())); untrusted_before=set(getattr(learn,'_untrusted',set()))
+    try:
+        ct=db.add_domains_bulk(plan['domains'])
+        if ct!=len(plan['domains']):
+            raise RuntimeError("domain import failed")
+        for r in plan['fw_state']:
+            db.save_fw_rule(r['name'],r['direction'],r['action'],r['remote_addr'],r['protocol'],r['program'])
+        for proc in plan['trusted']: learn.trust(proc)
+        for proc in plan['untrusted']: learn.untrust(proc)
+        return {'domains':ct,'fw_state':len(plan['fw_state']),'trusted':len(plan['trusted']),
+            'untrusted':len(plan['untrusted']),'backup':backup}
+    except Exception:
+        if backup: db.restore_backup(backup)
+        learn._trusted=trusted_before; learn._untrusted=untrusted_before; learn.save()
+        raise
 
 class TextPromptDlg(QDialog):
     def __init__(s,title,label,placeholder="",initial="",helper="",validator=None,parent=None,confirm="Apply"):
@@ -3865,20 +3989,21 @@ class ToolsTab(QWidget):
         if not p: return
         try:
             with open(p,encoding='utf-8') as f: data=json.load(f)
-            if not isinstance(data,dict): raise ValueError("not a HostsGuard config file")
-            # Skip malformed entries instead of aborting the whole import on one.
-            rows=[(str(d['domain']).lower(),d.get('status','blocked'),d.get('source','import'))
-                  for d in data.get('domains',[]) if isinstance(d,dict) and d.get('domain')]
-            ct=s.db.add_domains_bulk(rows)
-            for r in data.get('fw_state',[]):
-                if isinstance(r,dict) and r.get('name'):
-                    s.db.save_fw_rule(r.get('name',''),r.get('direction',''),r.get('action','Block'),r.get('remote_addr',''),r.get('protocol',''),r.get('program',''))
-            for proc in data.get('trusted',[]):
-                if isinstance(proc,str): s.learn.trust(proc)
-            for proc in data.get('untrusted',[]):
-                if isinstance(proc,str): s.learn.untrust(proc)
-            fwct=len(data.get('fw_state',[]))
-            s._toast(f"Imported {ct} domains, {fwct} firewall rules - use Restore buttons to apply",C['green']); s._upd_learn()
+            plan=_build_import_plan(data)
+            total=len(plan['domains'])+len(plan['fw_state'])+len(plan['trusted'])+len(plan['untrusted'])
+            if total<=0: raise ValueError("No valid importable entries found")
+            mb=QMessageBox(s); mb.setIcon(QMessageBox.Information); mb.setWindowTitle("Review Import")
+            mb.setText("Review this import before applying it.")
+            mb.setInformativeText(_format_import_plan(plan))
+            mb.setStandardButtons(QMessageBox.NoButton)
+            cancel=mb.addButton("Cancel",QMessageBox.RejectRole)
+            apply=mb.addButton("Apply Import",QMessageBox.AcceptRole)
+            _style_btn(cancel,"dim",11,12); _style_btn(apply,"primary",11,12)
+            mb.setDefaultButton(apply); mb.setEscapeButton(cancel); mb.exec()
+            if mb.clickedButton()!=apply:
+                s._toast("Import canceled - no changes made",C['dim']); return
+            result=_apply_import_plan(s.db,s.learn,plan)
+            s._toast(f"Imported {result['domains']} domains, {result['fw_state']} firewall rules - use Restore buttons to apply",C['green']); s._upd_learn()
         except Exception as e: s._toast(f"Import failed: {e}",C['red'])
     def _export_conns(s):
         p,_=QFileDialog.getSaveFileName(s,"Export Connections",os.path.join(CONFIG_DIR,f"connections_{datetime.datetime.now():%Y%m%d_%H%M}"),"CSV (*.csv);;JSONL (*.jsonl)")

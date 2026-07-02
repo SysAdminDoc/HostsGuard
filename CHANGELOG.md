@@ -11,6 +11,9 @@ All notable changes to HostsGuard are documented in this file.
 - Added a pre-migration SQLite backup guard so existing policy databases are
   copied with SQLite's backup API before schema upgrades or legacy column-shape
   repairs; failed migrations now log the preserved backup path.
+- Added a reviewed config import path that validates schema/domain/firewall/
+  learning rows, previews counts and skipped entries before apply, creates a DB
+  backup, and restores DB plus learning state on import failure.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -20,6 +23,10 @@ All notable changes to HostsGuard are documented in this file.
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 78 tests after the
   migration-backup coverage was added.
 - Rebuilt the PyInstaller onedir artifact after the migration-backup change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 82 tests after import
+  validation and rollback coverage was added.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  and rebuilt the PyInstaller onedir artifact after the import change.
 
 ## [v3.15.0] - 2026-07-02
 

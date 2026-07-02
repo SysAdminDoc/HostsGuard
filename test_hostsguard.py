@@ -23,7 +23,9 @@ _SRC = open(os.path.join(os.path.dirname(__file__), "HostsGuard.py"), encoding="
 
 # Top-level names to lift out of the real source.
 _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clean_hosts",
-               "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules"}
+               "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules",
+               "_import_status", "_import_list", "_build_import_plan", "_format_import_plan",
+               "_apply_import_plan"}
 _WANT_CLASSES = {"DB", "FWR"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER"}
@@ -66,8 +68,12 @@ _ps_esc = _m["_ps_esc"]
 valid_fw_addr = _m["valid_fw_addr"]
 _rgb = _m["_rgb"]
 _parse_fw_rules = _m["_parse_fw_rules"]
+_build_import_plan = _m["_build_import_plan"]
+_format_import_plan = _m["_format_import_plan"]
+_apply_import_plan = _m["_apply_import_plan"]
 APP = _m["APP"]
 VER = _m["VER"]
+SCHEMA_VER = _m["SCHEMA_VER"]
 
 
 class TestExtraction:
@@ -119,6 +125,100 @@ class TestBootstrapGuards:
         monkeypatch.delattr(sys, "frozen", raising=False)
         monkeypatch.delattr(sys, "_MEIPASS", raising=False)
         assert _is_frozen() is False
+
+
+class LearnStub:
+    def __init__(self):
+        self._trusted = {"old.exe"}
+        self._untrusted = {"bad.exe"}
+        self.saved = 0
+
+    def save(self):
+        self.saved += 1
+
+    def trust(self, proc):
+        self._trusted.add(proc.lower())
+        self._untrusted.discard(proc.lower())
+        self.save()
+
+    def untrust(self, proc):
+        self._untrusted.add(proc.lower())
+        self._trusted.discard(proc.lower())
+        self.save()
+
+
+class TestImportPlanning:
+    def test_import_plan_validates_and_counts_rows(self):
+        plan = _build_import_plan({
+            "version": "3.15.0",
+            "schema": SCHEMA_VER,
+            "domains": [
+                {"domain": "Example.COM.", "status": "allowed", "source": "manual"},
+                {"domain": "bad-domain", "status": "blocked"},
+                {"domain": "example.com", "status": "blocked"},
+            ],
+            "fw_state": [
+                {"name": "HG_Test", "direction": "Out", "action": "block", "remote_addr": "8.8.8.8"},
+                {"name": "HG_Bad", "direction": "Sideways", "action": "Block"},
+            ],
+            "trusted": ["Good.EXE", ""],
+            "untrusted": ["Bad.EXE"],
+        })
+        assert plan["domains"] == [("example.com", "whitelisted", "manual")]
+        assert plan["fw_state"][0]["action"] == "Block"
+        assert plan["trusted"] == ["good.exe"]
+        assert plan["untrusted"] == ["bad.exe"]
+        assert any("invalid domain" in e for e in plan["errors"])
+        assert any("duplicate domain" in e for e in plan["errors"])
+        assert any("direction" in e for e in plan["errors"])
+        assert "Skipped invalid entries" in _format_import_plan(plan)
+
+    def test_import_rejects_newer_schema(self):
+        with pytest.raises(ValueError, match="newer"):
+            _build_import_plan({"schema": SCHEMA_VER + 1, "domains": []})
+
+    def _open_db(self, path):
+        _m["DB_PATH"] = str(path)
+        return _m["DB"]()
+
+    def test_apply_import_plan_creates_backup_and_applies(self, tmp_path):
+        db = self._open_db(tmp_path / "apply.db")
+        learn = LearnStub()
+        plan = _build_import_plan({
+            "domains": [{"domain": "new.example.com", "status": "blocked", "source": "import"}],
+            "fw_state": [{"name": "HG_Import", "direction": "Out", "action": "Allow", "remote_addr": "1.1.1.1"}],
+            "trusted": ["NewApp.exe"],
+            "untrusted": ["OtherApp.exe"],
+        })
+        result = _apply_import_plan(db, learn, plan)
+        assert result["domains"] == 1 and result["fw_state"] == 1
+        assert result["backup"] and os.path.exists(result["backup"])
+        assert any(r[0] == "new.example.com" for r in db.get_domains())
+        assert any(r[0] == "HG_Import" for r in db.get_fw_state())
+        assert "newapp.exe" in learn._trusted
+        assert "otherapp.exe" in learn._untrusted
+        db.close()
+
+    def test_apply_import_plan_restores_db_and_learning_on_failure(self, tmp_path, monkeypatch):
+        db = self._open_db(tmp_path / "rollback.db")
+        db.add_domain("keep.example.com", "blocked", "manual")
+        learn = LearnStub()
+        plan = _build_import_plan({
+            "domains": [{"domain": "new.example.com", "status": "blocked", "source": "import"}],
+            "fw_state": [{"name": "HG_Fail", "direction": "Out", "action": "Block"}],
+            "trusted": ["NewApp.exe"],
+        })
+        def fail_save(*args, **kwargs):
+            raise RuntimeError("forced fw failure")
+        monkeypatch.setattr(db, "save_fw_rule", fail_save)
+        with pytest.raises(RuntimeError, match="forced fw failure"):
+            _apply_import_plan(db, learn, plan)
+        domains = {r[0] for r in db.get_domains()}
+        assert "keep.example.com" in domains
+        assert "new.example.com" not in domains
+        assert learn._trusted == {"old.exe"}
+        assert learn._untrusted == {"bad.exe"}
+        db.close()
 
 
 class TestNormLine:
