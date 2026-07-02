@@ -31,12 +31,39 @@ public partial class ConsentWindow : Window
         PidText.Text = request.ProcessId > 0 ? $"PID {request.ProcessId}" : "unknown PID";
         ScopeRemote.Content = $"Apply only to {request.RemoteAddress}";
 
+        // NET-066 decision-quality enrichment.
+        CountryText.Text = request.Country.Length != 0 ? request.Country : "unknown";
+        SignerText.Text = request.Signer.Length != 0 ? request.Signer : "unsigned / unknown";
+        ThreatBanner.Visibility = request.Threat ? Visibility.Visible : Visibility.Collapsed;
+        _ = ResolveHostAsync(request.RemoteAddress);
+
         _deadline = DateTime.UtcNow + DecisionWindow;
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         Tick();
         Closed += (_, _) => _timer.Stop();
+    }
+
+    /// <summary>Best-effort reverse-DNS for the remote IP, resolved off-thread so the prompt never blocks.</summary>
+    private async Task ResolveHostAsync(string remote)
+    {
+        if (!System.Net.IPAddress.TryParse(remote, out var ip))
+        {
+            HostText.Text = "—";
+            return;
+        }
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var entry = await System.Net.Dns.GetHostEntryAsync(ip).WaitAsync(cts.Token);
+            HostText.Text = string.IsNullOrEmpty(entry.HostName) || entry.HostName == remote ? "no PTR record" : entry.HostName;
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException or TimeoutException or ArgumentException)
+        {
+            HostText.Text = "no PTR record";
+        }
     }
 
     /// <summary>The user's decision; null when dismissed or timed out (stays blocked).</summary>

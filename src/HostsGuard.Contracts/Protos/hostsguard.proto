@@ -433,6 +433,10 @@ message ConnectionDecisionRequest {
   string protocol = 6;
   int32 process_id = 7;
   google.protobuf.Timestamp ts = 8;
+  // Decision-quality enrichment (best-effort; blank/false when unavailable).
+  string country = 9;         // ISO country code of the remote IP (GeoIP)
+  bool threat = 10;           // remote IP is on the threat-intel overlay
+  string signer = 11;         // Authenticode signer subject of the application
 }
 
 message ConnectionDecision {

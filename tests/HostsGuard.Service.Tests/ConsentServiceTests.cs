@@ -109,6 +109,22 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Notify_enriches_the_prompt_with_country_threat_and_signer()
+    {
+        _state.Consent.LookupCountry = _ => "US";
+        _state.Consent.LookupThreat = ip => ip == "203.0.113.7";
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\enrich.exe", DateTime.UtcNow, remote: "203.0.113.7"));
+
+        sub.Reader.TryRead(out var req).Should().BeTrue();
+        req!.Country.Should().Be("US");
+        req.Threat.Should().BeTrue();
+        req.Signer.Should().NotBeNull(); // best-effort: empty for an unsigned/missing path
+    }
+
+    [Fact]
     public void Learning_auto_allows_records_and_remembers_identity()
     {
         _state.Consent.SetMode("learning");

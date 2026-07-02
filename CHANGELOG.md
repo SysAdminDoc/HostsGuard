@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added — DNS-bypass defenses + consent-prompt quality (post-v0.4.0)
+- **Enriched consent prompt (NET-066)** — the ask-to-connect window now shows the
+  remote's reverse-DNS hostname (resolved async, off-thread), GeoIP country, and
+  the process's Authenticode signer, and raises a threat banner when the remote
+  IP is on the threat-intelligence overlay. All best-effort; degrades gracefully
+  when data is unavailable.
 - **DoH-resolver bootstrap blocklist (NET-065)** — the curated blocklist catalog
   gains an "Encrypted DNS" category (HaGeZi DoH Servers + DoH/VPN/Proxy Bypass).
   Subscribing blocks the bootstrap domains that apps/browsers with hardcoded DoH

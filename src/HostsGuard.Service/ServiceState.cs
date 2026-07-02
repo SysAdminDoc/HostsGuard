@@ -40,7 +40,11 @@ public sealed class ServiceState : IDisposable
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);
-        Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir);
+        Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir)
+        {
+            LookupCountry = GeoIp.Lookup,
+            LookupThreat = Threats.Contains,
+        };
         ListFetcher = listFetcher;
         Defender = defender;
         if (listFetcher is not null)

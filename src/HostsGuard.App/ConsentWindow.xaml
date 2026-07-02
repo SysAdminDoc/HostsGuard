@@ -16,6 +16,12 @@
                            Foreground="{DynamicResource Hg.Dim}" />
             </DockPanel>
 
+            <Border x:Name="ThreatBanner" Visibility="Collapsed" Margin="0,10,0,0" Padding="8,5"
+                    Background="{DynamicResource Hg.Danger2}" CornerRadius="4">
+                <TextBlock Text="⚠ This remote address is on the threat-intelligence list"
+                           Foreground="{DynamicResource Hg.OnDanger}" FontWeight="SemiBold" />
+            </Border>
+
             <TextBlock x:Name="AppName" FontSize="14" FontWeight="SemiBold" Margin="0,10,0,2" />
             <TextBlock x:Name="AppPath" TextWrapping="Wrap" Foreground="{DynamicResource Hg.Dim}" FontSize="11" />
 
@@ -26,13 +32,20 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
+                    <RowDefinition /> <RowDefinition /> <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Remote" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Direction" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="DirectionText" />
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Process" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,0" />
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="PidText" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Host" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="HostText" Foreground="{DynamicResource Hg.Dim}" Text="resolving…" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Location" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CountryText" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Direction" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="DirectionText" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Process" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="PidText" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Signer" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,0" />
+                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="SignerText" TextWrapping="Wrap" />
             </Grid>
 
             <CheckBox x:Name="ScopeRemote" Margin="0,12,0,0"

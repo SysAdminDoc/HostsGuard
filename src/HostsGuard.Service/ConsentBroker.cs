@@ -62,6 +62,12 @@ public sealed class ConsentBroker : IDisposable
     /// <summary>Production hook that stops the Security-log watch.</summary>
     public Action? DisarmDetection { get; set; }
 
+    /// <summary>GeoIP country lookup for a remote IP (NET-066 prompt enrichment).</summary>
+    public Func<string, string>? LookupCountry { get; set; }
+
+    /// <summary>Threat-intel membership test for a remote IP (NET-066 prompt enrichment).</summary>
+    public Func<string, bool>? LookupThreat { get; set; }
+
     public ConsentBroker(HostsDatabase db, EventBus bus, IFirewallEngine? firewall, FirewallIdentity? identity, string dataDir)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
@@ -245,6 +251,10 @@ public sealed class ConsentBroker : IDisposable
             Protocol = blocked.Protocol,
             ProcessId = blocked.ProcessId,
             Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(blocked.TsUtc, DateTimeKind.Utc)),
+            // Best-effort decision-quality enrichment (NET-066).
+            Country = SafeInvoke(() => LookupCountry?.Invoke(blocked.RemoteAddress)) ?? string.Empty,
+            Threat = SafeInvoke(() => LookupThreat?.Invoke(blocked.RemoteAddress)) ?? false,
+            Signer = SafeSigner(blocked.Application),
         };
         lock (_gate)
         {
@@ -252,6 +262,36 @@ public sealed class ConsentBroker : IDisposable
         }
 
         _bus.Publish(request);
+    }
+
+    private static T? SafeInvoke<T>(Func<T?> f)
+    {
+        try
+        {
+            return f();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or FormatException)
+        {
+            return default;
+        }
+    }
+
+    /// <summary>Best-effort Authenticode signer subject for the prompt; blank on failure.</summary>
+    private static string SafeSigner(string application)
+    {
+        try
+        {
+            if (application.Length == 0 || !File.Exists(application))
+            {
+                return string.Empty;
+            }
+
+            return Windows.FirewallIdentity.Compute(application).Signer ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or ArgumentException)
+        {
+            return string.Empty;
+        }
     }
 
     private bool HasCoveringRule(string application, string direction)
