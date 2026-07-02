@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-3.12.0-blue)
+![Version](https://img.shields.io/badge/version-3.13.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python&logoColor=white)
@@ -124,11 +124,18 @@ iscc installer.iss                    # Produces installer_output/HostsGuard_Set
 | ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
 | Per-App Bandwidth Chart | Stacked area chart showing connection activity per process over time |
 | Network Profiles | Save/switch named rule sets — different blocking for home/work/public |
-| Headless Service Mode | `--service` runs monitoring without GUI, exposes HTTP JSON-RPC on port 7847 |
+| Headless Service Mode | `--service` runs monitoring without GUI, exposes token-authed HTTP JSON-RPC (GET /status /domains /stats /log, POST /domains) on port 7847 + optional event webhooks |
 | DNS Inspection | Right-click any domain to see A/AAAA/CNAME chains, TTLs, resolver latency |
 | SHA-512 Integrity | Hash-based hosts file tamper detection (catches time-preserved modifications) |
 | Registry Monitor | Detects DataBasePath registry redirection by malware |
 | Windows Event Log | Tamper events written to Application log as structured JSON for SIEM ingestion |
+| Block Encrypted DNS | Firewall-block known DoH resolver IPs + DoT/DoQ port 853 (your own resolver exempt) so apps can't tunnel DNS past hosts blocking |
+| Blocked Services | One-click toggles to block YouTube, TikTok, Facebook, Discord, Netflix, and more via curated hosts entries |
+| Windows Telemetry Preset | One-click block ~28 Microsoft telemetry endpoints (reversible as a unit) |
+| Scheduled Blocking | Block a domain or service on a recurring weekly schedule (windows may cross midnight) |
+| Allowlist Subscriptions | Subscribe to remote allowlists that whitelist domains and win over blocklists |
+| Mini Monitor | Tray-toggled always-on-top thumbnail of live up/down rates and connection/blocked counts |
+| Orphaned FW Rule Detection | Flags HostsGuard program rules whose executable moved (app update) with one-click re-bind |
 | Auto-Restore | Optional automatic hosts file restoration from backup on tamper detection |
 
 ## Blocklist Sources

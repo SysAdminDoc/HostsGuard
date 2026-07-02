@@ -1,6 +1,6 @@
 [Setup]
 AppName=HostsGuard
-AppVersion=3.12.0
+AppVersion=3.13.0
 AppPublisher=SysAdminDoc
 AppPublisherURL=https://github.com/SysAdminDoc/HostsGuard
 DefaultDirName={autopf}\HostsGuard

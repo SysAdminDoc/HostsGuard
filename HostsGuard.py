@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HostsGuard v3.12.0 — Network Privacy Manager
+HostsGuard v3.13.0 — Network Privacy Manager
 See what connects. Block what you don't want. Simple.
 """
 import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io
@@ -93,13 +93,17 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 # Qt6 enables HiDPI scaling automatically; these attributes are deprecated no-ops
-# (kept for older Qt and guarded so a future removal can't crash startup).
-for _attr in ("AA_EnableHighDpiScaling","AA_UseHighDpiPixmaps"):
-    try: QApplication.setAttribute(getattr(Qt,_attr),True)
-    except Exception: pass
+# (kept for older Qt, guarded so a future removal can't crash, with the Qt6
+# deprecation warning suppressed so it doesn't spam stderr on every launch/CLI run).
+import warnings as _warnings
+with _warnings.catch_warnings():
+    _warnings.simplefilter("ignore",DeprecationWarning)
+    for _attr in ("AA_EnableHighDpiScaling","AA_UseHighDpiPixmaps"):
+        try: QApplication.setAttribute(getattr(Qt,_attr),True)
+        except Exception: pass
 
 # ─── Constants ──────────────────────────────────────────────────────────────
-APP="HostsGuard"; VER="3.12.0"; FW_PFX="HG_"
+APP="HostsGuard"; VER="3.13.0"; FW_PFX="HG_"
 HOSTS_PATH=r"C:\Windows\System32\drivers\etc\hosts" if sys.platform=='win32' else "/etc/hosts"
 _PORTABLE='--portable' in sys.argv
 if _PORTABLE:
