@@ -4,6 +4,8 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+## [v3.17.0] - 2026-07-02
+
 ### Fixed
 - Hardened config persistence, remote feed ingestion, and local service request
   parsing: config now saves atomically with UTF-8 and per-thread temp files,

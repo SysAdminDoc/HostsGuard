@@ -1,4 +1,4 @@
-# Tested release/runtime dependency set for HostsGuard v3.16.0.
+# Tested release/runtime dependency set for HostsGuard v3.17.0.
 PySide6==6.11.1
 PySide6_Addons==6.11.1
 PySide6_Essentials==6.11.1
