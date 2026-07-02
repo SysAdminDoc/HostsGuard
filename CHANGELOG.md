@@ -14,6 +14,8 @@ All notable changes to HostsGuard are documented in this file.
 - Replaced fragile decorative glyph labels with readable text/status treatments,
   refreshed microcopy across hosts, firewall, blocklist, learning, backup, and
   DNS tools, and recaptured the README screenshot from rendered UI QA.
+- Added Windows version metadata to the packaged executable so binary properties,
+  installer metadata, and in-app version text report v3.15.0 consistently.
 
 ### Verified
 - Rendered dark and light screenshots for Hosts Activity, Firewall Activity,
