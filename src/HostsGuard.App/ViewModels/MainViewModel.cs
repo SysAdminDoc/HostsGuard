@@ -47,6 +47,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private RawHostsViewModel? _rawHosts;
 
     [ObservableProperty]
+    private FwActivityViewModel? _fwActivity;
+
+    [ObservableProperty]
+    private FwRulesViewModel? _fwRules;
+
+    [ObservableProperty]
     private string _theme;
 
     [ObservableProperty]
@@ -84,6 +90,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Activity.StartWatching();
             RawHosts ??= new RawHostsViewModel(_client);
             await RawHosts.LoadAsync();
+            FwActivity ??= new FwActivityViewModel(_client);
+            FwActivity.StartWatching();
+            FwRules ??= new FwRulesViewModel(_client);
+            await FwRules.RefreshAsync();
             IsConnected = true;
             ConnectionText = $"Connected — service v{status.Version}" + (status.Elevated ? " (elevated)" : string.Empty);
         }
@@ -111,6 +121,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Activity?.Dispose();
+        FwActivity?.Dispose();
         _client?.Dispose();
     }
 }

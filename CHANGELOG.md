@@ -49,7 +49,18 @@ All notable changes to HostsGuard are documented in this file.
   reason tooltips) and the Hosts File tab split into Managed Domains
   (status filter, bulk block/allow/remove, block-root) + Raw Editor
   (transactional save through the engine).
-- 197 .NET tests; zero build warnings under warnings-as-errors.
+- Firewall views (NET-022): FirewallControl service impl on the COM engine
+  behind a new IFirewallEngine seam — quick-block IP/program, custom rule
+  creation with enforced HG_ prefix, HG_-only mutation guard (system rules can
+  never be deleted/disabled through HostsGuard), fw_state drift tracking
+  (deleted-behind-our-back rules surface flagged), orphan detection, and
+  program-identity remembering on rule creation. A ConnectionFeed poller
+  publishes IPHLPAPI connection sightings to WatchConnections streams. The UI
+  gained FW Activity (live connection grid, quick-block remote IP / program,
+  research links) and FW Rules (viewer with HostsGuard-only + text filters,
+  enable/disable, delete, bulk delete, inline custom-rule form, ⚠ orphan/drift
+  flags).
+- 205 .NET tests; zero build warnings under warnings-as-errors.
 
 ## [v3.17.0] - 2026-07-02
 

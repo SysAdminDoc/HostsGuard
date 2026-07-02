@@ -155,9 +155,47 @@
                 </TabItem>
 
                 <TabItem Header="FW Activity">
-                    <TextBlock Text="Live connections + GeoIP — arrives with NET-022."
-                               Style="{StaticResource Hg.DimText}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid Margin="4" DataContext="{Binding FwActivity}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <DataGrid Grid.Row="0" ItemsSource="{Binding Rows}">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Block remote IP"
+                                              Command="{Binding PlacementTarget.DataContext.QuickBlockIpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Block program"
+                                              Command="{Binding PlacementTarget.DataContext.QuickBlockProcessCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <Separator />
+                                    <MenuItem Header="Research online">
+                                        <MenuItem Header="Google"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="AbuseIPDB"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchAbuseIpdbCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </MenuItem>
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
+                                <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60" />
+                                <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />
+                                <DataGridTextColumn Header="Remote address" Binding="{Binding RemoteAddr}" Width="*" />
+                                <DataGridTextColumn Header="Port" Binding="{Binding RemotePort}" Width="60" />
+                                <DataGridTextColumn Header="State" Binding="{Binding State}" Width="110" />
+                                <DataGridTextColumn Header="Country" Binding="{Binding Country}" Width="80" />
+                                <DataGridTextColumn Header="FW" Binding="{Binding FwStatus}" Width="90" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="1" Margin="2,6,0,0"
+                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                    </Grid>
                 </TabItem>
 
                 <TabItem Header="Hosts File">
@@ -285,9 +323,88 @@
                 </TabItem>
 
                 <TabItem Header="FW Rules">
-                    <TextBlock Text="Firewall rule manager — arrives with NET-022."
-                               Style="{StaticResource Hg.DimText}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid Margin="4" DataContext="{Binding FwRules}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Content="Refresh"
+                                    Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                            <CheckBox DockPanel.Dock="Right" Content="HostsGuard rules only" Margin="8,0,0,0"
+                                      VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
+                            <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Filter by name, address, or program. Enter applies.">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                        </DockPanel>
+
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Enable / disable"
+                                              Command="{Binding PlacementTarget.DataContext.ToggleRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Delete"
+                                              Command="{Binding PlacementTarget.DataContext.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Delete selected"
+                                              Command="{Binding PlacementTarget.DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
+                                <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="50" />
+                                <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="70" />
+                                <DataGridCheckBoxColumn Header="On" Binding="{Binding Enabled}" Width="46" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Remote" Binding="{Binding RemoteAddr}" Width="*" />
+                                <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />
+                                <DataGridTextColumn Header="Program" Binding="{Binding Program}" Width="*" />
+                                <DataGridTextColumn Header="Flags" Binding="{Binding Flags}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Inline custom-rule form -->
+                        <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Create rule"
+                                        Style="{StaticResource Hg.AccentButton}"
+                                        Command="{Binding CreateRuleCommand}" Margin="8,0,0,0" />
+                                <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
+                                         Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Rule name (HG_ prefix added automatically)" />
+                                <ComboBox DockPanel.Dock="Left" Width="64" Margin="0,0,8,0"
+                                          ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
+                                          SelectedItem="{Binding NewRuleDirection}" />
+                                <ComboBox DockPanel.Dock="Left" Width="80" Margin="0,0,8,0"
+                                          ItemsSource="{x:Static vm:FwRulesViewModel.Actions}"
+                                          SelectedItem="{Binding NewRuleAction}" />
+                                <ComboBox DockPanel.Dock="Left" Width="70" Margin="0,0,8,0"
+                                          ItemsSource="{x:Static vm:FwRulesViewModel.Protocols}"
+                                          SelectedItem="{Binding NewRuleProtocol}" />
+                                <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
+                                         Text="{Binding NewRuleRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Remote address: IP, CIDR, or range (empty = Any)" />
+                                <TextBox Text="{Binding NewRuleProgram, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Program path (optional)" />
+                            </DockPanel>
+                        </Border>
+
+                        <TextBlock Grid.Row="3" Margin="2,6,0,0"
+                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                    </Grid>
                 </TabItem>
 
                 <TabItem Header="Tools">

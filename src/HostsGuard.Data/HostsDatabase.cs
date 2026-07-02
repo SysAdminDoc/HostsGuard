@@ -344,6 +344,41 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    // ─── Firewall state (drift tracking) ──────────────────────────────────────
+
+    /// <summary>Track a HostsGuard-created rule so drift (deleted-behind-our-back) is detectable.</summary>
+    public void UpsertFwState(string name, string direction, string action, string remoteAddr, string protocol, string program)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT OR REPLACE INTO fw_state(name,direction,action,remote_addr,protocol,program,created)
+                VALUES(@name,@direction,@action,@remoteAddr,@protocol,@program,
+                       COALESCE((SELECT created FROM fw_state WHERE name=@name),@now))
+                """,
+                new { name, direction, action, remoteAddr, protocol, program, now });
+        }
+    }
+
+    public void RemoveFwState(string name)
+    {
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM fw_state WHERE name=@name", new { name });
+        }
+    }
+
+    public IReadOnlySet<string> GetFwStateNames()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT name FROM fw_state").ToHashSet(StringComparer.Ordinal);
+        }
+    }
+
     // ─── Log ──────────────────────────────────────────────────────────────────
 
     public void LogEvent(string domain, string action, string process = "", string details = "", string? reason = null)

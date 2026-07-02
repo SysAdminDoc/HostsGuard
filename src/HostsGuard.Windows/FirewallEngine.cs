@@ -11,7 +11,7 @@ namespace HostsGuard.Windows;
 /// elevation and is exercised by the admin-gated round-trip test.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class FirewallEngine
+public sealed class FirewallEngine : IFirewallEngine
 {
     // NET_FW_RULE_DIRECTION_
     private const int DirIn = 1;

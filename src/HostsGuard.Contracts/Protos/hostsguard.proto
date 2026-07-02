@@ -166,6 +166,8 @@ message FirewallRule {
   string protocol = 6;
   string program = 7;
   string source = 8;    // "hostsguard" | "system"
+  bool orphaned = 9;    // program path no longer exists on disk
+  bool drifted = 10;    // HG_ rule tracked in the DB but missing live (or vice versa)
 }
 
 message FirewallRuleList {

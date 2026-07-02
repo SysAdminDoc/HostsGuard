@@ -18,7 +18,11 @@ var handshakePath = Path.Combine(baseDir, "session_token");
 
 var hosts = new HostsEngine(HostsEngine.DefaultHostsPath);
 var db = new HostsDatabase(dbPath);
-using var state = new ServiceState(hosts, db);
+var firewall = new FirewallEngine();
+var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"));
+using var state = new ServiceState(hosts, db, firewall, identity);
+using var connectionFeed = new ConnectionFeed(state);
+connectionFeed.Start();
 
 // Mint a per-session token and publish it to the ACL'd handshake file.
 var token = SessionToken.Generate();
