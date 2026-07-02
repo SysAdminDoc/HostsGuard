@@ -463,18 +463,93 @@ def ui_call(f):
     if _ui_bridge: _ui_bridge.call.emit(f)
     else: QTimer.singleShot(0,f)
 
-def _post_webhook(event,data):
-    """Best-effort JSON POST of an event to config['webhook_url'] (fire-and-forget).
-    Used for blocked-domain and tamper alerts so external systems can react."""
-    url=load_cfg().get('webhook_url','').strip()
-    if not url or not url.startswith(('http://','https://')): return
-    def _bg():
+WEBHOOK_MAX_RETRIES=5
+WEBHOOK_MAX_BACKOFF_SECONDS=30.0
+WEBHOOK_MAX_TIMEOUT_SECONDS=30.0
+WEBHOOK_DEFAULT_TIMEOUT_SECONDS=5.0
+
+def _clamp_number(value,default,minimum,maximum,cast=float):
+    try: n=cast(value)
+    except Exception: n=default
+    return max(minimum,min(maximum,n))
+
+def _webhook_options(cfg):
+    cfg=cfg or {}
+    if cfg.get('webhook_enabled',True) is False:
+        return {"enabled":False,"status":"disabled","reason":"webhook_enabled is false"}
+    url=str(cfg.get('webhook_url','') or '').strip()
+    if not url:
+        return {"enabled":False,"status":"disabled","reason":"webhook_url is empty"}
+    if not url.startswith(('http://','https://')):
+        return {"enabled":False,"status":"invalid_url","reason":"webhook_url must start with http:// or https://"}
+    retries=int(_clamp_number(cfg.get('webhook_retries',2),2,0,WEBHOOK_MAX_RETRIES,int))
+    timeout=_clamp_number(cfg.get('webhook_timeout_seconds',WEBHOOK_DEFAULT_TIMEOUT_SECONDS),
+                          WEBHOOK_DEFAULT_TIMEOUT_SECONDS,1.0,WEBHOOK_MAX_TIMEOUT_SECONDS,float)
+    backoff=_clamp_number(cfg.get('webhook_backoff_seconds',1.0),1.0,0.0,WEBHOOK_MAX_BACKOFF_SECONDS,float)
+    return {"enabled":True,"url":url,"retries":retries,"timeout":timeout,"backoff":backoff,
+            "secret":str(cfg.get('webhook_secret','') or '')}
+
+def _webhook_payload(event,data,now=None):
+    payload={'app':APP,'ver':VER,'event':str(event),'ts':(now or datetime.datetime.now()).isoformat()}
+    if isinstance(data,dict): payload.update(data)
+    body=json.dumps(payload,separators=(',',':'),ensure_ascii=False,sort_keys=True).encode('utf-8')
+    return payload,body
+
+def _webhook_error_text(err):
+    msg=str(err) or err.__class__.__name__
+    try: return _redact_support_text(msg)
+    except Exception: return msg
+
+def _deliver_webhook(event,data,cfg=None,opener=None,sleep=None,logger=None,now=None):
+    opt=_webhook_options(load_cfg() if cfg is None else cfg)
+    lg=logger or log
+    if not opt.get("enabled"):
+        if opt.get("status")=="invalid_url": lg.warning(f"webhook disabled: {opt.get('reason')}")
+        else: lg.debug(f"webhook disabled: {opt.get('reason')}")
+        return {"ok":False,"status":opt.get("status","disabled"),"attempts":0,"reason":opt.get("reason","")}
+    _,body=_webhook_payload(event,data,now)
+    headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}',
+             'X-HG-Event':str(event),'X-HG-Schema':'hostsguard.webhook.v1'}
+    if opt.get("secret"):
+        sig=hmac.new(opt["secret"].encode('utf-8'),body,hashlib.sha256).hexdigest()
+        headers['X-HG-Signature']=f"sha256={sig}"
+    attempts=opt["retries"]+1
+    open_fn=opener or urllib.request.urlopen
+    sleep_fn=sleep or time.sleep
+    last_error=""
+    for attempt in range(1,attempts+1):
         try:
-            body=json.dumps({'app':APP,'ver':VER,'event':event,'ts':datetime.datetime.now().isoformat(),**data}).encode()
-            req=urllib.request.Request(url,data=body,headers={'Content-Type':'application/json','User-Agent':f'HostsGuard/{VER}'})
-            urllib.request.urlopen(req,timeout=5).close()
-        except Exception as e: log.debug(f"webhook: {e}")
+            req=urllib.request.Request(opt["url"],data=body,headers=headers,method='POST')
+            resp=open_fn(req,timeout=opt["timeout"])
+            status=int(getattr(resp,'status',getattr(resp,'code',200)) or 200)
+            try: resp.close()
+            except Exception: pass
+            if 200<=status<300:
+                lg.info(f"webhook delivered event={event} attempt={attempt} status={status}")
+                return {"ok":True,"status":"delivered","attempts":attempt,"http_status":status}
+            raise RuntimeError(f"HTTP {status}")
+        except Exception as e:
+            last_error=_webhook_error_text(e)
+            if attempt<attempts:
+                wait=min(opt["backoff"]*(2**(attempt-1)),WEBHOOK_MAX_BACKOFF_SECONDS)
+                lg.warning(f"webhook retry event={event} attempt={attempt}/{attempts}: {last_error}")
+                if wait>0: sleep_fn(wait)
+            else:
+                lg.warning(f"webhook exhausted event={event} attempts={attempts}: {last_error}")
+    return {"ok":False,"status":"failed","attempts":attempts,"error":last_error}
+
+def _post_webhook(event,data):
+    """Queue a signed/retried webhook delivery without blocking service/UI loops."""
+    cfg=load_cfg()
+    opt=_webhook_options(cfg)
+    if not opt.get("enabled"):
+        if opt.get("status")=="invalid_url": log.warning(f"webhook disabled: {opt.get('reason')}")
+        else: log.debug(f"webhook disabled: {opt.get('reason')}")
+        return {"ok":False,"status":opt.get("status","disabled"),"attempts":0}
+    def _bg():
+        _deliver_webhook(event,data,cfg)
     threading.Thread(target=_bg,daemon=True).start()
+    return {"ok":True,"status":"queued","attempts":0}
 
 _evt_src_ok=False
 def _evt_log(msg,level='Warning'):

@@ -46,6 +46,7 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_redact_support_scalar", "_redact_support_key", "_redact_support_config", "_redact_support_text",
                "_fw_support_summary", "_event_rows_redacted", "_support_bundle_payload",
                "_write_support_bundle",
+               "_clamp_number", "_webhook_options", "_webhook_payload", "_webhook_error_text", "_deliver_webhook",
                "_module_version", "_dependency_versions",
                "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
                "_migrate_policy_to_programdata",
@@ -65,6 +66,8 @@ _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "USER_CONFIG_DIR", "PROGRAMDATA_CONFIG_DIR", "POLICY_FILES", "POLICY_SCOPE",
                 "UI_SCALE_CHOICES",
                 "FW_IDENTITY_CACHE_KEY",
+                "WEBHOOK_MAX_RETRIES", "WEBHOOK_MAX_BACKOFF_SECONDS", "WEBHOOK_MAX_TIMEOUT_SECONDS",
+                "WEBHOOK_DEFAULT_TIMEOUT_SECONDS",
                 "SUPPORT_REDACTION_MARKERS", "_SECRET_KEY_RE", "_URL_RE", "_DOMAIN_TEXT_RE", "_IP_TEXT_RE",
                 "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
                 "SERVICE_BODY_LIMIT", "SERVICE_LOG_ACTIONS"}
@@ -128,6 +131,7 @@ _redact_support_config = _m["_redact_support_config"]
 _redact_support_text = _m["_redact_support_text"]
 _support_bundle_payload = _m["_support_bundle_payload"]
 _write_support_bundle = _m["_write_support_bundle"]
+_deliver_webhook = _m["_deliver_webhook"]
 _dependency_versions = _m["_dependency_versions"]
 _policy_status = _m["_policy_status"]
 _migrate_policy_to_programdata = _m["_migrate_policy_to_programdata"]
@@ -403,10 +407,134 @@ class TestServiceContract:
         assert {"limit", "since", "action", "reason"} <= log_params
 
 
+class _WebhookResp:
+    def __init__(self, status=200):
+        self.status = status
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+class _WebhookLogger:
+    def __init__(self):
+        self.rows = []
+
+    def info(self, msg):
+        self.rows.append(("info", msg))
+
+    def warning(self, msg):
+        self.rows.append(("warning", msg))
+
+    def debug(self, msg):
+        self.rows.append(("debug", msg))
+
+
+class TestWebhookDelivery:
+    def test_success_adds_hmac_signature_header(self):
+        calls = []
+
+        def opener(req, timeout):
+            calls.append((req, timeout))
+            return _WebhookResp(204)
+
+        cfg = {
+            "webhook_url": "https://hooks.example.com/services/abc",
+            "webhook_secret": "shared-secret",
+        }
+        result = _deliver_webhook(
+            "blocked",
+            {"domain": "ads.example.com"},
+            cfg,
+            opener=opener,
+            sleep=lambda _: None,
+            logger=_WebhookLogger(),
+            now=datetime.datetime(2026, 7, 2, 12, 0, 0),
+        )
+        assert result == {"ok": True, "status": "delivered", "attempts": 1, "http_status": 204}
+        req, timeout = calls[0]
+        assert timeout == 5.0
+        payload = json.loads(req.data.decode("utf-8"))
+        assert payload["event"] == "blocked"
+        assert payload["domain"] == "ads.example.com"
+        headers = {k.lower(): v for k, v in req.header_items()}
+        expected = hmac.new(b"shared-secret", req.data, hashlib.sha256).hexdigest()
+        assert headers["x-hg-signature"] == f"sha256={expected}"
+        assert headers["x-hg-schema"] == "hostsguard.webhook.v1"
+
+    def test_transient_failure_retries_then_succeeds(self):
+        calls = []
+        sleeps = []
+        logger = _WebhookLogger()
+
+        def opener(req, timeout):
+            calls.append(req)
+            if len(calls) == 1:
+                raise urllib.error.URLError("temporary outage")
+            return _WebhookResp(202)
+
+        result = _deliver_webhook(
+            "tamper",
+            {"msg": "hosts file modified externally"},
+            {"webhook_url": "https://hooks.example.com/services/abc", "webhook_retries": 2, "webhook_backoff_seconds": 0.25},
+            opener=opener,
+            sleep=sleeps.append,
+            logger=logger,
+        )
+        assert result["ok"] is True
+        assert result["attempts"] == 2
+        assert len(calls) == 2
+        assert sleeps == [0.25]
+        assert any(level == "warning" and "webhook retry" in msg for level, msg in logger.rows)
+
+    def test_retry_exhaustion_returns_failure_status(self):
+        calls = []
+        sleeps = []
+        logger = _WebhookLogger()
+
+        def opener(req, timeout):
+            calls.append(req)
+            raise urllib.error.URLError("network down")
+
+        result = _deliver_webhook(
+            "blocked",
+            {"domain": "ads.example.com"},
+            {"webhook_url": "https://hooks.example.com/services/abc", "webhook_retries": 2, "webhook_backoff_seconds": 0.1},
+            opener=opener,
+            sleep=sleeps.append,
+            logger=logger,
+        )
+        assert result["ok"] is False
+        assert result["status"] == "failed"
+        assert result["attempts"] == 3
+        assert len(calls) == 3
+        assert sleeps == [0.1, 0.2]
+        assert any(level == "warning" and "webhook exhausted" in msg for level, msg in logger.rows)
+
+    def test_disabled_mode_does_not_call_opener(self):
+        logger = _WebhookLogger()
+
+        def opener(req, timeout):
+            raise AssertionError("disabled webhook should not open a request")
+
+        result = _deliver_webhook(
+            "blocked",
+            {"domain": "ads.example.com"},
+            {"webhook_enabled": False, "webhook_url": "https://hooks.example.com/services/abc"},
+            opener=opener,
+            logger=logger,
+        )
+        assert result["ok"] is False
+        assert result["status"] == "disabled"
+        assert result["attempts"] == 0
+        assert any(level == "debug" and "webhook disabled" in msg for level, msg in logger.rows)
+
+
 class TestSupportBundle:
     def test_config_redaction_marks_webhooks_tokens_and_domains(self):
         cfg = {
             "webhook_url": "https://hooks.example.com/services/abc",
+            "webhook_secret": "shared-secret",
             "service_token": "a" * 64,
             "schedules": [{"target": "private.example.com"}],
             "fw_program_identities": {r"C:\Users\me\AppData\Local\App\app.exe": {"path": r"C:\Users\me\AppData\Local\App\app.exe"}},
@@ -415,6 +543,7 @@ class TestSupportBundle:
         }
         redacted = _redact_support_config(cfg)
         assert redacted["webhook_url"].startswith("<REDACTED_URL:")
+        assert redacted["webhook_secret"] == "<REDACTED_SECRET>"
         assert redacted["service_token"] == "<REDACTED_SECRET>"
         assert redacted["schedules"][0]["target"].startswith("<REDACTED_DOMAIN:")
         assert all("Users" not in k for k in redacted["fw_program_identities"])

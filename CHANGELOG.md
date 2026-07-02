@@ -50,6 +50,10 @@ All notable changes to HostsGuard are documented in this file.
   bootstrap installs, bundled the constraints file into PyInstaller output, and
   exposed `release-smoke` to print the tested PySide6/psutil/maxminddb/
   PyInstaller versions before shipping.
+- Hardened service event webhooks with optional `webhook_secret` HMAC signing,
+  bounded retry/backoff/timeout controls, explicit disabled/invalid states, and
+  retry/exhaustion delivery status in `hostsguard.log`; support bundles redact
+  webhook secrets alongside URLs.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -116,6 +120,13 @@ All notable changes to HostsGuard are documented in this file.
   `py -3.12 HostsGuard.py status`, and `py -3.12 HostsGuard.py release-smoke`.
 - Rebuilt the PyInstaller onedir artifact with `constraints.txt` bundled and
   passed the frozen `release-smoke` process exit check.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 118 tests after adding
+  webhook delivery semantics coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
+  `py -3.12 HostsGuard.py status`, and `py -3.12 HostsGuard.py release-smoke`
+  after the webhook hardening change.
+- Rebuilt the PyInstaller onedir artifact and passed the frozen `release-smoke`
+  process exit check after the webhook hardening change.
 
 ## [v3.15.0] - 2026-07-02
 

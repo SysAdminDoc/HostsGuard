@@ -130,7 +130,7 @@ winget install --id JRSoftware.InnoSetup -e
 | ETW DNS Monitoring | Real-time DNS events via ETW with PowerShell polling fallback |
 | Per-App Bandwidth Chart | Stacked area chart showing connection activity per process over time |
 | Network Profiles | Save/switch named rule sets — different blocking for home/work/public |
-| Headless Service Mode | `--service` runs monitoring without GUI, exposes token-authed HTTP JSON-RPC (GET /status /domains /stats /log /openapi.json, POST /domains) on port 7847 + optional event webhooks |
+| Headless Service Mode | `--service` runs monitoring without GUI, exposes token-authed HTTP JSON-RPC (GET /status /domains /stats /log /openapi.json, POST /domains) on port 7847 + optional signed/retried event webhooks |
 | DNS Inspection | Right-click any domain to see A/AAAA/CNAME chains, TTLs, resolver latency |
 | SHA-512 Integrity | Hash-based hosts file tamper detection (catches time-preserved modifications) |
 | Registry Monitor | Detects DataBasePath registry redirection by malware |
@@ -239,6 +239,8 @@ Hosts File tab > **Restore** restores the most recent backup. **Emergency Reset*
 
 **Q: Can I run this headless / via CLI?**
 Yes. CLI commands work without the GUI: `python HostsGuard.py block example.com`, `status`, `export`, `release-smoke` (block/allow/unblock require an elevated terminal). For continuous monitoring without GUI, use `python HostsGuard.py --service` which starts DNS monitoring, connection tracking, hosts integrity checks, and exposes a JSON-RPC endpoint on `http://127.0.0.1:7847` (configurable via `HG_PORT` env var). Endpoints: `GET /status`, `GET /domains`, `GET /stats`, `GET /log`, `GET /openapi.json`, and `POST /domains` (with `{action, domain}` body). `/status` includes DoH resolver intelligence source, last update, and resolver counts; `/domains` and `/log` include canonical reason values; `/log` supports validated `limit`, `since`, `action`, and `reason` query params such as `/log?reason=firewall&limit=50`. Errors use a stable `hostsguard.error.v1` JSON shape, and POST bodies over 1 MB are rejected instead of truncated. Because the service runs elevated and the endpoint can modify your hosts file, every request must include `X-HG-Token`; set `HG_TOKEN` explicitly or use the auto-generated token stored in `%APPDATA%\HostsGuard\service_token`.
+
+Optional service event webhooks use `config.json` keys `webhook_enabled`, `webhook_url`, `webhook_secret`, `webhook_retries`, `webhook_backoff_seconds`, and `webhook_timeout_seconds`. When `webhook_secret` is set, each POST includes `X-HG-Signature: sha256=<hmac>` over the JSON body plus `X-HG-Schema: hostsguard.webhook.v1`. Retries are bounded to 0-5 with capped backoff/timeout, delivery retry/exhaustion status is written to `hostsguard.log`, and support bundles redact both webhook URLs and secrets.
 
 **Q: How do I keep encrypted-DNS blocking current?**
 Use Tools > DNS + Network > **Refresh DoH List**. HostsGuard merges Windows known DoH servers with the built-in resolver list and, if configured, a remote resolver list from `config.json` keys `doh_resolver_url` and `doh_resolver_sha256`. Remote lists are rejected without a SHA-256 value, failed refreshes leave the previous `doh_resolvers.json` intact, and enabling **Block Encrypted DNS** always exempts your current DNS resolver.
