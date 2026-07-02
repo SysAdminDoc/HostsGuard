@@ -45,6 +45,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Hide / Hide Root | Permanently suppress domains from the activity feed — persists across restarts via `hidden_roots` table |
 | Feed Tracking | Records first seen, last seen, hit count, and originating process for every domain |
 | Status Filtering | Filter by All, Blocked, Allowed, Unmanaged, or Hidden |
+| Advanced Search | Search tables with `field:value`, `!term`, and `field!=value` filters |
 | Bulk Actions | Multi-select domains for batch block, allow, or hide operations |
 | Research Links | Right-click any domain to open Google, VirusTotal, who.is, URLScan, Shodan, SecurityTrails, MXToolbox, or AbuseIPDB |
 

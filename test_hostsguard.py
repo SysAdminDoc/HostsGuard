@@ -9,6 +9,7 @@ import ast
 import ipaddress
 import os
 import re
+import shlex
 import sqlite3
 import sys
 import datetime
@@ -45,6 +46,7 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_write_support_bundle",
                "_policy_file_hash", "_path_owner", "_policy_existing_files", "_policy_status",
                "_migrate_policy_to_programdata",
+               "_parse_search_query", "_search_record_text", "_search_matches",
                "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
                "_load_fw_identity_cache", "_remember_fw_program_identity",
                "_remember_fw_program_identity_async", "_identity_hashes",
@@ -88,7 +90,8 @@ def _extract():
           "Path": __import__("pathlib").Path,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
           "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict,
-          "defaultdict": defaultdict, "zipfile": zipfile, "shutil": shutil, "tempfile": tempfile}
+          "defaultdict": defaultdict, "zipfile": zipfile, "shutil": shutil, "tempfile": tempfile,
+          "shlex": shlex}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -122,6 +125,8 @@ _support_bundle_payload = _m["_support_bundle_payload"]
 _write_support_bundle = _m["_write_support_bundle"]
 _policy_status = _m["_policy_status"]
 _migrate_policy_to_programdata = _m["_migrate_policy_to_programdata"]
+_parse_search_query = _m["_parse_search_query"]
+_search_matches = _m["_search_matches"]
 _program_identity = _m["_program_identity"]
 _score_rebind_candidate = _m["_score_rebind_candidate"]
 _rank_rebind_candidates = _m["_rank_rebind_candidates"]
@@ -493,6 +498,30 @@ class TestPolicyMigration:
             _migrate_policy_to_programdata(str(src), str(dst), portable=False)
         assert not (dst / "hostsguard.db").exists()
         assert (dst / "config.json").read_text(encoding="utf-8") == "old-cfg"
+
+
+class TestAdvancedSearchGrammar:
+    def test_parse_field_negative_and_not_equal_terms(self):
+        terms = _parse_search_query('domain:ads.example.com !telemetry action!=allowed "quoted value"')
+        assert terms == [
+            {"field": "domain", "op": "contains", "value": "ads.example.com"},
+            {"field": "", "op": "not_contains", "value": "telemetry"},
+            {"field": "action", "op": "ne", "value": "allowed"},
+            {"field": "", "op": "contains", "value": "quoted value"},
+        ]
+
+    def test_match_supports_field_aliases_and_negation(self):
+        record = {"domain": "ads.example.com", "action": "blocked", "reason": "blocklist", "process": "browser.exe"}
+        assert _search_matches(record, "domain:ads reason:blocklist !telemetry")
+        assert _search_matches(record, "proc:browser", {"proc": "process"})
+        assert not _search_matches(record, "domain:ads !browser")
+        assert not _search_matches(record, "action!=blocked")
+
+    def test_match_handles_special_characters_in_quoted_values(self):
+        record = {"details": "Firewall blocked 1.2.3.4:443 for C:\\Apps\\Foo Bar\\app.exe"}
+        assert _search_matches(record, 'details:"1.2.3.4:443"')
+        assert _search_matches(record, '"Foo Bar"')
+        assert not _search_matches(record, 'details!="Firewall blocked 1.2.3.4:443 for C:\\Apps\\Foo Bar\\app.exe"')
 
 
 class TestNormLine:

@@ -40,6 +40,9 @@ All notable changes to HostsGuard are documented in this file.
   ProgramData policy files, reports active policy scope/owner/drift in Tools and
   support diagnostics, and can copy per-user policy DB/config/DoH intelligence
   into ProgramData with rollback protection while leaving portable mode unchanged.
+- Added shared advanced search grammar across DNS activity, live connections,
+  managed domains, firewall rules, and event log tables with `field:value`,
+  `!term`, and `field!=value` filters plus inline placeholder examples.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -86,6 +89,12 @@ All notable changes to HostsGuard are documented in this file.
   after the policy migration change.
 - Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
   artifact after the policy migration change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 110 tests after adding
+  advanced search grammar parser/matcher coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  after the advanced search change.
+- Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
+  artifact after the advanced search change.
 
 ## [v3.15.0] - 2026-07-02
 

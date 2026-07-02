@@ -6,7 +6,7 @@ See what connects. Block what you don't want. Simple.
 import multiprocessing
 multiprocessing.freeze_support()
 
-import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac
+import sys,os,subprocess,json,sqlite3,re,shutil,time,threading,hashlib,csv,io,html,hmac,shlex
 import tempfile,webbrowser,socket,datetime,logging,ipaddress,uuid,zipfile,platform
 from pathlib import Path
 from collections import OrderedDict,defaultdict
@@ -1152,6 +1152,58 @@ def valid_fw_addr(v):
             a,b=v.split('-',1); ipaddress.ip_address(a.strip()); ipaddress.ip_address(b.strip()); return True
         ipaddress.ip_address(v); return True
     except ValueError: return False
+
+def _parse_search_query(query):
+    q=str(query or "").strip()
+    if not q: return []
+    try: tokens=shlex.split(q)
+    except ValueError: tokens=q.split()
+    parsed=[]
+    for raw in tokens:
+        token=str(raw).strip()
+        if not token: continue
+        if "!=" in token and not token.startswith("!="):
+            field,value=token.split("!=",1)
+            parsed.append({"field":field.strip().lower(),"op":"ne","value":value.strip().lower()})
+        elif token.startswith("!") and len(token)>1:
+            parsed.append({"field":"","op":"not_contains","value":token[1:].strip().lower()})
+        elif ":" in token and not token.startswith(":"):
+            field,value=token.split(":",1)
+            parsed.append({"field":field.strip().lower(),"op":"contains","value":value.strip().lower()})
+        else:
+            parsed.append({"field":"","op":"contains","value":token.lower()})
+    return [p for p in parsed if p["value"] or p["op"]=="ne"]
+
+def _search_record_text(record,field=""):
+    if not isinstance(record,dict): return ""
+    values=[]
+    if field:
+        v=record.get(field,"")
+        values=v if isinstance(v,(list,tuple,set)) else [v]
+    else:
+        for v in record.values():
+            if isinstance(v,(list,tuple,set)): values.extend(v)
+            else: values.append(v)
+    return " ".join(str(v or "") for v in values).lower()
+
+def _search_matches(record,query,aliases=None):
+    terms=_parse_search_query(query)
+    if not terms: return True
+    aliases={k.lower():v.lower() for k,v in (aliases or {}).items()}
+    normalized={str(k).lower():v for k,v in (record or {}).items()}
+    for term in terms:
+        field=aliases.get(term["field"],term["field"])
+        val=term["value"]
+        text=_search_record_text(normalized,field)
+        if term["op"]=="contains":
+            if val not in text: return False
+        elif term["op"]=="not_contains":
+            if val in _search_record_text(normalized): return False
+        elif term["op"]=="ne":
+            if not field: return False
+            raw=str(normalized.get(field,"")).strip().lower()
+            if raw==val: return False
+    return True
 
 SUPPORT_REDACTION_MARKERS={
     "secret":"<REDACTED_SECRET>",
@@ -3241,7 +3293,7 @@ class HostsActivityTab(QWidget):
         for c in [s.c_seen,s.c_blocked,s.c_wl,s.c_hidden]: sr.addWidget(c)
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.search=QLineEdit(); s.search.setPlaceholderText("Search domain, process, or source..."); s.search.setFixedHeight(_dp(30))
+        s.search=QLineEdit(); s.search.setPlaceholderText("Search: domain:ads !microsoft reason:blocklist"); s.search.setFixedHeight(_dp(30))
         s.search.setAccessibleName("Search DNS activity")
         s.search.setClearButtonEnabled(True)
         s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
@@ -3289,10 +3341,16 @@ class HostsActivityTab(QWidget):
             it=s.tbl.item(r,0)
             if it and it.text()==domain: s.tbl.setCurrentCell(r,0); return
     def _load_feed(s):
-        q=s.search.text().strip() or None; f=s.filt.currentText()
+        q=s.search.text().strip(); f=s.filt.currentText()
         show_hidden=f=="Hidden"
         sf={'Blocked':'blocked','Allowed':'whitelisted','Unmanaged':'unmanaged'}.get(f,None)
-        rows=s.db.feed_get(search=q,show_hidden=show_hidden,status_filter=sf)
+        rows=s.db.feed_get(search=None,show_hidden=show_hidden,status_filter=sf)
+        if q:
+            rows=[row for row in rows if _search_matches({
+                "domain":row[0],"first_seen":row[1],"last_seen":row[2],"hits":row[3],
+                "process":row[4],"hidden":row[5],"status":row[6],
+                "source":row[7] if len(row)>7 else "","reason":row[8] if len(row)>8 else ""},
+                q,{"proc":"process","seen":"last_seen"})]
         h=hash(tuple((m[0],m[2],m[3],m[4],m[5],m[6]) for m in rows))
         if h==s._last_hash: s._overlay.hide_loading(); return
         s._last_hash=h
@@ -3523,7 +3581,7 @@ class FWActivityTab(QWidget):
         for c in [s.c_live,s.c_fw,s.c_fwb,s.c_procs]: sr.addWidget(c)
         lo.addLayout(sr)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.search=QLineEdit(); s.search.setPlaceholderText("Search live connections...")
+        s.search=QLineEdit(); s.search.setPlaceholderText("Search: proc:chrome ip!=127.0.0.1 !lan")
         s.search.setAccessibleName("Search live connections")
         s.search.setFixedHeight(_dp(30)); s.search.setClearButtonEnabled(True)
         s._search_debounce=QTimer(s); s._search_debounce.setSingleShot(True); s._search_debounce.setInterval(200)
@@ -3586,8 +3644,14 @@ class FWActivityTab(QWidget):
             it=s.tbl.item(r,0)
             if it and it.text()==domain: s.tbl.setCurrentCell(r,0); return
     def _load_conns(s):
-        q=s.search.text().strip().lower(); f=s.filt.currentText(); conns=list(s._conns)
-        if q: conns=[c for c in conns if q in c.host.lower() or q in c.proc.lower() or q in c.ra.lower() or q in c.category.lower()]
+        q=s.search.text().strip(); f=s.filt.currentText(); conns=list(s._conns)
+        if q:
+            conns=[c for c in conns if _search_matches({
+                "host":c.host,"ip":c.ra,"remote":c.ra,"process":c.proc,"proc":c.proc,
+                "port":c.rp,"category":c.category,"country":c.country,"cc":c.cc,
+                "direction":c.dir,"dir":c.dir,"protocol":c.proto,"proto":c.proto,
+                "pid":c.pid,"state":c.state,"signature":c.sig,"parent":c.pproc},
+                q,{"app":"process"})]
         if f=="FW Blocked":
             s._rebuild_fw_cache(); conns=[c for c in conns if c.ra in s._fw_blocked_ips]
         elif f=="Outbound": conns=[c for c in conns if c.dir=="Out"]
@@ -3782,7 +3846,7 @@ class HostsTab(QWidget):
         desc=QLabel("Blocked domains are written to your hosts file as 0.0.0.0. Allowed domains are excluded from blocking.")
         desc.setWordWrap(True); desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); dl.addWidget(desc)
         tr=QHBoxLayout(); tr.setSpacing(_dp(5))
-        s.d_search=QLineEdit(); s.d_search.setPlaceholderText("Search domain, source, or note..."); s.d_search.setFixedHeight(_dp(30))
+        s.d_search=QLineEdit(); s.d_search.setPlaceholderText("Search: domain:ads source:list !telemetry"); s.d_search.setFixedHeight(_dp(30))
         s.d_search.setAccessibleName("Search managed domains"); s.d_search.setClearButtonEnabled(True)
         s.d_search.textChanged.connect(s._load_d); tr.addWidget(s.d_search,1)
         s.d_filt=QComboBox(); s.d_filt.addItems(["All","Blocked","Allowed"]); s.d_filt.setAccessibleName("Filter managed domains by status"); s.d_filt.currentIndexChanged.connect(s._load_d); tr.addWidget(s.d_filt)
@@ -3906,11 +3970,16 @@ class HostsTab(QWidget):
         threading.Thread(target=s._bg_sync_and_load,daemon=True).start()
 
     def _load_d(s):
-        q=s.d_search.text().strip() or None; f=s.d_filt.currentText().lower()
+        q=s.d_search.text().strip(); f=s.d_filt.currentText().lower()
         st=None if f=='all' else f.replace('allowed','whitelisted')
         src=s.d_src.currentText() if s.d_src.currentIndex()>0 else None
         reason=s.d_reason.currentData() if hasattr(s,'d_reason') else None
-        rows=s.db.get_domains(status=st,search=q,source=src,reason=reason)
+        rows=s.db.get_domains(status=st,search=None,source=src,reason=reason)
+        if q:
+            rows=[r for r in rows if _search_matches({
+                "domain":r[0],"status":r[1],"category":r[2],"source":r[3],
+                "added":r[4],"modified":r[5],"hits":r[6],"notes":r[7],"reason":r[8]},
+                q,{"note":"notes","src":"source","cat":"category"})]
         srcs=s.db.get_sources()
         s.d_src.blockSignals(True)
         cur=s.d_src.currentText(); s.d_src.clear(); s.d_src.addItem("All Sources")
@@ -4222,7 +4291,7 @@ class FirewallTab(QWidget):
         desc=QLabel("Windows Firewall rules. HostsGuard rules use the HG_ prefix."); desc.setWordWrap(True)
         desc.setStyleSheet(f"color:{C['dim']};font-size:{_dp(10)}px;"); lo.addWidget(desc)
         tb=QHBoxLayout(); tb.setSpacing(_dp(5))
-        s.fw_s=QLineEdit(); s.fw_s.setPlaceholderText("Search rule name, program, or remote address..."); s.fw_s.setFixedHeight(_dp(30))
+        s.fw_s=QLineEdit(); s.fw_s.setPlaceholderText("Search: action:block program:chrome source:hostsguard !orphan"); s.fw_s.setFixedHeight(_dp(30))
         s.fw_s.setAccessibleName("Search firewall rules"); s.fw_s.setClearButtonEnabled(True)
         s.fw_s.textChanged.connect(s._apply); tb.addWidget(s.fw_s,1)
         s.fw_f=QComboBox(); s.fw_f.addItems(["All","HostsGuard Only","Block","Allow","Inbound","Outbound"])
@@ -4271,8 +4340,14 @@ class FirewallTab(QWidget):
         ui_call(lambda:s.prof.setText("Profiles: "+' | '.join(parts)))
     def _apply(s):
         try:
-            q=s.fw_s.text().strip().lower(); f=s.fw_f.currentText(); rules=list(s._rules)
-            if q: rules=[r for r in rules if q in (r.name or "").lower() or q in (r.program or "").lower() or q in (r.remote_addr or "").lower()]
+            q=s.fw_s.text().strip(); f=s.fw_f.currentText(); rules=list(s._rules)
+            if q:
+                rules=[r for r in rules if _search_matches({
+                    "name":r.name,"direction":r.direction,"dir":r.direction,"action":r.action,
+                    "protocol":r.protocol,"proto":r.protocol,"remote":r.remote_addr,"addr":r.remote_addr,
+                    "program":r.program,"source":r.source,"src":r.source,
+                    "enabled":"on" if r.enabled else "off","orphan":"orphan" if s._is_orphan(r) else ""},
+                    q,{"rule":"name","address":"remote","app":"program"})]
             if f=="HostsGuard Only": rules=[r for r in rules if r.source=="hostsguard"]
             elif f=="Block": rules=[r for r in rules if r.action=="Block"]
             elif f=="Allow": rules=[r for r in rules if r.action=="Allow"]
@@ -4587,7 +4662,7 @@ class ToolsTab(QWidget):
         lo.addLayout(grid)
         lg=QGroupBox("Event Log"); ll=QVBoxLayout(lg)
         lr=QHBoxLayout(); lr.setSpacing(_dp(5))
-        s.log_s=QLineEdit(); s.log_s.setPlaceholderText("Search domain, action, process, or details..."); s.log_s.setFixedHeight(_dp(28))
+        s.log_s=QLineEdit(); s.log_s.setPlaceholderText("Search: action:blocked reason:firewall !telemetry"); s.log_s.setFixedHeight(_dp(28))
         s.log_s.setAccessibleName("Search event log"); s.log_s.setClearButtonEnabled(True)
         s.log_s.textChanged.connect(s._log); lr.addWidget(s.log_s,1)
         s.log_f=QComboBox(); s.log_f.addItems(["All","Blocked","Allowed","Firewall Blocked"])
@@ -4685,10 +4760,15 @@ class ToolsTab(QWidget):
         if drift: ptxt+=f" | {drift} file drift"
         s.rec_st.setText(f"DB: {db_blocked} blocked, {db_allowed} allowed\nFW tracked: {fw_tracked} rules\nHosts file: {hosts_blocked} entries\n{ptxt}")
     def _log(s):
-        q=s.log_s.text().strip() or None; f=s.log_f.currentText()
+        q=s.log_s.text().strip(); f=s.log_f.currentText()
         af={'All':'all','Blocked':'blocked','Allowed':'whitelisted','Firewall Blocked':'fw_blocked'}.get(f,'all')
         rf=s.log_r.currentData() if hasattr(s,'log_r') else 'all'
-        rows=s.db.get_log(limit=500,domain_filter=q,action_filter=af,reason_filter=rf)
+        rows=s.db.get_log(limit=500,domain_filter=None,action_filter=af,reason_filter=rf)
+        if q:
+            rows=[r for r in rows if _search_matches({
+                "time":r[1],"ts":r[1],"domain":r[2],"action":r[3],
+                "process":r[4],"proc":r[4],"details":r[5],"reason":r[6]},
+                q,{"detail":"details"})]
         s.log_tbl.setSortingEnabled(False); s.log_tbl.setRowCount(len(rows))
         for i,(_id,ts,domain,action,proc,det,reason) in enumerate(rows):
             s.log_tbl.setItem(i,0,QTableWidgetItem((ts or "")[:19]))
