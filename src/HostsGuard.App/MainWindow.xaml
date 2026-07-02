@@ -29,6 +29,10 @@
                         <MenuItem Header="Notify — prompt on new connections" Tag="notify" Click="OnTrayMode" />
                         <MenuItem Header="Learning — auto-allow and record" Tag="learning" Click="OnTrayMode" />
                     </MenuItem>
+                    <MenuItem Header="Global outbound">
+                        <MenuItem Header="Block all outbound" Tag="block-all" Click="OnTrayGlobalMode" />
+                        <MenuItem Header="Allow all outbound" Tag="allow-all" Click="OnTrayGlobalMode" />
+                    </MenuItem>
                     <Separator />
                     <MenuItem Header="Exit" Click="OnTrayExit" />
                 </ContextMenu>
@@ -259,6 +263,20 @@
                                     <MenuItem Header="Block program"
                                               Command="{Binding PlacementTarget.DataContext.QuickBlockProcessCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Block app scope">
+                                        <MenuItem Header="Internet (public IPs)"
+                                                  Command="{Binding PlacementTarget.DataContext.BlockScopeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='internet|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="LAN (private ranges)"
+                                                  Command="{Binding PlacementTarget.DataContext.BlockScopeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='lan|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="Localhost (loopback)"
+                                                  Command="{Binding PlacementTarget.DataContext.BlockScopeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='localhost|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="Inbound"
+                                                  Command="{Binding PlacementTarget.DataContext.BlockScopeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='inbound|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </MenuItem>
                                     <Separator />
                                     <MenuItem Header="Research online">
                                         <MenuItem Header="Google"

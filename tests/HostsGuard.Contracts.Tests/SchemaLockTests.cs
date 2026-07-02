@@ -37,6 +37,7 @@ public class SchemaLockTests
           SetCnameCloak(CnameCloakRequest) returns (Ack)
           SetResolver(ResolverRequest) returns (Ack)
         service FirewallControl
+          BlockAppScope(AppScopeRequest) returns (Ack)
           BlockEncryptedDns(DohBlockRequest) returns (Ack)
           BlockIp(FirewallIpRequest) returns (Ack)
           BlockProgram(FirewallProgramRequest) returns (Ack)
@@ -48,9 +49,11 @@ public class SchemaLockTests
           ListRules(Empty) returns (FirewallRuleList)
           RebindRule(RebindRequest) returns (Ack)
           SetDefaultOutbound(OutboundRequest) returns (Ack)
+          SetGlobalMode(GlobalModeRequest) returns (Ack)
           SetRuleEnabled(RuleEnabledRequest) returns (Ack)
           SetSecureRules(SecureRulesRequest) returns (Ack)
           SuggestRebind(RuleNameRequest) returns (RebindSuggestions)
+          UnblockAppScope(AppScopeRequest) returns (Ack)
           UnblockEncryptedDns(Empty) returns (Ack)
           UnblockQuic(Empty) returns (Ack)
         service HostsControl

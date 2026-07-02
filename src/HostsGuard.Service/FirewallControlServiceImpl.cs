@@ -440,6 +440,97 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             : "Secure Rules disarmed"));
     }
 
+    // ─── Global posture selector + per-app scope blocks (NET-076) ────────────
+
+    public override Task<Ack> SetGlobalMode(GlobalModeRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var mode = (request.Mode ?? string.Empty).Trim().ToLowerInvariant();
+        bool block;
+        switch (mode)
+        {
+            case "block-all": block = true; break;
+            case "allow-all": block = false; break;
+            default:
+                return Task.FromResult(Error("invalid_mode", $"unknown global mode '{request.Mode}' (block-all|allow-all)"));
+        }
+
+        try
+        {
+            fw.SetDefaultOutboundBlock(block);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            return Task.FromResult(Error("firewall_error", $"could not set default outbound action: {ex.Message}"));
+        }
+
+        _state.Db.LogEvent("firewall", "global_mode", details: mode, reason: "manual");
+        return Task.FromResult(Ok(block
+            ? "Block-all outbound — new outbound connections are blocked unless a rule allows them"
+            : "Allow-all outbound — default outbound action restored to Allow"));
+    }
+
+    /// <summary>HG_ rule name for a per-app scope block.</summary>
+    internal static string ScopeRuleName(string program, NetworkScope scope) =>
+        $"{FwRuleMapper.HostsGuardPrefix}Scope_{scope}_{Path.GetFileNameWithoutExtension(program)}";
+
+    public override Task<Ack> BlockAppScope(AppScopeRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var path = (request.ProgramPath ?? string.Empty).Trim();
+        if (path.Length == 0 || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return Task.FromResult(Error("invalid_program", "program path is empty or invalid"));
+        }
+
+        if (!NetworkScopes.TryParse(request.Scope, out var scope))
+        {
+            return Task.FromResult(Error("invalid_scope", $"unknown scope '{request.Scope}' (internet|lan|localhost|inbound)"));
+        }
+
+        var name = ScopeRuleName(path, scope);
+        var direction = scope == NetworkScope.Inbound ? "In" : "Out";
+        var remote = NetworkScopes.RemoteAddresses(scope);
+        var created = fw.CreateRule(new FwRule(name, direction, "Block", true, remote, "Any", path, "hostsguard"));
+        if (created)
+        {
+            _state.Db.UpsertFwState(name, direction, "Block", remote, "Any", path);
+            _state.Identity?.Remember(name, path);
+            _state.Db.LogEvent(path, "fw_scope_blocked", details: $"{scope}", reason: "manual");
+        }
+
+        return Task.FromResult(Ok(created
+            ? $"blocked {Path.GetFileName(path)} → {scope}"
+            : $"{Path.GetFileName(path)} → {scope} already blocked"));
+    }
+
+    public override Task<Ack> UnblockAppScope(AppScopeRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var path = (request.ProgramPath ?? string.Empty).Trim();
+        if (!NetworkScopes.TryParse(request.Scope, out var scope))
+        {
+            return Task.FromResult(Error("invalid_scope", $"unknown scope '{request.Scope}'"));
+        }
+
+        var name = ScopeRuleName(path, scope);
+        var removed = fw.DeleteRule(name);
+        _state.Db.RemoveFwState(name);
+        return Task.FromResult(Ok(removed ? $"unblocked {Path.GetFileName(path)} → {scope}" : "scope was not blocked"));
+    }
+
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);
 

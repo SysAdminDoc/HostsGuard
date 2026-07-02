@@ -14,12 +14,15 @@ public sealed class DnsObservedEventArgs(string domain, int pid) : EventArgs
     public int Pid { get; } = pid;
 }
 
-/// <summary>A completed DNS resolution with its CNAME chain (for cloak defense).</summary>
-public sealed class DnsResolvedEventArgs(string queryName, IReadOnlyList<string> cnames) : EventArgs
+/// <summary>A completed DNS resolution with its CNAME chain and resolved addresses.</summary>
+public sealed class DnsResolvedEventArgs(string queryName, IReadOnlyList<string> cnames, IReadOnlyList<string> addresses) : EventArgs
 {
     public string QueryName { get; } = queryName;
 
     public IReadOnlyList<string> Cnames { get; } = cnames;
+
+    /// <summary>Resolved A/AAAA addresses (NET-076 direct-IP heuristic).</summary>
+    public IReadOnlyList<string> Addresses { get; } = addresses;
 }
 
 /// <summary>Result of attempting to start the monitor.</summary>
@@ -110,10 +113,12 @@ public sealed class DnsMonitor : IDisposable
                 if (DnsResolved is not null &&
                     DnsEventNormalizer.TryNormalize(data.PayloadByName("QueryName") as string, out var qn))
                 {
-                    var cnames = DnsQueryResults.ExtractCnames(data.PayloadByName("QueryResults") as string);
-                    if (cnames.Count != 0)
+                    var results = data.PayloadByName("QueryResults") as string;
+                    var cnames = DnsQueryResults.ExtractCnames(results);
+                    var addresses = DnsQueryResults.ExtractAddresses(results);
+                    if (cnames.Count != 0 || addresses.Count != 0)
                     {
-                        DnsResolved.Invoke(this, new DnsResolvedEventArgs(qn, cnames));
+                        DnsResolved.Invoke(this, new DnsResolvedEventArgs(qn, cnames, addresses));
                     }
                 }
 

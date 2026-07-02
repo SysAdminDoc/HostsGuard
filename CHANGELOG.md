@@ -4,6 +4,21 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — global outbound modes + per-app scope blocks (NET-076)
+- **Global outbound selector** — a tray "Global outbound" submenu applies
+  Block-all or Allow-all outbound posture (default-outbound action on every
+  profile) without a restart; never touches the firewall on/off switch.
+- **Per-app scope blocks** — right-click a connection → "Block app scope" to
+  block a program's access to the **Internet** (public ranges), **LAN**
+  (RFC1918/CGNAT/link-local/ULA), **localhost** (loopback), or all **inbound**
+  — Portmaster-style scope rules built from explicit CIDR sets (COM can't
+  negate, so Internet is the complement set).
+- **Block-P2P heuristic** — connections to a raw public IP with no preceding
+  DNS lookup are flagged **DIRECT-IP** in FW Activity. The ETW resolution event
+  now yields resolved A/AAAA addresses, correlated against later connections
+  within a 10-minute window (LAN/localhost never count). A classic malware /
+  P2P signal HostsGuard can compute from its own DNS+connection pipeline.
+
 ### Added — "decide later" review for Learning mode (NET-074)
 - **Learning review** — Learning mode auto-allows and records; a new review
   panel (FW Activity) lists those auto-decisions (`HG_Learn_` rules) so prompt

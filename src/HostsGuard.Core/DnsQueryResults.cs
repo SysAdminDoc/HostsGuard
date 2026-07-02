@@ -11,6 +11,37 @@ public static class DnsQueryResults
 {
     private const int CnameType = 5;
 
+    /// <summary>
+    /// Extract the resolved A/AAAA addresses from a raw QueryResults string
+    /// (NET-076 direct-IP heuristic). ETW encodes address answers without an
+    /// explicit type prefix (bare IP tokens), so anything that parses as an IP
+    /// is taken; CNAME/type-prefixed records are skipped.
+    /// </summary>
+    public static IReadOnlyList<string> ExtractAddresses(string? queryResults)
+    {
+        var raw = queryResults ?? string.Empty;
+        if (raw.Length == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var addresses = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var part in raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            foreach (var token in part.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var t = token.Trim().TrimEnd('.');
+                if (System.Net.IPAddress.TryParse(t, out _) && seen.Add(t))
+                {
+                    addresses.Add(t);
+                }
+            }
+        }
+
+        return addresses;
+    }
+
     /// <summary>Extract the CNAME targets from a raw QueryResults string (normalized, deduped).</summary>
     public static IReadOnlyList<string> ExtractCnames(string? queryResults)
     {

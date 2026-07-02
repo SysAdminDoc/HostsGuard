@@ -258,6 +258,23 @@ service FirewallControl {
   // rule whose target vanished, then re-target the rule.
   rpc SuggestRebind(RuleNameRequest) returns (RebindSuggestions);
   rpc RebindRule(RebindRequest) returns (Ack);
+  // Global outbound posture selector (NET-076): "block-all" | "allow-all"
+  // maps to the default-outbound action on every profile; applied without a
+  // restart. Never touches the firewall on/off switch.
+  rpc SetGlobalMode(GlobalModeRequest) returns (Ack);
+  // Per-app network-scope block (NET-076): block a program's access to the
+  // Internet / LAN / localhost, or all inbound. Portmaster-style scope rules.
+  rpc BlockAppScope(AppScopeRequest) returns (Ack);
+  rpc UnblockAppScope(AppScopeRequest) returns (Ack);
+}
+
+message GlobalModeRequest {
+  string mode = 1;   // "block-all" | "allow-all"
+}
+
+message AppScopeRequest {
+  string program_path = 1;
+  string scope = 2;  // "internet" | "lan" | "localhost" | "inbound"
 }
 
 message FirewallPosture {

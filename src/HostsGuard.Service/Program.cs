@@ -44,7 +44,13 @@ connectionFeed.Start();
 // cleanly to the connection feed when unavailable.
 using var dnsMonitor = new DnsMonitor();
 dnsMonitor.DnsObserved += (_, e) => state.RecordDns(e.Domain, pid: e.Pid);
-dnsMonitor.DnsResolved += (_, e) => state.CnameCloak.Evaluate(e.QueryName, e.Cnames);
+dnsMonitor.DnsResolved += (_, e) =>
+{
+    state.CnameCloak.Evaluate(e.QueryName, e.Cnames);
+    // Feed the direct-IP heuristic (NET-076): resolved addresses are "known
+    // good" — a later connection to a public IP never resolved is direct-to-IP.
+    state.DirectIp.RecordResolved(e.Addresses, DateTime.Now);
+};
 var dnsStatus = dnsMonitor.Start();
 db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
 

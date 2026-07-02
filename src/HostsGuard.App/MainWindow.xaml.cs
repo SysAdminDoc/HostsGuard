@@ -38,6 +38,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnTrayGlobalMode(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string mode } && DataContext is MainViewModel vm)
+        {
+            _ = vm.SetGlobalModeAsync(mode);
+        }
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         if (!_exiting)

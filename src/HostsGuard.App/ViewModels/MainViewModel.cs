@@ -182,6 +182,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Apply a global outbound posture (NET-076): "block-all" | "allow-all".</summary>
+    [RelayCommand]
+    public async Task SetGlobalModeAsync(string mode)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        if (mode == "block-all" &&
+            !_confirm.Confirm("Block all outbound",
+                "Set the default outbound action to Block on every firewall profile? " +
+                "New outbound connections are blocked unless a rule allows them."))
+        {
+            return;
+        }
+
+        var ack = await _client.Firewall.SetGlobalModeAsync(new GlobalModeRequest { Mode = mode });
+        ConnectionText = ack.Message;
+        if (FwActivity is not null)
+        {
+            await FwActivity.LoadPostureAsync();
+        }
+    }
+
     private void StartDecisionWatch()
     {
         if (_decisionCts is not null || _client is null)

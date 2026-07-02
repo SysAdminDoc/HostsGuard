@@ -780,6 +780,39 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         StatusText = ack.Message;
     }
 
+    /// <summary>Per-app scope block (NET-076): "internet" | "lan" | "localhost" | "inbound".</summary>
+    [RelayCommand]
+    public async Task BlockScopeAsync(string parameter)
+    {
+        // Parameter is "<scope>|<pid>" from the split menu so one command serves all scopes.
+        var parts = (parameter ?? string.Empty).Split('|', 2);
+        if (parts.Length != 2 || !int.TryParse(parts[1], out var pid) || pid <= 0)
+        {
+            StatusText = "No PID for this connection";
+            return;
+        }
+
+        string path;
+        try
+        {
+            path = System.Diagnostics.Process.GetProcessById(pid).MainModule?.FileName ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            StatusText = $"Cannot resolve program for PID {pid}";
+            return;
+        }
+
+        if (path.Length == 0)
+        {
+            StatusText = $"Cannot resolve program for PID {pid}";
+            return;
+        }
+
+        var ack = await _client.Firewall.BlockAppScopeAsync(new AppScopeRequest { ProgramPath = path, Scope = parts[0] });
+        StatusText = ack.Message;
+    }
+
     [RelayCommand]
     public void ResearchGoogle(string remoteAddr) => Research.Open(Research.Sites[0].UrlTemplate, remoteAddr);
 

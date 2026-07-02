@@ -40,6 +40,7 @@ public sealed class ServiceState : IDisposable
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);
+        DirectIp = new Core.DirectIpHeuristic();
         Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir)
         {
             LookupCountry = GeoIp.Lookup,
@@ -81,6 +82,9 @@ public sealed class ServiceState : IDisposable
     public ThreatIntel Threats { get; }
 
     public GeoIpService GeoIp { get; }
+
+    /// <summary>Direct-to-IP (no-DNS) heuristic for the block-P2P signal (NET-076).</summary>
+    public Core.DirectIpHeuristic DirectIp { get; }
 
     public EventBus Bus { get; }
 
@@ -138,7 +142,9 @@ public sealed class ServiceState : IDisposable
         }
 
         var country = GeoIp.Lookup(info.RemoteAddress);
-        var fwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT" : string.Empty;
+        var fwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT"
+            : DirectIp.IsDirect(info.RemoteAddress, DateTime.Now) ? "DIRECT-IP"
+            : string.Empty;
         if (recordHistory)
         {
             Db.RecordConnection(new ConnHistoryRow(
