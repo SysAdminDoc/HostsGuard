@@ -11,15 +11,21 @@ import os
 import re
 import sqlite3
 import datetime
+import time
+import json
+import threading
+import types
+from dataclasses import dataclass, field
 import pytest
 
 _SRC = open(os.path.join(os.path.dirname(__file__), "HostsGuard.py"), encoding="utf-8").read()
 
 # Top-level names to lift out of the real source.
 _WANT_FUNCS = {"looks_like_domain", "get_root", "norm_line", "clean_hosts",
-               "categorize", "_ps_esc", "valid_fw_addr", "_rgb"}
+               "categorize", "_ps_esc", "valid_fw_addr", "_rgb", "_parse_fw_rules"}
+_WANT_CLASSES = {"DB", "FWR"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
-                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX"}
+                "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER"}
 
 
 def _extract():
@@ -28,13 +34,21 @@ def _extract():
     for node in tree.body:
         if isinstance(node, ast.FunctionDef) and node.name in _WANT_FUNCS:
             picked.append(node)
+        elif isinstance(node, ast.ClassDef) and node.name in _WANT_CLASSES:
+            picked.append(node)
         elif isinstance(node, ast.Assign):
             targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
             if any(t in _WANT_CONSTS for t in targets):
                 picked.append(node)
     module = ast.Module(body=picked, type_ignores=[])
     ast.fix_missing_locations(module)
-    ns = {"re": re, "ipaddress": ipaddress}
+    # Provide the module globals the extracted code resolves at call time (the DB
+    # class references these). log is a no-op stub; DB_PATH is set per-test.
+    log_stub = types.SimpleNamespace(warning=lambda *a, **k: None, info=lambda *a, **k: None,
+                                     debug=lambda *a, **k: None, error=lambda *a, **k: None)
+    ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
+          "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
+          "dataclass": dataclass, "field": field, "DB_PATH": ":memory:"}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
     return ns
 
@@ -48,6 +62,7 @@ categorize = _m["categorize"]
 _ps_esc = _m["_ps_esc"]
 valid_fw_addr = _m["valid_fw_addr"]
 _rgb = _m["_rgb"]
+_parse_fw_rules = _m["_parse_fw_rules"]
 APP = _m["APP"]
 VER = _m["VER"]
 
@@ -320,18 +335,82 @@ class TestDomainUpsert:
         assert c.execute("SELECT source FROM domains WHERE domain='y.com'").fetchone()[0] == 'list:foo'
 
 
-class TestLegacyMigration:
-    """Verify legacy column renames recover a pre-versioning database."""
-    def test_rename_recovers_domains_query(self):
-        c = sqlite3.connect(":memory:")
-        # Old schema shape (pre schema-versioning)
+class TestLegacyMigrationIntegration:
+    """Exercise the REAL DB._migrate/_rename_legacy against a pre-versioning DB on disk."""
+    def _legacy_db(self, tmp_path):
+        p = str(tmp_path / "legacy.db")
+        c = sqlite3.connect(p)
+        # Pre-versioning shapes: domains + log with old column names, plus a real feed row.
         c.execute("CREATE TABLE domains(domain TEXT PRIMARY KEY,status TEXT,category TEXT,source TEXT,"
                   "date_added TEXT,date_modified TEXT,hit_count INTEGER,notes TEXT)")
-        c.execute("INSERT INTO domains VALUES('a.com','blocked','','manual','2020','2020',3,'')")
-        have = {r[1] for r in c.execute("PRAGMA table_info(domains)").fetchall()}
-        for old, new in (("date_added", "added"), ("date_modified", "modified"), ("hit_count", "hits")):
-            if old in have and new not in have:
-                c.execute(f'ALTER TABLE domains RENAME COLUMN "{old}" TO "{new}"')
-        # The query that failed on legacy DBs must now succeed
-        row = c.execute("SELECT domain,status,category,source,added,modified,hits,notes FROM domains").fetchone()
-        assert row[0] == 'a.com' and row[6] == 3
+        c.execute("INSERT INTO domains VALUES('legacy.com','blocked','ads','manual','2020','2020',9,'keep')")
+        c.execute("CREATE TABLE log(id INTEGER PRIMARY KEY,timestamp TEXT,domain TEXT,action TEXT,process_name TEXT,details TEXT)")
+        c.execute("INSERT INTO log(timestamp,domain,action,process_name,details) VALUES('2020','legacy.com','blocked','x.exe','d')")
+        c.commit(); c.close()
+        return p
+
+    def _open_db(self, path):
+        _m["DB_PATH"] = path
+        return _m["DB"]()
+
+    def test_migration_recovers_domains_and_log(self, tmp_path):
+        path = self._legacy_db(tmp_path)
+        db = self._open_db(path)
+        # These queries returned [] on legacy DBs before the rename migration shipped.
+        rows = db.get_domains()
+        assert any(r[0] == 'legacy.com' and r[6] == 9 for r in rows), "domains query broken after migration"
+        assert db.get_domains(status='blocked'), "status filter broken"
+        log_rows = db.get_log(limit=10)
+        assert any(r[2] == 'legacy.com' for r in log_rows), "log query broken after migration"
+        # Notes and hits preserved through the rename
+        row = [r for r in rows if r[0] == 'legacy.com'][0]
+        assert row[7] == 'keep' and row[6] == 9
+
+    def test_migration_is_idempotent(self, tmp_path):
+        path = self._legacy_db(tmp_path)
+        self._open_db(path)      # first migration
+        db2 = self._open_db(path)  # re-open: must not error or lose data
+        assert any(r[0] == 'legacy.com' for r in db2.get_domains())
+
+    def test_fresh_db_has_all_tables(self, tmp_path):
+        db = self._open_db(str(tmp_path / "fresh.db"))
+        db.add_domain('new.com', 'blocked', 'manual')
+        assert any(r[0] == 'new.com' for r in db.get_domains())
+        # schema_version stamped to current
+        v = db.conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+        assert v is not None
+
+
+class TestParseFwRules:
+    """Exercise the real _parse_fw_rules against representative Get-NetFirewallRule JSON."""
+    def test_single_object(self):
+        j = json.dumps({"N": "HG_Block_x", "Dir": 2, "Act": 4, "En": 1, "RA": "1.2.3.4", "Proto": "TCP", "Prog": ""})
+        rules = _parse_fw_rules(j)
+        assert len(rules) == 1
+        r = rules[0]
+        assert r.name == "HG_Block_x" and r.direction == "Out" and r.action == "Block"
+        assert r.enabled is True and r.source == "hostsguard"
+
+    def test_list_and_inbound_allow(self):
+        j = json.dumps([
+            {"N": "A", "Dir": 1, "Act": 2, "En": 0, "RA": "Any", "Proto": "Any", "Prog": "c:\\a.exe"},
+            {"N": "HG_B", "Dir": 2, "Act": 4, "En": 1, "RA": "", "Proto": "", "Prog": ""},
+        ])
+        rules = _parse_fw_rules(j)
+        assert len(rules) == 2
+        assert rules[0].direction == "In" and rules[0].action == "Allow" and rules[0].enabled is False
+        assert rules[0].source == "system" and rules[1].source == "hostsguard"
+
+    def test_list_valued_remote_address(self):
+        j = json.dumps({"N": "multi", "Dir": 2, "Act": 4, "En": 1, "RA": ["1.1.1.1", "8.8.8.8"], "Proto": "Any", "Prog": ""})
+        rules = _parse_fw_rules(j)
+        assert rules[0].remote_addr == "1.1.1.1,8.8.8.8"
+
+    def test_missing_fields_and_none(self):
+        j = json.dumps({"N": "sparse"})  # only a name
+        rules = _parse_fw_rules(j)
+        assert rules[0].name == "sparse" and rules[0].protocol == "Any" and rules[0].remote_addr == ""
+
+    def test_empty_and_garbage(self):
+        assert _parse_fw_rules("") == []
+        assert _parse_fw_rules("not json") == []
