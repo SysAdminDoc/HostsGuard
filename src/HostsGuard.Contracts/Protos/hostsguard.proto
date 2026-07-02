@@ -235,6 +235,47 @@ service FirewallControl {
   rpc ListRules(Empty) returns (FirewallRuleList);
   rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
   rpc UnblockEncryptedDns(Empty) returns (Ack);
+  // Default-outbound posture (lockdown). Set flips DefaultOutboundAction on
+  // all profiles; it never touches the firewall on/off switch.
+  rpc GetPosture(Empty) returns (FirewallPosture);
+  rpc SetDefaultOutbound(OutboundRequest) returns (Ack);
+  // Orphan rebind: rank identity-matched replacement binaries for a program
+  // rule whose target vanished, then re-target the rule.
+  rpc SuggestRebind(RuleNameRequest) returns (RebindSuggestions);
+  rpc RebindRule(RebindRequest) returns (Ack);
+}
+
+message FirewallPosture {
+  bool available = 1;   // firewall engine attached and readable
+  bool lockdown = 2;    // every profile's default outbound action is Block
+  repeated ProfilePosture profiles = 3;
+}
+
+message ProfilePosture {
+  string name = 1;      // "Domain" | "Private" | "Public"
+  bool enabled = 2;
+  bool outbound_block = 3;
+}
+
+message OutboundRequest {
+  bool block = 1;
+}
+
+message RebindCandidate {
+  string path = 1;
+  int32 score = 2;      // 0-100 identity-match confidence
+  string reasons = 3;   // e.g. "same SHA-256; same signer"
+}
+
+message RebindSuggestions {
+  string old_path = 1;
+  bool ambiguous = 2;   // top two scores within 8 points — user must choose
+  repeated RebindCandidate candidates = 3;
+}
+
+message RebindRequest {
+  string name = 1;
+  string new_program = 2;
 }
 
 message FirewallIpRequest {

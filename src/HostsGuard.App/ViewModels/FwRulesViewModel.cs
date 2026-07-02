@@ -68,6 +68,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
 {
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
+    private readonly IFilePicker? _filePicker;
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -97,10 +98,11 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [ObservableProperty]
     private string _newRuleProgram = string.Empty;
 
-    public FwRulesViewModel(HostsServiceClient client, IConfirm confirm)
+    public FwRulesViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+        _filePicker = filePicker;
     }
 
     public ObservableCollection<FwRuleViewModel> Rules { get; } = new();
@@ -182,6 +184,57 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
         StatusText = $"Deleted {deleted}/{names.Count} rules";
         await RefreshAsync();
+    }
+
+    /// <summary>
+    /// Orphan rebind: rank identity-matched replacement binaries; a confident
+    /// single match confirms and applies, an ambiguous or empty result falls
+    /// back to a manual file pick. Manual picks are applied as a user override.
+    /// </summary>
+    [RelayCommand]
+    public async Task RebindRuleAsync(FwRuleViewModel? rule)
+    {
+        if (rule is null || rule.Program.Length == 0)
+        {
+            StatusText = "Select a program rule to rebind";
+            return;
+        }
+
+        StatusText = "Scanning for replacement binaries…";
+        var suggestions = await _client.Firewall.SuggestRebindAsync(new RuleNameRequest { Name = rule.Name });
+
+        string? target = null;
+        if (suggestions.Candidates.Count != 0 && !suggestions.Ambiguous)
+        {
+            var best = suggestions.Candidates[0];
+            if (_confirm.Confirm("Rebind firewall rule",
+                $"Re-target {rule.Name}\nfrom: {suggestions.OldPath}\nto: {best.Path}\n" +
+                $"Confidence {best.Score}/100 ({best.Reasons})."))
+            {
+                target = best.Path;
+            }
+        }
+        else
+        {
+            target = _filePicker?.PickFile(
+                suggestions.Candidates.Count == 0
+                    ? $"No confident match found — select the replacement for {rule.Name}"
+                    : $"Multiple candidates — select the replacement for {rule.Name}",
+                suggestions.Candidates.FirstOrDefault()?.Path ?? suggestions.OldPath);
+        }
+
+        if (target is null)
+        {
+            StatusText = "Rebind cancelled";
+            return;
+        }
+
+        var ack = await _client.Firewall.RebindRuleAsync(new RebindRequest { Name = rule.Name, NewProgram = target });
+        StatusText = ack.Message;
+        if (ack.Ok)
+        {
+            await RefreshAsync();
+        }
     }
 
     [RelayCommand]

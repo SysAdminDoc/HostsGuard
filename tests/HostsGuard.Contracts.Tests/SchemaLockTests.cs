@@ -31,8 +31,12 @@ public class SchemaLockTests
           BlockProgram(FirewallProgramRequest) returns (Ack)
           CreateRule(FirewallRule) returns (Ack)
           DeleteRule(RuleNameRequest) returns (Ack)
+          GetPosture(Empty) returns (FirewallPosture)
           ListRules(Empty) returns (FirewallRuleList)
+          RebindRule(RebindRequest) returns (Ack)
+          SetDefaultOutbound(OutboundRequest) returns (Ack)
           SetRuleEnabled(RuleEnabledRequest) returns (Ack)
+          SuggestRebind(RuleNameRequest) returns (RebindSuggestions)
           UnblockEncryptedDns(Empty) returns (Ack)
         service HostsControl
           AddDefenderExclusion(Empty) returns (Ack)

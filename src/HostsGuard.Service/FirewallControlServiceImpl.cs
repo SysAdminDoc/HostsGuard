@@ -272,6 +272,115 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok($"encrypted DNS unblocked ({removed} rules removed)"));
     }
 
+    public override Task<FirewallPosture> GetPosture(Empty request, ServerCallContext context)
+    {
+        var posture = new FirewallPosture();
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(posture);
+        }
+
+        try
+        {
+            var profiles = fw.GetPosture();
+            posture.Available = true;
+            posture.Lockdown = profiles.Count != 0 && profiles.All(p => p.OutboundBlock);
+            foreach (var p in profiles)
+            {
+                posture.Profiles.Add(new ProfilePosture { Name = p.Name, Enabled = p.Enabled, OutboundBlock = p.OutboundBlock });
+            }
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            posture.Available = false;
+        }
+
+        return Task.FromResult(posture);
+    }
+
+    public override Task<Ack> SetDefaultOutbound(OutboundRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        try
+        {
+            fw.SetDefaultOutboundBlock(request.Block);
+        }
+        catch (System.Runtime.InteropServices.COMException ex)
+        {
+            return Task.FromResult(Error("posture_failed", $"could not change the outbound policy: {ex.Message}"));
+        }
+
+        _state.Db.LogEvent("firewall", request.Block ? "lockdown_on" : "lockdown_off",
+            details: $"default outbound action: {(request.Block ? "Block" : "Allow")} (all profiles)");
+        return Task.FromResult(Ok(request.Block
+            ? "lockdown ON — all outbound blocked unless a rule allows it"
+            : "lockdown OFF — outbound allowed by default"));
+    }
+
+    public override async Task<RebindSuggestions> SuggestRebind(RuleNameRequest request, ServerCallContext context)
+    {
+        var result = new RebindSuggestions();
+        if (_state.Firewall is not { } fw)
+        {
+            return result;
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        var rule = fw.ListRules().FirstOrDefault(r => r.Name == name);
+        if (rule is null || rule.Program.Length == 0)
+        {
+            return result;
+        }
+
+        result.OldPath = rule.Program.Split(',')[0].Trim();
+        var history = _state.Identity?.Get(name) ?? (IReadOnlyList<FileIdentity>)Array.Empty<FileIdentity>();
+        var ranked = await Task.Run(() =>
+            RebindScanner.Rank(result.OldPath, history, RebindScanner.ScanCandidates(result.OldPath)));
+
+        result.Ambiguous = ranked.Count > 1 && ranked[0].Score - ranked[1].Score <= RebindScanner.AmbiguousDelta;
+        foreach (var candidate in ranked.Take(10))
+        {
+            result.Candidates.Add(new RebindCandidate { Path = candidate.Path, Score = candidate.Score, Reasons = candidate.Reasons });
+        }
+
+        return result;
+    }
+
+    public override Task<Ack> RebindRule(RebindRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+        {
+            return Task.FromResult(Error("not_ours", "only HG_-prefixed rules can be rebound through HostsGuard"));
+        }
+
+        var newPath = (request.NewProgram ?? string.Empty).Trim();
+        if (newPath.Length == 0 || !File.Exists(newPath))
+        {
+            return Task.FromResult(Error("invalid_program", "replacement program does not exist on disk"));
+        }
+
+        var rule = fw.ListRules().FirstOrDefault(r => r.Name == name);
+        if (rule is null || !fw.SetRuleProgram(name, newPath))
+        {
+            return Task.FromResult(Error("not_found", $"{name} does not exist"));
+        }
+
+        _state.Db.UpsertFwState(name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol, newPath);
+        _state.Identity?.Remember(name, newPath);
+        _state.Db.LogEvent(newPath, "fw_rebound", details: $"{name}: {rule.Program} → {newPath}", reason: "rebind");
+        return Task.FromResult(Ok($"rebound {name} to {newPath}"));
+    }
+
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);
 

@@ -141,6 +141,59 @@ public sealed class FirewallEngine : IFirewallEngine
         return Exists(CreatePolicy(), name);
     }
 
+    // NET_FW_PROFILE2_ single-profile values for posture control.
+    private static readonly (string Name, int Value)[] PostureProfiles =
+    {
+        ("Domain", 1),
+        ("Private", 2),
+        ("Public", 4),
+    };
+
+    public IReadOnlyList<FwProfilePosture> GetPosture()
+    {
+        var policy = CreatePolicy();
+        var result = new List<FwProfilePosture>(PostureProfiles.Length);
+        foreach (var (name, value) in PostureProfiles)
+        {
+            result.Add(new FwProfilePosture(
+                name,
+                (bool)policy.FirewallEnabled[value],
+                (int)policy.DefaultOutboundAction[value] == ActionBlock));
+        }
+
+        return result;
+    }
+
+    public void SetDefaultOutboundBlock(bool block)
+    {
+        var policy = CreatePolicy();
+        foreach (var (_, value) in PostureProfiles)
+        {
+            var isBlock = (int)policy.DefaultOutboundAction[value] == ActionBlock;
+            if (isBlock != block)
+            {
+                policy.DefaultOutboundAction[value] = block ? ActionBlock : ActionAllow;
+            }
+        }
+    }
+
+    public bool SetRuleProgram(string name, string programPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(programPath);
+        var policy = CreatePolicy();
+        foreach (var comRule in policy.Rules)
+        {
+            if (string.Equals((string?)comRule.Name, name, StringComparison.Ordinal))
+            {
+                comRule.ApplicationName = programPath;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool Exists(dynamic policy, string name)
     {
         foreach (var comRule in policy.Rules)

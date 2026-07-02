@@ -28,6 +28,12 @@ public sealed class AppConfigStore
 
     public int UiScalePct { get; private set; } = 100;
 
+    /// <summary>Learning mode: surface trust prompts for unknown processes.</summary>
+    public bool LearningMode { get; private set; }
+
+    /// <summary>Observe mode: record decisions silently instead of prompting.</summary>
+    public bool ObserveMode { get; private set; }
+
     /// <summary>Clamp any persisted value to the nearest supported scale step.</summary>
     public static int CoerceUiScale(object? value)
     {
@@ -47,6 +53,8 @@ public sealed class AppConfigStore
         var root = ReadRoot();
         Theme = root["theme"]?.GetValue<string>() == "light" ? "light" : "dark";
         UiScalePct = CoerceUiScale(root["ui_scale_pct"]?.ToString());
+        LearningMode = ReadBool(root, "learning_mode");
+        ObserveMode = ReadBool(root, "observe_mode");
     }
 
     public void Save(string theme, int uiScalePct)
@@ -57,7 +65,30 @@ public sealed class AppConfigStore
         var root = ReadRoot();
         root["theme"] = Theme;
         root["ui_scale_pct"] = UiScalePct;
+        WriteRoot(root);
+    }
 
+    /// <summary>
+    /// Persist the learning/observe flags under the exact keys the Python build
+    /// uses (<c>learning_mode</c>, <c>observe_mode</c>) so the modes survive the
+    /// cutover in both directions.
+    /// </summary>
+    public void SaveModes(bool learning, bool observe)
+    {
+        LearningMode = learning;
+        ObserveMode = observe;
+
+        var root = ReadRoot();
+        root["learning_mode"] = learning;
+        root["observe_mode"] = observe;
+        WriteRoot(root);
+    }
+
+    private static bool ReadBool(JsonObject root, string key)
+        => root[key] is JsonValue value && value.TryGetValue<bool>(out var b) && b;
+
+    private void WriteRoot(JsonObject root)
+    {
         var dir = Path.GetDirectoryName(_path);
         if (!string.IsNullOrEmpty(dir))
         {

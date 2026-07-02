@@ -25,11 +25,13 @@ public partial class App : Application
         services.AddSingleton<AppConfigStore>();
         services.AddSingleton<ThemeManager>();
         services.AddSingleton<IConfirm, MessageBoxConfirm>();
+        services.AddSingleton<IFilePicker, DialogFilePicker>();
         services.AddSingleton(sp => new MainViewModel(
             HostsServiceClient.Connect,
             sp.GetRequiredService<AppConfigStore>(),
             sp.GetRequiredService<ThemeManager>(),
-            sp.GetRequiredService<IConfirm>()));
+            sp.GetRequiredService<IConfirm>(),
+            sp.GetRequiredService<IFilePicker>()));
         services.AddSingleton<MainWindow>();
         _provider = services.BuildServiceProvider();
 

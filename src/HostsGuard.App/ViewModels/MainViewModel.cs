@@ -18,6 +18,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly AppConfigStore _config;
     private readonly ThemeManager _themes;
     private readonly IConfirm _confirm;
+    private readonly IFilePicker? _filePicker;
     private HostsServiceClient? _client;
 
     [ObservableProperty]
@@ -65,12 +66,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _uiScalePct;
 
-    public MainViewModel(Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes, IConfirm confirm)
+    public MainViewModel(
+        Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes,
+        IConfirm confirm, IFilePicker? filePicker = null)
     {
         _connectFactory = connectFactory ?? throw new ArgumentNullException(nameof(connectFactory));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _themes = themes ?? throw new ArgumentNullException(nameof(themes));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+        _filePicker = filePicker;
         _theme = config.Theme;
         _uiScalePct = config.UiScalePct;
     }
@@ -98,9 +102,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Activity.StartWatching();
             RawHosts ??= new RawHostsViewModel(_client);
             await RawHosts.LoadAsync();
-            FwActivity ??= new FwActivityViewModel(_client);
+            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config);
             FwActivity.StartWatching();
-            FwRules ??= new FwRulesViewModel(_client, _confirm);
+            await FwActivity.LoadPostureAsync();
+            FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker);
             await FwRules.RefreshAsync();
             Tools ??= new ToolsViewModel(_client, _confirm);
             await Tools.LoadSchedulesAsync();

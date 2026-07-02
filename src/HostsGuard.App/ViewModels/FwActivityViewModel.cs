@@ -45,18 +45,48 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     public string Key => $"{Protocol}|{LocalAddr}:{LocalPort}|{RemoteAddr}:{RemotePort}|{Pid}";
 }
 
+/// <summary>One timeline series: per-minute new-connection counts for a process.</summary>
+public sealed partial class TimelineSeriesViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    /// <summary>Polyline points on a 600×100 canvas ("x,y x,y …").</summary>
+    [ObservableProperty]
+    private string _pointsText = string.Empty;
+
+    [ObservableProperty]
+    private int _colorIndex;
+}
+
 /// <summary>
 /// FW Activity tab: live connections from the WatchConnections stream with
-/// quick-block (IP / program) actions that create visible HG_ COM rules.
+/// quick-block (IP / program) actions that create visible HG_ COM rules, a
+/// per-app activity timeline, and the lockdown / learning / observe mode
+/// toggles (lockdown = service-side default-outbound posture; learning and
+/// observe persist to the config.json keys shared with the Python build).
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 {
     private const int MaxRows = 2000;
 
+    // Timeline geometry + window (canvas coordinates are normalized by a Viewbox).
+    public const int TimelineMinutes = 30;
+    public const double TimelineWidth = 600;
+    public const double TimelineHeight = 100;
+    private const int TimelineMaxSeries = 5;
+    private static readonly TimeSpan TimelineRecomputeInterval = TimeSpan.FromSeconds(5);
+
     private readonly HostsServiceClient _client;
+    private readonly IConfirm _confirm;
+    private readonly AppConfigStore? _config;
     private readonly SynchronizationContext? _ui;
+    private readonly List<(DateTime Ts, string Process)> _events = new();
     private CancellationTokenSource? _watchCts;
+    private DateTime _lastTimelineCompute = DateTime.MinValue;
+    private bool _suppressPostureWrite;
+    private bool _suppressModeWrite;
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -64,13 +94,39 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _statusText = "Waiting for live connections…";
 
-    public FwActivityViewModel(HostsServiceClient client)
+    [ObservableProperty]
+    private bool _lockdown;
+
+    [ObservableProperty]
+    private string _postureText = string.Empty;
+
+    [ObservableProperty]
+    private bool _learningMode;
+
+    [ObservableProperty]
+    private bool _observeMode;
+
+    [ObservableProperty]
+    private string _timelineStatus = "No activity yet";
+
+    public FwActivityViewModel(HostsServiceClient client, IConfirm confirm, AppConfigStore? config = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+        _config = config;
         _ui = SynchronizationContext.Current;
+        if (_config is not null)
+        {
+            _suppressModeWrite = true;
+            LearningMode = _config.LearningMode;
+            ObserveMode = _config.ObserveMode;
+            _suppressModeWrite = false;
+        }
     }
 
     public ObservableCollection<ConnectionRowViewModel> Rows { get; } = new();
+
+    public ObservableCollection<TimelineSeriesViewModel> Timeline { get; } = new();
 
     public void StartWatching()
     {
@@ -129,6 +185,156 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         StatusText = $"{Rows.Count} connections";
+        RecordConnectionEvent(DateTime.Now, ev.Process);
+    }
+
+    // ─── Per-app activity timeline ────────────────────────────────────────────
+
+    /// <summary>Record a new-connection event; recomputes the timeline (throttled).</summary>
+    public void RecordConnectionEvent(DateTime ts, string process)
+    {
+        var name = string.IsNullOrWhiteSpace(process) ? "(unknown)" : process;
+        _events.Add((ts, name));
+        var cutoff = ts.AddMinutes(-(TimelineMinutes + 5));
+        _events.RemoveAll(e => e.Ts < cutoff);
+        if (ts - _lastTimelineCompute >= TimelineRecomputeInterval)
+        {
+            RecomputeTimeline(ts);
+        }
+    }
+
+    /// <summary>Rebuild the polyline series from the raw event window.</summary>
+    public void RecomputeTimeline(DateTime now)
+    {
+        _lastTimelineCompute = now;
+        var start = now.AddMinutes(-(TimelineMinutes - 1));
+        var origin = new DateTime(start.Year, start.Month, start.Day, start.Hour, start.Minute, 0, start.Kind);
+
+        var buckets = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (ts, process) in _events)
+        {
+            var slot = (int)(ts - origin).TotalMinutes;
+            if (slot < 0 || slot >= TimelineMinutes)
+            {
+                continue;
+            }
+
+            if (!buckets.TryGetValue(process, out var counts))
+            {
+                counts = new int[TimelineMinutes];
+                buckets[process] = counts;
+            }
+
+            counts[slot]++;
+        }
+
+        var top = buckets
+            .OrderByDescending(kv => kv.Value.Sum())
+            .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(TimelineMaxSeries)
+            .ToList();
+
+        Timeline.Clear();
+        if (top.Count == 0)
+        {
+            TimelineStatus = "No activity yet";
+            return;
+        }
+
+        var peak = Math.Max(1, top.Max(kv => kv.Value.Max()));
+        var stepX = TimelineWidth / (TimelineMinutes - 1);
+        for (var s = 0; s < top.Count; s++)
+        {
+            var points = new System.Text.StringBuilder();
+            for (var i = 0; i < TimelineMinutes; i++)
+            {
+                var x = i * stepX;
+                var y = TimelineHeight - (top[s].Value[i] / (double)peak * (TimelineHeight - 6)) - 2;
+                if (i != 0)
+                {
+                    points.Append(' ');
+                }
+
+                points.Append(x.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))
+                      .Append(',')
+                      .Append(y.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            Timeline.Add(new TimelineSeriesViewModel
+            {
+                Name = top[s].Key,
+                PointsText = points.ToString(),
+                ColorIndex = s,
+            });
+        }
+
+        TimelineStatus = $"Top {top.Count} apps · last {TimelineMinutes} min · peak {peak}/min";
+    }
+
+    // ─── Modes: lockdown (service posture) + learning/observe (config) ───────
+
+    /// <summary>Pull the current default-outbound posture from the service.</summary>
+    public async Task LoadPostureAsync()
+    {
+        var posture = await _client.Firewall.GetPostureAsync(new Empty());
+        _suppressPostureWrite = true;
+        Lockdown = posture.Available && posture.Lockdown;
+        _suppressPostureWrite = false;
+        PostureText = !posture.Available
+            ? "Firewall posture unavailable"
+            : string.Join("  ", posture.Profiles.Select(p =>
+                $"{p.Name}: {(p.Enabled ? "on" : "OFF")}/{(p.OutboundBlock ? "block" : "allow")}"));
+    }
+
+    partial void OnLockdownChanged(bool value)
+    {
+        if (_suppressPostureWrite)
+        {
+            return;
+        }
+
+        _ = ApplyLockdownAsync(value);
+    }
+
+    private async Task ApplyLockdownAsync(bool enable)
+    {
+        if (enable && !_confirm.Confirm("Enable lockdown",
+            "Set the default outbound action to Block on every firewall profile? " +
+            "New outbound connections are blocked unless a rule allows them."))
+        {
+            _suppressPostureWrite = true;
+            Lockdown = false;
+            _suppressPostureWrite = false;
+            return;
+        }
+
+        var ack = await _client.Firewall.SetDefaultOutboundAsync(new OutboundRequest { Block = enable });
+        StatusText = ack.Message;
+        if (!ack.Ok)
+        {
+            // Don't pretend: revert the toggle when the policy change failed.
+            _suppressPostureWrite = true;
+            Lockdown = !enable;
+            _suppressPostureWrite = false;
+        }
+
+        await LoadPostureAsync();
+    }
+
+    partial void OnLearningModeChanged(bool value)
+    {
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveModes(value, ObserveMode);
+        }
+    }
+
+    partial void OnObserveModeChanged(bool value)
+    {
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveModes(LearningMode, value);
+        }
     }
 
     private void OnUi(Action action)

@@ -9,7 +9,12 @@
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:svc="clr-namespace:HostsGuard.App.Services"
         mc:Ignorable="d">
+    <Window.Resources>
+        <svc:PointsTextConverter x:Key="PointsConverter" />
+        <svc:SeriesBrushConverter x:Key="SeriesBrush" />
+    </Window.Resources>
     <Grid>
         <tb:TaskbarIcon x:Name="Tray"
                         IconSource="pack://application:,,,/Assets/icon.ico"
@@ -157,11 +162,28 @@
                 <TabItem Header="FW Activity">
                     <Grid Margin="4" DataContext="{Binding FwActivity}">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <DataGrid Grid.Row="0" ItemsSource="{Binding Rows}">
+                        <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                            <CheckBox DockPanel.Dock="Left" Content="Lockdown" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding Lockdown}"
+                                      ToolTip="Set the default outbound action to Block on all firewall profiles" />
+                            <CheckBox DockPanel.Dock="Left" Content="Learning" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding LearningMode}"
+                                      ToolTip="Surface trust prompts for processes making new connections" />
+                            <CheckBox DockPanel.Dock="Left" Content="Observe" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding ObserveMode}"
+                                      ToolTip="Record new processes silently instead of prompting" />
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
+                                       Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rows}">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Block remote IP"
@@ -193,7 +215,54 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <TextBlock Grid.Row="1" Margin="2,6,0,0"
+                        <!-- Per-app activity timeline (new connections per minute) -->
+                        <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                            <StackPanel>
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" Text="Per-app activity" FontWeight="SemiBold" />
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding TimelineStatus}"
+                                               Style="{StaticResource Hg.DimText}" />
+                                </DockPanel>
+                                <Grid Height="86" Margin="0,6,0,0" ClipToBounds="True">
+                                    <ItemsControl ItemsSource="{Binding Timeline}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Grid />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Viewbox Stretch="Fill">
+                                                    <Canvas Width="600" Height="100">
+                                                        <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
+                                                                  Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                                  StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                                    </Canvas>
+                                                </Viewbox>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding Timeline}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+                                                <Rectangle Width="10" Height="3" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                           Fill="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}" />
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource Hg.DimText}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Grid.Row="3" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
                 </TabItem>
@@ -421,6 +490,10 @@
                                     <MenuItem Header="Delete selected"
                                               Command="{Binding PlacementTarget.DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <Separator />
+                                    <MenuItem Header="Suggest / rebind program…"
+                                              Command="{Binding PlacementTarget.DataContext.RebindRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>

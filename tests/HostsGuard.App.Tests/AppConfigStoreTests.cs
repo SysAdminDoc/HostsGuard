@@ -72,4 +72,26 @@ public sealed class AppConfigStoreTests : IDisposable
     [InlineData("400", 150)]
     public void Ui_scale_coerces_like_the_python_build(string? raw, int expected)
         => AppConfigStore.CoerceUiScale(raw).Should().Be(expected);
+
+    [Fact]
+    public void Modes_round_trip_python_keys_and_preserve_foreign_state()
+    {
+        // learning_mode / observe_mode are the exact keys LearnDB uses; the
+        // Python-owned trust lists in the same file must survive a mode save.
+        File.WriteAllText(ConfigPath,
+            """{"learning_mode": true, "observe_mode": false, "trusted_procs": ["chrome.exe"]}""");
+
+        var store = new AppConfigStore(ConfigPath);
+        store.Load();
+        store.LearningMode.Should().BeTrue();
+        store.ObserveMode.Should().BeFalse();
+
+        store.SaveModes(learning: false, observe: true);
+
+        File.ReadAllText(ConfigPath).Should().Contain("\"trusted_procs\"").And.Contain("chrome.exe");
+        var reread = new AppConfigStore(ConfigPath);
+        reread.Load();
+        reread.LearningMode.Should().BeFalse();
+        reread.ObserveMode.Should().BeTrue();
+    }
 }

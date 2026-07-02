@@ -43,6 +43,28 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
     }
 
     public bool RuleExists(string name) => Rules.ContainsKey(name);
+
+    public bool OutboundBlock { get; set; }
+
+    public IReadOnlyList<FwProfilePosture> GetPosture() => new[]
+    {
+        new FwProfilePosture("Domain", true, OutboundBlock),
+        new FwProfilePosture("Private", true, OutboundBlock),
+        new FwProfilePosture("Public", true, OutboundBlock),
+    };
+
+    public void SetDefaultOutboundBlock(bool block) => OutboundBlock = block;
+
+    public bool SetRuleProgram(string name, string programPath)
+    {
+        if (!Rules.TryGetValue(name, out var rule))
+        {
+            return false;
+        }
+
+        Rules[name] = rule with { Program = programPath };
+        return true;
+    }
 }
 
 /// <summary>
@@ -88,6 +110,64 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     }
 
     private FirewallControl.FirewallControlClient Client(Grpc.Net.Client.GrpcChannel ch) => new(ch);
+
+    [Fact]
+    public async Task Posture_round_trip_flips_lockdown_and_logs_it()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var before = await fw.GetPostureAsync(new Empty());
+        before.Available.Should().BeTrue();
+        before.Lockdown.Should().BeFalse();
+        before.Profiles.Should().HaveCount(3);
+
+        (await fw.SetDefaultOutboundAsync(new OutboundRequest { Block = true })).Ok.Should().BeTrue();
+        var after = await fw.GetPostureAsync(new Empty());
+        after.Lockdown.Should().BeTrue();
+        after.Profiles.Should().OnlyContain(p => p.OutboundBlock);
+
+        (await fw.SetDefaultOutboundAsync(new OutboundRequest { Block = false })).Ok.Should().BeTrue();
+        (await fw.GetPostureAsync(new Empty())).Lockdown.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Rebind_updates_program_state_and_identity_for_hg_rules_only()
+    {
+        var newBinary = Path.Combine(_dir, "moved-app.exe");
+        File.WriteAllText(newBinary, "binary");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        await fw.BlockProgramAsync(new FirewallProgramRequest
+        {
+            ProgramPath = Path.Combine(_dir, "old-app.exe"),
+            Direction = "Outbound",
+        });
+        var name = _fw.Rules.Keys.Single(k => k.Contains("BlockApp_old-app"));
+
+        var ack = await fw.RebindRuleAsync(new RebindRequest { Name = name, NewProgram = newBinary });
+
+        ack.Ok.Should().BeTrue();
+        _fw.Rules[name].Program.Should().Be(newBinary);
+        _state.Identity!.Get(name).Should().Contain(i => i.Path == newBinary);
+
+        (await fw.RebindRuleAsync(new RebindRequest { Name = "SystemRule", NewProgram = newBinary }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/not_ours");
+        (await fw.RebindRuleAsync(new RebindRequest { Name = name, NewProgram = Path.Combine(_dir, "ghost.exe") }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_program");
+    }
+
+    [Fact]
+    public async Task Suggest_rebind_returns_empty_for_unknown_rules()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var suggestions = await Client(channel).SuggestRebindAsync(new RuleNameRequest { Name = "HG_NotThere" });
+
+        suggestions.OldPath.Should().BeEmpty();
+        suggestions.Candidates.Should().BeEmpty();
+    }
 
     [Fact]
     public async Task Quick_block_ip_creates_visible_hg_rule_and_tracks_state()

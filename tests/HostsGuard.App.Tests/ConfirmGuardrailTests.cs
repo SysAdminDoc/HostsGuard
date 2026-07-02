@@ -50,6 +50,28 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
         public bool SetRuleEnabled(string name, bool enabled) => Rules.ContainsKey(name);
 
         public bool RuleExists(string name) => Rules.ContainsKey(name);
+
+        public bool OutboundBlock { get; set; }
+
+        public IReadOnlyList<Core.FwProfilePosture> GetPosture() => new[]
+        {
+            new Core.FwProfilePosture("Domain", true, OutboundBlock),
+            new Core.FwProfilePosture("Private", true, OutboundBlock),
+            new Core.FwProfilePosture("Public", true, OutboundBlock),
+        };
+
+        public void SetDefaultOutboundBlock(bool block) => OutboundBlock = block;
+
+        public bool SetRuleProgram(string name, string programPath)
+        {
+            if (!Rules.TryGetValue(name, out var rule))
+            {
+                return false;
+            }
+
+            Rules[name] = rule with { Program = programPath };
+            return true;
+        }
     }
 
     public async Task InitializeAsync()

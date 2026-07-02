@@ -30,4 +30,11 @@
     <SolidColorBrush x:Key="Hg.Sel" Color="#2977a7ff" />
     <SolidColorBrush x:Key="Hg.OnSel" Color="#071019" />
 
+    <!-- chart series accents (timeline / sparklines) -->
+    <SolidColorBrush x:Key="Hg.Series0" Color="#77a7ff" />
+    <SolidColorBrush x:Key="Hg.Series1" Color="#66d9cf" />
+    <SolidColorBrush x:Key="Hg.Series2" Color="#ffb16c" />
+    <SolidColorBrush x:Key="Hg.Series3" Color="#c4a3ff" />
+    <SolidColorBrush x:Key="Hg.Series4" Color="#e7c36f" />
+
 </ResourceDictionary>

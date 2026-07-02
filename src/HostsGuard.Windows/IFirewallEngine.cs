@@ -18,4 +18,18 @@ public interface IFirewallEngine
     bool SetRuleEnabled(string name, bool enabled);
 
     bool RuleExists(string name);
+
+    /// <summary>Per-profile enabled + default-outbound posture (Domain/Private/Public).</summary>
+    IReadOnlyList<FwProfilePosture> GetPosture();
+
+    /// <summary>
+    /// Set DefaultOutboundAction on every profile (lockdown on/off). Idempotent:
+    /// profiles already in the requested state are not touched. Never changes
+    /// FirewallEnabled — HostsGuard owns the outbound default, not the firewall
+    /// on/off switch (the WFC-conflict lesson).
+    /// </summary>
+    void SetDefaultOutboundBlock(bool block);
+
+    /// <summary>Re-target an existing rule's program path (orphan rebind).</summary>
+    bool SetRuleProgram(string name, string programPath);
 }
