@@ -302,6 +302,13 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     {
         try
         {
+            // Only rewrite the DACL when it's actually weak — an already-hardened
+            // file needs no change and rewriting adds audit noise.
+            if (!Windows.HostsAcl.HasWeakAcl(_state.Hosts.HostsPath))
+            {
+                return Task.FromResult(Ok("hosts file ACL already hardened"));
+            }
+
             Windows.HostsAcl.Harden(_state.Hosts.HostsPath);
             _state.Db.LogEvent("hosts", "acl_hardened");
             return Task.FromResult(Ok("hosts file ACL hardened"));

@@ -177,6 +177,25 @@ public sealed class FirewallEngine : IFirewallEngine
         }
     }
 
+    public void SetDefaultOutboundBlock(IReadOnlyDictionary<string, bool> perProfile)
+    {
+        ArgumentNullException.ThrowIfNull(perProfile);
+        var policy = CreatePolicy();
+        foreach (var (name, value) in PostureProfiles)
+        {
+            if (!perProfile.TryGetValue(name, out var block))
+            {
+                continue;
+            }
+
+            var isBlock = (int)policy.DefaultOutboundAction[value] == ActionBlock;
+            if (isBlock != block)
+            {
+                policy.DefaultOutboundAction[value] = block ? ActionBlock : ActionAllow;
+            }
+        }
+    }
+
     public bool SetRuleProgram(string name, string programPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

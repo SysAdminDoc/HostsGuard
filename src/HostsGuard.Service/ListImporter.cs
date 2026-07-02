@@ -92,13 +92,23 @@ public sealed class ListImporter : IDisposable
         return domains.Count;
     }
 
-    /// <summary>Unblock every whitelisted domain that an import just re-added.</summary>
+    /// <summary>
+    /// Unblock every whitelisted domain that an import just re-added — in a
+    /// single reconcile (one atomic write, one self-write hash) rather than N
+    /// per-domain Unblock calls, so a large allowlist can't overflow the hosts
+    /// engine's self-write hash window and trip a spurious tamper alert.
+    /// </summary>
     private void ReapplyAllowlisted()
     {
-        foreach (var row in _db.GetDomains(status: "whitelisted"))
+        var whitelisted = _db.GetDomains(status: "whitelisted")
+            .Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
+        if (whitelisted.Count == 0)
         {
-            _hosts.Unblock(row.Domain);
+            return;
         }
+
+        var target = _hosts.GetBlocked().Where(d => !whitelisted.Contains(d)).ToList();
+        _hosts.Reconcile(target);
     }
 
     private async Task SafeScheduledRefreshAsync()

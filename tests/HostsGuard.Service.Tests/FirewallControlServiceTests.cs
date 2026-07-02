@@ -44,16 +44,42 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public bool RuleExists(string name) => Rules.ContainsKey(name);
 
-    public bool OutboundBlock { get; set; }
+    private bool _outboundBlock;
 
-    public IReadOnlyList<FwProfilePosture> GetPosture() => new[]
+    public bool OutboundBlock
     {
-        new FwProfilePosture("Domain", true, OutboundBlock),
-        new FwProfilePosture("Private", true, OutboundBlock),
-        new FwProfilePosture("Public", true, OutboundBlock),
-    };
+        get => _outboundBlock;
+        set
+        {
+            _outboundBlock = value;
+            PerProfileBlock = new Dictionary<string, bool>(StringComparer.Ordinal)
+            {
+                ["Domain"] = value,
+                ["Private"] = value,
+                ["Public"] = value,
+            };
+        }
+    }
+
+    public IReadOnlyList<FwProfilePosture> GetPosture() =>
+        PerProfileBlock.Select(kv => new FwProfilePosture(kv.Key, true, kv.Value)).ToList();
 
     public void SetDefaultOutboundBlock(bool block) => OutboundBlock = block;
+
+    public Dictionary<string, bool> PerProfileBlock { get; private set; } = new(StringComparer.Ordinal)
+    {
+        ["Domain"] = false,
+        ["Private"] = false,
+        ["Public"] = false,
+    };
+
+    public void SetDefaultOutboundBlock(IReadOnlyDictionary<string, bool> perProfile)
+    {
+        // Set the per-profile map directly (bypass the OutboundBlock setter,
+        // which would collapse it to a uniform value).
+        PerProfileBlock = new Dictionary<string, bool>(perProfile, StringComparer.Ordinal);
+        _outboundBlock = PerProfileBlock.Values.All(v => v);
+    }
 
     public bool SetRuleProgram(string name, string programPath)
     {

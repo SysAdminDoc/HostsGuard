@@ -262,6 +262,27 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Mixed_prior_posture_round_trips_per_profile()
+    {
+        // Public=Block, Domain/Private=Allow before arming.
+        _fw.SetDefaultOutboundBlock(new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            ["Domain"] = false,
+            ["Private"] = false,
+            ["Public"] = true,
+        });
+
+        _state.Consent.SetMode("notify");   // arms: all profiles → Block
+        _fw.PerProfileBlock.Values.Should().OnlyContain(v => v);
+
+        _state.Consent.SetMode("normal");   // must restore the exact mix, not collapse
+
+        _fw.PerProfileBlock["Domain"].Should().BeFalse();
+        _fw.PerProfileBlock["Private"].Should().BeFalse();
+        _fw.PerProfileBlock["Public"].Should().BeTrue();
+    }
+
+    [Fact]
     public void Mode_persists_and_resume_rearms_detection()
     {
         _state.Consent.SetMode("notify");

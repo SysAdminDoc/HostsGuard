@@ -30,6 +30,12 @@ public interface IFirewallEngine
     /// </summary>
     void SetDefaultOutboundBlock(bool block);
 
+    /// <summary>
+    /// Restore DefaultOutboundAction per profile (by name: Domain/Private/Public),
+    /// so a mixed prior posture round-trips faithfully instead of collapsing.
+    /// </summary>
+    void SetDefaultOutboundBlock(IReadOnlyDictionary<string, bool> perProfile);
+
     /// <summary>Re-target an existing rule's program path (orphan rebind).</summary>
     bool SetRuleProgram(string name, string programPath);
 }

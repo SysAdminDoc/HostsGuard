@@ -62,6 +62,9 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
 
         public void SetDefaultOutboundBlock(bool block) => OutboundBlock = block;
 
+        public void SetDefaultOutboundBlock(IReadOnlyDictionary<string, bool> perProfile)
+            => OutboundBlock = perProfile.Values.All(v => v);
+
         public bool SetRuleProgram(string name, string programPath)
         {
             if (!Rules.TryGetValue(name, out var rule))

@@ -160,10 +160,10 @@ public sealed class ConsentBroker : IDisposable
             return;
         }
 
-        // The engine's setter is all-profiles; restore Block only if every
-        // profile was blocking before we armed (mixed prior states restore to
-        // the safe common denominator: Allow).
-        fw.SetDefaultOutboundBlock(prior.Values.All(v => v));
+        // Restore each profile to exactly what it was before we armed — a mixed
+        // prior posture (e.g. Public=Block, others Allow) round-trips faithfully
+        // instead of collapsing to a single all-profiles value.
+        fw.SetDefaultOutboundBlock(prior);
         _state.PriorOutboundBlock = null;
     }
 
