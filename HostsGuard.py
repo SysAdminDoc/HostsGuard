@@ -153,6 +153,7 @@ DOH_IPS={'1.1.1.1','1.0.0.1','8.8.8.8','8.8.4.4','9.9.9.9','149.112.112.112',
     '185.228.168.168','185.228.169.168','76.76.2.0','76.76.10.0',
     '2606:4700:4700::1111','2606:4700:4700::1001','2001:4860:4860::8888','2001:4860:4860::8844'}
 DOH_STATE_PATH=os.path.join(CONFIG_DIR,"doh_resolvers.json")
+FW_IDENTITY_CACHE_KEY="fw_program_identities"
 RESEARCH=[("Google","https://www.google.com/search?q={d}"),("VirusTotal","https://www.virustotal.com/gui/domain/{d}"),("who.is","https://who.is/whois/{d}"),
     ("URLScan","https://urlscan.io/search/#{d}"),("Shodan","https://www.shodan.io/search?query={d}"),
     ("SecurityTrails","https://securitytrails.com/domain/{d}"),("MXToolbox","https://mxtoolbox.com/SuperTool.aspx?action=mx:{d}"),
@@ -1330,6 +1331,200 @@ def _parse_fw_rules(text):
 _FW_DUMP_CMD=('Get-NetFirewallRule -EA SilentlyContinue|ForEach-Object{$af=$_|Get-NetFirewallAddressFilter -EA SilentlyContinue;$pf=$_|Get-NetFirewallPortFilter -EA SilentlyContinue;$ap=$_|Get-NetFirewallApplicationFilter -EA SilentlyContinue;'
     '[PSCustomObject]@{N=$_.DisplayName;Dir=[int]$_.Direction;Act=[int]$_.Action;En=[int]$_.Enabled;RA=$af.RemoteAddress;Proto=$pf.Protocol;Prog=$ap.Program}}|ConvertTo-Json -Compress')
 
+def _identity_cache_key(path):
+    p=str(path or "").split(",")[0].strip()
+    if not p: return ""
+    try: return os.path.normcase(os.path.abspath(os.path.expandvars(p)))
+    except Exception: return p.lower()
+
+def _id_text(value):
+    return re.sub(r"\s+"," ",str(value or "").strip()).lower()
+
+def _program_identity(path,metadata=None):
+    p=str(path or "").split(",")[0].strip()
+    info={"path":p,"exists":False,"basename":"","stem":"","sha256":"",
+          "signature_status":"","signer":"","product":"","original_filename":"","file_description":""}
+    if not p: return info
+    try:
+        pp=Path(os.path.expandvars(p))
+        info["basename"]=pp.name
+        info["stem"]=pp.stem
+        info["exists"]=pp.exists()
+    except Exception:
+        info["basename"]=os.path.basename(p)
+        info["stem"]=os.path.splitext(info["basename"])[0]
+    if isinstance(metadata,dict):
+        aliases={
+            "status":"signature_status","signature":"signature_status","signature_status":"signature_status",
+            "signer":"signer","subject":"signer","publisher":"signer",
+            "product":"product","product_name":"product","productname":"product",
+            "original_filename":"original_filename","originalfilename":"original_filename",
+            "file_description":"file_description","filedescription":"file_description",
+            "description":"file_description","sha256":"sha256","exists":"exists"}
+        for k,v in metadata.items():
+            key=aliases.get(str(k).strip().lower())
+            if key=="exists": info[key]=bool(v)
+            elif key and v not in (None,""): info[key]=str(v).strip()
+    if info["exists"] and not info.get("sha256"):
+        try:
+            h=hashlib.sha256()
+            with open(p,"rb") as f:
+                for chunk in iter(lambda:f.read(1024*1024),b""): h.update(chunk)
+            info["sha256"]=h.hexdigest()
+        except Exception: pass
+    return info
+
+def _read_program_metadata(path):
+    cmd=(
+        f"$p=Get-Item -LiteralPath {_ps_esc(path)} -EA Stop;"
+        f"$s=Get-AuthenticodeSignature -LiteralPath {_ps_esc(path)} -EA SilentlyContinue;"
+        "[PSCustomObject]@{"
+        "Product=$p.VersionInfo.ProductName;"
+        "OriginalFilename=$p.VersionInfo.OriginalFilename;"
+        "FileDescription=$p.VersionInfo.FileDescription;"
+        "SignatureStatus=if($s){$s.Status.ToString()}else{''};"
+        "Signer=if($s -and $s.SignerCertificate){$s.SignerCertificate.Subject}else{''}"
+        "}|ConvertTo-Json -Compress")
+    ok,out=_ps(cmd,8)
+    if not ok or not out: return {}
+    try: return json.loads(out)
+    except Exception: return {}
+
+def _get_program_identity(path):
+    meta={}
+    try: meta=_read_program_metadata(path)
+    except Exception: meta={}
+    return _program_identity(path,meta)
+
+def _load_fw_identity_cache():
+    try: raw=load_cfg().get(FW_IDENTITY_CACHE_KEY,{})
+    except Exception: return {}
+    if not isinstance(raw,dict): return {}
+    out={}
+    for k,v in raw.items():
+        if isinstance(v,dict):
+            key=_identity_cache_key(v.get("path") or k)
+            if key: out[key]=dict(v)
+    return out
+
+def _remember_fw_program_identity(path,identity=None):
+    try:
+        key=_identity_cache_key(path)
+        plain=str(path or "").split(",")[0].strip()
+        if not key or not os.path.exists(plain): return
+        ident=identity if isinstance(identity,dict) else _get_program_identity(plain)
+        ident=dict(ident); ident["path"]=plain
+        ident["updated"]=datetime.datetime.now().isoformat(timespec="seconds")
+        cfg=load_cfg(); cache=cfg.get(FW_IDENTITY_CACHE_KEY,{})
+        if not isinstance(cache,dict): cache={}
+        cache[key]=ident
+        if len(cache)>250:
+            items=sorted(cache.items(),key=lambda kv: kv[1].get("updated",""),reverse=True)[:250]
+            cache=dict(items)
+        cfg[FW_IDENTITY_CACHE_KEY]=cache; save_cfg(cfg)
+    except Exception as e: log.debug(f"FW identity cache: {e}")
+
+def _remember_fw_program_identity_async(path,identity=None):
+    if not path: return
+    try: threading.Thread(target=_remember_fw_program_identity,args=(path,identity),daemon=True).start()
+    except Exception: _remember_fw_program_identity(path,identity)
+
+def _identity_hashes(history):
+    hashes=set()
+    def add(v):
+        h=_id_text(v)
+        if re.fullmatch(r"[0-9a-f]{64}",h): hashes.add(h)
+    if isinstance(history,dict):
+        add(history.get("sha256"))
+        for v in history.values():
+            if isinstance(v,dict): add(v.get("sha256"))
+    elif isinstance(history,(list,tuple,set)):
+        for v in history:
+            if isinstance(v,dict): add(v.get("sha256"))
+            else: add(v)
+    return hashes
+
+def _score_rebind_candidate(old_identity,candidate_identity,history=None):
+    old=_program_identity(old_identity.get("path",""),old_identity) if isinstance(old_identity,dict) else _program_identity(old_identity)
+    cand=_program_identity(candidate_identity.get("path",""),candidate_identity) if isinstance(candidate_identity,dict) else _program_identity(candidate_identity)
+    score=0; reasons=[]
+    if cand.get("exists") is False: return {"path":cand.get("path",""),"score":0,"reasons":[],"identity":cand}
+    old_names={_id_text(old.get("basename")),_id_text(old.get("original_filename"))}-{""}
+    cand_names={_id_text(cand.get("basename")),_id_text(cand.get("original_filename"))}-{""}
+    if old.get("sha256") and _id_text(old.get("sha256"))==_id_text(cand.get("sha256")):
+        score+=90; reasons.append("same SHA-256")
+    elif cand.get("sha256") and _id_text(cand.get("sha256")) in _identity_hashes(history):
+        score+=70; reasons.append("known previous SHA-256")
+    if old_names & cand_names:
+        score+=30; reasons.append("same executable identity")
+    elif old.get("stem") and _id_text(old.get("stem"))==_id_text(cand.get("stem")):
+        score+=15; reasons.append("same executable stem")
+    if old.get("signer") and _id_text(old.get("signer"))==_id_text(cand.get("signer")):
+        score+=35; reasons.append("same signer")
+    if old.get("product") and _id_text(old.get("product"))==_id_text(cand.get("product")):
+        score+=25; reasons.append("same product")
+    if old.get("file_description") and _id_text(old.get("file_description"))==_id_text(cand.get("file_description")):
+        score+=15; reasons.append("same file description")
+    if _id_text(cand.get("signature_status"))=="valid":
+        score+=5; reasons.append("valid signature")
+    try:
+        old_parent=Path(old.get("path","")).parent.name.lower()
+        cand_parts={p.lower() for p in Path(cand.get("path","")).parts}
+        if old_parent and old_parent not in {"","bin","app","apps","program files","program files (x86)"} and old_parent in cand_parts:
+            score+=20; reasons.append("same app folder family")
+    except Exception: pass
+    return {"path":cand.get("path",""),"score":score,"reasons":reasons,"identity":cand}
+
+def _rank_rebind_candidates(old_identity,candidates,history=None,min_score=60,ambiguous_delta=8):
+    scored=[]
+    for cand in candidates or []:
+        m=_score_rebind_candidate(old_identity,cand,history)
+        if m["score"]>=min_score and m.get("path"): scored.append(m)
+    scored.sort(key=lambda m:(-m["score"],m["path"].lower()))
+    if not scored: return {"status":"none","matches":[],"ambiguous":False}
+    ambiguous=len(scored)>1 and scored[0]["score"]-scored[1]["score"]<=ambiguous_delta
+    return {"status":"ambiguous" if ambiguous else "single","matches":scored,"ambiguous":ambiguous}
+
+def _candidate_search_roots(old_path):
+    roots=[]
+    def add(p):
+        try:
+            pp=Path(os.path.expandvars(str(p))).resolve()
+            if pp.exists() and pp.is_dir() and str(pp) not in roots: roots.append(str(pp))
+        except Exception: pass
+    try:
+        old=Path(os.path.expandvars(str(old_path)))
+        add(old.parent); add(old.parent.parent)
+    except Exception: pass
+    for env in ("ProgramFiles","ProgramFiles(x86)","LOCALAPPDATA"):
+        base=os.environ.get(env)
+        if not base: continue
+        add(Path(base) / "Programs" if env=="LOCALAPPDATA" else base)
+    return roots
+
+def _scan_program_rebind_candidates(old_path,max_results=80,max_depth=5):
+    old=str(old_path or "").split(",")[0].strip()
+    if not old: return []
+    basename=Path(old).name.lower(); stem=Path(old).stem.lower()
+    if not basename: return []
+    found=[]; seen=set()
+    for root in _candidate_search_roots(old):
+        root_path=Path(root)
+        for dirpath,dirnames,filenames in os.walk(root):
+            try:
+                depth=len(Path(dirpath).relative_to(root_path).parts)
+                if depth>=max_depth: dirnames[:]=[]
+            except Exception: pass
+            dirnames[:]=[d for d in dirnames if d not in {"$Recycle.Bin","System Volume Information"}]
+            for fn in filenames:
+                low=fn.lower()
+                if low!=basename and not (low.endswith(".exe") and stem and Path(low).stem==stem): continue
+                p=os.path.join(dirpath,fn); key=_identity_cache_key(p)
+                if key and key not in seen and key!=_identity_cache_key(old):
+                    seen.add(key); found.append(p)
+                    if len(found)>=max_results: return found
+    return found
+
 # ─── Firewall Engine (background-loadable) ──────────────────────────────────
 class FWEngine:
     def __init__(s): s._cache=[]; s._lock=Lock(); s._ts=0; s._ttl=180; s._loading=False; s._db=None
@@ -1338,6 +1533,7 @@ class FWEngine:
         with s._lock: s._ts=0
     def _track(s,name,direction='',action='Block',remote_addr='',protocol='',program=''):
         if s._db and name.startswith(FW_PFX): s._db.save_fw_rule(name,direction,action,remote_addr,protocol,program)
+        if name.startswith(FW_PFX) and program: _remember_fw_program_identity_async(program)
     def _untrack(s,name):
         if s._db and name.startswith(FW_PFX): s._db.remove_fw_rule(name)
     @property
@@ -2032,7 +2228,27 @@ class FWLoadWorker(QThread):
             for r in rules:
                 if r.source=="hostsguard":
                     fw._db.save_fw_rule(r.name,r.direction,r.action,r.remote_addr,r.protocol,r.program)
+                    if r.program: _remember_fw_program_identity(r.program)
         s.ready.emit(rules)
+
+
+class FWRebindWorker(QThread):
+    ready=Signal(object)
+    def __init__(s,old_path): super().__init__(); s.old_path=old_path
+    def run(s):
+        try:
+            history=_load_fw_identity_cache()
+            old_key=_identity_cache_key(s.old_path)
+            old_identity=history.get(old_key) or _program_identity(s.old_path)
+            paths=_scan_program_rebind_candidates(s.old_path)
+            identities=[_get_program_identity(p) for p in paths]
+            result=_rank_rebind_candidates(old_identity,identities,history)
+            result["old_path"]=s.old_path
+            result["scanned"]=len(paths)
+            s.ready.emit(result)
+        except Exception as e:
+            s.ready.emit({"status":"error","matches":[],"ambiguous":False,"error":str(e)[:160],
+                          "old_path":s.old_path,"scanned":0})
 
 
 # ─── Splash Screen ──────────────────────────────────────────────────────────
@@ -3838,7 +4054,7 @@ class FirewallTab(QWidget):
                 pit=QTableWidgetItem((prog+" (orphaned)") if orphan else prog)
                 if orphan:
                     pit.setForeground(QColor(C['peach']))
-                    pit.setToolTip(f"Program no longer exists - this rule matches nothing (likely moved by an update):\n{r.program}\nRight-click > Re-bind program.")
+                    pit.setToolTip(f"Program no longer exists - this rule matches nothing (likely moved by an update):\n{r.program}\nRight-click > Suggest / Re-bind program.")
                 s.tbl.setItem(i,6,pit)
                 si=QTableWidgetItem(r.source or ""); si.setForeground(QColor(C['blue'] if r.source=="hostsguard" else C['dim'])); s.tbl.setItem(i,7,si)
             s.tbl.setSortingEnabled(True)
@@ -3857,7 +4073,45 @@ class FirewallTab(QWidget):
         except OSError: return False
     def _rebind(s,rule):
         old=rule.program.split(',')[0].strip() if rule.program else ""
-        newp,_=QFileDialog.getOpenFileName(s,"Re-bind rule to program",str(Path(old).parent) if old else "","Executables (*.exe);;All (*)")
+        if not old:
+            s._choose_rebind_file(rule,old); return
+        s._toast("Scanning for signed replacement...",C['blue'])
+        s._rb_w=FWRebindWorker(old)
+        s._rb_w.ready.connect(lambda result,rr=rule:s._on_rebind_suggestions(rr,result))
+        s._rb_w.start()
+    def _choose_rebind_file(s,rule,old=""):
+        start=str(Path(old).parent) if old else ""
+        newp,_=QFileDialog.getOpenFileName(s,"Re-bind rule to program",start,"Executables (*.exe);;All (*)")
+        if newp: s._apply_rebind(rule,newp)
+    def _on_rebind_suggestions(s,rule,result):
+        if result.get("status")=="error":
+            s._toast(f"Re-bind scan failed: {result.get('error','unknown error')}",C['peach'])
+            s._choose_rebind_file(rule,result.get("old_path","")); return
+        matches=result.get("matches") or []
+        if not matches:
+            s._toast("No signed identity match found - choose the program manually",C['peach'])
+            s._choose_rebind_file(rule,result.get("old_path","")); return
+        top=matches[0]; path=top.get("path",""); reasons=", ".join(top.get("reasons",[])[:5]) or "identity score"
+        box=QMessageBox(s); box.setIcon(QMessageBox.Question)
+        box.setWindowTitle("Re-bind firewall program")
+        title="Multiple likely replacements found" if result.get("ambiguous") else "Suggested replacement found"
+        box.setText(f"{title}\n\n{Path(path).name}")
+        detail=[f"Rule: {rule.name}",f"Old path: {result.get('old_path','')}",f"Suggested path: {path}",
+                f"Score: {top.get('score',0)} ({reasons})"]
+        if result.get("ambiguous"):
+            detail.append("")
+            detail.append("Other close matches:")
+            for m in matches[1:5]:
+                detail.append(f"- {m.get('score',0)}: {m.get('path','')}")
+        box.setInformativeText("\n".join(detail))
+        apply_btn=box.addButton("Apply Suggested",QMessageBox.AcceptRole)
+        manual_btn=box.addButton("Choose Manually",QMessageBox.ActionRole)
+        box.addButton("Cancel",QMessageBox.RejectRole)
+        box.exec_()
+        clicked=box.clickedButton()
+        if clicked==apply_btn: s._apply_rebind(rule,path)
+        elif clicked==manual_btn: s._choose_rebind_file(rule,result.get("old_path",""))
+    def _apply_rebind(s,rule,newp):
         if not newp: return
         # Recreate the rule against the new path, preserving direction/action, then drop the old one.
         direction="Inbound" if rule.direction=="In" else "Outbound"
@@ -3866,6 +4120,10 @@ class FirewallTab(QWidget):
             fw.delete(rule.name)
             s._remove_local(rule.name)
             s._inject_rule(newname,rule.direction,rule.action,program=newp)
+            _remember_fw_program_identity_async(newp)
+            try:
+                if fw._db: fw._db.log_event(newp,'fw_rebound','',f'Firewall rule re-bound from {rule.name}','firewall')
+            except Exception: pass
             s._toast(f"Re-bound to {Path(newp).name}",C['green'])
         else:
             s._toast("Re-bind failed",C['red'])
@@ -3887,7 +4145,7 @@ class FirewallTab(QWidget):
         if rule:
             m.addAction("Duplicate / Edit").triggered.connect(lambda:s._dup(rule))
             if rule.source=="hostsguard" and rule.program:
-                m.addAction("Re-bind program…").triggered.connect(lambda:s._rebind(rule))
+                m.addAction("Suggest / Re-bind program…").triggered.connect(lambda:s._rebind(rule))
             if rule.program and not s._is_orphan(rule):
                 m.addAction(f"Block {Path(rule.program).name} Inbound").triggered.connect(lambda:s._block_in(rule.program))
                 m.addAction(f"Block {Path(rule.program).name} In+Out").triggered.connect(lambda:s._block_both(rule.program))
@@ -3953,6 +4211,7 @@ class FirewallTab(QWidget):
         r=FWR(name=name,direction=direction,action=action,enabled=True,
             remote_addr=remote_addr,protocol="Any",program=program,source="hostsguard")
         s._rules.append(r)
+        if program: _remember_fw_program_identity_async(program)
         with fw._lock: fw._cache.append(r); fw._ts=time.time()
         s._apply()
     def _profiles(s):

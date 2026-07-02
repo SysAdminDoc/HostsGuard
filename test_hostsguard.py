@@ -36,12 +36,18 @@ _WANT_FUNCS = {"_is_frozen", "looks_like_domain", "get_root", "norm_line", "clea
                "_load_doh_state", "_save_doh_state", "_current_doh_ips", "_doh_rule_ips",
                "_parse_windows_doh_servers", "_windows_known_doh_ips", "_fetch_doh_resolver_list",
                "refresh_doh_intelligence", "_doh_now", "_doh_status_payload", "_doh_status_text",
+               "_identity_cache_key", "_id_text", "_program_identity", "_get_program_identity",
+               "_load_fw_identity_cache", "_remember_fw_program_identity",
+               "_remember_fw_program_identity_async", "_identity_hashes",
+               "_score_rebind_candidate", "_rank_rebind_candidates", "_candidate_search_roots",
+               "_scan_program_rebind_candidates",
                "canonical_reason", "reason_label", "_service_error", "_service_auth_ok",
                "_service_parse_limit", "_service_validate_since", "_service_log_params",
                "_service_parse_json_body", "_service_openapi"}
 _WANT_CLASSES = {"DB", "FWR", "FWEngine"}
 _WANT_CONSTS = {"DOMAIN_RE", "IPV4_RE", "PRIV_RE", "MULTI_TLDS", "IGNORED",
                 "WINDOWS_HEADER", "_CAT", "APP", "VER", "FW_PFX", "SCHEMA_VER", "DOH_IPS",
+                "FW_IDENTITY_CACHE_KEY",
                 "REASON_LABELS", "_REASON_ALIASES", "SERVICE_API_VERSION",
                 "SERVICE_BODY_LIMIT", "SERVICE_LOG_ACTIONS"}
 
@@ -67,6 +73,7 @@ def _extract():
     ns = {"re": re, "ipaddress": ipaddress, "sqlite3": sqlite3, "datetime": datetime,
           "time": time, "json": json, "Lock": threading.Lock, "log": log_stub,
           "dataclass": dataclass, "field": field, "DB_PATH": ":memory:", "sys": sys,
+          "Path": __import__("pathlib").Path,
           "os": os, "DOH_STATE_PATH": os.path.join(os.getcwd(), "test_doh_resolvers.json"),
           "urllib": urllib, "hashlib": hashlib, "hmac": hmac, "OrderedDict": OrderedDict}
     exec(compile(module, "<hostsguard-extracted>", "exec"), ns)
@@ -96,6 +103,9 @@ _current_doh_ips = _m["_current_doh_ips"]
 _doh_rule_ips = _m["_doh_rule_ips"]
 _parse_windows_doh_servers = _m["_parse_windows_doh_servers"]
 refresh_doh_intelligence = _m["refresh_doh_intelligence"]
+_program_identity = _m["_program_identity"]
+_score_rebind_candidate = _m["_score_rebind_candidate"]
+_rank_rebind_candidates = _m["_rank_rebind_candidates"]
 canonical_reason = _m["canonical_reason"]
 reason_label = _m["reason_label"]
 _service_error = _m["_service_error"]
@@ -826,3 +836,76 @@ class TestParseFwRules:
     def test_empty_and_garbage(self):
         assert _parse_fw_rules("") == []
         assert _parse_fw_rules("not json") == []
+
+
+class TestFirewallRebindScoring:
+    def _old(self):
+        return {
+            "path": r"C:\Program Files\Contoso Guard\1.0\guard.exe",
+            "exists": False,
+            "basename": "guard.exe",
+            "original_filename": "guard.exe",
+            "signer": "CN=Contoso Software LLC",
+            "product": "Contoso Guard",
+            "file_description": "Contoso Guard",
+            "sha256": "a" * 64,
+        }
+
+    def test_no_match_rejects_filename_only_candidate(self):
+        old = self._old()
+        unrelated = {
+            "path": r"C:\Program Files\Other Tool\guard.exe",
+            "exists": True,
+            "basename": "guard.exe",
+            "original_filename": "guard.exe",
+            "signer": "CN=Other Publisher",
+            "product": "Other Tool",
+            "signature_status": "Valid",
+        }
+        result = _rank_rebind_candidates(old, [unrelated])
+        assert result["status"] == "none"
+        assert result["matches"] == []
+
+    def test_single_match_uses_hash_history_and_identity(self):
+        old = self._old()
+        candidate = {
+            "path": r"C:\Program Files\Contoso Guard\2.0\guard.exe",
+            "exists": True,
+            "basename": "guard.exe",
+            "original_filename": "guard.exe",
+            "signer": "CN=Contoso Software LLC",
+            "product": "Contoso Guard",
+            "file_description": "Contoso Guard",
+            "signature_status": "Valid",
+            "sha256": "a" * 64,
+        }
+        unrelated = {
+            "path": r"C:\Program Files\Other Tool\guard.exe",
+            "exists": True,
+            "basename": "guard.exe",
+            "signature_status": "Valid",
+        }
+        result = _rank_rebind_candidates(old, [unrelated, candidate], history={old["path"]: old})
+        assert result["status"] == "single"
+        assert result["ambiguous"] is False
+        assert result["matches"][0]["path"].endswith(r"2.0\guard.exe")
+        assert "same SHA-256" in result["matches"][0]["reasons"]
+        assert "same signer" in result["matches"][0]["reasons"]
+
+    def test_ambiguous_match_flags_close_signed_candidates(self):
+        old = self._old()
+        first = {
+            "path": r"C:\Program Files\Contoso Guard\2.0\guard.exe",
+            "exists": True,
+            "basename": "guard.exe",
+            "original_filename": "guard.exe",
+            "signer": "CN=Contoso Software LLC",
+            "product": "Contoso Guard",
+            "file_description": "Contoso Guard",
+            "signature_status": "Valid",
+        }
+        second = dict(first, path=r"C:\Users\me\AppData\Local\Programs\Contoso Guard\guard.exe")
+        result = _rank_rebind_candidates(old, [first, second], history={old["path"]: old})
+        assert result["status"] == "ambiguous"
+        assert result["ambiguous"] is True
+        assert len(result["matches"]) == 2

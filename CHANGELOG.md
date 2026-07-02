@@ -28,6 +28,10 @@ All notable changes to HostsGuard are documented in this file.
   `limit/since/action/reason` query parameters for `/log`, stable structured
   error bodies, explicit 1 MB POST body rejection instead of truncation, and
   schema-bearing mutation responses.
+- Added identity-aware firewall program rebind suggestions for orphaned
+  HostsGuard rules, using cached signer/product/original filename/SHA-256
+  evidence plus bounded replacement-path scanning and a preview step before
+  applying the new executable path.
 
 ### Verified
 - Passed `py -3.12 -m pytest test_hostsguard.py -q` with 76 tests.
@@ -56,6 +60,12 @@ All notable changes to HostsGuard are documented in this file.
 - Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`,
   passed `py -3.12 HostsGuard.py status`, and rebuilt the PyInstaller onedir
   artifact after the service-contract change.
+- Passed `py -3.12 -m pytest test_hostsguard.py -q` with 102 tests after adding
+  firewall rebind scoring coverage.
+- Passed `py -3.12 -m py_compile HostsGuard.py test_hostsguard.py runtime_hook_mp.py`
+  after the firewall rebind change.
+- Passed `py -3.12 HostsGuard.py status` and rebuilt the PyInstaller onedir
+  artifact after the firewall rebind change.
 
 ## [v3.15.0] - 2026-07-02
 

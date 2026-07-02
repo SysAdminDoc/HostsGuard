@@ -137,7 +137,7 @@ winget install --id JRSoftware.InnoSetup -e
 | Scheduled Blocking | Block a domain or service on a recurring weekly schedule (windows may cross midnight) |
 | Allowlist Subscriptions | Subscribe to remote allowlists that whitelist domains and win over blocklists |
 | Mini Monitor | Tray-toggled always-on-top thumbnail of live up/down rates and connection/blocked counts |
-| Orphaned FW Rule Detection | Flags HostsGuard program rules whose executable moved (app update) with one-click re-bind |
+| Orphaned FW Rule Detection | Flags HostsGuard program rules whose executable moved, suggests signed identity matches by signer/product/original filename/hash history, and previews the replacement before re-bind |
 | Auto-Restore | Optional automatic hosts file restoration from backup on tamper detection |
 
 ## Blocklist Sources
