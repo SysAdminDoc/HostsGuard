@@ -3021,12 +3021,41 @@ class FirewallTab(QWidget):
                 addr=r.remote_addr if r.remote_addr not in ("Any","*","") else "Any"; s.tbl.setItem(i,5,QTableWidgetItem(addr[:60]))
                 try: prog=Path(r.program).name if r.program else ""
                 except: prog=r.program or ""
-                s.tbl.setItem(i,6,QTableWidgetItem(prog))
+                orphan=s._is_orphan(r)
+                pit=QTableWidgetItem((prog+"  \u26A0") if orphan else prog)
+                if orphan:
+                    pit.setForeground(QColor(C['peach']))
+                    pit.setToolTip(f"Program no longer exists \u2014 this rule matches nothing (likely moved by an update):\n{r.program}\nRight-click \u2192 Re-bind program.")
+                s.tbl.setItem(i,6,pit)
                 si=QTableWidgetItem(r.source or ""); si.setForeground(QColor(C['blue'] if r.source=="hostsguard" else C['dim'])); s.tbl.setItem(i,7,si)
             s.tbl.setSortingEnabled(True)
             hg=sum(1 for r in s._rules if r.source=="hostsguard")
-            s.info.setText(f"{len(rules)} shown \u00B7 {len(s._rules)} total \u00B7 {hg} HG")
+            orph=sum(1 for r in s._rules if s._is_orphan(r))
+            s.info.setText(f"{len(rules)} shown \u00B7 {len(s._rules)} total \u00B7 {hg} HG"+(f" \u00B7 \u26A0 {orph} orphaned" if orph else ""))
         except Exception as e: s.info.setText(f"Error: {e}")
+    @staticmethod
+    def _is_orphan(r):
+        """HG program rule whose target executable no longer exists \u2014 it silently
+        stops enforcing (Windows FW matches by path; an app update that changes the
+        install path orphans the rule)."""
+        if r.source!="hostsguard" or not r.program: return False
+        p=r.program.split(',')[0].strip()
+        try: return bool(p) and not os.path.exists(p)
+        except OSError: return False
+    def _rebind(s,rule):
+        old=rule.program.split(',')[0].strip() if rule.program else ""
+        newp,_=QFileDialog.getOpenFileName(s,"Re-bind rule to program",str(Path(old).parent) if old else "","Executables (*.exe);;All (*)")
+        if not newp: return
+        # Recreate the rule against the new path, preserving direction/action, then drop the old one.
+        direction="Inbound" if rule.direction=="In" else "Outbound"
+        newname=f"{FW_PFX}{rule.action}_{Path(newp).stem}"+("_In" if rule.direction=="In" else "")
+        if fw.create(newname,direction,rule.action,program=newp,desc=f"Re-bound by {APP}"):
+            fw.delete(rule.name)
+            s._remove_local(rule.name)
+            s._inject_rule(newname,rule.direction,rule.action,program=newp)
+            s._toast(f"Re-bound to {Path(newp).name}",C['green'])
+        else:
+            s._toast("Re-bind failed",C['red'])
 
     def _ctx(s,pos):
         row=s.tbl.currentRow()
@@ -3044,7 +3073,9 @@ class FirewallTab(QWidget):
         m.addSeparator()
         if rule:
             m.addAction("Duplicate / Edit").triggered.connect(lambda:s._dup(rule))
-            if rule.program:
+            if rule.source=="hostsguard" and rule.program:
+                m.addAction("Re-bind program…").triggered.connect(lambda:s._rebind(rule))
+            if rule.program and not s._is_orphan(rule):
                 m.addAction(f"Block {Path(rule.program).name} Inbound").triggered.connect(lambda:s._block_in(rule.program))
                 m.addAction(f"Block {Path(rule.program).name} In+Out").triggered.connect(lambda:s._block_both(rule.program))
         m.addSeparator()
