@@ -3795,14 +3795,26 @@ def _service():
     threads=[]
     for fn in [_dns_loop,_conn_loop,_watcher_loop]:
         t=threading.Thread(target=fn,daemon=True); t.start(); threads.append(t)
-    token=os.environ.get('HG_TOKEN','')
+    # Auth is REQUIRED, not optional — the service runs elevated and mutates the
+    # hosts file, so an unauthenticated endpoint would let any local process do so.
+    # Prefer HG_TOKEN from the environment; otherwise auto-generate and persist a
+    # token so the endpoint is never open by default.
+    token=os.environ.get('HG_TOKEN','').strip()
+    tok_path=os.path.join(CONFIG_DIR,'service_token')
+    if not token:
+        try:
+            if os.path.exists(tok_path):
+                with open(tok_path) as f: token=f.read().strip()
+            if not token:
+                token=uuid.uuid4().hex+uuid.uuid4().hex
+                fd=os.open(tok_path,os.O_WRONLY|os.O_CREAT|os.O_TRUNC,0o600)
+                with os.fdopen(fd,'w') as f: f.write(token)
+        except Exception as e:
+            log.warning(f"service token: {e}")
     class Handler(http.server.BaseHTTPRequestHandler):
         def _authed(s):
-            """Optional bearer auth: set HG_TOKEN to require X-HG-Token on every request.
-            The service runs elevated — without a token any local process can mutate
-            the hosts file through this endpoint."""
-            if not token: return True
-            if _hmac.compare_digest(s.headers.get('X-HG-Token',''),token): return True
+            """Require a constant-time-matched X-HG-Token on every request."""
+            if token and _hmac.compare_digest(s.headers.get('X-HG-Token',''),token): return True
             s._json_reply(401,{'ok':False,'error':'missing or invalid X-HG-Token'})
             return False
         def _json_reply(s,code,obj):
@@ -3848,7 +3860,12 @@ def _service():
     srv=http.server.ThreadingHTTPServer(('127.0.0.1',port),Handler)
     print(f"JSON-RPC listening on http://127.0.0.1:{port}")
     print("Endpoints: GET /status, GET /domains, POST /domains (action+domain)")
-    if not token: print("Note: set HG_TOKEN to require X-HG-Token auth on the endpoint")
+    if not token:
+        print("WARNING: no auth token could be established — endpoint will reject all requests.")
+    elif os.environ.get('HG_TOKEN','').strip():
+        print("Auth: send header 'X-HG-Token: <your HG_TOKEN>' on every request.")
+    else:
+        print(f"Auth: send header 'X-HG-Token: <token>' — token stored at {tok_path}")
     print("Press Ctrl+C to stop")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nShutting down...")
