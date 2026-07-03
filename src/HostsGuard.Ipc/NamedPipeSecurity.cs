@@ -8,10 +8,19 @@ namespace HostsGuard.Ipc;
 /// Builds the ACL for the HostsGuard control pipe. Two shapes:
 /// per-user (dev/console runs) grants the current user + Administrators; the
 /// cross-session shape (WFCP-000b, production LocalSystem service) keeps full
-/// control with SYSTEM + Administrators and grants Authenticated Users
-/// read-write so the unelevated user-session UI can connect — the per-session
-/// token interceptor stays the authentication layer on top. No world/Everyone
-/// ACE in either shape.
+/// control with SYSTEM + Administrators and grants the INTERACTIVE group
+/// read-write so the unelevated desktop UI can connect — the per-session token
+/// interceptor stays the authentication layer on top. No world/Everyone ACE in
+/// either shape.
+///
+/// NET-087: the connect grant is INTERACTIVE, not Authenticated Users. That
+/// narrows the pipe to principals logged on at the desktop (console/RDP) and
+/// deliberately excludes service accounts and — because a remote SMB caller
+/// authenticates as NETWORK, never INTERACTIVE — remote clients, without an
+/// explicit PIPE_REJECT_REMOTE_CLIENTS flag (which the Kestrel named-pipe
+/// transport doesn't surface). HostsGuard's threat model trusts the interactive
+/// user (they can already elevate their own machine), so this preserves the
+/// no-UAC unelevated-mutation UX while removing the over-broad grant.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public static class NamedPipeSecurity
@@ -24,8 +33,9 @@ public static class NamedPipeSecurity
 
     /// <summary>
     /// LocalSystem service ↔ unelevated UI: SYSTEM/Administrators own the pipe,
-    /// Authenticated Users may connect (read-write only); the session token is
-    /// what actually authorizes a caller.
+    /// the INTERACTIVE group may connect (read-write only); the session token is
+    /// what actually authorizes a caller. INTERACTIVE excludes service accounts
+    /// and remote (NETWORK) logons — see the type summary (NET-087).
     /// </summary>
     public static PipeSecurity CreateCrossSession()
     {
@@ -39,7 +49,7 @@ public static class NamedPipeSecurity
             PipeAccessRights.FullControl,
             System.Security.AccessControl.AccessControlType.Allow));
         security.AddAccessRule(new PipeAccessRule(
-            new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+            new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
             PipeAccessRights.ReadWrite,
             System.Security.AccessControl.AccessControlType.Allow));
         return security;

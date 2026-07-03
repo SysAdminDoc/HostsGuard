@@ -34,10 +34,12 @@ public static class SessionToken
 
     /// <summary>
     /// Write the token to a file with a protected ACL: current user +
-    /// Administrators full control; when minted by the LocalSystem service,
-    /// Authenticated Users additionally get read so the unelevated user-session
-    /// UI can complete the handshake (WFCP-000b — the pipe ACL admits them,
-    /// this token is what authorizes them).
+    /// Administrators full control; when minted by the LocalSystem service, the
+    /// INTERACTIVE group additionally gets read so the unelevated desktop UI can
+    /// complete the handshake (WFCP-000b — the pipe ACL admits them, this token
+    /// is what authorizes them). NET-087: INTERACTIVE, not Authenticated Users,
+    /// so service accounts and remote (NETWORK) logons cannot read the bearer
+    /// token even though the file lives in the shared policy dir.
     /// </summary>
     [SupportedOSPlatform("windows")]
     public static void WriteHandshake(string path, string token)
@@ -64,7 +66,7 @@ public static class SessionToken
         if (identity.IsSystem)
         {
             security.AddAccessRule(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+                new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
                 FileSystemRights.Read,
                 AccessControlType.Allow));
         }

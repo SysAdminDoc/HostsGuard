@@ -26,11 +26,13 @@ public class SecurityPrimitiveTests
     }
 
     [Fact]
-    public void CrossSession_acl_lets_authenticated_users_connect_but_not_own()
+    public void CrossSession_acl_lets_interactive_users_connect_but_not_own()
     {
-        // WFCP-000b: the LocalSystem service and the unelevated user-session UI
-        // share the pipe — SYSTEM/Admins keep full control, Authenticated Users
-        // get read-write only, nobody else appears.
+        // WFCP-000b + NET-087: the LocalSystem service and the unelevated
+        // user-session UI share the pipe — SYSTEM/Admins keep full control, the
+        // INTERACTIVE group gets read-write only, nobody else appears. INTERACTIVE
+        // (not Authenticated Users) excludes service accounts and remote/NETWORK
+        // logons.
         var security = NamedPipeSecurity.CreateCrossSession();
         var rules = security.GetAccessRules(true, true, typeof(SecurityIdentifier))
             .Cast<System.IO.Pipes.PipeAccessRule>()
@@ -38,7 +40,9 @@ public class SecurityPrimitiveTests
 
         var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
         var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        var interactive = new SecurityIdentifier(WellKnownSidType.InteractiveSid, null);
         var authenticated = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
+        var network = new SecurityIdentifier(WellKnownSidType.NetworkSid, null);
         var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
 
         rules.Should().HaveCount(3);
@@ -46,9 +50,12 @@ public class SecurityPrimitiveTests
         rules[admins].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.FullControl);
         // The ACL layer appends Synchronize to usable grants — assert the
         // contract: connectable, but no ownership/permission rights.
-        rules[authenticated].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.ReadWrite);
-        rules[authenticated].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.ChangePermissions);
-        rules[authenticated].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.TakeOwnership);
+        rules[interactive].Should().HaveFlag(System.IO.Pipes.PipeAccessRights.ReadWrite);
+        rules[interactive].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.ChangePermissions);
+        rules[interactive].Should().NotHaveFlag(System.IO.Pipes.PipeAccessRights.TakeOwnership);
+        // The over-broad principals are gone.
+        rules.Should().NotContainKey(authenticated);
+        rules.Should().NotContainKey(network);
         rules.Should().NotContainKey(everyone);
     }
 

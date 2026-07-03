@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+### Security
+- **Narrowed the control-pipe + session-token grant from Authenticated Users to
+  INTERACTIVE (NET-087).** The bearer token that authorizes every IPC call was
+  readable by any authenticated principal — including service accounts and, over
+  SMB, remote (NETWORK) logons. It is now granted only to the INTERACTIVE group
+  (the desktop console/RDP user), which also excludes remote clients without
+  needing a reject-remote flag the Kestrel named-pipe transport doesn't expose.
+  Preserves the no-UAC unelevated-mutation UX (the interactive user is trusted).
+
 ## [0.9.6] — 2026-07-03
 
 Post-audit UX/perf/security polish and README screenshots.
