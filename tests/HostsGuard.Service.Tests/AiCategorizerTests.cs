@@ -91,6 +91,65 @@ public sealed class AiCategorizerTests : IDisposable
     }
 
     [Fact]
+    public async Task ResearchPurposes_stores_knowledge_and_skips_unknown()
+    {
+        _ai.SaveSettings("sk-test", "", "", enabled: true);
+        _completer.Reply = """
+            {"ads.example.com": "Google display ads serving", "mystery.example.net": "Unknown"}
+            """;
+
+        var results = await _ai.ResearchPurposesAsync(
+            new[] { "ads.example.com", "mystery.example.net" }, CancellationToken.None);
+
+        results.Should().ContainSingle().Which.Should().Be(("ads.example.com", "Google display ads serving"));
+        _db.GetAiKnowledge("purpose", new[] { "ads.example.com" })
+            .Should().ContainKey("ads.example.com").WhoseValue.Should().Be("Google display ads serving");
+        _db.GetAiKnowledge("purpose", new[] { "mystery.example.net" }).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task IdentifyConnections_keys_by_host_or_ip_and_records_knowledge()
+    {
+        _ai.SaveSettings("sk-test", "", "", enabled: true);
+        _completer.Reply = """
+            {"steamcdn.example.com": "Steam downloading game content", "203.0.113.9": "Windows Update delivery"}
+            """;
+
+        var results = await _ai.IdentifyConnectionsAsync(new[]
+        {
+            ("198.51.100.7", "steamcdn.example.com", "steam", 443),
+            ("203.0.113.9", "", "svchost", 80),
+        }, CancellationToken.None);
+
+        results.Should().HaveCount(2);
+        _db.GetAiKnowledge("connection", new[] { "steamcdn.example.com", "203.0.113.9" }).Should().HaveCount(2);
+        _completer.Prompts.Single().Should().Contain("process=steam").And.Contain("ip=203.0.113.9");
+    }
+
+    [Fact]
+    public async Task CategorizeHostsFile_adopts_unmanaged_entries_and_reuses_existing_sections()
+    {
+        File.WriteAllText(_hostsPath, "# Google Ads\n0.0.0.0 ad.doubleclick.net\n0.0.0.0 orphan.example.com\n");
+        var hosts = new HostsEngine(_hostsPath);
+        var ai = new AiCategorizer(_db, hosts, _completer, _dir);
+        ai.SaveSettings("sk-test", "", "", enabled: true);
+        _completer.Reply = """
+            {"ad.doubleclick.net": "Google Ads", "orphan.example.com": "Major Trackers"}
+            """;
+
+        var results = await ai.CategorizeHostsFileAsync(CancellationToken.None);
+
+        results.Should().HaveCount(2);
+        // The prompt offered the file's existing section names as vocabulary.
+        _completer.Prompts.Single().Should().Contain("Google Ads");
+        // The unmanaged entry now has a DB row carrying its category.
+        _db.GetDomains().Single(d => d.Domain == "orphan.example.com").Category.Should().Be("Major Trackers");
+        // Knowledge log captured the categories for later review.
+        _db.GetAiKnowledge("category", new[] { "ad.doubleclick.net", "orphan.example.com" }).Should().HaveCount(2);
+        File.ReadAllText(_hostsPath).Should().Contain("# Major Trackers");
+    }
+
+    [Fact]
     public void ParseReply_keeps_only_requested_domains_with_sane_categories()
     {
         var requested = new[] { "a.example.com", "b.example.com" };

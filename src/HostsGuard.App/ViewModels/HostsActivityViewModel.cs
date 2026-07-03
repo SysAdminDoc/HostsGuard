@@ -286,6 +286,19 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         await RefreshAsync();
     }
 
+    /// <summary>AI-research purpose descriptions for feed domains that have none.</summary>
+    [RelayCommand]
+    public async Task ResearchPurposesAsync()
+    {
+        StatusText = "Asking DeepSeek to research domain purposes…";
+        var result = await _client.Hosts.ResearchPurposesAsync(new Empty());
+        StatusText = result.Message;
+        if (result.Ok && result.Categorized > 0)
+        {
+            await RefreshAsync();
+        }
+    }
+
     [RelayCommand]
     public void ResearchGoogle(string domain) => Research.Open(Research.Sites[0].UrlTemplate, domain);
 

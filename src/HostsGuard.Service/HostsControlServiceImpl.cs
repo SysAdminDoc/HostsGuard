@@ -222,9 +222,10 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var limit = request.Limit is > 0 and <= 5000 ? request.Limit : 500;
         var hiddenRoots = _state.Db.GetHiddenRoots();
         var feed = _state.Db.GetFeed(limit);
-        // Reference-list membership for the whole page in one batched query
-        // (an empty intelligence index simply matches nothing).
+        // Reference-list membership + learned purposes for the whole page in
+        // two batched queries (empty stores simply match nothing).
         var membership = _state.Db.GetListMembership(feed.Select(r => r.Domain));
+        var learnedPurposes = _state.Db.GetAiKnowledge("purpose", feed.Select(r => r.Domain));
         var list = new ActivityList();
         foreach (var row in feed)
         {
@@ -264,6 +265,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             {
                 activityRow.Blocklists.AddRange(lists);
             }
+
+            // Curated purpose table first; AI-researched knowledge second.
+            var curated = Domains.LooksLikeDomain(row.Domain) ? DomainPurpose.Lookup(row.Domain) : string.Empty;
+            activityRow.Purpose = curated.Length != 0
+                ? curated
+                : learnedPurposes.GetValueOrDefault(row.Domain, string.Empty);
 
             list.Rows.Add(activityRow);
         }
@@ -305,6 +312,38 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override async Task<CategorizeResult> CategorizeDomains(CategorizeRequest request, ServerCallContext context)
     {
+        if (request.HostsFile)
+        {
+            try
+            {
+                var organized = await _state.Ai.CategorizeHostsFileAsync(context.CancellationToken);
+                var hostsResult = new CategorizeResult
+                {
+                    Ok = true,
+                    Message = organized.Count == 0
+                        ? "every hosts entry already has a category"
+                        : $"categorized {organized.Count} hosts entries and organized the file",
+                    Categorized = organized.Count,
+                };
+                foreach (var (domain, category) in organized)
+                {
+                    hostsResult.Items.Add(new DomainCategory { Domain = domain, Category = category });
+                }
+
+                return hostsResult;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
+                or TaskCanceledException or IOException or UnauthorizedAccessException)
+            {
+                return new CategorizeResult
+                {
+                    Ok = false,
+                    Message = $"AI categorization failed: {ex.Message}",
+                    ErrorCode = "hostsguard.error.v1/ai_failed",
+                };
+            }
+        }
+
         var targets = request.AllUncategorized
             ? _state.Db.GetDomains(status: "blocked")
                 .Where(r => string.IsNullOrEmpty(r.Category))
@@ -482,6 +521,89 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 "the hosts file is locked by another program (usually antivirus scanning it) — "
                 + "wait a few seconds and retry; Tools → 'Exclude hosts in Defender' prevents this"));
         }
+    }
+
+    public override async Task<CategorizeResult> ResearchPurposes(Empty request, ServerCallContext context)
+    {
+        // Feed domains with no curated purpose and no learned one yet.
+        var feed = _state.Db.GetFeed(2000).Select(r => r.Domain).Where(Domains.LooksLikeDomain).ToList();
+        var learned = _state.Db.GetAiKnowledge("purpose", feed);
+        var targets = feed
+            .Where(d => DomainPurpose.Lookup(d).Length == 0 && !learned.ContainsKey(d))
+            .ToList();
+        if (targets.Count == 0)
+        {
+            return new CategorizeResult { Ok = true, Message = "every feed domain already has a purpose", Categorized = 0 };
+        }
+
+        try
+        {
+            var results = await _state.Ai.ResearchPurposesAsync(targets, context.CancellationToken);
+            var response = new CategorizeResult
+            {
+                Ok = true,
+                Message = $"researched {results.Count} of {targets.Count} domains",
+                Categorized = results.Count,
+            };
+            foreach (var (domain, purpose) in results)
+            {
+                response.Items.Add(new DomainCategory { Domain = domain, Category = purpose });
+            }
+
+            return response;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
+            or TaskCanceledException or IOException or UnauthorizedAccessException)
+        {
+            return new CategorizeResult
+            {
+                Ok = false,
+                Message = $"AI purpose research failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/ai_failed",
+            };
+        }
+    }
+
+    public override async Task<IdentifyResult> IdentifyConnections(IdentifyRequest request, ServerCallContext context)
+    {
+        var items = request.Items
+            .Select(i => (i.RemoteAddr ?? string.Empty, i.Host ?? string.Empty, i.Process ?? string.Empty, i.RemotePort))
+            .ToList();
+        if (items.Count == 0)
+        {
+            return new IdentifyResult { Ok = true, Message = "nothing to identify" };
+        }
+
+        try
+        {
+            var results = await _state.Ai.IdentifyConnectionsAsync(items, context.CancellationToken);
+            var response = new IdentifyResult { Ok = true, Message = $"identified {results.Count} connections" };
+            foreach (var (key, info) in results)
+            {
+                response.Items.Add(new IdentifiedItem { Key = key, Info = info });
+            }
+
+            return response;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
+            or TaskCanceledException or IOException or UnauthorizedAccessException)
+        {
+            return new IdentifyResult
+            {
+                Ok = false,
+                Message = $"AI identification failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/ai_failed",
+            };
+        }
+    }
+
+    public override Task<HostsText> ExportAiKnowledge(Empty request, ServerCallContext context)
+    {
+        var rows = _state.Db.GetAllAiKnowledge();
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            rows.Select(r => new { kind = r.Kind, key = r.Key, value = r.Value, model = r.Model, created = r.Created }),
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        return Task.FromResult(new HostsText { Text = json });
     }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };

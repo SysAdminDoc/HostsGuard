@@ -53,4 +53,18 @@ public sealed partial class RawHostsViewModel : ObservableObject
     }
 
     private bool CanSave() => IsDirty;
+
+    /// <summary>AI-categorize the hosts file's entries and reload the organized text.</summary>
+    [RelayCommand]
+    public async Task AiCategorizeAsync()
+    {
+        StatusText = "Asking DeepSeek to categorize hosts-file entries…";
+        var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
+        StatusText = result.Message;
+        if (result.Ok && result.Categorized > 0)
+        {
+            await LoadAsync();
+            StatusText = result.Message; // keep the outcome over the line count
+        }
+    }
 }

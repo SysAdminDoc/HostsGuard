@@ -69,6 +69,26 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Activity_rows_prefer_curated_purposes_and_fall_back_to_learned_ones()
+    {
+        // pagead2.googlesyndication.com is in the curated purpose table; the
+        // learned entry must not override it. The unknown domain uses the
+        // AI-researched knowledge.
+        _state.Db.UpsertAiKnowledge("purpose", "pagead2.googlesyndication.com", "AI override attempt", "test");
+        _state.Db.UpsertAiKnowledge("purpose", "obscure.example.com", "Obscure vendor telemetry", "test");
+        _state.RecordDns("pagead2.googlesyndication.com");
+        _state.RecordDns("obscure.example.com");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var list = await Hosts(channel).GetActivityAsync(new ActivityRequest());
+
+        list.Rows.Single(r => r.Domain == "pagead2.googlesyndication.com").Purpose
+            .Should().NotBeEmpty().And.NotBe("AI override attempt");
+        list.Rows.Single(r => r.Domain == "obscure.example.com").Purpose
+            .Should().Be("Obscure vendor telemetry");
+    }
+
+    [Fact]
     public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
     {
         // A scanner-style persistent hold (read handle, no delete share) must

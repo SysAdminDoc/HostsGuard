@@ -33,6 +33,10 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     [ObservableProperty]
     private string _host = string.Empty;
 
+    /// <summary>AI explanation of what this connection is likely for; "" until identified.</summary>
+    [ObservableProperty]
+    private string _info = string.Empty;
+
     [ObservableProperty]
     private string _process = string.Empty;
 
@@ -284,6 +288,122 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     partial void OnFilterChanged(string value) => _view?.Refresh();
 
+    // ─── On-demand reverse-DNS for rows the ETW cache didn't cover ────────────
+
+    private readonly Dictionary<string, string> _ptrCache = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _ptrThrottle = new(4);
+
+    [ObservableProperty]
+    private bool _resolveIps;
+
+    partial void OnResolveIpsChanged(bool value)
+    {
+        if (value)
+        {
+            foreach (var row in Rows.Where(r => r.Host.Length == 0).ToList())
+            {
+                _ = ResolvePtrAsync(row);
+            }
+        }
+    }
+
+    private async Task ResolvePtrAsync(ConnectionRowViewModel row)
+    {
+        var ip = row.RemoteAddr;
+        string? name;
+        lock (_ptrCache)
+        {
+            _ptrCache.TryGetValue(ip, out name);
+        }
+
+        if (name is null)
+        {
+            if (!System.Net.IPAddress.TryParse(ip, out var parsed))
+            {
+                return;
+            }
+
+            await _ptrThrottle.WaitAsync();
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                var entry = await System.Net.Dns.GetHostEntryAsync(parsed).WaitAsync(cts.Token);
+                name = entry.HostName == ip ? string.Empty : entry.HostName.ToLowerInvariant();
+            }
+            catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException
+                or TimeoutException or ArgumentException)
+            {
+                name = string.Empty; // negative-cache failures too
+            }
+            finally
+            {
+                _ptrThrottle.Release();
+            }
+
+            lock (_ptrCache)
+            {
+                _ptrCache[ip] = name;
+            }
+        }
+
+        if (name.Length != 0 && row.Host.Length == 0)
+        {
+            OnUi(() => row.Host = name);
+        }
+    }
+
+    // ─── AI connection identification (DeepSeek) ──────────────────────────────
+
+    /// <summary>Learned key(host|ip)→info map, applied to current and future rows.</summary>
+    private readonly Dictionary<string, string> _connectionInfo = new(StringComparer.Ordinal);
+
+    private static string InfoKey(ConnectionRowViewModel row)
+        => (row.Host.Length != 0 ? row.Host : row.RemoteAddr).ToLowerInvariant();
+
+    [RelayCommand]
+    public async Task IdentifyConnectionsAsync()
+    {
+        var pending = Rows.Where(r => r.Info.Length == 0).ToList();
+        if (pending.Count == 0)
+        {
+            StatusText = "every connection is already identified";
+            return;
+        }
+
+        StatusText = $"Asking DeepSeek about {pending.Count} connections…";
+        var request = new IdentifyRequest();
+        foreach (var row in pending)
+        {
+            request.Items.Add(new IdentifyItem
+            {
+                RemoteAddr = row.RemoteAddr,
+                Host = row.Host,
+                Process = row.Process,
+                RemotePort = row.RemotePort,
+            });
+        }
+
+        var result = await _client.Hosts.IdentifyConnectionsAsync(request);
+        StatusText = result.Message;
+        if (!result.Ok)
+        {
+            return;
+        }
+
+        foreach (var item in result.Items)
+        {
+            _connectionInfo[item.Key] = item.Info;
+        }
+
+        foreach (var row in Rows)
+        {
+            if (row.Info.Length == 0 && _connectionInfo.TryGetValue(InfoKey(row), out var info))
+            {
+                row.Info = info;
+            }
+        }
+    }
+
     partial void OnGroupByAppChanged(bool value)
     {
         if (_view is not null)
@@ -344,7 +464,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        Rows.Insert(0, new ConnectionRowViewModel
+        var row = new ConnectionRowViewModel
         {
             Protocol = ev.Protocol,
             LocalAddr = ev.LocalAddr,
@@ -358,7 +478,17 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             Country = ev.Country,
             FwStatus = ev.FwStatus,
             Service = ev.Service,
-        });
+        };
+        if (_connectionInfo.TryGetValue(InfoKey(row), out var knownInfo))
+        {
+            row.Info = knownInfo;
+        }
+
+        Rows.Insert(0, row);
+        if (ResolveIps && row.Host.Length == 0)
+        {
+            _ = ResolvePtrAsync(row);
+        }
         while (Rows.Count > MaxRows)
         {
             Rows.RemoveAt(Rows.Count - 1);

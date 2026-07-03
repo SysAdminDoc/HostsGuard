@@ -93,6 +93,38 @@ service HostsControl {
   // all_uncategorized is set), persist categories, and reorganize the managed
   // hosts entries under "# <Category>" section headers.
   rpc CategorizeDomains(CategorizeRequest) returns (CategorizeResult);
+  // AI-research purpose descriptions for feed domains that have none (curated
+  // or learned). Results persist to the ai_knowledge store.
+  rpc ResearchPurposes(Empty) returns (CategorizeResult);
+  // AI-identify what live connections are for; results persist to the
+  // ai_knowledge store keyed by resolved host (or IP).
+  rpc IdentifyConnections(IdentifyRequest) returns (IdentifyResult);
+  // Everything the AI has learned (purposes, categories, connection info) as
+  // reviewable JSON — the promotion path into the curated built-ins.
+  rpc ExportAiKnowledge(Empty) returns (HostsText);
+}
+
+message IdentifyItem {
+  string remote_addr = 1;
+  string host = 2;      // resolved domain when known; "" = identify by IP
+  string process = 3;
+  int32 remote_port = 4;
+}
+
+message IdentifyRequest {
+  repeated IdentifyItem items = 1;
+}
+
+message IdentifiedItem {
+  string key = 1;       // host when known, else the remote IP
+  string info = 2;      // short human explanation of the connection
+}
+
+message IdentifyResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  repeated IdentifiedItem items = 4;
 }
 
 message AiConfig {
@@ -114,6 +146,10 @@ message AiStatus {
 message CategorizeRequest {
   repeated string domains = 1;
   bool all_uncategorized = 2;
+  // Categorize every hosts-FILE entry lacking a category (including entries
+  // not managed in the DB), reusing the file's existing "# Category" section
+  // names as the preferred vocabulary.
+  bool hosts_file = 3;
 }
 
 message DomainCategory {
@@ -253,6 +289,9 @@ message ActivityRow {
   // Blocklist-intelligence membership: names of downloaded reference lists
   // that block this exact domain (a block-candidate signal in the feed).
   repeated string blocklists = 10;
+  // Purpose description: the curated table first, then AI-researched
+  // knowledge (ai_knowledge kind=purpose); "" when unknown.
+  string purpose = 11;
 }
 
 message ActivityList {

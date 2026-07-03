@@ -88,6 +88,20 @@ public sealed class AiCategorizer
         "\"Cryptomining\", \"Adult\", \"Gambling\", \"Social Media\", \"Gaming\", \"Streaming\", \"CDN\", \"Other\". " +
         "Never invent new formats, never add commentary.";
 
+    private const string PurposePrompt =
+        "You explain what DNS domains are for, for users of a network-privacy tool deciding whether to block them. " +
+        "Reply ONLY with a JSON object mapping each input domain to one concise purpose description of at most " +
+        "8 words, e.g. \"Google display ads serving\", \"Steam game content delivery\", \"Windows telemetry collection\", " +
+        "\"Discord voice chat infrastructure\". Say \"Unknown\" only when the domain is truly unidentifiable. " +
+        "No commentary, no extra keys.";
+
+    private const string IdentifyPrompt =
+        "You explain live outbound network connections for users of a network-privacy tool. Each input line has " +
+        "process, resolved host (may be blank), remote IP, and port. Reply ONLY with a JSON object mapping each " +
+        "line's KEY (given first on the line) to one concise explanation of at most 10 words describing what the " +
+        "connection is likely for, e.g. \"Chrome syncing browsing data to Google\", \"Steam downloading game content\". " +
+        "Say \"Unknown\" when unsure. No commentary.";
+
     private readonly HostsDatabase _db;
     private readonly HostsEngine _hosts;
     private readonly IAiCompleter _completer;
@@ -159,14 +173,14 @@ public sealed class AiCategorizer
     /// Returns the resolved (domain, category) pairs.
     /// </summary>
     public async Task<IReadOnlyList<(string Domain, string Category)>> CategorizeAsync(
-        IReadOnlyList<string> domains, CancellationToken ct)
+        IReadOnlyList<string> domains, CancellationToken ct, IReadOnlyList<string>? preferredCategories = null)
     {
         ArgumentNullException.ThrowIfNull(domains);
-        var settings = Settings;
-        if (settings.ApiKey.Length == 0)
-        {
-            throw new InvalidOperationException("no DeepSeek API key configured");
-        }
+        var settings = RequireKey();
+        var vocabulary = preferredCategories is { Count: > 0 }
+            ? "Existing hosts-file sections you should reuse whenever they fit: "
+              + string.Join(", ", preferredCategories.Select(c => $"\"{c}\"")) + ".\n"
+            : string.Empty;
 
         var results = new List<(string, string)>();
         foreach (var batch in domains
@@ -176,11 +190,12 @@ public sealed class AiCategorizer
                      .Take(MaxDomainsPerRun)
                      .Chunk(BatchSize))
         {
-            var user = "Categorize these domains:\n" + string.Join('\n', batch);
+            var user = vocabulary + "Categorize these domains:\n" + string.Join('\n', batch);
             var reply = await _completer.CompleteAsync(settings, SystemPrompt, user, ct);
             foreach (var (domain, category) in ParseReply(reply, batch))
             {
                 _db.SetCategory(domain, category);
+                _db.UpsertAiKnowledge("category", domain, category, settings.Model);
                 results.Add((domain, category));
             }
         }
@@ -188,12 +203,136 @@ public sealed class AiCategorizer
         if (results.Count != 0)
         {
             _hosts.OrganizeByCategory(results.ToDictionary(r => r.Item1, r => r.Item2, StringComparer.Ordinal));
-            _db.SetMeta("ai_last_run", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));
-            _db.SetMeta("ai_last_result", $"categorized {results.Count} domains");
-            _db.LogEvent("ai", "categorized", details: $"{results.Count} domains");
+            RecordRun($"categorized {results.Count} domains");
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Categorize every hosts-FILE entry lacking a category (managed or not),
+    /// reusing the file's existing "# Section" names as preferred vocabulary.
+    /// Unmanaged entries gain a DB row so their category persists.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Domain, string Category)>> CategorizeHostsFileAsync(CancellationToken ct)
+    {
+        var categorized = _db.GetDomains()
+            .Where(r => !string.IsNullOrEmpty(r.Category))
+            .Select(r => r.Domain)
+            .ToHashSet(StringComparer.Ordinal);
+        var managed = _db.GetDomains().Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
+        var targets = _hosts.GetBlocked().Where(d => !categorized.Contains(d)).ToList();
+
+        // Adopt unmanaged hosts entries so their categories have a home.
+        foreach (var d in targets.Where(d => !managed.Contains(d)))
+        {
+            _db.AddDomain(d, "blocked", "hosts_file");
+        }
+
+        var sections = _hosts.GetLines()
+            .Where(l => l.TrimStart().StartsWith('#'))
+            .Select(l => l.TrimStart('#', ' ', '\t').Trim())
+            .Where(s => s.Length is > 0 and <= 40)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(40)
+            .ToList();
+
+        return await CategorizeAsync(targets, ct, sections);
+    }
+
+    /// <summary>
+    /// AI-research purpose descriptions ("what is this domain for") and record
+    /// them in the knowledge store (kind=purpose). Returns the resolved pairs.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Domain, string Purpose)>> ResearchPurposesAsync(
+        IReadOnlyList<string> domains, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        var settings = RequireKey();
+        var results = new List<(string, string)>();
+        foreach (var batch in domains
+                     .Select(d => d.ToLowerInvariant().Trim())
+                     .Where(Core.Domains.LooksLikeDomain)
+                     .Distinct(StringComparer.Ordinal)
+                     .Take(MaxDomainsPerRun)
+                     .Chunk(BatchSize))
+        {
+            var user = "Describe the purpose of these domains:\n" + string.Join('\n', batch);
+            var reply = await _completer.CompleteAsync(settings, PurposePrompt, user, ct);
+            foreach (var (domain, purpose) in ParseReply(reply, batch))
+            {
+                if (!purpose.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+                {
+                    _db.UpsertAiKnowledge("purpose", domain, purpose, settings.Model);
+                    results.Add((domain, purpose));
+                }
+            }
+        }
+
+        if (results.Count != 0)
+        {
+            RecordRun($"researched {results.Count} purposes");
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// AI-identify live connections (process + host/IP + port → what it's for)
+    /// and record them in the knowledge store (kind=connection, key=host|ip).
+    /// </summary>
+    public async Task<IReadOnlyList<(string Key, string Info)>> IdentifyConnectionsAsync(
+        IReadOnlyList<(string RemoteAddr, string Host, string Process, int Port)> items, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var settings = RequireKey();
+        var results = new List<(string, string)>();
+        var distinct = items
+            .Select(i => (Key: (i.Host.Length != 0 ? i.Host : i.RemoteAddr).ToLowerInvariant(), i.RemoteAddr, i.Host, i.Process, i.Port))
+            .Where(i => i.Key.Length != 0)
+            .DistinctBy(i => i.Key, StringComparer.Ordinal)
+            .Take(MaxDomainsPerRun)
+            .ToList();
+        foreach (var batch in distinct.Chunk(40))
+        {
+            var lines = batch.Select(i =>
+                $"{i.Key} | process={i.Process} host={(i.Host.Length != 0 ? i.Host : "?")} ip={i.RemoteAddr} port={i.Port}");
+            var user = "Explain these connections (answer keyed by the first field of each line):\n" + string.Join('\n', lines);
+            var reply = await _completer.CompleteAsync(settings, IdentifyPrompt, user, ct);
+            foreach (var (key, info) in ParseReply(reply, batch.Select(i => i.Key).ToList()))
+            {
+                if (!info.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+                {
+                    _db.UpsertAiKnowledge("connection", key, info, settings.Model);
+                    results.Add((key, info));
+                }
+            }
+        }
+
+        if (results.Count != 0)
+        {
+            RecordRun($"identified {results.Count} connections");
+        }
+
+        return results;
+    }
+
+    private AiSettings RequireKey()
+    {
+        var settings = Settings;
+        if (settings.ApiKey.Length == 0)
+        {
+            throw new InvalidOperationException("no DeepSeek API key configured");
+        }
+
+        return settings;
+    }
+
+    private void RecordRun(string result)
+    {
+        _db.SetMeta("ai_last_run", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));
+        _db.SetMeta("ai_last_result", result);
+        _db.LogEvent("ai", "ai_run", details: result);
     }
 
     /// <summary>Parse the model's JSON reply, keeping only requested domains with sane categories.</summary>

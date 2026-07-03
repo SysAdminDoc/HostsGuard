@@ -663,6 +663,24 @@ public sealed partial class ToolsViewModel : ObservableObject
         await LoadAiStatusAsync();
     }
 
+    /// <summary>
+    /// Save everything the AI has learned (purposes, categories, connection
+    /// info) to a user-readable JSON file — the review path for promoting
+    /// entries into the app's curated built-ins.
+    /// </summary>
+    [RelayCommand]
+    public async Task ExportAiKnowledgeAsync()
+    {
+        var payload = await _client.Hosts.ExportAiKnowledgeAsync(new Empty());
+        var dir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HostsGuard");
+        System.IO.Directory.CreateDirectory(dir);
+        var path = System.IO.Path.Combine(dir, "ai_knowledge.json");
+        await System.IO.File.WriteAllTextAsync(path, payload.Text);
+        StatusText = $"AI knowledge exported to {path}";
+        AiStatusText = $"Knowledge log saved: {path}";
+    }
+
     // ─── Blocklist intelligence ───────────────────────────────────────────────
 
     [ObservableProperty]

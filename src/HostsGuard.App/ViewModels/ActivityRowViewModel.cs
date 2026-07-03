@@ -78,7 +78,7 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         LastSeen = r.LastSeen,
         Hidden = r.Hidden,
         Reason = r.Reason,
-        Purpose = Core.DomainPurpose.Lookup(r.Domain),
+        Purpose = r.Purpose.Length != 0 ? r.Purpose : Core.DomainPurpose.Lookup(r.Domain),
         Blocklists = r.Blocklists.ToList(),
     };
 }

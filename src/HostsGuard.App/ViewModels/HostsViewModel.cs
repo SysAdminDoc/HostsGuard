@@ -187,6 +187,19 @@ public sealed partial class HostsViewModel : ObservableObject
     private static List<string> SelectedDomains(IList? selected)
         => selected?.OfType<ManagedDomainViewModel>().Select(d => d.Domain).ToList() ?? new List<string>();
 
+    /// <summary>AI-categorize every hosts-file entry lacking a category (DeepSeek).</summary>
+    [RelayCommand]
+    public async Task AiCategorizeAsync()
+    {
+        StatusText = "Asking DeepSeek to categorize hosts-file entries…";
+        var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
+        StatusText = result.Message;
+        if (result.Ok && result.Categorized > 0)
+        {
+            await RefreshAsync();
+        }
+    }
+
     [RelayCommand]
     public void ResearchGoogle(string domain) => Research.Open(Research.Sites[0].UrlTemplate, domain);
 

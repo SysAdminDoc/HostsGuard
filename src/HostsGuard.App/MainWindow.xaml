@@ -126,6 +126,9 @@
                         <DockPanel Grid.Row="0" Margin="0,0,0,8">
                             <Button DockPanel.Dock="Right" Content="Refresh"
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                            <Button DockPanel.Dock="Right" Content="AI purposes"
+                                    Command="{Binding ResearchPurposesCommand}" Margin="8,0,0,0"
+                                    ToolTip="Have DeepSeek research what each domain without a Purpose is for (results are saved to the AI knowledge log)" />
                             <CheckBox DockPanel.Dock="Right" Content="Show hidden" Margin="8,0,0,0"
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding ShowHidden}"
@@ -292,6 +295,13 @@
                                       ToolTip="Record new processes silently instead of prompting" />
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
+                            <Button DockPanel.Dock="Right" Content="AI identify" Margin="10,0,0,0" Padding="10,3"
+                                    Command="{Binding IdentifyConnectionsCommand}"
+                                    ToolTip="Have DeepSeek explain what each connection is likely for (fills the Info column; results are saved to the AI knowledge log)" />
+                            <CheckBox DockPanel.Dock="Right" Content="Resolve IPs" Margin="10,0,0,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding ResolveIps}"
+                                      AutomationProperties.Name="Resolve remote IPs with reverse DNS"
+                                      ToolTip="Reverse-DNS remote IPs the live DNS cache didn't cover, filling the Site column" />
                             <CheckBox DockPanel.Dock="Right" Content="Group by app" Margin="10,0,10,0" VerticalAlignment="Center"
                                       IsChecked="{Binding GroupByApp}"
                                       AutomationProperties.Name="Group connections by app"
@@ -373,6 +383,14 @@
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="ToolTip" Value="Domain this IP was resolved as (live DNS)" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Info" Binding="{Binding Info}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Teal}" />
+                                            <Setter Property="ToolTip" Value="{Binding Info}" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -626,6 +644,9 @@
                                 <DockPanel Grid.Row="0" Margin="0,0,0,8">
                                     <Button DockPanel.Dock="Right" Content="Refresh"
                                             Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
+                                            Command="{Binding AiCategorizeCommand}" Margin="8,0,0,0"
+                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
                                     <Button DockPanel.Dock="Right" Content="Block"
                                             Style="{StaticResource Hg.AccentButton}"
                                             Command="{Binding BlockCommand}" Margin="8,0,0,0"
@@ -821,6 +842,9 @@
                                     <Button DockPanel.Dock="Right" Content="Reload"
                                             Command="{Binding LoadCommand}" Margin="0,0,8,0"
                                             ToolTip="Discard edits and reload the hosts file from disk" />
+                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
+                                            Command="{Binding AiCategorizeCommand}" Margin="0,0,8,0"
+                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
                                     <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
                                                Text="● Unsaved changes" Foreground="{DynamicResource Hg.Peach}"
                                                Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}" />
@@ -1218,8 +1242,11 @@
                                                   IsChecked="{Binding AiEnabled}" Margin="0,0,12,0"
                                                   ToolTip="File every new manual block under its AI-assigned category (save settings to apply)" />
                                         <Button DockPanel.Dock="Left" Content="Categorize uncategorized domains"
-                                                Command="{Binding CategorizeAllCommand}"
+                                                Command="{Binding CategorizeAllCommand}" Margin="0,0,12,0"
                                                 ToolTip="Send every uncategorized blocked domain to DeepSeek and organize the hosts file by category" />
+                                        <Button DockPanel.Dock="Left" Content="Export AI knowledge"
+                                                Command="{Binding ExportAiKnowledgeCommand}"
+                                                ToolTip="Save everything the AI has learned (purposes, categories, connection info) to a reviewable JSON file" />
                                     </DockPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
                                         <TextBlock Text="{Binding AiStatusText}"

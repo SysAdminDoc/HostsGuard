@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 7;
+    public const int SchemaVersion = 8;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -124,6 +124,9 @@ public sealed class HostsDatabase : IDisposable
                 domain TEXT NOT NULL, list TEXT NOT NULL,
                 PRIMARY KEY(domain, list)) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS idx_list_index_list ON list_index(list);
+            CREATE TABLE IF NOT EXISTS ai_knowledge(
+                kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, model TEXT, created TEXT,
+                PRIMARY KEY(kind, key)) WITHOUT ROWID;
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -280,6 +283,65 @@ public sealed class HostsDatabase : IDisposable
             var lists = _conn.ExecuteScalar<int>("SELECT COUNT(DISTINCT list) FROM list_index");
             var rows = _conn.ExecuteScalar<long>("SELECT COUNT(*) FROM list_index");
             return (lists, rows);
+        }
+    }
+
+    // ─── AI knowledge store (learned purposes / categories / connection info) ─
+
+    /// <summary>Record something the AI learned; kind ∈ purpose|category|connection.</summary>
+    public void UpsertAiKnowledge(string kind, string key, string value, string model)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO ai_knowledge(kind,key,value,model,created)
+                VALUES(@kind,@key,@value,@model,@now)
+                ON CONFLICT(kind,key) DO UPDATE SET value=excluded.value, model=excluded.model
+                """,
+                new
+                {
+                    kind,
+                    key = key.ToLowerInvariant(),
+                    value = value ?? string.Empty,
+                    model = model ?? string.Empty,
+                    now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                });
+        }
+    }
+
+    /// <summary>Learned values for a batch of keys within one kind.</summary>
+    public IReadOnlyDictionary<string, string> GetAiKnowledge(string kind, IEnumerable<string> keys)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(keys);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var chunk in keys.Distinct(StringComparer.Ordinal).Chunk(500))
+            {
+                foreach (var row in _conn.Query<(string Key, string Value)>(
+                    "SELECT key, value FROM ai_knowledge WHERE kind=@kind AND key IN @chunk",
+                    new { kind, chunk }))
+                {
+                    result[row.Key] = row.Value;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Everything the AI has learned: (kind, key, value, model, created).</summary>
+    public IReadOnlyList<(string Kind, string Key, string Value, string Model, string Created)> GetAllAiKnowledge()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string, string, string)>(
+                "SELECT kind, key, value, COALESCE(model,''), COALESCE(created,'') FROM ai_knowledge ORDER BY kind, key")
+                .ToList();
         }
     }
 
