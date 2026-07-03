@@ -20,6 +20,10 @@ All notable changes to HostsGuard are documented in this file.
   hide is reachable by keyboard, not just the group header.
 - Tooltips have rounded corners, matching the app's corner-radius scale.
 
+### Docs
+- README now shows dark + light Hosts Activity screenshots captured from the
+  .NET WPF app (replacing the removed Python-era `screenshot.png`).
+
 ## [0.9.5] — 2026-07-03
 
 Deep engineering + quality audit pass.

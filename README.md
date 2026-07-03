@@ -8,6 +8,14 @@
 
 > Real-time network privacy manager for Windows. Monitor DNS activity, manage your hosts file, control Windows Firewall rules, consent-prompt on new outbound connections, and block unwanted traffic — all local, zero telemetry.
 
+## Screenshots
+
+Live DNS activity feed with curated domain-purpose annotations, per-root 24h sparklines, and the `field:value` search DSL — dark and light themes:
+
+![Hosts Activity — dark theme](docs/img/hosts-activity-dark.png)
+
+![Hosts Activity — light theme](docs/img/hosts-activity-light.png)
+
 ## Architecture
 
 HostsGuard is a **split-trust, two-process** application built on .NET 10 (LTS):
