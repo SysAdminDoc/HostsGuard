@@ -2,7 +2,11 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.9.7] — 2026-07-03
+
+### Added
+- **Generic shield app + tray icon** — a clean mauve-gradient shield replaces the
+  previous icon across the executable, window/tray, and installer.
 
 ### Accessibility
 - **Locked in screen-reader names across every tab (NET-088).** The headless WPF
