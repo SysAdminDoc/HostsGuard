@@ -35,6 +35,9 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private bool _showHidden;
 
     [ObservableProperty]
+    private bool _hideBlocked;
+
+    [ObservableProperty]
     private string _statusText = "Ready";
 
     public HostsActivityViewModel(HostsServiceClient client)
@@ -46,6 +49,8 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     public ObservableCollection<ActivityRowViewModel> Rows { get; } = new();
 
     partial void OnShowHiddenChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+
+    partial void OnHideBlockedChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
 
     /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
     partial void OnFilterChanged(string value)
@@ -86,12 +91,21 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             IncludeHidden = ShowHidden,
         });
         Rows.Clear();
+        var blockedHidden = 0;
         foreach (var row in list.Rows)
         {
+            if (HideBlocked && row.Status == "blocked")
+            {
+                blockedHidden++;
+                continue;
+            }
+
             Rows.Add(ActivityRowViewModel.From(row));
         }
 
-        StatusText = $"{Rows.Count} domains in feed";
+        StatusText = blockedHidden > 0
+            ? $"{Rows.Count} domains in feed · {blockedHidden} already-blocked hidden"
+            : $"{Rows.Count} domains in feed";
         await LoadSparklinesAsync();
     }
 
@@ -158,6 +172,18 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private void Upsert(DnsEvent ev)
     {
         var existing = Rows.FirstOrDefault(r => r.Domain == ev.Domain);
+        if (HideBlocked && ev.Blocked)
+        {
+            // The feed is filtered to undecided traffic — drop live events for
+            // domains that are already handled (and any row that just became so).
+            if (existing is not null)
+            {
+                Rows.Remove(existing);
+            }
+
+            return;
+        }
+
         if (existing is not null)
         {
             existing.Hits++;

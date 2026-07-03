@@ -128,7 +128,13 @@
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
                             <CheckBox DockPanel.Dock="Right" Content="Show hidden" Margin="8,0,0,0"
                                       VerticalAlignment="Center"
-                                      IsChecked="{Binding ShowHidden}" />
+                                      IsChecked="{Binding ShowHidden}"
+                                      ToolTip="Include domains you hid with 'Hide root'" />
+                            <CheckBox DockPanel.Dock="Right" Content="Hide blocked" Margin="8,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding HideBlocked}"
+                                      AutomationProperties.Name="Hide already-blocked domains"
+                                      ToolTip="Hide domains that are already blocked, so the feed shows only traffic that still needs a decision" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      Tag="Search domains — try field:value, !term, or field!=value"
