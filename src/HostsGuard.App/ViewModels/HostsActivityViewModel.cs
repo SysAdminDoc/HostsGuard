@@ -48,6 +48,46 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     public ObservableCollection<ActivityRowViewModel> Rows { get; } = new();
 
+    // ─── Group-by-root view (collapses CDN/subdomain noise) ──────────────────
+
+    private System.ComponentModel.ICollectionView? _view;
+
+    [ObservableProperty]
+    private bool _groupByRoot;
+
+    /// <summary>The feed view; grouped under expandable root headers when enabled.</summary>
+    public System.ComponentModel.ICollectionView RowsView
+    {
+        get
+        {
+            if (_view is null)
+            {
+                _view = System.Windows.Data.CollectionViewSource.GetDefaultView(Rows);
+                ApplyGrouping(_view);
+            }
+
+            return _view;
+        }
+    }
+
+    partial void OnGroupByRootChanged(bool value)
+    {
+        if (_view is not null)
+        {
+            ApplyGrouping(_view);
+        }
+    }
+
+    private void ApplyGrouping(System.ComponentModel.ICollectionView view)
+    {
+        view.GroupDescriptions.Clear();
+        if (GroupByRoot)
+        {
+            view.GroupDescriptions.Add(
+                new System.Windows.Data.PropertyGroupDescription(nameof(ActivityRowViewModel.Root)));
+        }
+    }
+
     partial void OnShowHiddenChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
 
     partial void OnHideBlockedChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
