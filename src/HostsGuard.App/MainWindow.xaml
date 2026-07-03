@@ -188,7 +188,12 @@
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding GroupByRoot}"
                                       AutomationProperties.Name="Group feed rows by root domain"
-                                      ToolTip="Collapse subdomains under their root (30 CDN hostnames become one expandable live-video.net group)" />
+                                      ToolTip="Collapse subdomains under their root (30 CDN hostnames become one live-video.net section)" />
+                            <CheckBox DockPanel.Dock="Right" Content="Hide reverse DNS" Margin="8,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding HideReverseDns}"
+                                      AutomationProperties.Name="Hide reverse DNS PTR lookups"
+                                      ToolTip="Hide reverse-DNS PTR lookups (*.in-addr.arpa) — background noise, not real destinations" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      Tag="Search domains — try field:value, !term, or field!=value"
@@ -196,11 +201,12 @@
                                      ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                         </DockPanel>
 
-                        <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}">
+                        <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
+                                  IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
                                 <!-- Flat section headers: a styled band per root with the
                                      normal grid rows directly beneath — same layout as the
-                                     ungrouped feed, just sectioned. -->
+                                     ungrouped feed, just sectioned. Right-click hides the root. -->
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
                                         <Style TargetType="{x:Type GroupItem}">
@@ -211,7 +217,16 @@
                                                             <Border Background="{DynamicResource Hg.Mantle}"
                                                                     BorderBrush="{DynamicResource Hg.S0}"
                                                                     BorderThickness="0,1,0,1"
-                                                                    Padding="8,4">
+                                                                    Padding="8,4" Cursor="Hand"
+                                                                    Tag="{Binding RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    ToolTip="Right-click to hide this group">
+                                                                <Border.ContextMenu>
+                                                                    <ContextMenu>
+                                                                        <MenuItem Header="Hide this group"
+                                                                                  Command="{Binding PlacementTarget.Tag.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                                  CommandParameter="{Binding Name}" />
+                                                                    </ContextMenu>
+                                                                </Border.ContextMenu>
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
                                                                                Foreground="{DynamicResource Hg.Blue}" />
@@ -397,7 +412,7 @@
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" x:Name="ConnectionsGrid" ItemsSource="{Binding ConnectionsView}"
-                                  IsVisibleChanged="OnConnectionsGridVisible">
+                                  IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
@@ -750,7 +765,8 @@
                                              ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                                 </DockPanel>
 
-                                <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}">
+                                <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}"
+                                          IsVisibleChanged="OnGridVisible">
                                     <DataGrid.RowStyle>
                                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                             <Setter Property="ToolTip" Value="{Binding Reason}" />
@@ -968,7 +984,8 @@
                                      ToolTip="Filters as you type — matches rule name, remote address, service, or program" />
                         </DockPanel>
 
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}">
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}"
+                                  IsVisibleChanged="OnGridVisible">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Enable / disable"

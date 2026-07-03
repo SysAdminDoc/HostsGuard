@@ -40,11 +40,12 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// WPF quirk guard: a grouped DataGrid first measured while its tab is not
-    /// selected can clamp every column to MinWidth and never recover. Re-assert
-    /// the declared widths whenever the grid becomes visible.
+    /// WPF quirk guard: a DataGrid first measured while its tab is not selected
+    /// (or before the service populates rows) can clamp every column to MinWidth
+    /// and never recover — the "smushed" view. Re-assert the declared widths
+    /// whenever a grid becomes visible. Attached to every primary tab grid.
     /// </summary>
-    private void OnConnectionsGridVisible(object sender, DependencyPropertyChangedEventArgs e)
+    private void OnGridVisible(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (sender is not System.Windows.Controls.DataGrid grid || !grid.IsVisible)
         {

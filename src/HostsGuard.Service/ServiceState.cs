@@ -163,12 +163,17 @@ public sealed class ServiceState : IDisposable
 
         Db.RecordFeed(d, process);
         Db.RecordHourly(Core.Domains.GetRoot(d), DateTime.Now);
+        // The live ETW event can't know a domain's managed status, so the feed's
+        // "blocked" signal must come from the DB — the same source the snapshot
+        // uses. Without this the live stream re-adds blocked domains as normal
+        // rows and "Hide blocked" never sticks. Caller may still force via arg.
+        var isBlocked = blocked || string.Equals(Db.GetDomainStatus(d), "blocked", StringComparison.Ordinal);
         var ev = new DnsEvent
         {
             Domain = d,
             Process = process,
             Pid = pid,
-            Blocked = blocked,
+            Blocked = isBlocked,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         };
         ev.Blocklists.AddRange(Db.GetBlocklistsFor(d));

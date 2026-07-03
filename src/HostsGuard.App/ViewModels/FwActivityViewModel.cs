@@ -218,6 +218,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             LearningMode = _config.LearningMode;
             ObserveMode = _config.ObserveMode;
             SoundOnBlock = _config.SoundOnBlock;
+            GroupByApp = _config.GetViewFlag("fw_group_by_app", true);
+            ResolveIps = _config.GetViewFlag("fw_resolve_ips");
             _suppressModeWrite = false;
         }
     }
@@ -298,6 +300,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     partial void OnResolveIpsChanged(bool value)
     {
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveViewFlag("fw_resolve_ips", value);
+        }
+
         if (value)
         {
             _ = ResolvePendingHostsAsync();
@@ -415,6 +422,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         if (_view is not null)
         {
             ApplyGrouping(_view);
+        }
+
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveViewFlag("fw_group_by_app", value);
         }
     }
 

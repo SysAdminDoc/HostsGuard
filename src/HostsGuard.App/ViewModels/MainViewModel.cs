@@ -113,7 +113,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbAllowed = status.DbAllowed;
             Hosts ??= new HostsViewModel(_client, _confirm);
             await Hosts.RefreshAsync();
-            Activity ??= new HostsActivityViewModel(_client);
+            Activity ??= new HostsActivityViewModel(_client, _config);
             await Activity.RefreshAsync();
             Activity.StartWatching();
             RawHosts ??= new RawHostsViewModel(_client);

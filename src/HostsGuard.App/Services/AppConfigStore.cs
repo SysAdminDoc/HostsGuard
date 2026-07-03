@@ -97,6 +97,23 @@ public sealed class AppConfigStore
         WriteRoot(root);
     }
 
+    /// <summary>Read a persisted boolean view toggle (e.g. "activity_hide_blocked").</summary>
+    public bool GetViewFlag(string key, bool defaultValue = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var root = ReadRoot();
+        return root[key] is JsonValue value && value.TryGetValue<bool>(out var b) ? b : defaultValue;
+    }
+
+    /// <summary>Persist a boolean view toggle, preserving every other key in the file.</summary>
+    public void SaveViewFlag(string key, bool value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var root = ReadRoot();
+        root[key] = value;
+        WriteRoot(root);
+    }
+
     private static bool ReadBool(JsonObject root, string key)
         => root[key] is JsonValue value && value.TryGetValue<bool>(out var b) && b;
 

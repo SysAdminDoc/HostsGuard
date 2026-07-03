@@ -21,9 +21,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private const int MaxRows = 1000;
 
     private readonly HostsServiceClient _client;
+    private readonly AppConfigStore? _config;
     private readonly SynchronizationContext? _ui;
     private CancellationTokenSource? _watchCts;
     private CancellationTokenSource? _filterCts;
+    private bool _loading; // suppress refresh/save while applying persisted view flags
 
     /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
     public static TimeSpan FilterDebounce { get; set; } = TimeSpan.FromMilliseconds(350);
@@ -38,13 +40,33 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private bool _hideBlocked;
 
     [ObservableProperty]
+    private bool _hideReverseDns;
+
+    [ObservableProperty]
     private string _statusText = "Ready";
 
-    public HostsActivityViewModel(HostsServiceClient client)
+    public HostsActivityViewModel(HostsServiceClient client, AppConfigStore? config = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _config = config;
         _ui = SynchronizationContext.Current;
+
+        // Restore the persisted view toggles without triggering a refresh/save.
+        if (_config is not null)
+        {
+            _loading = true;
+            _showHidden = _config.GetViewFlag("activity_show_hidden");
+            _hideBlocked = _config.GetViewFlag("activity_hide_blocked");
+            _hideReverseDns = _config.GetViewFlag("activity_hide_reverse_dns");
+            _groupByRoot = _config.GetViewFlag("activity_group_by_root");
+            _loading = false;
+        }
     }
+
+    /// <summary>Reverse-DNS PTR lookups (*.in-addr.arpa / *.ip6.arpa) — feed noise.</summary>
+    private static bool IsReverseDns(string domain)
+        => domain.EndsWith(".in-addr.arpa", StringComparison.OrdinalIgnoreCase)
+        || domain.EndsWith(".ip6.arpa", StringComparison.OrdinalIgnoreCase);
 
     public ObservableCollection<ActivityRowViewModel> Rows { get; } = new();
 
@@ -76,6 +98,16 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         {
             ApplyGrouping(_view);
         }
+
+        Persist("activity_group_by_root", value);
+    }
+
+    private void Persist(string key, bool value)
+    {
+        if (!_loading)
+        {
+            _config?.SaveViewFlag(key, value);
+        }
     }
 
     private void ApplyGrouping(System.ComponentModel.ICollectionView view)
@@ -88,9 +120,32 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
     }
 
-    partial void OnShowHiddenChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+    partial void OnShowHiddenChanged(bool value)
+    {
+        Persist("activity_show_hidden", value);
+        if (!_loading)
+        {
+            _ = GuardedRefreshAsync(CancellationToken.None);
+        }
+    }
 
-    partial void OnHideBlockedChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+    partial void OnHideBlockedChanged(bool value)
+    {
+        Persist("activity_hide_blocked", value);
+        if (!_loading)
+        {
+            _ = GuardedRefreshAsync(CancellationToken.None);
+        }
+    }
+
+    partial void OnHideReverseDnsChanged(bool value)
+    {
+        Persist("activity_hide_reverse_dns", value);
+        if (!_loading)
+        {
+            _ = GuardedRefreshAsync(CancellationToken.None);
+        }
+    }
 
     /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
     partial void OnFilterChanged(string value)
@@ -131,20 +186,20 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             IncludeHidden = ShowHidden,
         });
         Rows.Clear();
-        var blockedHidden = 0;
+        var hidden = 0;
         foreach (var row in list.Rows)
         {
-            if (HideBlocked && row.Status == "blocked")
+            if ((HideBlocked && row.Status == "blocked") || (HideReverseDns && IsReverseDns(row.Domain)))
             {
-                blockedHidden++;
+                hidden++;
                 continue;
             }
 
             Rows.Add(ActivityRowViewModel.From(row));
         }
 
-        StatusText = blockedHidden > 0
-            ? $"{Rows.Count} domains in feed · {blockedHidden} already-blocked hidden"
+        StatusText = hidden > 0
+            ? $"{Rows.Count} domains in feed · {hidden} hidden"
             : $"{Rows.Count} domains in feed";
         await LoadSparklinesAsync();
     }
@@ -212,10 +267,10 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private void Upsert(DnsEvent ev)
     {
         var existing = Rows.FirstOrDefault(r => r.Domain == ev.Domain);
-        if (HideBlocked && ev.Blocked)
+        if ((HideBlocked && ev.Blocked) || (HideReverseDns && IsReverseDns(ev.Domain)))
         {
-            // The feed is filtered to undecided traffic — drop live events for
-            // domains that are already handled (and any row that just became so).
+            // The feed is filtered — drop live events for domains the active
+            // toggles exclude (and any row that just became excluded).
             if (existing is not null)
             {
                 Rows.Remove(existing);
