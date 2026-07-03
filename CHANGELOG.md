@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.8.1] — 2026-07-03
+
+### Added
+- **Group by root (Hosts Activity)** — a toolbar toggle that collapses
+  subdomain noise under expandable root-domain headers with counts (thirty
+  CDN hostnames become one `live-video.net (30)` group). Rows stay individual
+  underneath, so every context-menu action still works per-subdomain.
+  Composes with search, "Hide blocked", and "Show hidden".
+
 ## [0.8.0] — 2026-07-03
 
 AI knowledge release: DeepSeek research across the whole product, with every
