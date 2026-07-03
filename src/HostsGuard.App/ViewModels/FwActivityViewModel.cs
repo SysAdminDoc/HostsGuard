@@ -288,10 +288,10 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     partial void OnFilterChanged(string value) => _view?.Refresh();
 
-    // ─── On-demand reverse-DNS for rows the ETW cache didn't cover ────────────
+    // ─── Reverse-DNS via the service (persisted, remembered forever) ──────────
 
-    private readonly Dictionary<string, string> _ptrCache = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _ptrThrottle = new(4);
+    /// <summary>IP→host learned this session; applied to rows as they arrive.</summary>
+    private readonly Dictionary<string, string> _resolvedHosts = new(StringComparer.Ordinal);
 
     [ObservableProperty]
     private bool _resolveIps;
@@ -300,56 +300,62 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (value)
         {
-            foreach (var row in Rows.Where(r => r.Host.Length == 0).ToList())
-            {
-                _ = ResolvePtrAsync(row);
-            }
+            _ = ResolvePendingHostsAsync();
         }
     }
 
-    private async Task ResolvePtrAsync(ConnectionRowViewModel row)
+    /// <summary>
+    /// Reverse-resolve every visible row without a host through the service,
+    /// which persists each result so future connections to the same IP show
+    /// the host automatically — even after a restart.
+    /// </summary>
+    private async Task ResolvePendingHostsAsync()
     {
-        var ip = row.RemoteAddr;
-        string? name;
-        lock (_ptrCache)
+        var ips = Rows.Where(r => r.Host.Length == 0)
+            .Select(r => r.RemoteAddr)
+            .Where(a => a.Length != 0 && !_resolvedHosts.ContainsKey(a))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (ips.Count == 0)
         {
-            _ptrCache.TryGetValue(ip, out name);
+            ApplyResolvedHosts();
+            return;
         }
 
-        if (name is null)
+        StatusText = $"Resolving {ips.Count} addresses…";
+        try
         {
-            if (!System.Net.IPAddress.TryParse(ip, out var parsed))
+            var request = new ResolveHostsRequest();
+            request.Addresses.AddRange(ips);
+            var result = await _client.Dns.ResolveHostsAsync(request);
+            foreach (var entry in result.Hosts.Where(h => h.Host.Length != 0))
             {
-                return;
+                _resolvedHosts[entry.Address] = entry.Host;
             }
 
-            await _ptrThrottle.WaitAsync();
-            try
-            {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                var entry = await System.Net.Dns.GetHostEntryAsync(parsed).WaitAsync(cts.Token);
-                name = entry.HostName == ip ? string.Empty : entry.HostName.ToLowerInvariant();
-            }
-            catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException
-                or TimeoutException or ArgumentException)
-            {
-                name = string.Empty; // negative-cache failures too
-            }
-            finally
-            {
-                _ptrThrottle.Release();
-            }
+            var applied = ApplyResolvedHosts();
+            StatusText = $"Resolved {applied} of {ips.Count} addresses";
+        }
+        catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
+        {
+            StatusText = "Service unavailable — reconnect from the status bar";
+        }
+    }
 
-            lock (_ptrCache)
+    /// <summary>Fill any row whose IP we've resolved but whose host is still blank.</summary>
+    private int ApplyResolvedHosts()
+    {
+        var applied = 0;
+        foreach (var row in Rows)
+        {
+            if (row.Host.Length == 0 && _resolvedHosts.TryGetValue(row.RemoteAddr, out var host))
             {
-                _ptrCache[ip] = name;
+                row.Host = host;
+                applied++;
             }
         }
 
-        if (name.Length != 0 && row.Host.Length == 0)
-        {
-            OnUi(() => row.Host = name);
-        }
+        return applied;
     }
 
     // ─── AI connection identification (DeepSeek) ──────────────────────────────
@@ -484,10 +490,15 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             row.Info = knownInfo;
         }
 
+        if (row.Host.Length == 0 && _resolvedHosts.TryGetValue(row.RemoteAddr, out var knownHost))
+        {
+            row.Host = knownHost; // already resolved this session
+        }
+
         Rows.Insert(0, row);
         if (ResolveIps && row.Host.Length == 0)
         {
-            _ = ResolvePtrAsync(row);
+            _ = ResolvePendingHostsAsync();
         }
         while (Rows.Count > MaxRows)
         {

@@ -471,10 +471,27 @@ service DnsControl {
   // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
   // blocked tracker (uses the ETW resolution chain; opt-in).
   rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
+  // Reverse-resolve remote IPs the forward-DNS cache didn't cover (PTR), and
+  // persist every result so future connections to the same IP show the host
+  // automatically. Returns the resolved (address, host) pairs.
+  rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult);
 }
 
 message CnameCloakRequest {
   bool enabled = 1;
+}
+
+message ResolveHostsRequest {
+  repeated string addresses = 1;
+}
+
+message ResolvedHostEntry {
+  string address = 1;
+  string host = 2;       // "" when the IP has no resolvable name
+}
+
+message ResolveHostsResult {
+  repeated ResolvedHostEntry hosts = 1;
 }
 
 message DohStatus {

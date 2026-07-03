@@ -189,6 +189,7 @@ public sealed class ServiceState : IDisposable
         }
 
         var country = GeoIp.Lookup(info.RemoteAddress);
+        var host = ResolveKnownHost(info.RemoteAddress);
         var fwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT"
             : DirectIp.IsDirect(info.RemoteAddress, DateTime.Now) ? "DIRECT-IP"
             : string.Empty;
@@ -207,7 +208,7 @@ public sealed class ServiceState : IDisposable
             LocalPort = info.LocalPort,
             RemoteAddr = info.RemoteAddress,
             RemotePort = info.RemotePort,
-            Host = ResolvedIps.Lookup(info.RemoteAddress, DateTime.Now),
+            Host = host,
             Process = info.Process,
             Pid = info.Pid,
             State = info.State,
@@ -217,6 +218,36 @@ public sealed class ServiceState : IDisposable
             Service = LookupService?.Invoke(info.Pid) ?? string.Empty,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
+    }
+
+    /// <summary>
+    /// The best known host for an IP: the fast in-memory ETW cache first, then
+    /// the persistent resolved-host store (survives restarts). Empty when the
+    /// IP has never been resolved.
+    /// </summary>
+    public string ResolveKnownHost(string ip)
+    {
+        var live = ResolvedIps.Lookup(ip, DateTime.Now);
+        return live.Length != 0 ? live : Db.GetResolvedHost(ip);
+    }
+
+    /// <summary>
+    /// Remember a forward DNS resolution (domain → its addresses): seed the
+    /// in-memory cache AND persist each mapping so it survives restarts and
+    /// auto-populates future connections to the same IP.
+    /// </summary>
+    public void RememberResolution(string domain, IReadOnlyList<string> addresses)
+    {
+        ArgumentNullException.ThrowIfNull(addresses);
+        var d = (domain ?? string.Empty).ToLowerInvariant().Trim();
+        if (d.Length == 0 || addresses.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.Now;
+        ResolvedIps.Record(d, addresses, now);
+        Db.UpsertResolvedHosts(addresses.Select(a => (a, d)), "dns");
     }
 
     public void Dispose()

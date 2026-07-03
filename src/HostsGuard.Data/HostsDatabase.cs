@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 8;
+    public const int SchemaVersion = 9;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -127,6 +127,8 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS ai_knowledge(
                 kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, model TEXT, created TEXT,
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS resolved_hosts(
+                ip TEXT PRIMARY KEY, host TEXT, source TEXT, updated TEXT) WITHOUT ROWID;
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -233,6 +235,76 @@ public sealed class HostsDatabase : IDisposable
                     category = category ?? string.Empty,
                     now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 });
+        }
+    }
+
+    // ─── Persistent resolved-host store (IP → domain, remembered forever) ─────
+
+    /// <summary>Remember an IP→host mapping (source: "dns" forward, "ptr" reverse).</summary>
+    public void UpsertResolvedHost(string ip, string host, string source)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ip);
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO resolved_hosts(ip,host,source,updated) VALUES(@ip,@host,@source,@now)
+                ON CONFLICT(ip) DO UPDATE SET host=excluded.host, source=excluded.source, updated=excluded.updated
+                """,
+                new
+                {
+                    ip,
+                    host = host.ToLowerInvariant(),
+                    source = source ?? string.Empty,
+                    now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                });
+        }
+    }
+
+    /// <summary>Remember many IP→host mappings in one transaction.</summary>
+    public void UpsertResolvedHosts(IEnumerable<(string Ip, string Host)> pairs, string source)
+    {
+        ArgumentNullException.ThrowIfNull(pairs);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            foreach (var (ip, host) in pairs)
+            {
+                if (string.IsNullOrWhiteSpace(ip) || string.IsNullOrWhiteSpace(host))
+                {
+                    continue;
+                }
+
+                _conn.Execute(
+                    """
+                    INSERT INTO resolved_hosts(ip,host,source,updated) VALUES(@ip,@host,@source,@now)
+                    ON CONFLICT(ip) DO UPDATE SET host=excluded.host, source=excluded.source, updated=excluded.updated
+                    """,
+                    new { ip, host = host.ToLowerInvariant(), source = source ?? string.Empty, now }, tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
+    /// <summary>The remembered host for an IP, or "" when none is known.</summary>
+    public string GetResolvedHost(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+        {
+            return string.Empty;
+        }
+
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>("SELECT host FROM resolved_hosts WHERE ip=@ip", new { ip })
+                ?? string.Empty;
         }
     }
 

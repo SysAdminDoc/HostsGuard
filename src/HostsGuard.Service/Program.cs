@@ -55,9 +55,10 @@ dnsMonitor.DnsResolved += (_, e) =>
     // Feed the direct-IP heuristic (NET-076): resolved addresses are "known
     // good" — a later connection to a public IP never resolved is direct-to-IP.
     state.DirectIp.RecordResolved(e.Addresses, DateTime.Now);
-    // Remember which site each IP belongs to so the live-connections view can
-    // show the domain next to the raw remote address.
-    state.ResolvedIps.Record(e.QueryName, e.Addresses, DateTime.Now);
+    // Remember which site each IP belongs to (in-memory cache + persistent
+    // store) so the live-connections view shows the domain next to the raw
+    // remote address, now and after a restart.
+    state.RememberResolution(e.QueryName, e.Addresses);
 };
 var dnsStatus = dnsMonitor.Start();
 state.DnsMonitorActive = dnsStatus == DnsMonitorStatus.Started;

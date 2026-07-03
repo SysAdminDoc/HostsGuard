@@ -143,6 +143,82 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             : "CNAME-cloak blocking disarmed"));
     }
 
+    private static readonly TimeSpan PtrTimeout = TimeSpan.FromSeconds(3);
+    private const int MaxResolveBatch = 256;
+
+    public override async Task<ResolveHostsResult> ResolveHosts(ResolveHostsRequest request, ServerCallContext context)
+    {
+        var result = new ResolveHostsResult();
+        var addresses = request.Addresses
+            .Select(a => (a ?? string.Empty).Trim())
+            .Where(a => IPAddress.TryParse(a, out _))
+            .Distinct(StringComparer.Ordinal)
+            .Take(MaxResolveBatch)
+            .ToList();
+
+        // Answer from the persistent store first (never re-resolve a known IP),
+        // then reverse-DNS the rest with bounded concurrency.
+        var unresolved = new List<string>();
+        foreach (var ip in addresses)
+        {
+            var known = _state.ResolveKnownHost(ip);
+            if (known.Length != 0)
+            {
+                result.Hosts.Add(new ResolvedHostEntry { Address = ip, Host = known });
+            }
+            else
+            {
+                unresolved.Add(ip);
+            }
+        }
+
+        using var throttle = new SemaphoreSlim(8);
+        var resolved = await Task.WhenAll(unresolved.Select(async ip =>
+        {
+            await throttle.WaitAsync(context.CancellationToken);
+            try
+            {
+                return (Ip: ip, Host: await ReverseLookupAsync(ip, context.CancellationToken));
+            }
+            finally
+            {
+                throttle.Release();
+            }
+        }));
+
+        var learned = resolved.Where(r => r.Host.Length != 0).ToList();
+        if (learned.Count != 0)
+        {
+            _state.Db.UpsertResolvedHosts(learned.Select(r => (r.Ip, r.Host)), "ptr");
+        }
+
+        foreach (var (ip, host) in resolved)
+        {
+            result.Hosts.Add(new ResolvedHostEntry { Address = ip, Host = host });
+        }
+
+        return result;
+    }
+
+    /// <summary>Reverse-DNS an IP with a hard timeout; "" when it has no PTR name.</summary>
+    private static async Task<string> ReverseLookupAsync(string ip, CancellationToken ct)
+    {
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(PtrTimeout);
+            var entry = await Dns.GetHostEntryAsync(ip, cts.Token);
+            return entry.HostName.Equals(ip, StringComparison.Ordinal)
+                ? string.Empty
+                : entry.HostName.ToLowerInvariant();
+        }
+        catch (Exception ex) when (ex is SocketException or OperationCanceledException
+            or ArgumentException or InvalidOperationException)
+        {
+            return string.Empty;
+        }
+    }
+
     private sealed class NullFetcher : IListFetcher
     {
         public static readonly NullFetcher Instance = new();
