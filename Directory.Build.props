@@ -16,6 +16,9 @@
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
     <!-- Shared product version — single source of truth for every assembly.
+         0.6.1: deep-audit hardening — fix the 172.x gap in the per-app Internet
+         block set (generate the CIDR complement from one source), calmer
+         service-unavailable dialog, ComboBox focus ring, themed CheckBox.
          0.6.0: roadmap-drain release on .NET 10 LTS — connection history +
          per-app bandwidth (NET-070), group-by-app live view + DSL search
          (071), svchost per-service attribution + rules (073), Learning-mode
@@ -36,7 +39,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

@@ -2,6 +2,29 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.1] — 2026-07-02
+
+Deep audit hardening pass.
+
+### Fixed
+- **Security — per-app "block Internet" had a coverage gap** — the hand-typed
+  Internet CIDR set skipped all of `172.x`, so a scope-block rule failed to
+  cover public addresses in `172.0–15` and `172.32–255` (only `172.16/12` is
+  private). It also over-included CGNAT (`100.64/10`) and link-local
+  (`169.254/16`) that the classifier treats as LAN. The set is now generated
+  from the same excluded-range list `IsLan()` uses — gap-free and self-
+  consistent — with a containment regression test proving every public sample
+  is covered and every private/reserved address is not.
+- **UX — calmer service-unavailable dialog** — a dropped/absent service
+  connection surfaced a raw `StatusCode=Unavailable` gRPC dump in an error
+  dialog; connectivity failures now show a calm, actionable message.
+- **Accessibility — ComboBox focus ring** — a Tab-focused ComboBox had no
+  visible focus indicator (WCAG 2.4.7); added a themed focus-ring trigger.
+- **Visual — themed CheckBox** — the CheckBox was the only control without a
+  themed template, falling back to the light default WPF box that clashed with
+  the dark controls; added a tokenized template with check glyph, hover, and
+  keyboard focus.
+
 ## [0.6.0] — 2026-07-02
 
 Roadmap-drain release: the entire 2026-07-02 research batch (NET-044, 070, 071,
