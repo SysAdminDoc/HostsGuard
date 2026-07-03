@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.0] — 2026-07-03
+
+### Added
+- **Menu bar** — a themed File / View / Help strip above the tabs.
+  - **File**: Import hosts file… (replaces the live file after a confirm,
+    snapshotting a backup first), Export hosts file…, Export managed domains
+    as JSON (with categories), Export AI knowledge, Save hosts file (Raw
+    Editor changes), Backup hosts file, Exit.
+  - **View**: checkable toggles for Group by root / Hide blocked / Show
+    hidden / Group by app / Resolve IPs, a UI-scale submenu, theme toggle,
+    **Reset view** (every filter and toggle back to defaults at 100%), and
+    **Refresh all** (re-queries every tab).
+  - **Help**: GitHub repository link and About.
+
+### Changed
+- **Group-by-root headers restyled** — flat, styled section bands (accent
+  root name + domain count) with the normal grid rows directly beneath, so
+  the grouped feed reads exactly like the ungrouped one, just sectioned.
+  Replaces the expander-based headers from 0.8.1.
+
 ## [0.8.1] — 2026-07-03
 
 ### Added
