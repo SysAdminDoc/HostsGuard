@@ -2,6 +2,32 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.1] — 2026-07-03
+
+Knowledge-promotion release: reviewed field data from the AI knowledge log is
+now baked into the shipped defaults, so fresh installs are informative out of
+the box — no API key required.
+
+### Added
+- **~120 curated purpose entries** promoted from reviewed AI research —
+  Google/Microsoft/Xbox/Steam/Dropbox/GitHub/Adobe/Yandex infrastructure, AI
+  APIs, package registries, ad networks, trackers, consent platforms,
+  certificate authorities, and blocklist sources — plus pattern rules:
+  `*.in-addr.arpa` → "Reverse DNS lookup (PTR)" and `stun.*` → "STUN server",
+  which alone de-noise dozens of feed rows.
+- **Curated category defaults** (new `DomainCategories` table) for ~45
+  universally-agreed ad/tracking/telemetry domains in the hosts-file section
+  style ("Google Ads", "Microsoft Telemetry", "Major Ad Networks"). Blocking
+  any of them auto-assigns the category with zero AI involvement, and AI
+  Categorize consults the curated table first — only unknown domains spend
+  API tokens. Curated categorization also works with no key configured.
+
+### Fixed
+- **Null-selection crash** (found in this machine's crash log): right-clicking
+  Block / Hide root / Research / Block remote IP with no row selected passed a
+  null domain into the RPC layer and threw. All context-menu commands now show
+  "Select a row first" instead.
+
 ## [0.9.0] — 2026-07-03
 
 ### Added
