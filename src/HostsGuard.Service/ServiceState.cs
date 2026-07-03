@@ -36,7 +36,7 @@ public sealed class ServiceState : IDisposable
         Bus = new EventBus();
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
-        Schedules = new ScheduleEnforcer(hosts, db);
+        Schedules = new ScheduleEnforcer(hosts, db, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);

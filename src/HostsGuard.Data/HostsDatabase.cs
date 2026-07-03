@@ -744,9 +744,12 @@ public sealed class HostsDatabase : IDisposable
             _conn.Execute("DELETE FROM schedules", transaction: tx);
             foreach (var (target, days, start, end) in schedules)
             {
+                // Firewall-rule targets (fw:HG_…) are case-sensitive rule names;
+                // domain targets are lowercased for case-insensitive matching.
+                var stored = target.StartsWith("fw:", StringComparison.Ordinal) ? target : target.ToLowerInvariant();
                 _conn.Execute(
                     "INSERT INTO schedules(target,days,start,end) VALUES(@target,@days,@start,@end)",
-                    new { target = target.ToLowerInvariant(), days, start, end }, tx);
+                    new { target = stored, days, start, end }, tx);
             }
 
             tx.Commit();

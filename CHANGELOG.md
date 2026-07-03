@@ -4,6 +4,19 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — firewall rule scheduler (NET-084)
+- **Scheduled firewall rules** — a schedule target prefixed `fw:` names an HG_
+  firewall rule instead of a domain: the rule is enabled inside its weekly
+  window (cross-midnight supported) and disabled outside, so a rule can be
+  time-of-day gated without deleting it (NetLimiter-style). Only HostsGuard's
+  own rules are ever touched; domain schedules keep working unchanged.
+  (Bandwidth throttling is deliberately out — quota tracking/notify only.)
+
+### Fixed
+- **Test determinism** — the service test assembly no longer runs collections
+  in parallel; the process-global SQLite `ClearAllPools` / pipe-ACL teardown
+  occasionally cross-tripped an unrelated test under parallel load.
+
 ### Added — automatic network-profile switching (NET-083)
 - **Auto profile switch** — HostsGuard fingerprints the joined network by its
   default-gateway MAC (stable per LAN, DHCP-independent) and auto-activates the
