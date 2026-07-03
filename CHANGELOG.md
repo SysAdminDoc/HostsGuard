@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.8] — 2026-07-03
+
+### Fixed
+- **Right-clicking a feed/connection/rule row now selects it first.** WPF grids
+  don't select on right-click, so context-menu actions (Hide domain, Block,
+  Allow, …) acted on the previously *left-clicked* row — right-clicking a domain
+  and choosing "Hide domain" hid a different row and left the one you clicked
+  visible. Every grid now selects the row under the pointer before its menu
+  opens (an existing multi-selection is preserved).
+- **SRV / underscore domains can now be hidden.** The hide RPC required names to
+  pass registrable-domain validation, which silently rejected real feed entries
+  like `_ldap._tcp.dc._msdcs…` and `_stun._udp…` — they could never be hidden.
+  Hiding is a per-row display flag, so it now accepts any feed key.
+
 ## [0.9.7] — 2026-07-03
 
 ### Added

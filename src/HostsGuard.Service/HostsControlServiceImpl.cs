@@ -221,9 +221,14 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> HideDomains(HideDomainsRequest request, ServerCallContext context)
     {
+        // Hiding is a per-row display flag on domains already IN the feed — not a
+        // blocking mutation — so it must accept any feed key, including names that
+        // fail LooksLikeDomain's registrable-domain check (e.g. SRV records like
+        // _ldap._tcp.dc._msdcs... or _stun._udp...). Requiring LooksLikeDomain
+        // here silently no-op'd those, so they could never be hidden.
         var domains = request.Domains
             .Select(x => (x ?? string.Empty).ToLowerInvariant().Trim())
-            .Where(Domains.LooksLikeDomain)
+            .Where(d => d.Length is > 0 and <= 253)
             .Distinct(StringComparer.Ordinal)
             .ToList();
         if (domains.Count == 0)

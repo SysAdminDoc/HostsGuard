@@ -18,6 +18,33 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.DecisionRequested += OnDecisionRequested;
+
+        // WPF DataGrids don't select a row on right-click, so every context menu
+        // bound to SelectedItem/SelectedItems would act on the previously
+        // left-clicked row — e.g. "Hide domain" hid the wrong row and the one you
+        // right-clicked stayed. Select the row under the pointer before the menu
+        // opens (Explorer semantics: a right-click inside an existing
+        // multi-selection is preserved). One window-level handler covers every grid.
+        AddHandler(PreviewMouseRightButtonDownEvent,
+            new System.Windows.Input.MouseButtonEventHandler(OnRightButtonSelectRow),
+            handledEventsToo: true);
+    }
+
+    private static void OnRightButtonSelectRow(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        var node = e.OriginalSource as DependencyObject;
+        while (node is not null and not System.Windows.Controls.DataGridRow)
+        {
+            node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+        }
+
+        if (node is System.Windows.Controls.DataGridRow { IsSelected: false } row
+            && System.Windows.Controls.ItemsControl.ItemsControlFromItemContainer(row)
+                is System.Windows.Controls.DataGrid grid)
+        {
+            grid.UnselectAll();
+            row.IsSelected = true;
+        }
     }
 
     /// <summary>Consent prompt push (WFCP-011): raised on the UI thread by the VM.</summary>

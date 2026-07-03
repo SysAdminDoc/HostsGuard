@@ -130,6 +130,28 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HideDomains_hides_SRV_style_names_that_fail_registrable_domain_validation()
+    {
+        // Regression: SRV/underscore names (e.g. _ldap._tcp.dc._msdcs.home.arpa)
+        // are real feed entries but fail LooksLikeDomain, so the hide RPC used to
+        // drop them silently and they could never be hidden.
+        const string srv = "_ldap._tcp.dc._msdcs.home.arpa";
+        _state.RecordDns(srv);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var hosts = Hosts(channel);
+
+        var req = new HideDomainsRequest();
+        req.Domains.Add(srv);
+        var ack = await hosts.HideDomainsAsync(req);
+        ack.Message.Should().Contain(srv);
+
+        var visible = await hosts.GetActivityAsync(new ActivityRequest());
+        visible.Rows.Select(r => r.Domain).Should().NotContain(srv);
+        var withHidden = await hosts.GetActivityAsync(new ActivityRequest { IncludeHidden = true });
+        withHidden.Rows.Select(r => r.Domain).Should().Contain(srv);
+    }
+
+    [Fact]
     public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
     {
         // A scanner-style persistent hold (read handle, no delete share) must
