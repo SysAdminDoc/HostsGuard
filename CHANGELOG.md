@@ -2,6 +2,31 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.3] — 2026-07-03
+
+Second premium-polish pass focused on interaction-state consistency, visible
+policy-authoring guidance, and clearer Tools trust feedback.
+
+### Changed
+- **Design system — semantic button states** — neutral, accent, and danger
+  buttons now keep their semantic color on hover/press instead of collapsing
+  back to the neutral surface treatment.
+- **Accessibility — stronger keyboard focus** — tab headers and DataGrid cells
+  now expose visible token-based focus geometry in both themes.
+- **UX — clearer policy authoring** — the FW Rules create form now uses visible
+  labels, a short ownership explanation, and a less cramped grid layout.
+- **Tools — clearer trust/status feedback** — DNS intelligence, Secure Rules,
+  Defender, and general Tools status messages now sit in tokenized status
+  strips with polite live-region announcements.
+- **Microcopy — schedule/profile guidance** — scheduled blocking, network
+  profiles, DNS, and maintenance cards now explain accepted inputs and expected
+  outcomes without relying on tooltips.
+
+### Fixed
+- **Smoke coverage — refined guidance stays present** — the WPF smoke now
+  switches through FW Rules and Tools to verify the visible guidance survives in
+  both dark and light themes.
+
 ## [0.6.2] — 2026-07-03
 
 Premium polish pass across the WPF shell, prompts, CLI recovery copy, and

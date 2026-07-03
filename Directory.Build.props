@@ -16,6 +16,9 @@
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
     <!-- Shared product version — single source of truth for every assembly.
+         0.6.3: second premium polish pass - semantic hover/focus states,
+         visible policy-authoring labels, Tools trust-status strips, and WPF
+         smoke coverage for the refined guidance.
          0.6.2: premium polish - shared empty/error states, tokenized dialog
          confirmations, clearer service recovery copy, command disabled-state
          contracts, and deterministic scheduler tests.
@@ -42,7 +45,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
