@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Numerics;
 
 namespace HostsGuard.Core;
 
@@ -37,18 +38,28 @@ public static class NetworkScopes
     public const string Lan =
         "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,169.254.0.0/16,fc00::/7,fe80::/10";
 
+    // The non-Internet IPv4 ranges as [start, end] (inclusive). This is the
+    // single source of truth the firewall Internet set and IsLan() both derive
+    // from, so a hand-typed CIDR list can never drift from the classifier.
+    private static readonly (uint Start, uint End)[] ExcludedV4 =
+    {
+        Range(10, 0, 0, 0, 8),     // 10.0.0.0/8       RFC1918
+        Range(100, 64, 0, 0, 10),  // 100.64.0.0/10    CGNAT
+        Range(127, 0, 0, 0, 8),    // 127.0.0.0/8      loopback
+        Range(169, 254, 0, 0, 16), // 169.254.0.0/16   link-local
+        Range(172, 16, 0, 0, 12),  // 172.16.0.0/12    RFC1918
+        Range(192, 168, 0, 0, 16), // 192.168.0.0/16   RFC1918
+    };
+
     /// <summary>
-    /// Routable "Internet": the complement of localhost+LAN as an explicit set of
-    /// public ranges (firewall rules can't negate). IPv4 public space split
-    /// around the private carve-outs, plus global-unicast IPv6.
+    /// Routable "Internet": the complement of the private/loopback carve-outs
+    /// over public-unicast IPv4 (1.0.0.0–223.255.255.255, so 0/8, multicast
+    /// 224/4 and reserved 240/4 are excluded), plus global-unicast IPv6
+    /// (2000::/3). Generated from <see cref="ExcludedV4"/> so there are no gaps
+    /// and the set exactly matches <see cref="IsLan"/>; firewall rules can't
+    /// negate, so the block set must enumerate every routable range.
     /// </summary>
-    public const string Internet =
-        "1.0.0.0/8,2.0.0.0/7,4.0.0.0/6,8.0.0.0/7,11.0.0.0/8,12.0.0.0/6,16.0.0.0/4," +
-        "32.0.0.0/3,64.0.0.0/3,96.0.0.0/4,112.0.0.0/5,120.0.0.0/6,124.0.0.0/7,126.0.0.0/8," +
-        "128.0.0.0/3,160.0.0.0/5,168.0.0.0/6,173.0.0.0/8,174.0.0.0/7,176.0.0.0/4," +
-        "192.0.0.0/9,192.128.0.0/11,192.160.0.0/13,192.169.0.0/16,192.170.0.0/15," +
-        "192.172.0.0/14,192.176.0.0/12,192.192.0.0/10,193.0.0.0/8,194.0.0.0/7,196.0.0.0/6," +
-        "200.0.0.0/5,208.0.0.0/4,2000::/3";
+    public static readonly string Internet = BuildInternetV4() + ",2000::/3";
 
     /// <summary>The COM remote-address set for a scope (empty for Inbound — it's direction-only).</summary>
     public static string RemoteAddresses(NetworkScope scope) => scope switch
@@ -79,6 +90,7 @@ public static class NetworkScopes
     /// <summary>True when an address is in a private LAN range.</summary>
     public static bool IsLan(IPAddress ip)
     {
+        ArgumentNullException.ThrowIfNull(ip);
         if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal)
         {
             return true;
@@ -90,18 +102,118 @@ public static class NetworkScopes
             return (b0 & 0xFE) == 0xFC; // fc00::/7 ULA
         }
 
-        var b = ip.GetAddressBytes();
-        return b[0] switch
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
         {
-            10 => true,
-            127 => true,
-            169 when b[1] == 254 => true,        // link-local
-            172 when b[1] is >= 16 and <= 31 => true,
-            192 when b[1] == 168 => true,
-            100 when b[1] is >= 64 and <= 127 => true, // CGNAT
-            _ => false,
-        };
+            return false;
+        }
+
+        // Loopback (127/8) is classified by IsLocalhost; here LAN means the
+        // private/link-local/CGNAT carve-outs — derived from the same source
+        // the firewall Internet set is built from.
+        var v = ToUInt(ip);
+        foreach (var (start, end) in ExcludedV4)
+        {
+            if (start == LoopbackStart)
+            {
+                continue; // 127/8 belongs to IsLocalhost, not IsLan
+            }
+
+            if (v >= start && v <= end)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    private const uint LoopbackStart = 127u << 24;
+
+    // ─── IPv4 complement generation (single source of truth) ──────────────────
+
+    private static (uint Start, uint End) Range(byte a, byte b, byte c, byte d, int prefix)
+    {
+        var addr = ((uint)a << 24) | ((uint)b << 16) | ((uint)c << 8) | d;
+        var size = prefix == 0 ? 0u : (prefix >= 32 ? 1u : 1u << (32 - prefix));
+        var mask = prefix == 0 ? 0u : uint.MaxValue << (32 - prefix);
+        var start = addr & mask;
+        return (start, prefix >= 32 ? start : start + size - 1);
+    }
+
+    private static uint ToUInt(IPAddress ip)
+    {
+        var b = ip.GetAddressBytes();
+        return ((uint)b[0] << 24) | ((uint)b[1] << 16) | ((uint)b[2] << 8) | b[3];
+    }
+
+    /// <summary>
+    /// Build the comma-joined IPv4 Internet CIDR set: public-unicast space
+    /// (1.0.0.0–223.255.255.255) minus <see cref="ExcludedV4"/>, decomposed into
+    /// aligned CIDR blocks with no gaps.
+    /// </summary>
+    private static string BuildInternetV4()
+    {
+        const uint baseStart = 1u << 24;              // 1.0.0.0
+        const uint baseEnd = (223u << 24) | 0x00FFFFFF; // 223.255.255.255
+
+        var excluded = ExcludedV4
+            .Select(r => (Start: Math.Max(r.Start, baseStart), End: Math.Min(r.End, baseEnd)))
+            .Where(r => r.Start <= r.End)
+            .OrderBy(r => r.Start)
+            .ToList();
+
+        var cidrs = new List<string>();
+        var cursor = baseStart;
+        foreach (var (start, end) in excluded)
+        {
+            if (start > cursor)
+            {
+                EmitRange(cursor, start - 1, cidrs);
+            }
+
+            if (end >= cursor)
+            {
+                cursor = end == uint.MaxValue ? uint.MaxValue : end + 1;
+                if (end == uint.MaxValue)
+                {
+                    return string.Join(',', cidrs);
+                }
+            }
+        }
+
+        if (cursor <= baseEnd)
+        {
+            EmitRange(cursor, baseEnd, cidrs);
+        }
+
+        return string.Join(',', cidrs);
+    }
+
+    /// <summary>Decompose an inclusive [lo, hi] range into aligned CIDR blocks.</summary>
+    private static void EmitRange(uint lo, uint hi, List<string> into)
+    {
+        var start = lo;
+        while (start <= hi)
+        {
+            // Largest block that both aligns to `start` and fits within [start, hi].
+            var maxByAlign = start == 0 ? 32 : BitOperations.TrailingZeroCount(start);
+            var span = (ulong)hi - start + 1;
+            var maxBySpan = 63 - BitOperations.LeadingZeroCount(span); // floor(log2(span))
+            var size = Math.Min(maxByAlign, maxBySpan);
+            into.Add($"{ToDotted(start)}/{32 - size}");
+
+            var next = (ulong)start + (1UL << size);
+            if (next > uint.MaxValue)
+            {
+                break;
+            }
+
+            start = (uint)next;
+        }
+    }
+
+    private static string ToDotted(uint v) =>
+        $"{(v >> 24) & 0xFF}.{(v >> 16) & 0xFF}.{(v >> 8) & 0xFF}.{v & 0xFF}";
 
     /// <summary>True when an address is public/routable (not localhost, not LAN).</summary>
     public static bool IsInternet(IPAddress ip) => !IsLocalhost(ip) && !IsLan(ip);
