@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.5] — 2026-07-03
+
+### Fixed
+- **Dark-mode context menus** — the menu container and its separators still
+  rendered in system (light) colors: the ContextMenu default template ships
+  its own chrome, and menu separators resolve `MenuItem.SeparatorStyleKey`
+  rather than the implicit Separator style. Both are now fully themed
+  (rounded, token-colored) in dark and light, including the tray menu and
+  every grid's right-click menu.
+
+### Added
+- **Hide blocked** toggle on the Hosts Activity feed — hides domains that are
+  already blocked (snapshot and live events) so the feed shows only traffic
+  that still needs a decision; the status line reports how many were hidden.
+
+### Verified
+- Blocking writes hosts entries as `0.0.0.0 domain.com` — confirmed end-to-end
+  against the live service (CLI block → hosts-file entry → unblock cleanup).
+  This has been the engine's format since the .NET port.
+
 ## [0.6.4] — 2026-07-03
 
 Third premium-polish pass: the remaining system-chrome surfaces now follow the
