@@ -562,12 +562,27 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
     </Style>
 
+    <!-- Retemplated so the corners can round without the square popup surface
+         showing through: HasDropShadow=True makes the popup transparency-capable,
+         the control Background is Transparent, and the rounded Border paints the
+         fill — no white corner artifacts. -->
     <Style TargetType="ToolTip">
-        <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="MaxWidth" Value="420" />
+        <Setter Property="HasDropShadow" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToolTip">
+                    <Border Background="{DynamicResource Hg.Mantle}"
+                            BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- Fully retemplated: the default template ships system drop-shadow

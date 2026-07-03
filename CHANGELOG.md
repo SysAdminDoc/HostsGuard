@@ -9,6 +9,7 @@ All notable changes to HostsGuard are documented in this file.
   leaving the masked value on screen.
 - Loopback API domain mutations catch a locked hosts file (AV hold) and return
   a clean 503 instead of an exception that could stop the listener.
+- Exiting with unsaved Raw Editor changes now prompts before discarding them.
 
 ### Changed
 - Live firewall-connection upserts use a keyed index (O(1)) instead of scanning
@@ -17,6 +18,7 @@ All notable changes to HostsGuard are documented in this file.
   of a blank grid.
 - "Hide this group" is now also on the row right-click menu, so the whole-group
   hide is reachable by keyboard, not just the group header.
+- Tooltips have rounded corners, matching the app's corner-radius scale.
 
 ## [0.9.5] — 2026-07-03
 

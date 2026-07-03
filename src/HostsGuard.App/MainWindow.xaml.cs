@@ -158,6 +158,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Exiting for real: warn before discarding unsaved raw hosts-file edits.
+        if (DataContext is MainViewModel { RawHosts.IsDirty: true }
+            && !ConfirmDialog.Confirm("Discard unsaved changes",
+                "The Raw Editor has unsaved hosts-file edits. Exit and discard them?"))
+        {
+            e.Cancel = true;
+            _exiting = false; // stay open; the app returns to normal
+            return;
+        }
+
         Tray.Dispose();
         base.OnClosing(e);
     }
@@ -188,6 +198,11 @@ public partial class MainWindow : Window
     {
         _exiting = true;
         Close();
-        Application.Current.Shutdown();
+        // OnClosing resets _exiting to false if the user cancels (unsaved edits),
+        // so only shut down when the close actually went through.
+        if (_exiting)
+        {
+            Application.Current.Shutdown();
+        }
     }
 }
