@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using FluentAssertions;
 using HostsGuard.App;
 using HostsGuard.App.Services;
@@ -51,6 +53,41 @@ public sealed class WpfSmokeTests
         Source = new Uri($"pack://application:,,,/HostsGuard.App;component/Themes/{name}.xaml"),
     };
 
+    private static IEnumerable<T> Descendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var nested in Descendants<T>(child))
+            {
+                yield return nested;
+            }
+        }
+    }
+
+    private static IEnumerable<T> LogicalDescendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            if (child is T match)
+            {
+                yield return match;
+            }
+
+            foreach (var nested in LogicalDescendants<T>(child))
+            {
+                yield return nested;
+            }
+        }
+    }
+
     [Fact]
     public void Every_window_constructs_in_both_themes_without_a_service()
     {
@@ -90,6 +127,17 @@ public sealed class WpfSmokeTests
                 window.Measure(new Size(1280, 800));
                 window.Arrange(new Rect(0, 0, 1280, 800));
                 window.UpdateLayout();
+
+                var mainTabs = (TabControl)window.FindName("MainTabs");
+                mainTabs.SelectedIndex = 3; // FW Rules.
+                window.UpdateLayout();
+                LogicalDescendants<TextBlock>(window).Select(t => t.Text)
+                    .Should().Contain("Create HostsGuard rule");
+
+                mainTabs.SelectedIndex = 4; // Tools.
+                window.UpdateLayout();
+                LogicalDescendants<TextBlock>(window).Select(t => t.Text)
+                    .Should().Contain(t => t.StartsWith("Use a domain, service target, or fw:HG_RuleName", StringComparison.Ordinal));
 
                 _stage = $"{theme}: constructing ConsentWindow";
                 var consent = new ConsentWindow(new ConnectionDecisionRequest

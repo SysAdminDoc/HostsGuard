@@ -101,7 +101,7 @@
             </StatusBar>
 
             <!-- Main tabs -->
-            <TabControl Margin="8">
+            <TabControl x:Name="MainTabs" Margin="8">
                 <TabItem Header="Hosts Activity">
                     <Grid Margin="4" DataContext="{Binding Activity}">
                         <Grid.RowDefinitions>
@@ -836,35 +836,71 @@
 
                         <!-- Inline custom-rule form -->
                         <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="Create rule"
-                                        Style="{StaticResource Hg.AccentButton}"
-                                        Command="{Binding CreateRuleCommand}" Margin="8,0,0,0"
-                                        ToolTip="Enter a rule name before creating a firewall rule" />
-                                <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
-                                         Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.Name="New firewall rule name"
-                                         ToolTip="Rule name (HG_ prefix added automatically)" />
-                                <ComboBox DockPanel.Dock="Left" Width="64" Margin="0,0,8,0"
-                                          ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
-                                          AutomationProperties.Name="New firewall rule direction"
-                                          SelectedItem="{Binding NewRuleDirection}" />
-                                <ComboBox DockPanel.Dock="Left" Width="80" Margin="0,0,8,0"
-                                          ItemsSource="{x:Static vm:FwRulesViewModel.Actions}"
-                                          AutomationProperties.Name="New firewall rule action"
-                                          SelectedItem="{Binding NewRuleAction}" />
-                                <ComboBox DockPanel.Dock="Left" Width="70" Margin="0,0,8,0"
-                                          ItemsSource="{x:Static vm:FwRulesViewModel.Protocols}"
-                                          AutomationProperties.Name="New firewall rule protocol"
-                                          SelectedItem="{Binding NewRuleProtocol}" />
-                                <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
-                                         Text="{Binding NewRuleRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.Name="New firewall rule remote address"
-                                         ToolTip="Remote address: IP, CIDR, or range (empty = Any)" />
-                                <TextBox Text="{Binding NewRuleProgram, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.Name="New firewall rule program path"
-                                         ToolTip="Program path (optional)" />
-                            </DockPanel>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" LastChildFill="True">
+                                    <Button DockPanel.Dock="Right" Content="Create rule"
+                                            Style="{StaticResource Hg.AccentButton}"
+                                            Command="{Binding CreateRuleCommand}" Margin="12,0,0,0"
+                                            ToolTip="Enter a rule name before creating a firewall rule" />
+                                    <StackPanel>
+                                        <TextBlock Text="Create HostsGuard rule" Style="{StaticResource Hg.SectionTitle}" />
+                                        <TextBlock Text="Rules created here use the HG_ prefix, are owned by HostsGuard, and can be protected by Secure Rules."
+                                                   Style="{StaticResource Hg.HelperText}" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Grid Grid.Row="1" Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="76" />
+                                        <ColumnDefinition Width="92" />
+                                        <ColumnDefinition Width="82" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" Style="{StaticResource Hg.FieldLabel}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Dir" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Action" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Protocol" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Remote" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                                    <TextBlock Grid.Row="0" Grid.Column="5" Text="Program path" Style="{StaticResource Hg.FieldLabel}" />
+
+                                    <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                                             Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="New firewall rule name"
+                                             ToolTip="Rule name (HG_ prefix added automatically)" />
+                                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
+                                              ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
+                                              AutomationProperties.Name="New firewall rule direction"
+                                              SelectedItem="{Binding NewRuleDirection}" />
+                                    <ComboBox Grid.Row="1" Grid.Column="2" Margin="0,0,8,0"
+                                              ItemsSource="{x:Static vm:FwRulesViewModel.Actions}"
+                                              AutomationProperties.Name="New firewall rule action"
+                                              SelectedItem="{Binding NewRuleAction}" />
+                                    <ComboBox Grid.Row="1" Grid.Column="3" Margin="0,0,8,0"
+                                              ItemsSource="{x:Static vm:FwRulesViewModel.Protocols}"
+                                              AutomationProperties.Name="New firewall rule protocol"
+                                              SelectedItem="{Binding NewRuleProtocol}" />
+                                    <TextBox Grid.Row="1" Grid.Column="4" Margin="0,0,8,0"
+                                             Text="{Binding NewRuleRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="New firewall rule remote address"
+                                             ToolTip="Remote address: IP, CIDR, or range (empty = Any)" />
+                                    <TextBox Grid.Row="1" Grid.Column="5"
+                                             Text="{Binding NewRuleProgram, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="New firewall rule program path"
+                                             ToolTip="Program path (optional)" />
+                                </Grid>
+                            </Grid>
                         </Border>
 
                         <TextBlock Grid.Row="3" Margin="2,6,0,0"
@@ -912,6 +948,8 @@
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="DNS" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <TextBlock Text="Flush resolver state, switch Windows DNS presets, and verify whether a domain is reachable or blocked."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,10" />
                                     <DockPanel LastChildFill="False">
                                         <Button DockPanel.Dock="Left" Content="Flush DNS cache"
                                                 Command="{Binding FlushDnsCommand}" Margin="0,0,10,0" />
@@ -1003,7 +1041,11 @@
                                                    Style="{StaticResource Hg.DimText}"
                                                    Text="Blocks first-party hosts that alias to blocked trackers" />
                                     </DockPanel>
-                                    <TextBlock Text="{Binding DohStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding DohStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
@@ -1043,12 +1085,15 @@
 
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
-                                    <TextBlock Text="Scheduled blocking" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <TextBlock Text="Scheduled blocking" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Use a domain, service target, or fw:HG_RuleName. Days accept Mon,Tue or 0-6; 24-hour windows can cross midnight."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
                                     <DataGrid ItemsSource="{Binding Schedules}" IsReadOnly="False" MinHeight="80" MaxHeight="220"
-                                              CanUserAddRows="False">
+                                              CanUserAddRows="False"
+                                              AutomationProperties.Name="Scheduled blocking windows">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Domain / target" Binding="{Binding Target, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
-                                            <DataGridTextColumn Header="Days (Mon,Tue…)" Binding="{Binding DaysText, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
+                                            <DataGridTextColumn Header="Days" Binding="{Binding DaysText, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
                                             <DataGridTextColumn Header="Start" Binding="{Binding Start, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                                             <DataGridTextColumn Header="End" Binding="{Binding End, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                                             <DataGridTemplateColumn Header="" Width="90">
@@ -1082,6 +1127,8 @@
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="Network profiles" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Save named snapshots of the current policy, then switch them manually or let HostsGuard switch by network fingerprint."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,4" />
                                     <TextBlock Text="{Binding ActiveProfile}" Style="{StaticResource Hg.DimText}" Margin="0,0,0,8" />
                                     <WrapPanel>
                                         <ComboBox Width="180" Margin="0,0,8,8"
@@ -1110,7 +1157,9 @@
 
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
-                                    <TextBlock Text="Maintenance" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <TextBlock Text="Maintenance" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Back up, harden, export diagnostics, refresh local intelligence, or recover the hosts file from a known-good state."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
                                     <WrapPanel>
                                         <Button DockPanel.Dock="Left" Content="Backup hosts file"
                                                 Command="{Binding BackupHostsCommand}" Margin="0,0,10,8" />
@@ -1164,11 +1213,25 @@
                                                 Command="{Binding LoadBackupsCommand}"
                                                 Margin="0,0,10,8" />
                                     </WrapPanel>
-                                    <TextBlock Text="{Binding DefenderStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SecureRulesText}"
+                                                       Style="{StaticResource Hg.SubText}"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                            <TextBlock Text="{Binding DefenderStatusText}"
+                                                       Style="{StaticResource Hg.DimText}"
+                                                       Margin="0,3,0,0"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" Margin="2,0,0,0" />
+                            <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,0">
+                                <TextBlock Text="{Binding StatusText}"
+                                           Style="{StaticResource Hg.SubText}"
+                                           AutomationProperties.LiveSetting="Polite" />
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
