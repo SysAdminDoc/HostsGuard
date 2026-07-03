@@ -2,6 +2,35 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.8.0] — 2026-07-03
+
+AI knowledge release: DeepSeek research across the whole product, with every
+result recorded in a reviewable knowledge log (the promotion path into the
+app's curated built-ins).
+
+### Added
+- **AI purpose research (Hosts Activity)** — the "AI purposes" button has
+  DeepSeek research every feed domain missing a Purpose and fills the column
+  with a concise description ("Steam game content delivery"). Curated purposes
+  always win; learned ones fill the gaps and persist across restarts.
+- **Resolve IPs + AI identify (Firewall Activity)** — a "Resolve IPs" checkbox
+  reverse-DNS-resolves remote addresses the live DNS cache didn't cover
+  (throttled, cached), and "AI identify" fills a new **Info** column with a
+  short explanation of what each connection is likely for ("Chrome syncing
+  browsing data to Google"). Identifications persist and auto-apply to future
+  sightings of the same host.
+- **AI Categorize (Managed Domains + Raw Editor)** — one click has DeepSeek
+  categorize every hosts-file entry (including entries HostsGuard doesn't
+  manage — they're adopted into the DB) and organize the file under
+  "# Category" sections. The file's existing section names are passed to the
+  model as the preferred vocabulary, so your hand-made organization is reused,
+  not replaced.
+- **AI knowledge log** — everything DeepSeek learns (purposes, categories,
+  connection identifications) lands in a persistent `ai_knowledge` store
+  (schema v8). "Export AI knowledge" in Tools writes it to
+  `%APPDATA%\HostsGuard\ai_knowledge.json` for review and for promoting
+  entries into the app's built-in purpose/category tables.
+
 ## [0.7.0] — 2026-07-03
 
 Feature release: site names on live connections, downloaded blocklist
