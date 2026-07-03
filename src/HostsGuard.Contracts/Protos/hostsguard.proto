@@ -67,9 +67,12 @@ service HostsControl {
   // transactional engine (atomic write + self-write hash).
   rpc GetHostsText(Empty) returns (HostsText);
   rpc SetHostsText(HostsText) returns (Ack);
-  // Feed root visibility (hide chatty roots from the activity feed).
+  // Feed visibility: hide a whole root (blanket, catches future subdomains) or
+  // specific exact domains (e.g. every domain currently listed under a group).
   rpc HideRoot(DomainRequest) returns (Ack);
   rpc UnhideRoot(DomainRequest) returns (Ack);
+  rpc HideDomains(HideDomainsRequest) returns (Ack);
+  rpc UnhideDomains(HideDomainsRequest) returns (Ack);
   // Snapshot of recent DNS activity (the live delta streams via Monitoring.WatchDns).
   rpc GetActivity(ActivityRequest) returns (ActivityList);
   // 24h hourly hit histogram for a domain root (inline per-feed sparkline).
@@ -596,6 +599,13 @@ message DnsEvent {
   google.protobuf.Timestamp ts = 5;
   // Blocklist-intelligence membership (see ActivityRow.blocklists).
   repeated string blocklists = 6;
+  // Authoritative hidden state (exact-domain or hidden-root); the client drops
+  // these live events unless Show hidden is on, so hides never bounce back.
+  bool hidden = 7;
+}
+
+message HideDomainsRequest {
+  repeated string domains = 1;
 }
 
 message ConnectionEvent {

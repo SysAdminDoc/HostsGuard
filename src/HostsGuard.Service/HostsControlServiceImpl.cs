@@ -219,6 +219,35 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(Ok($"unhidden root {root}"));
     }
 
+    public override Task<Ack> HideDomains(HideDomainsRequest request, ServerCallContext context)
+    {
+        var domains = request.Domains
+            .Select(x => (x ?? string.Empty).ToLowerInvariant().Trim())
+            .Where(Domains.LooksLikeDomain)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (domains.Count == 0)
+        {
+            return Task.FromResult(Ok("nothing to hide"));
+        }
+
+        _state.Db.HideDomains(domains);
+        return Task.FromResult(Ok(domains.Count == 1
+            ? $"hidden {domains[0]}"
+            : $"hidden {domains.Count} domains"));
+    }
+
+    public override Task<Ack> UnhideDomains(HideDomainsRequest request, ServerCallContext context)
+    {
+        var domains = request.Domains
+            .Select(x => (x ?? string.Empty).ToLowerInvariant().Trim())
+            .Where(d => d.Length != 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        _state.Db.UnhideDomains(domains);
+        return Task.FromResult(Ok($"revealed {domains.Count} domains"));
+    }
+
     public override Task<ActivityList> GetActivity(ActivityRequest request, ServerCallContext context)
     {
         var limit = request.Limit is > 0 and <= 5000 ? request.Limit : 500;

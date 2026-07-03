@@ -267,10 +267,14 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private void Upsert(DnsEvent ev)
     {
         var existing = Rows.FirstOrDefault(r => r.Domain == ev.Domain);
-        if ((HideBlocked && ev.Blocked) || (HideReverseDns && IsReverseDns(ev.Domain)))
+        if ((HideBlocked && ev.Blocked)
+            || (HideReverseDns && IsReverseDns(ev.Domain))
+            || (ev.Hidden && !ShowHidden))
         {
-            // The feed is filtered — drop live events for domains the active
-            // toggles exclude (and any row that just became excluded).
+            // The feed is filtered — drop live events the active toggles or a
+            // persisted hide exclude (and any row that just became excluded).
+            // ev.Hidden is authoritative (exact-domain or hidden-root, from the
+            // service), so hidden entries never bounce back into the feed.
             if (existing is not null)
             {
                 Rows.Remove(existing);
@@ -406,6 +410,51 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
 
         var ack = await _client.Hosts.HideRootAsync(new DomainRequest { Domain = domain });
+        StatusText = ack.Message;
+        await RefreshAsync();
+    }
+
+    /// <summary>Hide one exact domain from the feed (leaves the rest of the root).</summary>
+    [RelayCommand]
+    public async Task HideDomainAsync(string domain)
+    {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
+        var request = new HideDomainsRequest();
+        request.Domains.Add(domain);
+        var ack = await _client.Hosts.HideDomainsAsync(request);
+        StatusText = ack.Message;
+        await RefreshAsync();
+    }
+
+    /// <summary>
+    /// Hide a whole group: store the exact domains currently listed under that
+    /// root, not the root itself — so future new subdomains still surface.
+    /// </summary>
+    [RelayCommand]
+    public async Task HideGroupAsync(string? root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return;
+        }
+
+        var domains = Rows
+            .Where(r => string.Equals(r.Root, root, StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.Domain)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var request = new HideDomainsRequest();
+        request.Domains.AddRange(domains);
+        var ack = await _client.Hosts.HideDomainsAsync(request);
         StatusText = ack.Message;
         await RefreshAsync();
     }

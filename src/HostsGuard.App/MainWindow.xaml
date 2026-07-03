@@ -223,8 +223,9 @@
                                                                 <Border.ContextMenu>
                                                                     <ContextMenu>
                                                                         <MenuItem Header="Hide this group"
-                                                                                  Command="{Binding PlacementTarget.Tag.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                                  CommandParameter="{Binding Name}" />
+                                                                                  Command="{Binding PlacementTarget.Tag.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                                  CommandParameter="{Binding Name}"
+                                                                                  ToolTip="Hide every domain currently listed under this root (remembered)" />
                                                                     </ContextMenu>
                                                                 </Border.ContextMenu>
                                                                 <StackPanel Orientation="Horizontal">
@@ -271,9 +272,14 @@
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
                                     <Separator />
+                                    <MenuItem Header="Hide domain"
+                                              Command="{Binding PlacementTarget.DataContext.HideDomainCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Hide just this exact domain from the feed (remembered)" />
                                     <MenuItem Header="Hide root"
                                               Command="{Binding PlacementTarget.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Hide the whole root, including future subdomains (remembered)" />
                                     <MenuItem Header="Unhide root"
                                               Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />

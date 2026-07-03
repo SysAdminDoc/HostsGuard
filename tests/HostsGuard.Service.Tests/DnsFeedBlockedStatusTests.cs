@@ -63,4 +63,31 @@ public sealed class DnsFeedBlockedStatusTests : IDisposable
 
         ev.Blocked.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Live_events_carry_the_hidden_flag_so_hides_do_not_bounce_back()
+    {
+        // Seed a feed row, hide the exact domain, then re-sight it: the live
+        // event must report Hidden=true (the "coming back" bug).
+        _state.RecordDns("cdn.example.com");
+        _state.Db.HideDomains(new[] { "cdn.example.com" });
+        using var sub = _state.Bus.Subscribe<DnsEvent>();
+
+        _state.RecordDns("cdn.example.com");
+        var ev = await sub.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        ev.Hidden.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Hidden_root_marks_every_subdomain_hidden_in_the_live_feed()
+    {
+        _state.Db.HideRoot("tracker.com");
+        using var sub = _state.Bus.Subscribe<DnsEvent>();
+
+        _state.RecordDns("a.tracker.com");
+        var ev = await sub.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+        ev.Hidden.Should().BeTrue();
+    }
 }

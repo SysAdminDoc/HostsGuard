@@ -101,6 +101,35 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HideDomains_hides_exact_entries_but_leaves_new_subdomains_visible()
+    {
+        // Two subdomains of the same root are listed; hiding the group stores
+        // both exact domains. A NEW subdomain later must still surface (unlike
+        // a root hide, which would blanket it).
+        _state.RecordDns("a.cdn.example.com");
+        _state.RecordDns("b.cdn.example.com");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var hosts = Hosts(channel);
+
+        var req = new HideDomainsRequest();
+        req.Domains.Add("a.cdn.example.com");
+        req.Domains.Add("b.cdn.example.com");
+        await hosts.HideDomainsAsync(req);
+
+        var visible = await hosts.GetActivityAsync(new ActivityRequest());
+        visible.Rows.Select(r => r.Domain).Should().NotContain("a.cdn.example.com").And.NotContain("b.cdn.example.com");
+
+        // A brand-new subdomain of the same root is still shown.
+        _state.RecordDns("c.cdn.example.com");
+        var after = await hosts.GetActivityAsync(new ActivityRequest());
+        after.Rows.Select(r => r.Domain).Should().Contain("c.cdn.example.com");
+
+        // Show hidden reveals the hidden pair.
+        var withHidden = await hosts.GetActivityAsync(new ActivityRequest { IncludeHidden = true });
+        withHidden.Rows.Select(r => r.Domain).Should().Contain("a.cdn.example.com");
+    }
+
+    [Fact]
     public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
     {
         // A scanner-style persistent hold (read handle, no delete share) must

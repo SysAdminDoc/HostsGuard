@@ -71,6 +71,7 @@ public class SchemaLockTests
           GetHostsText(Empty) returns (HostsText)
           GetSparkline(DomainRequest) returns (Sparkline)
           HardenAcl(Empty) returns (Ack)
+          HideDomains(HideDomainsRequest) returns (Ack)
           HideRoot(DomainRequest) returns (Ack)
           IdentifyConnections(IdentifyRequest) returns (IdentifyResult)
           ListBackups(Empty) returns (BackupList)
@@ -83,6 +84,7 @@ public class SchemaLockTests
           SetHostsText(HostsText) returns (Ack)
           TempAllow(TempAllowRequest) returns (Ack)
           Unblock(DomainRequest) returns (Ack)
+          UnhideDomains(HideDomainsRequest) returns (Ack)
           UnhideRoot(DomainRequest) returns (Ack)
         service ListControl
           GetAllowlists(Empty) returns (AllowlistUrls)

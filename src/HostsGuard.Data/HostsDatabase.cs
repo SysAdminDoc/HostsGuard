@@ -757,6 +757,70 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    /// <summary>Hide specific exact domains from the feed (persisted on the feed row).</summary>
+    public void HideDomains(IEnumerable<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            foreach (var domain in domains)
+            {
+                if (!string.IsNullOrWhiteSpace(domain))
+                {
+                    _conn.Execute("UPDATE feed SET hidden=1 WHERE domain=@d",
+                        new { d = domain.ToLowerInvariant() }, tx);
+                }
+            }
+
+            tx.Commit();
+        }
+    }
+
+    /// <summary>Reveal specific exact domains previously hidden from the feed.</summary>
+    public void UnhideDomains(IEnumerable<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            foreach (var domain in domains)
+            {
+                if (!string.IsNullOrWhiteSpace(domain))
+                {
+                    _conn.Execute("UPDATE feed SET hidden=0 WHERE domain=@d",
+                        new { d = domain.ToLowerInvariant() }, tx);
+                }
+            }
+
+            tx.Commit();
+        }
+    }
+
+    /// <summary>
+    /// True when a domain is hidden from the feed — either its exact feed row is
+    /// marked hidden, or its <paramref name="root"/> is a hidden root. Single
+    /// query for the live-event hot path.
+    /// </summary>
+    public bool IsHidden(string domain, string root)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<long>(
+                """
+                SELECT CASE WHEN EXISTS(SELECT 1 FROM feed WHERE domain=@d AND hidden=1)
+                              OR EXISTS(SELECT 1 FROM hidden_roots WHERE root=@r)
+                            THEN 1 ELSE 0 END
+                """,
+                new { d = domain.ToLowerInvariant(), r = (root ?? string.Empty).ToLowerInvariant() }) == 1;
+        }
+    }
+
     // ─── Temp allows ──────────────────────────────────────────────────────────
 
     public void SetTempAllow(string domain, DateTime expiresUtc)
