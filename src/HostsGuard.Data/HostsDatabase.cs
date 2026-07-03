@@ -118,6 +118,8 @@ public sealed class HostsDatabase : IDisposable
                 process TEXT, minute TEXT, sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0,
                 PRIMARY KEY(process, minute));
             CREATE INDEX IF NOT EXISTS idx_app_bandwidth_minute ON app_bandwidth(minute);
+            CREATE TABLE IF NOT EXISTS network_profiles(
+                fingerprint TEXT PRIMARY KEY, profile TEXT, label TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -616,6 +618,46 @@ public sealed class HostsDatabase : IDisposable
             }
 
             tx.Commit();
+        }
+    }
+
+    // ─── Network→profile auto-switch map (NET-083) ───────────────────────────
+
+    /// <summary>Map a network fingerprint to a profile (label is the human network name).</summary>
+    public void SetNetworkProfile(string fingerprint, string profile, string label)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fingerprint);
+        lock (_gate)
+        {
+            if (string.IsNullOrWhiteSpace(profile))
+            {
+                _conn.Execute("DELETE FROM network_profiles WHERE fingerprint=@fingerprint", new { fingerprint });
+            }
+            else
+            {
+                _conn.Execute(
+                    "INSERT OR REPLACE INTO network_profiles(fingerprint,profile,label) VALUES(@fingerprint,@profile,@label)",
+                    new { fingerprint, profile, label });
+            }
+        }
+    }
+
+    public IReadOnlyList<(string Fingerprint, string Profile, string Label)> GetNetworkProfiles()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string)>(
+                "SELECT fingerprint, profile, label FROM network_profiles ORDER BY label").ToList();
+        }
+    }
+
+    /// <summary>The profile mapped to a fingerprint, or null.</summary>
+    public string? GetProfileForNetwork(string fingerprint)
+    {
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>(
+                "SELECT profile FROM network_profiles WHERE fingerprint=@fingerprint", new { fingerprint });
         }
     }
 

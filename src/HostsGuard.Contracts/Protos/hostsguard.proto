@@ -645,6 +645,27 @@ service Policy {
   // Hosts-file write protection (NET-079): enforce/relax the SYSTEM+Admins-only
   // DACL that keeps third parties from writing the hosts file.
   rpc SetHostsProtection(HostsProtectionRequest) returns (Ack);
+  // Automatic network-profile switching (NET-083): fingerprint the joined
+  // network (gateway MAC) and auto-activate the mapped profile.
+  rpc GetCurrentNetwork(Empty) returns (CurrentNetwork);
+  rpc GetNetworkProfiles(Empty) returns (NetworkProfileMap);
+  rpc SetNetworkProfile(NetworkProfileEntry) returns (Ack);
+}
+
+message CurrentNetwork {
+  string fingerprint = 1;
+  string label = 2;      // the interface/network name
+  bool online = 3;
+}
+
+message NetworkProfileEntry {
+  string fingerprint = 1;
+  string profile = 2;    // "" removes the mapping
+  string label = 3;
+}
+
+message NetworkProfileMap {
+  repeated NetworkProfileEntry entries = 1;
 }
 
 message LockState {

@@ -125,6 +125,9 @@ public sealed class ServiceState : IDisposable
     /// <summary>PID→service display attribution (NET-073); wired by the host.</summary>
     public Func<int, string>? LookupService { get; set; }
 
+    /// <summary>Current-network identity source (NET-083); wired by the host.</summary>
+    public Windows.INetworkIdentity? NetworkIdentity { get; set; }
+
     public DateTime StartedAtUtc { get; }
 
     /// <summary>

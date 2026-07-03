@@ -74,6 +74,15 @@ var serviceAttribution = new ServiceAttribution();
 state.LookupService = serviceAttribution.DisplayFor;
 state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
 
+// Automatic network-profile switching (NET-083): fingerprint the joined
+// network and apply its mapped profile on change.
+var networkIdentity = new NetworkIdentity();
+state.NetworkIdentity = networkIdentity;
+var policyForSwitch = new PolicyServiceImpl(state);
+using var networkWatcher = new NetworkProfileWatcher(state, networkIdentity,
+    profile => policyForSwitch.ApplyProfile(profile, "network_profile_switched"));
+networkWatcher.Start();
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(

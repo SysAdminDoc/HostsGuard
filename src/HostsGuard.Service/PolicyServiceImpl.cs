@@ -95,6 +95,17 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             return Task.FromResult(Error("unknown_profile", $"profile '{name}' does not exist"));
         }
 
+        var (target, added) = ApplyProfile(name, "profile_switched");
+        return Task.FromResult(Ok($"switched to '{name}': {target} blocked domains reconciled"));
+    }
+
+    /// <summary>
+    /// Reconcile the hosts file to a saved profile and mark it active. Shared by
+    /// the manual switch and the network auto-switch (NET-083). Returns
+    /// (blocked-count, newly-added).
+    /// </summary>
+    internal (int Target, int Added) ApplyProfile(string name, string logAction)
+    {
         // Safety net: the pre-switch state is always recoverable.
         _state.Db.SaveProfile("(previous)");
 
@@ -103,8 +114,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         var blocked = rules.Where(r => r.Status == "blocked").Select(r => r.Domain).ToList();
         var (added, target) = _state.Hosts.Reconcile(blocked);
         _state.Db.SetMeta("active_profile", name);
-        _state.Db.LogEvent(name, "profile_switched", details: $"reconciled +{added} to {target} blocked");
-        return Task.FromResult(Ok($"switched to '{name}': {target} blocked domains reconciled"));
+        _state.Db.LogEvent(name, logAction, details: $"reconciled +{added} to {target} blocked");
+        return (target, added);
     }
 
     public override Task<Ack> DeleteProfile(ProfileRequest request, ServerCallContext context)
@@ -263,6 +274,50 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         return Task.FromResult(Ok(request.Enabled
             ? "hosts file protected — only SYSTEM and Administrators can write it"
             : "hosts file protection remains enforced (relaxing is not supported for safety)"));
+    }
+
+    // ─── Automatic network-profile switching (NET-083) ───────────────────────
+
+    public override Task<CurrentNetwork> GetCurrentNetwork(Empty request, ServerCallContext context)
+    {
+        var net = _state.NetworkIdentity?.Current();
+        return Task.FromResult(new CurrentNetwork
+        {
+            Fingerprint = net?.Fingerprint ?? string.Empty,
+            Label = net?.Label ?? string.Empty,
+            Online = net is not null,
+        });
+    }
+
+    public override Task<NetworkProfileMap> GetNetworkProfiles(Empty request, ServerCallContext context)
+    {
+        var map = new NetworkProfileMap();
+        foreach (var (fingerprint, profile, label) in _state.Db.GetNetworkProfiles())
+        {
+            map.Entries.Add(new NetworkProfileEntry { Fingerprint = fingerprint, Profile = profile, Label = label });
+        }
+
+        return Task.FromResult(map);
+    }
+
+    public override Task<Ack> SetNetworkProfile(NetworkProfileEntry request, ServerCallContext context)
+    {
+        var fingerprint = (request.Fingerprint ?? string.Empty).Trim();
+        if (fingerprint.Length == 0)
+        {
+            return Task.FromResult(Error("invalid_network", "a network fingerprint is required"));
+        }
+
+        var profile = (request.Profile ?? string.Empty).Trim();
+        if (profile.Length != 0 && !_state.Db.ListProfiles().Contains(profile))
+        {
+            return Task.FromResult(Error("unknown_profile", $"profile '{profile}' does not exist"));
+        }
+
+        _state.Db.SetNetworkProfile(fingerprint, profile, (request.Label ?? string.Empty).Trim());
+        return Task.FromResult(Ok(profile.Length == 0
+            ? "network→profile mapping removed"
+            : $"'{request.Label}' will auto-activate profile '{profile}'"));
     }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };

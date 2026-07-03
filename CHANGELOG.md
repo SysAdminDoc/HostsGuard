@@ -4,6 +4,15 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — automatic network-profile switching (NET-083)
+- **Auto profile switch** — HostsGuard fingerprints the joined network by its
+  default-gateway MAC (stable per LAN, DHCP-independent) and auto-activates the
+  profile you mapped to it: stricter posture on untrusted/public Wi-Fi, relaxed
+  at home. A Little Snitch premium feature with no free-Windows analog. Mapping
+  is user-editable (Policy RPCs GetCurrentNetwork / GetNetworkProfiles /
+  SetNetworkProfile); switches route through the same recoverable, logged path
+  as a manual switch and fire once per network change.
+
 ### Added — settings/rule lock + hosts write protection (NET-079)
 - **Settings lock** — arm a password lock (Tools tab) that refuses filtering-
   mode, firewall-posture, and HG_ rule changes until unlocked, with an optional
