@@ -176,17 +176,52 @@ public sealed class AiCategorizer
         IReadOnlyList<string> domains, CancellationToken ct, IReadOnlyList<string>? preferredCategories = null)
     {
         ArgumentNullException.ThrowIfNull(domains);
+        var cleaned = domains
+            .Select(d => d.ToLowerInvariant().Trim())
+            .Where(Core.Domains.LooksLikeDomain)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        // Curated defaults first — free, offline, and no API key required.
+        // Only domains the shipped table doesn't know go to the AI.
+        var results = new List<(string, string)>();
+        var unknown = new List<string>();
+        foreach (var d in cleaned)
+        {
+            var curated = Core.DomainCategories.Lookup(d);
+            if (curated.Length != 0)
+            {
+                _db.SetCategory(d, curated);
+                results.Add((d, curated));
+            }
+            else
+            {
+                unknown.Add(d);
+            }
+        }
+
+        if (unknown.Count == 0 || Settings.ApiKey.Length == 0)
+        {
+            if (results.Count != 0)
+            {
+                _hosts.OrganizeByCategory(results.ToDictionary(r => r.Item1, r => r.Item2, StringComparer.Ordinal));
+                RecordRun($"categorized {results.Count} domains (curated)");
+            }
+            else if (unknown.Count != 0)
+            {
+                throw new InvalidOperationException("no DeepSeek API key configured");
+            }
+
+            return results;
+        }
+
         var settings = RequireKey();
         var vocabulary = preferredCategories is { Count: > 0 }
             ? "Existing hosts-file sections you should reuse whenever they fit: "
               + string.Join(", ", preferredCategories.Select(c => $"\"{c}\"")) + ".\n"
             : string.Empty;
 
-        var results = new List<(string, string)>();
-        foreach (var batch in domains
-                     .Select(d => d.ToLowerInvariant().Trim())
-                     .Where(Core.Domains.LooksLikeDomain)
-                     .Distinct(StringComparer.Ordinal)
+        foreach (var batch in unknown
                      .Take(MaxDomainsPerRun)
                      .Chunk(BatchSize))
         {

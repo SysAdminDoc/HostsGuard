@@ -921,13 +921,25 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task QuickBlockIpAsync(string remoteAddr)
     {
+        if (string.IsNullOrWhiteSpace(remoteAddr))
+        {
+            StatusText = "Select a row first";
+            return;
+        }
+
         var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
         StatusText = ack.Message;
     }
 
     [RelayCommand]
-    public async Task QuickBlockProcessAsync(ConnectionRowViewModel row)
+    public async Task QuickBlockProcessAsync(ConnectionRowViewModel? row)
     {
+        if (row is null)
+        {
+            StatusText = "Select a row first";
+            return;
+        }
+
         if (row.Pid <= 0)
         {
             StatusText = "No PID for this connection";

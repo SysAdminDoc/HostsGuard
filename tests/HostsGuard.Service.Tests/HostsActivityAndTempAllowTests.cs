@@ -89,6 +89,18 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Blocking_a_curated_domain_assigns_its_default_category()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        await Hosts(channel).BlockAsync(new DomainRequest { Domain = "pagead2.googlesyndication.com" });
+
+        var list = await Hosts(channel).ListDomainsAsync(new ListDomainsRequest());
+
+        list.Domains.Single(d => d.Domain == "pagead2.googlesyndication.com")
+            .Category.Should().Be("Google Ads");
+    }
+
+    [Fact]
     public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
     {
         // A scanner-style persistent hold (read handle, no delete share) must

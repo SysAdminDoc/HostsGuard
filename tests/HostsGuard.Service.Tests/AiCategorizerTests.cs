@@ -91,6 +91,34 @@ public sealed class AiCategorizerTests : IDisposable
     }
 
     [Fact]
+    public async Task Curated_categories_apply_without_any_api_key()
+    {
+        _hosts.Block("pixel.facebook.com");
+        _db.AddDomain("pixel.facebook.com");
+
+        var results = await _ai.CategorizeAsync(new[] { "pixel.facebook.com" }, CancellationToken.None);
+
+        results.Should().ContainSingle().Which.Should().Be(("pixel.facebook.com", "Facebook/Meta Tracking"));
+        _completer.Prompts.Should().BeEmpty("the curated table answered — no AI call needed");
+        File.ReadAllText(_hostsPath).Should().Contain("# Facebook/Meta Tracking");
+    }
+
+    [Fact]
+    public async Task Only_domains_the_curated_table_misses_go_to_the_ai()
+    {
+        _db.AddDomain("secure.adnxs.com");
+        _db.AddDomain("weird.example.net");
+        _ai.SaveSettings("sk-test", "", "", enabled: true);
+        _completer.Reply = """{"weird.example.net": "Other"}""";
+
+        var results = await _ai.CategorizeAsync(
+            new[] { "secure.adnxs.com", "weird.example.net" }, CancellationToken.None);
+
+        results.Should().HaveCount(2);
+        _completer.Prompts.Single().Should().Contain("weird.example.net").And.NotContain("adnxs");
+    }
+
+    [Fact]
     public async Task ResearchPurposes_stores_knowledge_and_skips_unknown()
     {
         _ai.SaveSettings("sk-test", "", "", enabled: true);
@@ -140,12 +168,15 @@ public sealed class AiCategorizerTests : IDisposable
         var results = await ai.CategorizeHostsFileAsync(CancellationToken.None);
 
         results.Should().HaveCount(2);
-        // The prompt offered the file's existing section names as vocabulary.
-        _completer.Prompts.Single().Should().Contain("Google Ads");
+        // The prompt offered the file's existing section names as vocabulary,
+        // and the curated hit (doubleclick) never went to the AI at all.
+        _completer.Prompts.Single().Should().Contain("Google Ads").And.NotContain("doubleclick");
+        _db.GetDomains().Single(d => d.Domain == "ad.doubleclick.net").Category.Should().Be("Google Ads");
         // The unmanaged entry now has a DB row carrying its category.
         _db.GetDomains().Single(d => d.Domain == "orphan.example.com").Category.Should().Be("Major Trackers");
-        // Knowledge log captured the categories for later review.
-        _db.GetAiKnowledge("category", new[] { "ad.doubleclick.net", "orphan.example.com" }).Should().HaveCount(2);
+        // Knowledge log captured only the AI-learned category for later review.
+        _db.GetAiKnowledge("category", new[] { "ad.doubleclick.net", "orphan.example.com" })
+            .Should().ContainSingle().Which.Key.Should().Be("orphan.example.com");
         File.ReadAllText(_hostsPath).Should().Contain("# Major Trackers");
     }
 

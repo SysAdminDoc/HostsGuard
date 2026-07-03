@@ -31,4 +31,23 @@ public sealed class DomainPurposeTests
         // "watson.telemetry.microsoft.com" is more specific than "telemetry.microsoft.com".
         DomainPurpose.Lookup("watson.telemetry.microsoft.com").Should().Be("Microsoft error reporting");
     }
+
+    [Theory]
+    [InlineData("9.113.0.203.in-addr.arpa", "Reverse DNS lookup (PTR)")]
+    [InlineData("stun.l.google.com", "STUN server (VoIP/WebRTC NAT traversal)")]
+    [InlineData("stun.sipgate.net", "STUN server (VoIP/WebRTC NAT traversal)")]
+    [InlineData("avatars.fastly.steamstatic.com", "Steam static content CDN")]
+    [InlineData("fa723fc1b171.use14.playlist.live-video.net", "Amazon IVS / Twitch live video")]
+    [InlineData("v20.events.data.microsoft.com", "Windows telemetry events")]
+    [InlineData("api.anthropic.com", "Anthropic / Claude API")]
+    [InlineData("x1.c.lencr.org", "Let's Encrypt certificate infrastructure")]
+    [InlineData("hit.api.useinsider.com", "Insider marketing analytics")]
+    [InlineData("edgedl.me.gvt1.com", "Google software downloads")]
+    [InlineData("urlhaus.abuse.ch", "abuse.ch threat intelligence")]
+    public void Promoted_field_knowledge_resolves(string domain, string expected)
+        => DomainPurpose.Lookup(domain).Should().Be(expected);
+
+    [Fact]
+    public void Specific_wp_entries_beat_the_generic_wp_suffix()
+        => DomainPurpose.Lookup("stats.wp.com").Should().Be("WordPress.com analytics");
 }

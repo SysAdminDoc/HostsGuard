@@ -112,9 +112,26 @@ public sealed partial class HostsViewModel : ObservableObject
 
     private bool CanBlock() => !string.IsNullOrWhiteSpace(NewDomain);
 
+    /// <summary>Context menus fire with a null parameter when no row is selected.</summary>
+    private bool NoSelection(string? domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            StatusText = "Select a row first";
+            return true;
+        }
+
+        return false;
+    }
+
     [RelayCommand]
     public async Task AllowAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
         StatusText = ack.Ok ? $"Allowed {domain}" : ack.Message;
         await RefreshAsync();
@@ -123,6 +140,11 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task UnblockAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         if (!_confirm.Confirm("Remove managed domain",
             $"Remove {domain} from managed domains? This stops HostsGuard from writing it to the hosts file."))
         {
@@ -137,6 +159,11 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task BlockRootAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "manual" });
         StatusText = ack.Message;
         await RefreshAsync();

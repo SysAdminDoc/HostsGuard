@@ -22,6 +22,11 @@ public static class Research
 
     public static void Open(string urlTemplate, string domain)
     {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return; // context menus fire with null when no row is selected
+        }
+
         var url = urlTemplate.Replace("{d}", Uri.EscapeDataString(domain), StringComparison.Ordinal);
         if (!url.StartsWith("https://", StringComparison.Ordinal))
         {

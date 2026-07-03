@@ -270,9 +270,26 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
     }
 
+    /// <summary>Context menus fire with a null parameter when no row is selected.</summary>
+    private bool NoSelection(string? domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            StatusText = "Select a row first";
+            return true;
+        }
+
+        return false;
+    }
+
     [RelayCommand]
     public async Task BlockAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -281,6 +298,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public async Task AllowAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "feed" });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -289,6 +311,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public async Task BlockRootAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "feed" });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -305,6 +332,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     private async Task TempAllowAsync(string domain, int minutes)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.TempAllowAsync(new TempAllowRequest { Domain = domain, Minutes = minutes });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -313,6 +345,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public async Task HideRootAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.HideRootAsync(new DomainRequest { Domain = domain });
         StatusText = ack.Message;
         await RefreshAsync();
@@ -321,6 +358,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [RelayCommand]
     public async Task UnhideRootAsync(string domain)
     {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
         var ack = await _client.Hosts.UnhideRootAsync(new DomainRequest { Domain = domain });
         StatusText = ack.Message;
         await RefreshAsync();

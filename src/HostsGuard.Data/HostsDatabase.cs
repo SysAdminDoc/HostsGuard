@@ -202,6 +202,23 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    /// <summary>Assign a category only when the row doesn't have one yet.</summary>
+    public void SetCategoryIfEmpty(string domain, string category)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _conn.Execute(
+                "UPDATE domains SET category=@category WHERE domain=@domain AND (category IS NULL OR category='')",
+                new { domain = domain.ToLowerInvariant(), category });
+        }
+    }
+
     /// <summary>Set (or clear with "") a managed domain's category.</summary>
     public void SetCategory(string domain, string category)
     {

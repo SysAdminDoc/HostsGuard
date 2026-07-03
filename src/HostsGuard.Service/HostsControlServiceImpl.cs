@@ -26,6 +26,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         {
             var wrote = _state.Hosts.Block(d);
             _state.Db.AddDomain(d, "blocked", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
+            _state.Db.SetCategoryIfEmpty(d, DomainCategories.Lookup(d)); // curated defaults — no AI needed
             _state.Db.LogEvent(d, "blocked", details: "hosts file", reason: request.Reason);
             AutoCategorize(d);
             return Ok(wrote ? $"blocked {d}" : $"already blocked {d}");
@@ -100,6 +101,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         {
             _state.Hosts.Block(root);
             _state.Db.AddDomain(root, "blocked", "manual", reason: request.Reason);
+            _state.Db.SetCategoryIfEmpty(root, DomainCategories.Lookup(root));
             return Ok($"blocked root {root}");
         });
     }
