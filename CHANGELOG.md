@@ -2,6 +2,25 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.4] — 2026-07-03
+
+### Fixed
+- **Hidden entries came back.** Same class of bug as Hide blocked: the live DNS
+  stream had no hidden filtering, so a domain hidden via "Hide root" (or the new
+  domain hide) reappeared the moment it resolved again. The service now stamps
+  each live event with its authoritative hidden state (exact-domain or
+  hidden-root), and the feed drops hidden events unless Show hidden is on — so
+  hides stick.
+
+### Added
+- **Hide domain** — a new context-menu action that hides just the exact domain
+  under the cursor, alongside the existing **Hide root** (which still hides the
+  whole root including future subdomains). Both are remembered.
+- **Hide this group now stores the listed domains.** Right-clicking a
+  group-by-root header hides every exact domain currently listed under that root
+  (remembered) rather than blanket-hiding the root — so a new subdomain that
+  shows up later still surfaces.
+
 ## [0.9.3] — 2026-07-03
 
 ### Fixed
