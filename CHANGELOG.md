@@ -2,6 +2,30 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.3] — 2026-07-03
+
+### Fixed
+- **"Hide blocked" now actually hides.** The live DNS feed's blocked flag was
+  always false (the ETW monitor can't know a domain's managed status), so the
+  stream kept re-adding blocked domains as normal rows right after the snapshot
+  hid them. The service now stamps each live event with the authoritative
+  managed status from the DB — the same source the snapshot uses.
+- **View no longer opens "smushed."** The DataGrid column-width repair (WPF
+  clamps columns to minimum width on a first layout with no viewport) is now
+  applied to every primary tab grid, not just the connections grid — no more
+  needing Reset view + a theme toggle to fix the columns.
+
+### Added
+- **Hide reverse DNS** toggle on Hosts Activity — hides `*.in-addr.arpa` /
+  `*.ip6.arpa` PTR lookups, which are background noise rather than real
+  destinations.
+- **Hide a whole group by right-clicking its header.** With Group by root on,
+  right-click any root section band → "Hide this group" (hides the root; Show
+  hidden brings it back).
+- **View settings are remembered across restarts.** Group by root, Hide
+  blocked, Show hidden, Hide reverse DNS (Hosts Activity) and Group by app,
+  Resolve IPs (Firewall Activity) persist to config and restore on launch.
+
 ## [0.9.2] — 2026-07-03
 
 ### Fixed
