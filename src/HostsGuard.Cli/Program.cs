@@ -24,8 +24,16 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
     "--version" or "version" => Version(),
+    "help" or "--help" or "-h" or "-?" or "/?" => UsageOk(),
     _ => Usage(),
 });
+
+// Asking for help is a success; falling into usage from a bad command is not.
+static int UsageOk()
+{
+    Usage();
+    return 0;
+}
 
 static int Usage()
 {

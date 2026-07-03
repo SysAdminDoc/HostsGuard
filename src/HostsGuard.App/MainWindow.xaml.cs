@@ -38,6 +38,17 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Reflect the current filtering mode as a checkmark when the tray menu opens.</summary>
+    private void OnTrayMenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            TrayModeNormal.IsChecked = vm.FilteringMode == "normal";
+            TrayModeNotify.IsChecked = vm.FilteringMode == "notify";
+            TrayModeLearning.IsChecked = vm.FilteringMode == "learning";
+        }
+    }
+
     private void OnTrayGlobalMode(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string mode } && DataContext is MainViewModel vm)

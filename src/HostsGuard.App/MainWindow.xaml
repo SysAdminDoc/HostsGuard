@@ -24,13 +24,13 @@
                         ToolTipText="HostsGuard"
                         TrayMouseDoubleClick="OnTrayOpen">
             <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
+                <ContextMenu Opened="OnTrayMenuOpened">
                     <MenuItem Header="Open HostsGuard" Click="OnTrayOpen" />
                     <Separator />
                     <MenuItem Header="Filtering mode">
-                        <MenuItem Header="Normal — enforce silently" Tag="normal" Click="OnTrayMode" />
-                        <MenuItem Header="Notify — prompt on new connections" Tag="notify" Click="OnTrayMode" />
-                        <MenuItem Header="Learning — auto-allow and record" Tag="learning" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeNormal" Header="Normal — enforce silently" Tag="normal" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeNotify" Header="Notify — prompt on new connections" Tag="notify" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeLearning" Header="Learning — auto-allow and record" Tag="learning" Click="OnTrayMode" />
                     </MenuItem>
                     <MenuItem Header="Global outbound">
                         <MenuItem Header="Block all outbound" Tag="block-all" Click="OnTrayGlobalMode" />
@@ -74,11 +74,17 @@
                 </StatusBarItem>
                 <Separator />
                 <StatusBarItem>
-                    <TextBlock Style="{StaticResource Hg.SubText}">
-                        <Run Text="Hosts blocked:" /><Run Text="{Binding HostsBlocked, Mode=OneWay}" />
-                        <Run Text="   DB blocked:" /><Run Text="{Binding DbBlocked, Mode=OneWay}" />
-                        <Run Text="   Allowed:" /><Run Text="{Binding DbAllowed, Mode=OneWay}" />
-                    </TextBlock>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Hg.SubText}"
+                                   Text="{Binding HostsBlocked, Mode=OneWay, StringFormat='Hosts file: {0}'}"
+                                   ToolTip="Blocked entries currently written to the Windows hosts file" />
+                        <TextBlock Style="{StaticResource Hg.SubText}" Margin="14,0,0,0"
+                                   Text="{Binding DbBlocked, Mode=OneWay, StringFormat='Blocked: {0}'}"
+                                   ToolTip="Managed domains set to blocked" />
+                        <TextBlock Style="{StaticResource Hg.SubText}" Margin="14,0,0,0"
+                                   Text="{Binding DbAllowed, Mode=OneWay, StringFormat='Allowed: {0}'}"
+                                   ToolTip="Managed domains set to allowed — these always win over blocklists" />
+                    </StackPanel>
                 </StatusBarItem>
                 <Separator />
                 <StatusBarItem>
@@ -91,7 +97,14 @@
                         <ComboBox ItemsSource="{x:Static vm:MainViewModel.UiScaleChoices}"
                                   SelectedItem="{Binding UiScalePct}"
                                   AutomationProperties.Name="UI scale percent"
-                                  Width="64" Margin="0,0,10,0" />
+                                  ToolTip="Scale the whole interface"
+                                  Width="72" Margin="0,0,10,0">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding StringFormat={}{0}%}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Button Content="{Binding ThemeToggleText}"
                                 Command="{Binding ToggleThemeCommand}"
                                 Padding="10,3"
@@ -118,7 +131,7 @@
                                       IsChecked="{Binding ShowHidden}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      AutomationProperties.Name="Search DNS activity"
-                                     ToolTip="Filter supports field:value, !term, and field!=value. Use Refresh to apply." />
+                                     ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding Rows}">
@@ -218,7 +231,7 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="FW Activity">
+                <TabItem Header="Firewall Activity">
                     <Grid Margin="4" DataContext="{Binding FwActivity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -462,6 +475,9 @@
                                         <DataGridTextColumn Header="Scope" Binding="{Binding Scope}" Width="86" />
                                     </DataGrid.Columns>
                                 </DataGrid>
+                                <TextBlock Text="No decisions yet — switch to Notify mode to get consent prompts for new connections."
+                                           Style="{StaticResource Hg.DimText}" Margin="0,4,0,0"
+                                           Visibility="{Binding ConsentHistory.Count, Converter={StaticResource EmptyStateVis}}" />
                             </StackPanel>
                         </Border>
 
@@ -575,7 +591,7 @@
                                               SelectedItem="{Binding StatusFilter}" />
                                     <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                              AutomationProperties.Name="Search managed domains"
-                                             ToolTip="Filter supports field:value, !term, and field!=value. Use Refresh to apply." />
+                                             ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                                 </DockPanel>
 
                                 <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}">
@@ -670,10 +686,11 @@
                                         <DataGridCheckBoxColumn Header="Subscribed" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
                                         <DataGridTextColumn Header="Domains" Binding="{Binding DomainCount}" Width="90" />
                                         <DataGridTextColumn Header="Last refresh" Binding="{Binding LastRefresh}" Width="160" />
-                                        <DataGridTextColumn Header="" Binding="{Binding Flags}" Width="70">
+                                        <DataGridTextColumn Header="Health" Binding="{Binding Flags}" Width="90">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                                                    <Setter Property="ToolTip" Value="Source-health flags: very large lists and mirror fallbacks" />
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
@@ -745,9 +762,14 @@
                                 <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
                                     <Button DockPanel.Dock="Right" Content="Save"
                                             Style="{StaticResource Hg.AccentButton}"
-                                            Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+                                            Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}"
+                                            ToolTip="Write the edited text back to the hosts file (enabled once the text changes)" />
                                     <Button DockPanel.Dock="Right" Content="Reload"
-                                            Command="{Binding LoadCommand}" Margin="0,0,8,0" />
+                                            Command="{Binding LoadCommand}" Margin="0,0,8,0"
+                                            ToolTip="Discard edits and reload the hosts file from disk" />
+                                    <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
+                                               Text="● Unsaved changes" Foreground="{DynamicResource Hg.Peach}"
+                                               Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}" />
                                 </DockPanel>
 
                                 <TextBox Grid.Row="1"
@@ -765,7 +787,7 @@
                     </TabControl>
                 </TabItem>
 
-                <TabItem Header="FW Rules">
+                <TabItem Header="Firewall Rules">
                     <Grid Margin="4" DataContext="{Binding FwRules}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -781,7 +803,7 @@
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      AutomationProperties.Name="Search firewall rules"
-                                     ToolTip="Filter by rule name, remote address, service, or program. Use Refresh to apply." />
+                                     ToolTip="Filters as you type — matches rule name, remote address, service, or program" />
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}">
