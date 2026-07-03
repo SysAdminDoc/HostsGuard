@@ -2,6 +2,38 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.7.0] — 2026-07-03
+
+Feature release: site names on live connections, downloaded blocklist
+intelligence with block-candidate flagging, and DeepSeek AI categorization
+that organizes the hosts file the way you already do by hand.
+
+### Added
+- **Site column on Firewall Activity** — live connections show the domain each
+  remote IP was resolved as, fed by the ETW DNS pipeline (a new IP→domain
+  cache). Unlike reverse PTR, a CDN IP maps to the site the machine actually
+  asked for. The name can land a moment after the first sighting.
+- **Blocklist intelligence** — every catalog blocklist (HaGezi, StevenBlack,
+  OISD, AdAway, …) is downloaded into a local reference index on first service
+  start and weekly after that — never imported as blocks. Hosts Activity
+  domains found on any reference list render **yellow** with a "Lists" column
+  and a tooltip naming the lists — a clear block-candidate signal. Tools gains
+  an intelligence status card with a manual refresh.
+- **AI categorization (DeepSeek)** — add a DeepSeek API key under Tools and
+  HostsGuard buckets blocked domains into hosts-file categories in your
+  existing "# Google Ads / # Microsoft Telemetry" style, persists them to the
+  Category column (new on Managed Domains), and re-homes the hosts entries
+  under matching "# Category" section headers (existing hand-made sections are
+  appended to, never rewritten). With auto-categorize on, every new manual
+  block is filed automatically; "Categorize uncategorized domains" back-fills
+  the rest. The key lives in the service's ACL-locked data folder and is
+  write-only over RPC.
+
+### Fixed
+- **Monitor status flags** — `status`/CLI reported dns=off/connections=off
+  unconditionally (hardcoded); they now reflect the live ETW monitor and
+  connection feed state.
+
 ## [0.6.6] — 2026-07-03
 
 ### Fixed
