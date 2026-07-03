@@ -4,6 +4,13 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Accessibility
+- **Locked in screen-reader names across every tab (NET-088).** The headless WPF
+  smoke test now walks all five tabs in both themes and asserts every
+  text/combo/password input exposes an `AutomationProperties.Name` — a new
+  unnamed field now fails the suite instead of silently shipping a control a
+  screen reader can't announce.
+
 ### Security
 - **Narrowed the control-pipe + session-token grant from Authenticated Users to
   INTERACTIVE (NET-087).** The bearer token that authorizes every IPC call was

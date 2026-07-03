@@ -88,6 +88,38 @@ public sealed class WpfSmokeTests
         }
     }
 
+    /// <summary>
+    /// NET-088 accessibility invariant: every text/combo/password input on a tab
+    /// must expose an AutomationProperties.Name — those controls carry no intrinsic
+    /// text, so without an explicit name a screen reader announces nothing.
+    /// </summary>
+    private static void AssertAllInputsNamed(Window window, TabControl tabs, int tabIndex, string theme)
+    {
+        var unnamed = new List<string>();
+        foreach (var el in Descendants<Control>(window))
+        {
+            if (el is not (TextBox or ComboBox or PasswordBox))
+            {
+                continue;
+            }
+
+            // The editable-part TextBox inside a ComboBox template inherits its
+            // name from the ComboBox — don't flag it separately.
+            if (el is TextBox && el.TemplatedParent is ComboBox)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(el)))
+            {
+                unnamed.Add(el.GetType().Name);
+            }
+        }
+
+        unnamed.Should().BeEmpty(
+            $"every text/combo/password input on tab {tabIndex} ({theme}) must expose an AutomationProperties.Name");
+    }
+
     [Fact]
     public void Every_window_constructs_in_both_themes_without_a_service()
     {
@@ -129,6 +161,17 @@ public sealed class WpfSmokeTests
                 window.UpdateLayout();
 
                 var mainTabs = (TabControl)window.FindName("MainTabs");
+
+                // NET-088: walk every tab and assert screen-reader names on all
+                // text/combo/password inputs (also realizes each tab's template).
+                for (var tab = 0; tab < mainTabs.Items.Count; tab++)
+                {
+                    _stage = $"{theme}: a11y-scanning tab {tab}";
+                    mainTabs.SelectedIndex = tab;
+                    window.UpdateLayout();
+                    AssertAllInputsNamed(window, mainTabs, tab, theme);
+                }
+
                 mainTabs.SelectedIndex = 3; // FW Rules.
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
