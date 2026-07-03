@@ -75,8 +75,9 @@ public class SecurityPrimitiveTests
     public void ConstantTimeEquals_matches_and_rejects()
     {
         var t = SessionToken.Generate();
+        var replacement = t[^1] == '0' ? '1' : '0';
         SessionToken.ConstantTimeEquals(t, t).Should().BeTrue();
-        SessionToken.ConstantTimeEquals(t, t[..^1] + "0").Should().BeFalse();
+        SessionToken.ConstantTimeEquals(t, t[..^1] + replacement).Should().BeFalse();
         SessionToken.ConstantTimeEquals(t, null).Should().BeFalse();
         SessionToken.ConstantTimeEquals(null, t).Should().BeFalse();
     }

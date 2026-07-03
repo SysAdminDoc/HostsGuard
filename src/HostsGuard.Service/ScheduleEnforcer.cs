@@ -33,7 +33,9 @@ public sealed class ScheduleEnforcer : IDisposable
         _hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _firewall = firewall;
-        _timer = new Timer(_ => Sweep(), null, TimeSpan.Zero, interval ?? TimeSpan.FromSeconds(30));
+        var period = interval ?? TimeSpan.FromSeconds(30);
+        var dueTime = period == Timeout.InfiniteTimeSpan ? Timeout.InfiniteTimeSpan : TimeSpan.Zero;
+        _timer = new Timer(_ => Sweep(), null, dueTime, period);
     }
 
     /// <summary>Apply the current schedule set immediately (called after an edit).</summary>

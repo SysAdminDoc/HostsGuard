@@ -16,8 +16,8 @@ namespace HostsGuard.Service.Tests;
 /// Exercises the real production hosting graph: the service impls wired to a live
 /// HostsEngine + HostsDatabase, served over the ACL'd named-pipe gRPC transport,
 /// driven by a real client. This is the NET-010 "a UI can query GetStatus" +
-/// end-to-end Block round-trip proof, sans the SCM install/reboot (which needs
-/// elevation and is out of scope for a unit run).
+/// end-to-end Block round-trip proof, without the SCM install/reboot path
+/// because that requires elevation.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class ServiceHostIntegrationTests : IAsyncLifetime

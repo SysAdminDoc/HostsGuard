@@ -26,7 +26,7 @@ public sealed class FirewallRuleScheduleTests : IDisposable
         File.WriteAllText(hostsPath, "# hosts\n");
         _hosts = new HostsEngine(hostsPath);
         _db = new HostsDatabase(Path.Combine(_dir, "hostsguard.db"));
-        _enforcer = new ScheduleEnforcer(_hosts, _db, _fw, TimeSpan.FromHours(1));
+        _enforcer = new ScheduleEnforcer(_hosts, _db, _fw, Timeout.InfiniteTimeSpan);
         _fw.CreateRule(new FwRule("HG_Block_Game", "Out", "Block", true, "Any", "Any", @"C:\game.exe", "hostsguard"));
     }
 
