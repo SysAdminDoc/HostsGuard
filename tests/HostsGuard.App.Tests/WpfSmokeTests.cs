@@ -113,6 +113,14 @@ public sealed class WpfSmokeTests
                 System.Windows.Automation.AutomationProperties.GetName(consent)
                     .Should().Be("HostsGuard connection consent prompt");
 
+                _stage = $"{theme}: constructing ConfirmDialog";
+                var confirm = new ConfirmDialog("Delete firewall rule", "Delete HG_Test?");
+                confirm.Measure(new Size(500, 260));
+                confirm.Arrange(new Rect(0, 0, 500, 260));
+                confirm.UpdateLayout();
+                System.Windows.Automation.AutomationProperties.GetName(confirm)
+                    .Should().Be("HostsGuard confirmation");
+
                 vm.Dispose();
             }
 

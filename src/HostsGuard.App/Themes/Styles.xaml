@@ -26,6 +26,19 @@
         <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
     </Style>
 
+    <Style x:Key="Hg.SectionTitle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Hg.EmptyText" TargetType="TextBlock" BasedOn="{StaticResource Hg.SubText}">
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="MaxWidth" Value="440" />
+    </Style>
+
     <Style x:Key="Hg.Card" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
@@ -34,12 +47,26 @@
         <Setter Property="Padding" Value="10" />
     </Style>
 
+    <Style x:Key="Hg.EmptyState" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="18,14" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
     <Style TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="12,6" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
@@ -64,6 +91,7 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -91,6 +119,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="6,4" />
+        <Setter Property="MinHeight" Value="32" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -114,9 +143,43 @@
         </Setter>
     </Style>
 
+    <Style TargetType="PasswordBox">
+        <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Hg.Sel}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="PasswordBox">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
@@ -148,6 +211,7 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -157,7 +221,7 @@
 
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="0,8,0,0" />
     </Style>
 
@@ -204,6 +268,7 @@
         <Setter Property="HeadersVisibility" Value="Column" />
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="CanUserAddRows" Value="False" />
+        <Setter Property="RowHeaderWidth" Value="0" />
     </Style>
 
     <Style TargetType="DataGridColumnHeader">
@@ -217,7 +282,11 @@
 
     <Style TargetType="DataGridRow">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="MinHeight" Value="30" />
         <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+            </Trigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
             </Trigger>
@@ -226,11 +295,15 @@
 
     <Style TargetType="DataGridCell">
         <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
-                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
                         <ContentPresenter VerticalAlignment="Center" />
                     </Border>
                 </ControlTemplate>
@@ -240,6 +313,9 @@
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
                 <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -295,6 +371,8 @@
         <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
         <Setter Property="Padding" Value="8,4" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
@@ -346,6 +424,7 @@
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

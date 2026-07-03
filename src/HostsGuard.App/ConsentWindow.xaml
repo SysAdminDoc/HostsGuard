@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="HostsGuard — connection blocked"
-        Width="460" SizeToContent="Height"
+        Style="{StaticResource Hg.Window}"
+        Width="500" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
         AutomationProperties.Name="HostsGuard connection consent prompt"
@@ -30,7 +31,7 @@
                 <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center">
                     <Hyperlink x:Name="LookupLink" Click="OnLookup"
                                AutomationProperties.Name="Look up this process reputation online"
-                               Foreground="{DynamicResource Hg.Mauve}">look up ↗</Hyperlink>
+                               Foreground="{DynamicResource Hg.Mauve}">Look up reputation</Hyperlink>
                 </TextBlock>
             </DockPanel>
             <TextBlock x:Name="AppPath" TextWrapping="Wrap" Foreground="{DynamicResource Hg.Dim}" FontSize="11" />
@@ -96,16 +97,16 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition /> <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="AllowButton" Grid.Column="0" Content="Allow" Margin="0,0,6,0" Padding="8,8" TabIndex="5"
+                <Button x:Name="AllowButton" Grid.Column="0" Content="Allow connection" Margin="0,0,6,0" Padding="8,8" TabIndex="5"
                         AutomationProperties.Name="Allow this connection"
                         Style="{StaticResource Hg.AccentButton}" Click="OnAllow" />
-                <Button Grid.Column="1" Content="Block" Padding="8,8" TabIndex="6"
-                        AutomationProperties.Name="Block this connection"
+                <Button Grid.Column="1" Content="Keep blocked" Padding="8,8" TabIndex="6"
+                        AutomationProperties.Name="Keep this connection blocked"
                         Style="{StaticResource Hg.DangerButton}" Click="OnBlock" />
             </Grid>
 
             <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="{DynamicResource Hg.Dim}" TextWrapping="Wrap"
-                       Text="No decision keeps the connection blocked (default-deny is active). Whole-app by default; check a scope to narrow the rule. Non-permanent rules are removed automatically." />
+                       Text="If the timer expires, this connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically." />
         </StackPanel>
     </Border>
 </Window>

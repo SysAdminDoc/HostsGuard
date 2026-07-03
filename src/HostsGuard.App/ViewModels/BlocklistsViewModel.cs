@@ -93,8 +93,8 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [RelayCommand]
     public async Task ImportAsync(BlocklistSourceViewModel source)
     {
-        if (source.LargeListWarning && !_confirm.Confirm("Large blocklist",
-            $"{source.Name} is large enough to bloat the hosts file and spike Windows DNS Client CPU. Import anyway?"))
+        if (source.LargeListWarning && !_confirm.Confirm("Import large blocklist",
+            $"{source.Name} can make the hosts file very large and increase Windows DNS Client CPU. Import it now?"))
         {
             return;
         }

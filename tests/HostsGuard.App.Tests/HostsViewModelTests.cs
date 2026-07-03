@@ -16,8 +16,8 @@ namespace HostsGuard.App.Tests;
 /// <summary>
 /// Proves the UI layer "connects to the service and drives it": a real
 /// HostsViewModel → HostsServiceClient → named-pipe gRPC → live service impls →
-/// HostsEngine + DB. (Visual XAML rendering needs an interactive desktop session
-/// and is out of scope for a headless unit run.)
+/// HostsEngine + DB. Visual XAML rendering needs an interactive desktop session;
+/// the headless smoke suite covers construction and layout.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class HostsViewModelTests : IAsyncLifetime

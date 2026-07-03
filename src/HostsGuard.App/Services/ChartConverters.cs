@@ -39,7 +39,9 @@ public sealed class SeriesBrushConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var index = value is int i ? Math.Abs(i) % 5 : 0;
-        return Application.Current?.TryFindResource($"Hg.Series{index}") as Brush ?? Brushes.Gray;
+        return Application.Current?.TryFindResource($"Hg.Series{index}") as Brush
+            ?? Application.Current?.TryFindResource("Hg.Text") as Brush
+            ?? SystemColors.ControlTextBrush;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

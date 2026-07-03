@@ -721,8 +721,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private async Task ApplyLockdownAsync(bool enable)
     {
         if (enable && !_confirm.Confirm("Enable lockdown",
-            "Set the default outbound action to Block on every firewall profile? " +
-            "New outbound connections are blocked unless a rule allows them."))
+            "Block new outbound traffic on every firewall profile unless an allow rule already covers it?"))
         {
             _suppressPostureWrite = true;
             Lockdown = false;

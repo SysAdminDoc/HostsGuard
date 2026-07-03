@@ -64,6 +64,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private BlocklistsViewModel? _blocklists;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThemeToggleText))]
     private string _theme;
 
     [ObservableProperty]
@@ -93,6 +94,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>LayoutTransform scale factor derived from the persisted percent.</summary>
     public double UiScale => UiScalePct / 100.0;
+
+    public string ThemeToggleText => Theme == "dark" ? "Light theme" : "Dark theme";
 
     public static IReadOnlyList<int> UiScaleChoices => AppConfigStore.UiScaleChoices;
 
@@ -139,7 +142,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             IsConnected = false;
-            ConnectionText = I18n.T("Status.Unavailable", "Service unavailable — {0}", ex.Message);
+            ConnectionText = I18n.T(
+                "Status.Unavailable",
+                "Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}",
+                ex.Message);
         }
     }
 
@@ -154,7 +160,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var mode = await _client.Consent.GetModeAsync(new Empty());
         FilteringMode = mode.Mode;
-        FilteringModeText = $"Mode: {mode.Mode}" + (mode.DetectionArmed ? " (armed)" : string.Empty);
+        FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed);
     }
 
     [RelayCommand]
@@ -167,8 +173,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (mode is "notify" or "learning" && FilteringMode == "normal" &&
             !_confirm.Confirm("Enable connection filtering",
-                $"Switch to {mode} mode? The default outbound action becomes Block on every " +
-                "firewall profile until you return to normal mode; your current posture is restored then."))
+                $"Switch to {mode} mode? HostsGuard will set every firewall profile to default-deny " +
+                "until you return to Normal mode, then restore the prior posture."))
         {
             return;
         }
@@ -193,8 +199,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (mode == "block-all" &&
             !_confirm.Confirm("Block all outbound",
-                "Set the default outbound action to Block on every firewall profile? " +
-                "New outbound connections are blocked unless a rule allows them."))
+                "Block new outbound traffic on every firewall profile unless an allow rule already covers it?"))
         {
             return;
         }
@@ -278,6 +283,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Theme = Theme == "dark" ? "light" : "dark";
         _themes.Apply(Theme);
         _config.Save(Theme, UiScalePct);
+    }
+
+    private static string DescribeFilteringMode(string mode, bool armed)
+    {
+        var label = mode switch
+        {
+            "notify" => "Notify - prompt on new outbound connections",
+            "learning" => "Learning - auto-allow and record for review",
+            _ => "Normal - enforce existing policy silently",
+        };
+        return armed ? $"{label} (default-deny armed)" : label;
     }
 
     partial void OnUiScalePctChanged(int value)

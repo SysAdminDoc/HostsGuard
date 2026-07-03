@@ -6,6 +6,7 @@
         x:Name="Root"
         Style="{StaticResource Hg.Window}"
         Title="HostsGuard" Height="720" Width="1180"
+        MinHeight="620" MinWidth="980"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -14,6 +15,8 @@
     <Window.Resources>
         <svc:PointsTextConverter x:Key="PointsConverter" />
         <svc:SeriesBrushConverter x:Key="SeriesBrush" />
+        <svc:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+        <svc:EmptyStateVisibilityConverter x:Key="EmptyStateVis" />
     </Window.Resources>
     <Grid>
         <tb:TaskbarIcon x:Name="Tray"
@@ -61,6 +64,12 @@
                             </Ellipse.Style>
                         </Ellipse>
                         <TextBlock Text="{Binding ConnectionText}" Style="{StaticResource Hg.SubText}" />
+                        <Button Content="Reconnect"
+                                Command="{Binding ConnectCommand}"
+                                Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
+                                Padding="8,2"
+                                Margin="8,0,0,0"
+                                ToolTip="Try the service connection again" />
                     </StackPanel>
                 </StatusBarItem>
                 <Separator />
@@ -83,7 +92,10 @@
                                   SelectedItem="{Binding UiScalePct}"
                                   AutomationProperties.Name="UI scale percent"
                                   Width="64" Margin="0,0,10,0" />
-                        <Button Content="Theme" Command="{Binding ToggleThemeCommand}" Padding="10,3" />
+                        <Button Content="{Binding ThemeToggleText}"
+                                Command="{Binding ToggleThemeCommand}"
+                                Padding="10,3"
+                                ToolTip="Switch between dark and light themes" />
                     </StackPanel>
                 </StatusBarItem>
             </StatusBar>
@@ -105,11 +117,8 @@
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding ShowHidden}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Filter — supports field:value, !term, field!=value. Enter applies.">
-                                <TextBox.InputBindings>
-                                    <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
-                                </TextBox.InputBindings>
-                            </TextBox>
+                                     AutomationProperties.Name="Search DNS activity"
+                                     ToolTip="Filter supports field:value, !term, and field!=value. Use Refresh to apply." />
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding Rows}">
@@ -190,6 +199,19 @@
                                 <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen}" Width="170" />
                             </DataGrid.Columns>
                         </DataGrid>
+
+                        <Border Grid.Row="1"
+                                Style="{StaticResource Hg.EmptyState}"
+                                Visibility="{Binding Rows.Count, Converter={StaticResource EmptyStateVis}}">
+                            <StackPanel>
+                                <TextBlock Text="No DNS activity yet"
+                                           Style="{StaticResource Hg.SectionTitle}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="HostsGuard will fill this feed as DNS events arrive. Check the service connection, then refresh if activity should already be available."
+                                           Style="{StaticResource Hg.EmptyText}" />
+                            </StackPanel>
+                        </Border>
 
                         <TextBlock Grid.Row="2" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
@@ -300,6 +322,19 @@
                                 <DataGridTextColumn Header="FW" Binding="{Binding FwStatus}" Width="90" />
                             </DataGrid.Columns>
                         </DataGrid>
+
+                        <Border Grid.Row="1"
+                                Style="{StaticResource Hg.EmptyState}"
+                                Visibility="{Binding Rows.Count, Converter={StaticResource EmptyStateVis}}">
+                            <StackPanel>
+                                <TextBlock Text="No live connections"
+                                           Style="{StaticResource Hg.SectionTitle}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="Connections appear here when the monitor is running and applications open network sessions. The status bar shows whether the service is connected."
+                                           Style="{StaticResource Hg.EmptyText}" />
+                            </StackPanel>
+                        </Border>
 
                         <!-- Per-app activity timeline (new connections per minute) -->
                         <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
@@ -528,19 +563,19 @@
                                             Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
                                     <Button DockPanel.Dock="Right" Content="Block"
                                             Style="{StaticResource Hg.AccentButton}"
-                                            Command="{Binding BlockCommand}" Margin="8,0,0,0" />
+                                            Command="{Binding BlockCommand}" Margin="8,0,0,0"
+                                            ToolTip="Enter a domain, then add it to managed blocks" />
                                     <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
                                              Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="Domain to block"
                                              ToolTip="Domain to block" />
                                     <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
                                               ItemsSource="{x:Static vm:HostsViewModel.StatusFilters}"
+                                              AutomationProperties.Name="Managed-domain status filter"
                                               SelectedItem="{Binding StatusFilter}" />
                                     <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                             ToolTip="Filter — supports field:value, !term, field!=value. Enter applies.">
-                                        <TextBox.InputBindings>
-                                            <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
-                                        </TextBox.InputBindings>
-                                    </TextBox>
+                                             AutomationProperties.Name="Search managed domains"
+                                             ToolTip="Filter supports field:value, !term, and field!=value. Use Refresh to apply." />
                                 </DockPanel>
 
                                 <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}">
@@ -602,6 +637,19 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
 
+                                <Border Grid.Row="1"
+                                        Style="{StaticResource Hg.EmptyState}"
+                                        Visibility="{Binding Domains.Count, Converter={StaticResource EmptyStateVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="No managed domains"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,4" />
+                                        <TextBlock Text="Add a domain above or import a blocklist. If you are filtering, clear the filter and refresh."
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </StackPanel>
+                                </Border>
+
                                 <TextBlock Grid.Row="2" Margin="2,6,0,0"
                                            Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                             </Grid>
@@ -648,6 +696,19 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
 
+                                <Border Grid.Row="0"
+                                        Style="{StaticResource Hg.EmptyState}"
+                                        Visibility="{Binding Sources.Count, Converter={StaticResource EmptyStateVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="No blocklist sources"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,4" />
+                                        <TextBlock Text="The service did not return the curated catalog. Reconnect to the service, then refresh subscriptions."
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </StackPanel>
+                                </Border>
+
                                 <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="Save + apply allowlists"
@@ -661,6 +722,7 @@
                                             <TextBlock Text="Allowlist URLs (one per line — whitelisted domains always win over blocklists)"
                                                        Style="{StaticResource Hg.SubText}" Margin="0,0,0,4" />
                                             <TextBox Text="{Binding AllowlistUrlsText, UpdateSourceTrigger=PropertyChanged}"
+                                                     AutomationProperties.Name="Allowlist subscription URLs"
                                                      AcceptsReturn="True" MinHeight="52" MaxHeight="110"
                                                      VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
                                         </StackPanel>
@@ -690,6 +752,7 @@
 
                                 <TextBox Grid.Row="1"
                                          Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Raw hosts file editor"
                                          AcceptsReturn="True" AcceptsTab="True"
                                          FontFamily="Consolas"
                                          VerticalScrollBarVisibility="Auto"
@@ -717,11 +780,8 @@
                             <CheckBox DockPanel.Dock="Right" Content="HostsGuard rules only" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                     ToolTip="Filter by name, address, or program. Enter applies.">
-                                <TextBox.InputBindings>
-                                    <KeyBinding Key="Return" Command="{Binding RefreshCommand}" />
-                                </TextBox.InputBindings>
-                            </TextBox>
+                                     AutomationProperties.Name="Search firewall rules"
+                                     ToolTip="Filter by rule name, remote address, service, or program. Use Refresh to apply." />
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}">
@@ -761,28 +821,48 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
+                        <Border Grid.Row="1"
+                                Style="{StaticResource Hg.EmptyState}"
+                                Visibility="{Binding Rules.Count, Converter={StaticResource EmptyStateVis}}">
+                            <StackPanel>
+                                <TextBlock Text="No firewall rules match"
+                                           Style="{StaticResource Hg.SectionTitle}"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,4" />
+                                <TextBlock Text="Clear the filter, turn off HostsGuard-only, or refresh to load current Windows Firewall rules."
+                                           Style="{StaticResource Hg.EmptyText}" />
+                            </StackPanel>
+                        </Border>
+
                         <!-- Inline custom-rule form -->
                         <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                             <DockPanel>
                                 <Button DockPanel.Dock="Right" Content="Create rule"
                                         Style="{StaticResource Hg.AccentButton}"
-                                        Command="{Binding CreateRuleCommand}" Margin="8,0,0,0" />
+                                        Command="{Binding CreateRuleCommand}" Margin="8,0,0,0"
+                                        ToolTip="Enter a rule name before creating a firewall rule" />
                                 <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
                                          Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="New firewall rule name"
                                          ToolTip="Rule name (HG_ prefix added automatically)" />
                                 <ComboBox DockPanel.Dock="Left" Width="64" Margin="0,0,8,0"
                                           ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
+                                          AutomationProperties.Name="New firewall rule direction"
                                           SelectedItem="{Binding NewRuleDirection}" />
                                 <ComboBox DockPanel.Dock="Left" Width="80" Margin="0,0,8,0"
                                           ItemsSource="{x:Static vm:FwRulesViewModel.Actions}"
+                                          AutomationProperties.Name="New firewall rule action"
                                           SelectedItem="{Binding NewRuleAction}" />
                                 <ComboBox DockPanel.Dock="Left" Width="70" Margin="0,0,8,0"
                                           ItemsSource="{x:Static vm:FwRulesViewModel.Protocols}"
+                                          AutomationProperties.Name="New firewall rule protocol"
                                           SelectedItem="{Binding NewRuleProtocol}" />
                                 <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
                                          Text="{Binding NewRuleRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="New firewall rule remote address"
                                          ToolTip="Remote address: IP, CIDR, or range (empty = Any)" />
                                 <TextBox Text="{Binding NewRuleProgram, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="New firewall rule program path"
                                          ToolTip="Program path (optional)" />
                             </DockPanel>
                         </Border>
@@ -814,11 +894,14 @@
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">
                                         <Button DockPanel.Dock="Left" Content="Arm lock" Command="{Binding EnableLockCommand}" Margin="0,0,6,0" Padding="10,2"
-                                                CommandParameter="{Binding ElementName=LockPasswordBox}" Click="OnLockPasswordSync" />
+                                                CommandParameter="{Binding ElementName=LockPasswordBox}" Click="OnLockPasswordSync"
+                                                ToolTip="Set the password that protects filtering, posture, and HG_ rule changes" />
                                         <Button DockPanel.Dock="Left" Content="Disarm" Command="{Binding DisableLockCommand}" Margin="0,0,6,0" Padding="10,2"
-                                                Click="OnLockPasswordSync" />
+                                                Click="OnLockPasswordSync"
+                                                ToolTip="Remove the settings lock after entering the password" />
                                         <Button DockPanel.Dock="Left" Content="Unlock" Command="{Binding UnlockCommand}" Margin="0,0,6,0" Padding="10,2"
-                                                Click="OnLockPasswordSync" />
+                                                Click="OnLockPasswordSync"
+                                                ToolTip="Temporarily unlock protected actions for the configured number of minutes" />
                                         <TextBox DockPanel.Dock="Left" Width="46" VerticalAlignment="Center"
                                                  Text="{Binding UnlockMinutes, UpdateSourceTrigger=PropertyChanged}"
                                                  AutomationProperties.Name="Unlock minutes" ToolTip="Timed-unlock window in minutes" />
@@ -834,19 +917,18 @@
                                                 Command="{Binding FlushDnsCommand}" Margin="0,0,10,0" />
                                         <ComboBox DockPanel.Dock="Left" Width="180" Margin="0,0,10,0"
                                                   ItemsSource="{x:Static vm:ToolsViewModel.ResolverNames}"
+                                                  AutomationProperties.Name="DNS resolver preset"
                                                   SelectedItem="{Binding SelectedResolver}" />
                                         <Button DockPanel.Dock="Left" Content="Apply resolver"
                                                 Command="{Binding ApplyResolverCommand}" />
                                     </DockPanel>
                                     <DockPanel Margin="0,10,0,0">
                                         <Button DockPanel.Dock="Right" Content="Inspect"
-                                                Command="{Binding InspectCommand}" Margin="8,0,0,0" />
+                                                Command="{Binding InspectCommand}" Margin="8,0,0,0"
+                                                ToolTip="Enter a domain to resolve and check" />
                                         <TextBox Text="{Binding InspectDomain, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Domain to resolve and check block state">
-                                            <TextBox.InputBindings>
-                                                <KeyBinding Key="Return" Command="{Binding InspectCommand}" />
-                                            </TextBox.InputBindings>
-                                        </TextBox>
+                                                 AutomationProperties.Name="Domain to inspect"
+                                                 ToolTip="Domain to resolve and check block state" />
                                     </DockPanel>
                                     <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0" />
 
@@ -870,9 +952,11 @@
                                         </Button>
                                         <TextBox DockPanel.Dock="Left" Width="240" Margin="0,0,8,0"
                                                  Text="{Binding DohUrl, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="DoH intelligence URL"
                                                  ToolTip="Optional remote resolver-list URL (https)" />
                                         <TextBox DockPanel.Dock="Left" Width="200" Margin="0,0,8,0"
                                                  Text="{Binding DohSha256, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="DoH intelligence SHA-256"
                                                  ToolTip="Expected SHA-256 of the remote list (required with a URL)" />
                                         <Button DockPanel.Dock="Left" Content="Refresh DoH intelligence"
                                                 Command="{Binding RefreshDohCommand}" />
@@ -979,6 +1063,12 @@
                                             </DataGridTemplateColumn>
                                         </DataGrid.Columns>
                                     </DataGrid>
+                                    <Border Style="{StaticResource Hg.EmptyState}"
+                                            Margin="0,8,0,0"
+                                            Visibility="{Binding Schedules.Count, Converter={StaticResource EmptyStateVis}}">
+                                        <TextBlock Text="No schedules yet. Add a blocking window, then save schedules."
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </Border>
                                     <DockPanel Margin="0,8,0,0" LastChildFill="False">
                                         <Button DockPanel.Dock="Left" Content="Add window"
                                                 Command="{Binding AddScheduleCommand}" Margin="0,0,10,0" />
@@ -993,40 +1083,46 @@
                                 <StackPanel>
                                     <TextBlock Text="Network profiles" FontWeight="SemiBold" Margin="0,0,0,4" />
                                     <TextBlock Text="{Binding ActiveProfile}" Style="{StaticResource Hg.DimText}" Margin="0,0,0,8" />
-                                    <DockPanel LastChildFill="False">
-                                        <ComboBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
+                                    <WrapPanel>
+                                        <ComboBox Width="180" Margin="0,0,8,8"
                                                   ItemsSource="{Binding Profiles}"
+                                                  AutomationProperties.Name="Saved network profiles"
                                                   SelectedItem="{Binding SelectedProfile}" />
-                                        <Button DockPanel.Dock="Left" Content="Switch"
+                                        <Button Content="Switch"
                                                 Style="{StaticResource Hg.AccentButton}"
-                                                Command="{Binding SwitchProfileCommand}" Margin="0,0,8,0" />
-                                        <Button DockPanel.Dock="Left" Content="Delete"
+                                                Command="{Binding SwitchProfileCommand}" Margin="0,0,8,8"
+                                                ToolTip="Choose a saved profile first" />
+                                        <Button Content="Delete"
                                                 Style="{StaticResource Hg.DangerButton}"
-                                                Command="{Binding DeleteProfileCommand}" Margin="0,0,16,0" />
-                                        <TextBox DockPanel.Dock="Left" Width="180" Margin="0,0,8,0"
+                                                Command="{Binding DeleteProfileCommand}" Margin="0,0,16,8"
+                                                ToolTip="Choose a saved profile first" />
+                                        <TextBox Width="180" Margin="0,0,8,8"
                                                  Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="New profile name"
                                                  ToolTip="Name for a snapshot of the current rule set" />
-                                        <Button DockPanel.Dock="Left" Content="Save current as profile"
-                                                Command="{Binding SaveProfileCommand}" />
-                                    </DockPanel>
+                                        <Button Content="Save current as profile"
+                                                Command="{Binding SaveProfileCommand}"
+                                                Margin="0,0,8,8"
+                                                ToolTip="Enter a profile name before saving" />
+                                    </WrapPanel>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="Maintenance" FontWeight="SemiBold" Margin="0,0,0,8" />
-                                    <DockPanel LastChildFill="False">
+                                    <WrapPanel>
                                         <Button DockPanel.Dock="Left" Content="Backup hosts file"
-                                                Command="{Binding BackupHostsCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding BackupHostsCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Harden hosts ACL"
-                                                Command="{Binding HardenAclCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding HardenAclCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Export support bundle (redacted)"
-                                                Command="{Binding ExportBundleCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding ExportBundleCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Apply known-safe baseline"
-                                                Command="{Binding ApplyBaselineCommand}" Margin="0,0,10,0"
+                                                Command="{Binding ApplyBaselineCommand}" Margin="0,0,10,8"
                                                 ToolTip="Pre-allow essential Windows binaries (Update, Defender, kernel) so ask-to-connect targets interesting traffic instead of prompting for OS infrastructure." />
                                         <Button DockPanel.Dock="Left"
-                                                Command="{Binding ToggleSecureRulesCommand}" Margin="0,0,10,0"
+                                                Command="{Binding ToggleSecureRulesCommand}" Margin="0,0,10,8"
                                                 ToolTip="Secure Rules: the service recreates or re-enables any HostsGuard rule deleted or disabled behind its back. Only touches HG_ rules.">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -1042,28 +1138,32 @@
                                             </Button.Style>
                                         </Button>
                                         <Button DockPanel.Dock="Left" Content="Refresh threat intel"
-                                                Command="{Binding RefreshThreatIntelCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding RefreshThreatIntelCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Refresh GeoIP"
-                                                Command="{Binding RefreshGeoIpCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding RefreshGeoIpCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Exclude hosts in Defender"
-                                                Command="{Binding AddDefenderExclusionCommand}" Margin="0,0,10,0" />
+                                                Command="{Binding AddDefenderExclusionCommand}" Margin="0,0,10,8" />
                                         <Button DockPanel.Dock="Left" Content="Emergency reset hosts"
                                                 Style="{StaticResource Hg.DangerButton}"
-                                                Command="{Binding EmergencyResetCommand}" />
-                                    </DockPanel>
-                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
-                                        <TextBlock DockPanel.Dock="Left" Text="Restore backup:" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <ComboBox DockPanel.Dock="Left" Width="320" Margin="0,0,8,0"
+                                                Command="{Binding EmergencyResetCommand}"
+                                                Margin="0,0,10,8" />
+                                    </WrapPanel>
+                                    <WrapPanel Margin="0,2,0,0">
+                                        <TextBlock Text="Restore backup:" VerticalAlignment="Center" Margin="0,0,8,8" />
+                                        <ComboBox Width="320" Margin="0,0,8,8"
                                                   ItemsSource="{Binding Backups}"
                                                   SelectedItem="{Binding SelectedBackup}"
                                                   DisplayMemberPath="Label"
+                                                  AutomationProperties.Name="Hosts backup to restore"
                                                   ToolTip="Hosts-file backups in the service data directory" />
-                                        <Button DockPanel.Dock="Left" Content="Restore"
+                                        <Button Content="Restore"
                                                 Style="{StaticResource Hg.DangerButton}"
-                                                Command="{Binding RestoreBackupCommand}" Margin="0,0,10,0" />
-                                        <Button DockPanel.Dock="Left" Content="Refresh list"
-                                                Command="{Binding LoadBackupsCommand}" />
-                                    </DockPanel>
+                                                Command="{Binding RestoreBackupCommand}" Margin="0,0,10,8"
+                                                ToolTip="Choose a backup before restoring" />
+                                        <Button Content="Refresh list"
+                                                Command="{Binding LoadBackupsCommand}"
+                                                Margin="0,0,10,8" />
+                                    </WrapPanel>
                                     <TextBlock Text="{Binding DefenderStatusText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,0" />
                                 </StackPanel>
                             </Border>

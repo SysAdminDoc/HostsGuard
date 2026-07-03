@@ -19,7 +19,7 @@
     <value>Connected — service v{0}</value>
   </data>
   <data name="Status.Unavailable" xml:space="preserve">
-    <value>Service unavailable — {0}</value>
+    <value>Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}</value>
   </data>
   <data name="Status.Ready" xml:space="preserve">
     <value>Ready</value>

@@ -22,6 +22,7 @@ public sealed partial class HostsViewModel : ObservableObject
     private readonly IConfirm _confirm;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(BlockCommand))]
     private string _newDomain = string.Empty;
 
     [ObservableProperty]
@@ -60,17 +61,20 @@ public sealed partial class HostsViewModel : ObservableObject
         StatusText = $"{Domains.Count} domains";
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanBlock))]
     public async Task BlockAsync()
     {
-        var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = NewDomain, Source = "manual" });
-        StatusText = ack.Ok ? $"Blocked {NewDomain}" : ack.Message;
+        var domain = NewDomain.Trim();
+        var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
+        StatusText = ack.Ok ? $"Blocked {domain}" : ack.Message;
         if (ack.Ok)
         {
             NewDomain = string.Empty;
             await RefreshAsync();
         }
     }
+
+    private bool CanBlock() => !string.IsNullOrWhiteSpace(NewDomain);
 
     [RelayCommand]
     public async Task AllowAsync(string domain)
@@ -83,7 +87,8 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task UnblockAsync(string domain)
     {
-        if (!_confirm.Confirm("Remove domain", $"Remove {domain} from managed domains?"))
+        if (!_confirm.Confirm("Remove managed domain",
+            $"Remove {domain} from managed domains? This stops HostsGuard from writing it to the hosts file."))
         {
             return;
         }
@@ -129,7 +134,8 @@ public sealed partial class HostsViewModel : ObservableObject
     public async Task RemoveSelectedAsync(IList? selected)
     {
         var domains = SelectedDomains(selected);
-        if (domains.Count == 0 || !_confirm.Confirm("Remove domains", $"Remove {domains.Count} selected domains?"))
+        if (domains.Count == 0 || !_confirm.Confirm("Remove managed domains",
+            $"Remove {domains.Count} selected domains? HostsGuard will stop writing them to the hosts file."))
         {
             return;
         }

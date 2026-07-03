@@ -19,6 +19,7 @@ public sealed partial class RawHostsViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDirty))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     private string _text = string.Empty;
 
     [ObservableProperty]
@@ -37,9 +38,10 @@ public sealed partial class RawHostsViewModel : ObservableObject
         Text = result.Text;
         StatusText = $"{Text.Split('\n').Length} lines";
         OnPropertyChanged(nameof(IsDirty));
+        SaveCommand.NotifyCanExecuteChanged();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSave))]
     public async Task SaveAsync()
     {
         var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = Text });
@@ -49,4 +51,6 @@ public sealed partial class RawHostsViewModel : ObservableObject
             await LoadAsync();
         }
     }
+
+    private bool CanSave() => IsDirty;
 }

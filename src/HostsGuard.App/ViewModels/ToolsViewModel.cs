@@ -116,6 +116,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _selectedResolver = "DHCP (default)";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(InspectCommand))]
     private string _inspectDomain = string.Empty;
 
     [ObservableProperty]
@@ -220,6 +221,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     // ─── Backup restore ───────────────────────────────────────────────────────
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RestoreBackupCommand))]
     private BackupRowViewModel? _selectedBackup;
 
     public ObservableCollection<BackupRowViewModel> Backups { get; } = new();
@@ -242,17 +244,17 @@ public sealed partial class ToolsViewModel : ObservableObject
         SelectedBackup = Backups.FirstOrDefault();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRestoreBackup))]
     public async Task RestoreBackupAsync()
     {
         if (SelectedBackup is null)
         {
-            StatusText = "No backup selected";
+            StatusText = "Choose a backup before restoring.";
             return;
         }
 
         if (!_confirm.Confirm("Restore hosts backup",
-            $"Replace the live hosts file with '{SelectedBackup.FileName}'? The current file is backed up first."))
+            $"Replace the live hosts file with '{SelectedBackup.FileName}'? HostsGuard will write the selected backup immediately."))
         {
             return;
         }
@@ -264,6 +266,8 @@ public sealed partial class ToolsViewModel : ObservableObject
             await LoadBackupsAsync();
         }
     }
+
+    private bool CanRestoreBackup() => SelectedBackup is not null;
 
     [RelayCommand]
     public async Task HardenAclAsync()
@@ -279,15 +283,17 @@ public sealed partial class ToolsViewModel : ObservableObject
         StatusText = ack.Ok ? $"Support bundle: {ack.Message}" : ack.Message;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanInspect))]
     public async Task InspectAsync()
     {
-        var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain });
+        var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain.Trim() });
         var records = result.Records.Count == 0
             ? "no records"
             : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
         InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
     }
+
+    private bool CanInspect() => !string.IsNullOrWhiteSpace(InspectDomain);
 
     [ObservableProperty]
     private string _defenderStatusText = string.Empty;
@@ -333,7 +339,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task EmergencyResetAsync()
     {
         if (!_confirm.Confirm("Emergency reset",
-            "Reset the hosts file to Windows defaults? All HostsGuard blocks are removed from the file."))
+            "Reset the hosts file to Windows defaults? This removes every HostsGuard hosts-file block immediately."))
         {
             return;
         }
@@ -348,9 +354,12 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _activeProfile = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SwitchProfileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteProfileCommand))]
     private string? _selectedProfile;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveProfileCommand))]
     private string _newProfileName = string.Empty;
 
     public ObservableCollection<string> Profiles { get; } = new();
@@ -369,10 +378,10 @@ public sealed partial class ToolsViewModel : ObservableObject
         SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSaveProfile))]
     public async Task SaveProfileAsync()
     {
-        var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName });
+        var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName.Trim() });
         StatusText = ack.Message;
         if (ack.Ok)
         {
@@ -381,7 +390,11 @@ public sealed partial class ToolsViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    private bool CanSaveProfile() => !string.IsNullOrWhiteSpace(NewProfileName);
+
+    private bool CanUseSelectedProfile() => !string.IsNullOrWhiteSpace(SelectedProfile);
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedProfile))]
     public async Task SwitchProfileAsync()
     {
         if (string.IsNullOrEmpty(SelectedProfile))
@@ -394,11 +407,12 @@ public sealed partial class ToolsViewModel : ObservableObject
         await LoadProfilesAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseSelectedProfile))]
     public async Task DeleteProfileAsync()
     {
         if (string.IsNullOrEmpty(SelectedProfile) ||
-            !_confirm.Confirm("Delete profile", $"Delete profile '{SelectedProfile}'?"))
+            !_confirm.Confirm("Delete network profile",
+                $"Delete network profile '{SelectedProfile}'? Saved firewall and hosts policy snapshots for this profile will be removed."))
         {
             return;
         }

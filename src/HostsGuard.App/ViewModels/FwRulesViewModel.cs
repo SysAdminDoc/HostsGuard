@@ -86,6 +86,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
     // Inline custom-rule form.
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateRuleCommand))]
     private string _newRuleName = string.Empty;
 
     [ObservableProperty]
@@ -158,7 +159,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand]
     public async Task DeleteRuleAsync(string name)
     {
-        if (!_confirm.Confirm("Delete firewall rule", $"Delete rule {name}?"))
+        if (!_confirm.Confirm("Delete firewall rule",
+            $"Delete firewall rule {name}? Connections covered only by this rule may be blocked or allowed differently."))
         {
             return;
         }
@@ -172,7 +174,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
     public async Task DeleteSelectedAsync(IList? selected)
     {
         var names = selected?.OfType<FwRuleViewModel>().Select(r => r.Name).ToList() ?? new List<string>();
-        if (names.Count == 0 || !_confirm.Confirm("Delete firewall rules", $"Delete {names.Count} selected rules?"))
+        if (names.Count == 0 || !_confirm.Confirm("Delete firewall rules",
+            $"Delete {names.Count} selected rules? Connections covered only by these rules may behave differently."))
         {
             return;
         }
@@ -214,7 +217,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
             var best = suggestions.Candidates[0];
             if (_confirm.Confirm("Rebind firewall rule",
                 $"Re-target {rule.Name}\nfrom: {suggestions.OldPath}\nto: {best.Path}\n" +
-                $"Confidence {best.Score}/100 ({best.Reasons})."))
+                $"Confidence {best.Score}/100 ({best.Reasons}). The old executable path will no longer be covered."))
             {
                 target = best.Path;
             }
@@ -242,17 +245,17 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanCreateRule))]
     public async Task CreateRuleAsync()
     {
         var ack = await _client.Firewall.CreateRuleAsync(new FirewallRule
         {
-            Name = NewRuleName,
+            Name = NewRuleName.Trim(),
             Direction = NewRuleDirection,
             Action = NewRuleAction,
             Protocol = NewRuleProtocol,
-            RemoteAddr = NewRuleRemoteAddr,
-            Program = NewRuleProgram,
+            RemoteAddr = NewRuleRemoteAddr.Trim(),
+            Program = NewRuleProgram.Trim(),
             Enabled = true,
         });
         StatusText = ack.Message;
@@ -264,4 +267,6 @@ public sealed partial class FwRulesViewModel : ObservableObject
             await RefreshAsync();
         }
     }
+
+    private bool CanCreateRule() => !string.IsNullOrWhiteSpace(NewRuleName);
 }

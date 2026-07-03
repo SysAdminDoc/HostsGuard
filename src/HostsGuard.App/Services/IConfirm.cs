@@ -1,4 +1,4 @@
-using System.Windows;
+using HostsGuard.App;
 
 namespace HostsGuard.App.Services;
 
@@ -12,10 +12,9 @@ public interface IConfirm
     bool Confirm(string title, string message);
 }
 
-/// <summary>Production confirm: a modal Yes/No prompt, defaulting to No.</summary>
+/// <summary>Production confirm: a themed modal prompt, defaulting to Cancel.</summary>
 public sealed class MessageBoxConfirm : IConfirm
 {
     public bool Confirm(string title, string message)
-        => MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning,
-            MessageBoxResult.No) == MessageBoxResult.Yes;
+        => ConfirmDialog.Confirm(title, message);
 }
