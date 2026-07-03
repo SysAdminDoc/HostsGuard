@@ -608,9 +608,45 @@
         </Setter>
     </Style>
 
-    <!-- Context/submenu roles only (the app has no top-level menu bar). The
-         default template highlights in system blue and paints a light icon
-         gutter; this one stays on Hg.* tokens and shows IsChecked marks. -->
+    <Style TargetType="Menu">
+        <Setter Property="Background" Value="{DynamicResource Hg.Crust}" />
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="Padding" Value="4,2" />
+    </Style>
+
+    <!-- Top-level menu-bar item: plain label, dropdown opens BELOW. -->
+    <ControlTemplate x:Key="Hg.TopLevelMenuItem" TargetType="MenuItem">
+        <Border x:Name="Chrome" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+            <Grid>
+                <ContentPresenter ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                <Popup x:Name="PART_Popup" Placement="Bottom" VerticalOffset="2"
+                       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                       AllowsTransparency="True" Focusable="False">
+                    <Border Background="{DynamicResource Hg.Mantle}"
+                            BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
+                            CornerRadius="6" Padding="4" MinWidth="220">
+                        <ItemsPresenter />
+                    </Border>
+                </Popup>
+            </Grid>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Sel}" />
+            </Trigger>
+            <Trigger Property="IsSubmenuOpen" Value="True">
+                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Sel}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <!-- Context/submenu roles by default; top-level roles swap templates via
+         triggers below. The default template highlights in system blue and
+         paints a light icon gutter; this one stays on Hg.* tokens and shows
+         IsChecked marks. -->
     <Style TargetType="MenuItem">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
@@ -666,6 +702,18 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="Role" Value="TopLevelHeader">
+                <Setter Property="Template" Value="{StaticResource Hg.TopLevelMenuItem}" />
+                <Setter Property="Padding" Value="10,4" />
+                <Setter Property="MinHeight" Value="0" />
+            </Trigger>
+            <Trigger Property="Role" Value="TopLevelItem">
+                <Setter Property="Template" Value="{StaticResource Hg.TopLevelMenuItem}" />
+                <Setter Property="Padding" Value="10,4" />
+                <Setter Property="MinHeight" Value="0" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="Separator">

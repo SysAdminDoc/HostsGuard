@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Reflection;
 using System.Windows;
 using HostsGuard.App.ViewModels;
 
@@ -154,6 +155,21 @@ public partial class MainWindow : Window
         Tray.Dispose();
         base.OnClosing(e);
     }
+
+    private void OnAbout(object sender, RoutedEventArgs e)
+    {
+        var version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion.Split('+')[0] ?? "unknown";
+        MessageBox.Show(
+            $"HostsGuard v{version}\n\nSplit-trust Windows network-privacy manager: hosts-file blocking, "
+            + "firewall control, live DNS/connection monitoring, and outbound consent prompts.",
+            "About HostsGuard", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void OnOpenGitHub(object sender, RoutedEventArgs e)
+        => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+            "https://github.com/SysAdminDoc/HostsGuard") { UseShellExecute = true });
 
     private void OnTrayOpen(object sender, RoutedEventArgs e)
     {

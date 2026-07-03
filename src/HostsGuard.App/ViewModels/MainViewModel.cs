@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -286,6 +287,199 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Theme = Theme == "dark" ? "light" : "dark";
         _themes.Apply(Theme);
         _config.Save(Theme, UiScalePct);
+    }
+
+    // ─── File menu ────────────────────────────────────────────────────────────
+
+    private const string HostsFileFilter = "Hosts files (*.txt;hosts)|*.txt;hosts|All files (*.*)|*.*";
+    private const string JsonFilter = "JSON (*.json)|*.json|All files (*.*)|*.*";
+    private const int MaxImportBytes = 10 * 1024 * 1024;
+
+    /// <summary>Replace the live hosts file with a picked file (backs up first).</summary>
+    [RelayCommand]
+    public async Task ImportHostsFileAsync()
+    {
+        if (_client is null || _filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.PickFile("Import hosts file", filter: HostsFileFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length > MaxImportBytes)
+        {
+            ConnectionText = "Import failed — the file is missing or over 10 MB";
+            return;
+        }
+
+        if (!_confirm.Confirm("Import hosts file",
+            $"Replace the live hosts file with {Path.GetFileName(path)}? The current file is backed up first."))
+        {
+            return;
+        }
+
+        await _client.Hosts.BackupHostsAsync(new Empty());
+        var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = await File.ReadAllTextAsync(path) });
+        ConnectionText = ack.Ok ? $"Imported {Path.GetFileName(path)} into the hosts file" : ack.Message;
+        if (ack.Ok)
+        {
+            if (RawHosts is not null)
+            {
+                await RawHosts.LoadAsync();
+            }
+
+            if (Hosts is not null)
+            {
+                await Hosts.RefreshAsync();
+            }
+        }
+    }
+
+    /// <summary>Write the live hosts file to a picked destination.</summary>
+    [RelayCommand]
+    public async Task ExportHostsFileAsync()
+    {
+        if (_client is null || _filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export hosts file", "hosts.txt", HostsFileFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var text = await _client.Hosts.GetHostsTextAsync(new Empty());
+        await File.WriteAllTextAsync(path, text.Text);
+        ConnectionText = $"Hosts file exported to {path}";
+    }
+
+    /// <summary>Export the managed-domain policy (with categories) as JSON.</summary>
+    [RelayCommand]
+    public async Task ExportDomainsAsync()
+    {
+        if (_client is null || _filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export managed domains", "hostsguard_domains.json", JsonFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest());
+        var rows = list.Domains.Select(d => new
+        {
+            domain = d.Domain,
+            status = d.Status,
+            category = d.Category,
+            source = d.Source,
+            reason = d.Reason,
+            hits = d.Hits,
+        });
+        await File.WriteAllTextAsync(path, System.Text.Json.JsonSerializer.Serialize(
+            rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        ConnectionText = $"Exported {list.Domains.Count} domains to {path}";
+    }
+
+    // ─── View menu ────────────────────────────────────────────────────────────
+
+    /// <summary>Back to defaults: filters cleared, toggles reset, 100% scale.</summary>
+    [RelayCommand]
+    public void ResetView()
+    {
+        if (Activity is not null)
+        {
+            Activity.Filter = string.Empty;
+            Activity.ShowHidden = false;
+            Activity.HideBlocked = false;
+            Activity.GroupByRoot = false;
+        }
+
+        if (Hosts is not null)
+        {
+            Hosts.Filter = string.Empty;
+            Hosts.StatusFilter = "All";
+        }
+
+        if (FwActivity is not null)
+        {
+            FwActivity.Filter = string.Empty;
+            FwActivity.GroupByApp = true;
+            FwActivity.ResolveIps = false;
+        }
+
+        if (FwRules is not null)
+        {
+            FwRules.Filter = string.Empty;
+            FwRules.HostsGuardOnly = true;
+        }
+
+        UiScalePct = 100;
+    }
+
+    /// <summary>Re-query every tab from the service.</summary>
+    [RelayCommand]
+    public async Task RefreshAllAsync()
+    {
+        if (Activity is not null)
+        {
+            await Activity.RefreshAsync();
+        }
+
+        if (Hosts is not null)
+        {
+            await Hosts.RefreshAsync();
+        }
+
+        if (FwRules is not null)
+        {
+            await FwRules.RefreshAsync();
+        }
+
+        if (Blocklists is not null)
+        {
+            await Blocklists.RefreshAsync();
+        }
+
+        if (RawHosts is not null && !RawHosts.IsDirty)
+        {
+            await RawHosts.LoadAsync();
+        }
+
+        if (FwActivity is not null)
+        {
+            await FwActivity.LoadPostureAsync();
+            await FwActivity.LoadConsentHistoryAsync();
+            await FwActivity.LoadLearnedAsync();
+        }
+
+        if (Tools is not null)
+        {
+            await Tools.LoadAiStatusAsync();
+            await Tools.LoadIntelStatusAsync();
+        }
+    }
+
+    [RelayCommand]
+    public void SetScale(object? pct)
+    {
+        if (pct is int value)
+        {
+            UiScalePct = value;
+        }
+        else if (int.TryParse(pct?.ToString(), out var parsed))
+        {
+            UiScalePct = parsed;
+        }
     }
 
     private static string DescribeFilteringMode(string mode, bool armed)
