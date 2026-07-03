@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.5.1-blue)
+![Version](https://img.shields.io/badge/version-0.6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -74,11 +74,15 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Feature | Description |
 |---------|-------------|
 | Live connections | Real-time outbound TCP/UDP view via IPHLPAPI extended tables (PID-attributed, no elevation needed) |
+| Group by app + search | Collapsible per-process grouping with a `field:value` search DSL (`port:443 country!=US`, `fw:threat`) |
+| Service attribution | svchost-hosted connections show the responsible Windows service (SCM enumeration) |
 | Blocked-connection watch | Security event log 5157/5152 detection feeds the consent broker |
-| Status overlay | Each connection shows whether it's blocked by hosts file, firewall, or neither |
-| Quick blocking | Block any remote IP or program directly from the connection list |
+| Status overlay | Each connection shows blocked-by-hosts/firewall/threat, plus **DIRECT-IP** for raw-IP dials with no preceding DNS lookup |
+| Quick blocking | Block any remote IP or program, or scope-block a program to Internet / LAN / localhost / inbound |
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
-| Activity timeline | Chronological firewall activity view |
+| Connection history | Retention-bounded searchable log of past connections (default 30 days) |
+| Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
+| Learning review | Batch-promote, reverse, or discard Learning-mode auto-decisions |
 
 ### Hosts File
 
@@ -111,8 +115,11 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |
 | DNS resolver switcher | One-click switch to Cloudflare, Google, Quad9, AdGuard DNS, or NextDNS + DNS flush |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers |
-| Scheduled blocking | Block a domain or service on a recurring weekly schedule (windows may cross midnight) |
-| Network profiles | Save/switch named rule sets — different blocking for home/work/public |
+| Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
+| Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
+| Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; one-click hosts-file write protection |
+| Global outbound | Tray Block-all / Allow-all outbound posture selector (no restart) |
+| Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event log of every block, allow, firewall, and policy action |

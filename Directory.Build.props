@@ -16,6 +16,15 @@
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
     <!-- Shared product version — single source of truth for every assembly.
+         0.6.0: roadmap-drain release on .NET 10 LTS — connection history +
+         per-app bandwidth (NET-070), group-by-app live view + DSL search
+         (071), svchost per-service attribution + rules (073), Learning-mode
+         decide-later review (074), global outbound modes + per-app scope
+         blocks + block-P2P (076), blocklist source-health + mirror fallback
+         (077), settings lock + hosts write-protection (079), automatic
+         network-profile switching (083), firewall rule scheduler (084),
+         consent micro-features (085), opt-in loopback JSON-RPC/OpenAPI API
+         (044). NET-086 local DNS forwarder decided NO-GO.
          0.5.1: Python retirement — the v3.17 Python/PySide6 implementation is
          removed from the tree (preserved at the python-eol tag); .NET is the
          sole implementation. No engine code changes.
@@ -27,7 +36,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.5.1</Version>
+    <Version>0.6.0</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

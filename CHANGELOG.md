@@ -2,7 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.6.0] — 2026-07-02
+
+Roadmap-drain release: the entire 2026-07-02 research batch (NET-044, 070, 071,
+073, 074, 076, 077, 079, 083, 084, 085) plus the .NET 10 LTS migration (081).
+The one strategic spike, NET-086 (local DNS forwarder), was decided **NO-GO** —
+HostsGuard stays an observer/enforcer that fails open, never a resolver (full
+rationale + revisit criteria in RESEARCH.md § Design Decisions). Only
+operator-gated items (NET-052 code signing and its dependents) and a deferred
+loopback-webhook sub-item (NET-044b) remain.
 
 ### Added — optional headless JSON-RPC/OpenAPI loopback (NET-044)
 - **Loopback API (off by default)** — set `HG_LOOPBACK_API=1` to expose a
