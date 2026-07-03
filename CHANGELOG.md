@@ -2,6 +2,30 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.5] — 2026-07-03
+
+Deep engineering + quality audit pass.
+
+### Security
+- **AI endpoint must be https.** The DeepSeek categorizer sends the API key as
+  a Bearer header; a misconfigured `http://` endpoint would leak it in
+  cleartext. The completer now fails closed (refuses to send the key over a
+  non-https endpoint) and `SetAiConfig` rejects one up front.
+
+### Fixed
+- **File errors on import/export were misreported as "service unavailable."**
+  The menu-bar export/import commands and the CLI `export` had no file-I/O
+  error handling; a bad path or permission denial threw an uncaught
+  `IOException`, which the app's global handler classifies as lost
+  connectivity. File I/O is now caught and surfaced in the status bar (app) or
+  as a clean error + exit 2 (CLI).
+
+### Changed
+- **Singular-aware status counts.** Status lines across every tab (feed,
+  connections, managed domains, firewall rules, blocklists, schedules,
+  intelligence, bandwidth/timeline, export) now read "1 domain" / "2 domains"
+  instead of "1 domains", via a shared `Plural` helper.
+
 ## [0.9.4] — 2026-07-03
 
 ### Fixed
