@@ -2,6 +2,39 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.2] — 2026-07-03
+
+Premium polish pass across the WPF shell, prompts, CLI recovery copy, and
+service-test reliability.
+
+### Added
+- **UI — consistent empty states** — Hosts Activity, FW Activity, Managed
+  Domains, Blocklists, FW Rules, and Schedules now show clear helper text
+  instead of blank tables when there is no matching data.
+- **UX — themed confirmation dialog** — destructive policy actions now use a
+  tokenized HostsGuard dialog with calmer copy, safer button ordering, and
+  keyboard focus on the non-destructive action.
+- **Tests — command disabled-state coverage** — added WPF ViewModel tests that
+  prove blank block/inspect/create/save/restore actions stay disabled until the
+  required input exists.
+
+### Changed
+- **Design system — shared control polish** — buttons, text/password inputs,
+  checkboxes, ComboBoxes, DataGrid rows/cells, and reusable section/empty-state
+  text now share tighter spacing, visible focus, hover/disabled states, and
+  token-based theming in both dark and light modes.
+- **Microcopy — service recovery and consent flow** — service-unavailable text,
+  filtering-mode descriptions, consent prompt buttons, blocklist/lockdown
+  confirmations, and CLI errors now describe what happened and how to recover.
+- **Accessibility — stronger labels and focus targets** — icon/text controls and
+  form fields across the WPF shell gained clearer AutomationProperties names,
+  tooltips, and explicit disabled affordances.
+
+### Fixed
+- **Test determinism — firewall scheduler race** — service schedule tests now
+  disable the background timer explicitly instead of racing a real-time sweep
+  against deterministic `SweepAt(...)` assertions.
+
 ## [0.6.1] — 2026-07-02
 
 Deep audit hardening pass.

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.6.1-blue)
+![Version](https://img.shields.io/badge/version-0.6.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -151,11 +151,11 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 412 tests, no elevation needed
+dotnet test HostsGuard.sln           # 554 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.5.1-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.6.2-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
@@ -197,7 +197,7 @@ Hosts File tab → **Restore** restores the most recent backup; **Emergency Rese
 Blocking Microsoft telemetry domains causes Defender to report `SettingsModifier:Win32/HostsFileHijack`. This is a false positive — HostsGuard is modifying the hosts file intentionally. Add an exclusion for `C:\Windows\System32\drivers\etc\hosts`; HostsGuard warns before importing lists that trigger this.
 
 **Q: What happened to the Python version?**
-HostsGuard v3.x was a Python/PySide6 application. It was retired in favor of this .NET 8 rewrite, which removes PowerShell subprocess shelling (typed Windows APIs instead), runtime-only error surfacing (compiled core), and the 127 MB PyInstaller bundle (small self-contained binaries + a real Windows Service). The final Python build is preserved at the `python-eol` tag, and `HostsGuard.Migrator` imports v3.x profiles.
+HostsGuard v3.x was a Python/PySide6 application. It was retired in favor of this .NET 10 rewrite, which removes PowerShell subprocess shelling (typed Windows APIs instead), runtime-only error surfacing (compiled core), and the 127 MB PyInstaller bundle (small self-contained binaries + a real Windows Service). The final Python build is preserved at the `python-eol` tag, and `HostsGuard.Migrator` imports v3.x profiles.
 
 ## License
 
