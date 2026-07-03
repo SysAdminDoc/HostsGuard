@@ -466,11 +466,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
     }
 
+    // Keyed index over Rows so live upserts are O(1) instead of a linear scan
+    // of up to MaxRows on every connection event.
+    private readonly Dictionary<string, ConnectionRowViewModel> _rowByKey = new(StringComparer.Ordinal);
+
     private void Upsert(ConnectionEvent ev)
     {
         var key = $"{ev.Protocol}|{ev.LocalAddr}:{ev.LocalPort}|{ev.RemoteAddr}:{ev.RemotePort}|{ev.Pid}";
-        var existing = Rows.FirstOrDefault(r => r.Key == key);
-        if (existing is not null)
+        if (_rowByKey.TryGetValue(key, out var existing))
         {
             existing.State = ev.State;
             existing.FwStatus = ev.FwStatus;
@@ -508,13 +511,16 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         Rows.Insert(0, row);
+        _rowByKey[key] = row;
         if (ResolveIps && row.Host.Length == 0)
         {
             _ = ResolvePendingHostsAsync();
         }
         while (Rows.Count > MaxRows)
         {
+            var evicted = Rows[^1];
             Rows.RemoveAt(Rows.Count - 1);
+            _rowByKey.Remove(evicted.Key);
         }
 
         StatusText = Plural.Of(Rows.Count, "connection");
@@ -614,7 +620,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _historySearch = string.Empty;
 
     [ObservableProperty]
-    private string _historyStatus = string.Empty;
+    private string _historyStatus = "Click Load to show recorded connections.";
 
     [ObservableProperty]
     private string _bandwidthStatus = "Not loaded";
@@ -807,7 +813,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public ObservableCollection<LearnedRowViewModel> Learned { get; } = new();
 
     [ObservableProperty]
-    private string _learnedStatus = string.Empty;
+    private string _learnedStatus = "No learning-mode decisions awaiting review.";
 
     [RelayCommand]
     public async Task LoadLearnedAsync()

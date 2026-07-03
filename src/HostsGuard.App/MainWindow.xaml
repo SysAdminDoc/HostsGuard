@@ -280,6 +280,10 @@
                                               Command="{Binding PlacementTarget.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               ToolTip="Hide the whole root, including future subdomains (remembered)" />
+                                    <MenuItem Header="Hide this group"
+                                              Command="{Binding PlacementTarget.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Root, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Hide every domain currently listed under this row's root (keyboard-accessible group hide)" />
                                     <MenuItem Header="Unhide root"
                                               Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />

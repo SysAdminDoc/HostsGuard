@@ -276,22 +276,32 @@ public sealed class LoopbackApi : IDisposable
             return (400, Error("invalid_domain", "a valid 'domain' is required"));
         }
 
-        switch (action)
+        try
         {
-            case "block":
-                _state.Hosts.Block(domain);
-                _state.Db.AddDomain(domain, "blocked", "loopback");
-                break;
-            case "allow":
-                _state.Db.AddDomain(domain, "whitelisted", "loopback");
-                _state.Hosts.Unblock(domain);
-                break;
-            case "unblock":
-                _state.Hosts.Unblock(domain);
-                _state.Db.RemoveDomain(domain);
-                break;
-            default:
-                return (400, Error("invalid_action", "action must be block|allow|unblock"));
+            switch (action)
+            {
+                case "block":
+                    _state.Hosts.Block(domain);
+                    _state.Db.AddDomain(domain, "blocked", "loopback");
+                    break;
+                case "allow":
+                    _state.Db.AddDomain(domain, "whitelisted", "loopback");
+                    _state.Hosts.Unblock(domain);
+                    break;
+                case "unblock":
+                    _state.Hosts.Unblock(domain);
+                    _state.Db.RemoveDomain(domain);
+                    break;
+                default:
+                    return (400, Error("invalid_action", "action must be block|allow|unblock"));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A persistent hosts-file hold (usually AV scanning) must return a
+            // clean error, not escape and stop the listener loop.
+            return (503, Error("hosts_locked",
+                "the hosts file is locked by another program (usually antivirus) — retry shortly"));
         }
 
         _state.Db.LogEvent(domain, action, details: "loopback api", reason: "loopback");

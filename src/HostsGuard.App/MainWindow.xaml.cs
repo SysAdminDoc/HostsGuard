@@ -125,12 +125,17 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>PasswordBox can't bind — push its value to the VM before the lock command runs.</summary>
+    /// <summary>
+    /// PasswordBox can't bind — copy its value to the VM before the lock command
+    /// runs (Click fires before Command), then clear the box so the masked
+    /// password doesn't linger on screen after arm/disarm/unlock.
+    /// </summary>
     private void OnLockPasswordSync(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel { Tools: { } tools } && LockPasswordBox is not null)
         {
             tools.LockPassword = LockPasswordBox.Password;
+            LockPasswordBox.Clear();
         }
     }
 

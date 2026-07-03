@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Settings-lock password field now clears after arm/disarm/unlock instead of
+  leaving the masked value on screen.
+- Loopback API domain mutations catch a locked hosts file (AV hold) and return
+  a clean 503 instead of an exception that could stop the listener.
+
+### Changed
+- Live firewall-connection upserts use a keyed index (O(1)) instead of scanning
+  every row on each event.
+- The History and Learning-review cards show guidance text when empty instead
+  of a blank grid.
+- "Hide this group" is now also on the row right-click menu, so the whole-group
+  hide is reachable by keyboard, not just the group header.
+
 ## [0.9.5] — 2026-07-03
 
 Deep engineering + quality audit pass.
