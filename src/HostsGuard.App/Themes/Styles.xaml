@@ -183,6 +183,43 @@
         </Setter>
     </Style>
 
+    <!-- TextBox with a watermark hint taken from Tag, shown while empty. -->
+    <Style x:Key="Hg.HintBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
+                        <Grid>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                            <TextBlock x:Name="Hint" Margin="8,0" VerticalAlignment="Center"
+                                       IsHitTestVisible="False" Visibility="Collapsed"
+                                       Foreground="{DynamicResource Hg.Dim}"
+                                       Text="{TemplateBinding Tag}" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="PasswordBox">
         <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />

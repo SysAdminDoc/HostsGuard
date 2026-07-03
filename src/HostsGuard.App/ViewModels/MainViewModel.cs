@@ -121,6 +121,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             FwActivity.StartWatching();
             await FwActivity.LoadPostureAsync();
             await FwActivity.LoadConsentHistoryAsync();
+            await FwActivity.LoadLearnedAsync();
             FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker);
             await FwRules.RefreshAsync();
             Tools ??= new ToolsViewModel(_client, _confirm);

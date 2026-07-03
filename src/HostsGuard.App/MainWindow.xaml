@@ -130,6 +130,8 @@
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding ShowHidden}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource Hg.HintBox}"
+                                     Tag="Search domains — try field:value, !term, or field!=value"
                                      AutomationProperties.Name="Search DNS activity"
                                      ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                         </DockPanel>
@@ -209,7 +211,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeen}" Width="170" />
+                                <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeenText}" Width="120" />
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -261,11 +263,14 @@
                                       ToolTip="Group the live connections under their owning process" />
                             <TextBox Margin="0,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource Hg.HintBox}"
+                                     Tag="Search connections — try process:chrome, port:443, or !svchost"
                                      AutomationProperties.Name="Search live connections"
                                      ToolTip="Search: process:chrome  port:443  country!=US  !svchost" />
                         </DockPanel>
 
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding ConnectionsView}">
+                        <DataGrid Grid.Row="1" x:Name="ConnectionsGrid" ItemsSource="{Binding ConnectionsView}"
+                                  IsVisibleChanged="OnConnectionsGridVisible">
                             <DataGrid.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
@@ -466,7 +471,7 @@
                                         </ContextMenu>
                                     </DataGrid.ContextMenu>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="When" Binding="{Binding DecidedAt}" Width="150" />
+                                        <DataGridTextColumn Header="When" Binding="{Binding DecidedAtText}" Width="110" />
                                         <DataGridTextColumn Header="Application" Binding="{Binding Application}" Width="2*" />
                                         <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="46" />
                                         <DataGridTextColumn Header="Remote" Binding="{Binding RemoteAddress}" Width="*" />
@@ -496,12 +501,14 @@
                                                  AutomationProperties.Name="History retention days"
                                                  ToolTip="History retention in days (1-365)" />
                                         <TextBox Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Search history by process, remote address, or country"
                                                  AutomationProperties.Name="Search connection history"
                                                  ToolTip="Substring match on process, remote address, or country" />
                                     </DockPanel>
                                     <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="When" Binding="{Binding Ts}" Width="170" />
+                                            <DataGridTextColumn Header="When" Binding="{Binding TsText}" Width="120" />
                                             <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="150" />
                                             <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="56" />
                                             <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="56" />
@@ -583,6 +590,8 @@
                                             ToolTip="Enter a domain, then add it to managed blocks" />
                                     <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
                                              Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}"
+                                             Tag="Domain to block"
                                              AutomationProperties.Name="Domain to block"
                                              ToolTip="Domain to block" />
                                     <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
@@ -590,6 +599,8 @@
                                               AutomationProperties.Name="Managed-domain status filter"
                                               SelectedItem="{Binding StatusFilter}" />
                                     <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}"
+                                             Tag="Search managed domains — try field:value or !term"
                                              AutomationProperties.Name="Search managed domains"
                                              ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
                                 </DockPanel>
@@ -802,6 +813,8 @@
                             <CheckBox DockPanel.Dock="Right" Content="HostsGuard rules only" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource Hg.HintBox}"
+                                     Tag="Search rules by name, remote address, service, or program"
                                      AutomationProperties.Name="Search firewall rules"
                                      ToolTip="Filters as you type — matches rule name, remote address, service, or program" />
                         </DockPanel>
@@ -899,6 +912,8 @@
 
                                     <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
                                              Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}"
+                                             Tag="Required"
                                              AutomationProperties.Name="New firewall rule name"
                                              ToolTip="Rule name (HG_ prefix added automatically)" />
                                     <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
@@ -943,6 +958,7 @@
                                     </DockPanel>
                                     <TextBlock Text="When locked, changing filtering mode, firewall posture, or HG_ rules requires the password."
                                                Style="{StaticResource Hg.DimText}" TextWrapping="Wrap" Margin="0,4,0,8" />
+                                    <TextBlock Text="Lock password" Style="{StaticResource Hg.FieldLabel}" />
                                     <DockPanel LastChildFill="True">
                                         <Button DockPanel.Dock="Right" Content="Refresh" Command="{Binding LoadLockStateCommand}" Margin="6,0,0,0" Padding="10,2" />
                                         <Button DockPanel.Dock="Right" Content="Protect hosts file" Command="{Binding ProtectHostsCommand}" Margin="6,0,0,0" Padding="10,2"
@@ -963,6 +979,8 @@
                                         <TextBox DockPanel.Dock="Left" Width="46" VerticalAlignment="Center"
                                                  Text="{Binding UnlockMinutes, UpdateSourceTrigger=PropertyChanged}"
                                                  AutomationProperties.Name="Unlock minutes" ToolTip="Timed-unlock window in minutes" />
+                                        <TextBlock DockPanel.Dock="Left" Text="min" Style="{StaticResource Hg.DimText}"
+                                                   VerticalAlignment="Center" Margin="5,0,0,0" />
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
@@ -987,6 +1005,8 @@
                                                 Command="{Binding InspectCommand}" Margin="8,0,0,0"
                                                 ToolTip="Enter a domain to resolve and check" />
                                         <TextBox Text="{Binding InspectDomain, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Domain to resolve and check — e.g. tracker.example.com"
                                                  AutomationProperties.Name="Domain to inspect"
                                                  ToolTip="Domain to resolve and check block state" />
                                     </DockPanel>
@@ -1012,10 +1032,14 @@
                                         </Button>
                                         <TextBox DockPanel.Dock="Left" Width="240" Margin="0,0,8,0"
                                                  Text="{Binding DohUrl, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Resolver-list URL (optional, https)"
                                                  AutomationProperties.Name="DoH intelligence URL"
                                                  ToolTip="Optional remote resolver-list URL (https)" />
                                         <TextBox DockPanel.Dock="Left" Width="200" Margin="0,0,8,0"
                                                  Text="{Binding DohSha256, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="SHA-256 of the list"
                                                  AutomationProperties.Name="DoH intelligence SHA-256"
                                                  ToolTip="Expected SHA-256 of the remote list (required with a URL)" />
                                         <Button DockPanel.Dock="Left" Content="Refresh DoH intelligence"
@@ -1167,6 +1191,8 @@
                                                 ToolTip="Choose a saved profile first" />
                                         <TextBox Width="180" Margin="0,0,8,8"
                                                  Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="New profile name"
                                                  AutomationProperties.Name="New profile name"
                                                  ToolTip="Name for a snapshot of the current rule set" />
                                         <Button Content="Save current as profile"

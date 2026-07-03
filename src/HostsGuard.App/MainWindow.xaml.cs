@@ -38,6 +38,72 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// WPF quirk guard: a grouped DataGrid first measured while its tab is not
+    /// selected can clamp every column to MinWidth and never recover. Re-assert
+    /// the declared widths whenever the grid becomes visible.
+    /// </summary>
+    private void OnConnectionsGridVisible(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.DataGrid grid || !grid.IsVisible)
+        {
+            return;
+        }
+
+        _ = RepairColumnWidthsAsync(grid);
+
+        static async Task RepairColumnWidthsAsync(System.Windows.Controls.DataGrid grid)
+        {
+            for (var attempt = 0; attempt < 8; attempt++)
+            {
+                await Task.Delay(150);
+                try
+                {
+                    if (!grid.IsVisible || grid.Columns.All(c => c.ActualWidth > c.MinWidth))
+                    {
+                        return;
+                    }
+
+                    // Step 1: revive the internal scroll host. Until the rows
+                    // presenter re-registers, GetViewportWidthForColumns()
+                    // reports 0 and every recompute clamps to MinWidth again.
+                    (grid.Template?.FindName("DG_ScrollViewer", grid) as System.Windows.Controls.ScrollViewer)
+                        ?.InvalidateScrollInfo();
+                    InvalidateSubtree(grid);
+                    grid.UpdateLayout();
+
+                    // Step 2: rerun the width computation against the revived
+                    // viewport. No public API triggers it, hence reflection.
+                    grid.Columns.GetType()
+                        .GetMethod("InvalidateColumnWidthsComputation",
+                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                        ?.Invoke(grid.Columns, null);
+                    grid.UpdateLayout();
+                }
+                catch (Exception ex) when (ex is System.Reflection.TargetInvocationException or InvalidOperationException)
+                {
+                    // Best-effort repair — a failed attempt must never take the
+                    // shell down; the next attempt (or a manual resize) retries.
+                }
+            }
+        }
+
+        static void InvalidateSubtree(DependencyObject node)
+        {
+            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
+                if (child is UIElement el)
+                {
+                    el.InvalidateMeasure();
+                    el.InvalidateArrange();
+                }
+
+                InvalidateSubtree(child);
+            }
+        }
+    }
+
     /// <summary>Reflect the current filtering mode as a checkmark when the tray menu opens.</summary>
     private void OnTrayMenuOpened(object sender, RoutedEventArgs e)
     {

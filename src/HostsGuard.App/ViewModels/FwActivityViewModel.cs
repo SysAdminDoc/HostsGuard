@@ -55,7 +55,11 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
 public sealed partial class DecisionRowViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DecidedAtText))]
     private string _decidedAt = string.Empty;
+
+    /// <summary>Compact display form of <see cref="DecidedAt"/>.</summary>
+    public string DecidedAtText => TimeText.Compact(DecidedAt);
 
     [ObservableProperty]
     private string _application = string.Empty;
@@ -116,7 +120,11 @@ public sealed partial class LearnedRowViewModel : ObservableObject
 public sealed partial class HistoryRowViewModel : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TsText))]
     private string _ts = string.Empty;
+
+    /// <summary>Compact display form of <see cref="Ts"/>.</summary>
+    public string TsText => TimeText.Compact(Ts);
 
     [ObservableProperty]
     private string _process = string.Empty;

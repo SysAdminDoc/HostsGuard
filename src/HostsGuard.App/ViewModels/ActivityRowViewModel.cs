@@ -22,7 +22,11 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     private long _hits;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastSeenText))]
     private string _lastSeen = string.Empty;
+
+    /// <summary>Compact display form of <see cref="LastSeen"/>.</summary>
+    public string LastSeenText => Services.TimeText.Compact(LastSeen);
 
     [ObservableProperty]
     private bool _hidden;
