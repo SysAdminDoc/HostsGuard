@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.6] — 2026-07-03
+
+### Fixed
+- **Intermittent "can't reach its background service" on block/allow** — three
+  bugs stacked. Antivirus briefly holds the hosts file open to scan it after
+  every change, so a follow-up block hit a sharing violation; the raw exception
+  escaped the service handler as an opaque gRPC error; and the app classified
+  every gRPC error as lost connectivity, telling the user to restart a service
+  that was healthy the whole time. Now: the hosts write retries for ~1 s
+  (rides out the scan), a persistent hold returns a calm typed error in the
+  status line ("hosts file is locked by another program…") instead of a popup,
+  and the service-unavailable dialog only appears for actual transport
+  failures (reproduced with rapid consecutive blocks before the fix; clean
+  after).
+
 ## [0.6.5] — 2026-07-03
 
 ### Fixed
