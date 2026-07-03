@@ -32,6 +32,18 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
+    <Style x:Key="Hg.FieldLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <Style x:Key="Hg.HelperText" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="18" />
+    </Style>
+
     <Style x:Key="Hg.EmptyText" TargetType="TextBlock" BasedOn="{StaticResource Hg.SubText}">
         <Setter Property="TextAlignment" Value="Center" />
         <Setter Property="TextWrapping" Value="Wrap" />
@@ -58,6 +70,14 @@
         <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
 
+    <Style x:Key="Hg.StatusStrip" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="8,6" />
+    </Style>
+
     <Style TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
@@ -81,10 +101,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.S1}" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.S2}" />
+                            <Setter TargetName="Chrome" Property="Opacity" Value="0.86" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
@@ -232,6 +252,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
                     <Border x:Name="Chrome" Background="Transparent" CornerRadius="6,6,0,0"
+                            BorderBrush="Transparent" BorderThickness="1,1,1,0"
                             Padding="14,8" Margin="0,0,2,0">
                         <ContentPresenter ContentSource="Header" />
                     </Border>
@@ -248,6 +269,9 @@
                             <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Mantle}" />
                             <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
                         </MultiTrigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -294,7 +318,7 @@
     </Style>
 
     <Style TargetType="DataGridCell">
-        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="Template">
@@ -334,17 +358,42 @@
         <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="MaxWidth" Value="420" />
     </Style>
 
     <Style TargetType="ContextMenu">
         <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="Padding" Value="4" />
     </Style>
 
     <Style TargetType="MenuItem">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Style.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="Separator">
+        <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="Margin" Value="2,4" />
+    </Style>
+
+    <Style TargetType="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
     </Style>
 
     <Style TargetType="ComboBoxItem">
