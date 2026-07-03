@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.2] — 2026-07-03
+
+### Fixed
+- **"Resolve IPs" now works and remembers results.** Reverse-DNS moved from a
+  fragile client-side path to the service, exposed as a `ResolveHosts` RPC
+  (bounded concurrency, 3s per-lookup timeout). More importantly, every
+  resolved IP→host mapping — both reverse-DNS (PTR) results and the live
+  forward-DNS the monitor already sees — is now **persisted** in a new
+  `resolved_hosts` table (schema v9). Connection events fill their Site column
+  from this store automatically, so once an IP is resolved it always shows its
+  host on every future sighting, across restarts, with no need to re-check the
+  box. The checkbox now only resolves addresses that are still unknown.
+
 ## [0.9.1] — 2026-07-03
 
 Knowledge-promotion release: reviewed field data from the AI knowledge log is
