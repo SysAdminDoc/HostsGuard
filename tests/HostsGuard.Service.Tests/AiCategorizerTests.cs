@@ -181,6 +181,18 @@ public sealed class AiCategorizerTests : IDisposable
     }
 
     [Fact]
+    public async Task DeepSeek_completer_refuses_a_non_https_endpoint_before_sending_the_key()
+    {
+        using var completer = new DeepSeekCompleter();
+        var settings = new AiSettings("sk-secret", "deepseek-chat", "http://insecure.example.com", true);
+
+        // Must throw on the scheme check, before the API key ever hits the wire.
+        var act = () => completer.CompleteAsync(settings, "sys", "user", CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*https*");
+    }
+
+    [Fact]
     public void ParseReply_keeps_only_requested_domains_with_sane_categories()
     {
         var requested = new[] { "a.example.com", "b.example.com" };

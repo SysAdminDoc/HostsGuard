@@ -36,6 +36,13 @@ public sealed class DeepSeekCompleter : IAiCompleter, IDisposable
     {
         ArgumentNullException.ThrowIfNull(settings);
         var endpoint = settings.Endpoint.TrimEnd('/');
+        // Fail closed: the API key rides as a Bearer header, so refuse to send
+        // it over anything but https (a plaintext endpoint would leak the key).
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidOperationException("the AI endpoint must be an https URL");
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/chat/completions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
         request.Content = new StringContent(JsonSerializer.Serialize(new
