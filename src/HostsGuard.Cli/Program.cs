@@ -31,6 +31,7 @@ static int Usage()
 {
     Console.WriteLine("""
         HostsGuard CLI
+
         usage:
           HostsGuard.Cli status
           HostsGuard.Cli block <domain> [reason]
@@ -40,6 +41,9 @@ static int Usage()
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
+
+        The CLI talks to HostsGuardSvc over the local authenticated pipe.
+        If the service is unavailable, start HostsGuard or restart HostsGuardSvc.
         """);
     return 1;
 }
@@ -67,16 +71,20 @@ static (Grpc.Net.Client.GrpcChannel Channel, string Error) Connect()
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or FileNotFoundException)
     {
-        return (null!, $"service handshake unavailable — is the HostsGuard service running? ({ex.Message})");
+        return (null!, $"service handshake unavailable - start or restart HostsGuardSvc. Details: {ex.Message}");
     }
 }
+
+static void PrintServiceUnavailable(string detail)
+    => Console.Error.WriteLine(
+        $"Couldn't reach HostsGuardSvc. Start or restart the service, then retry. Details: {detail}");
 
 static async Task<int> StatusAsync()
 {
     var (channel, error) = Connect();
     if (channel is null)
     {
-        Console.Error.WriteLine(error);
+        PrintServiceUnavailable(error);
         return 3;
     }
 
@@ -95,7 +103,7 @@ static async Task<int> StatusAsync()
         }
         catch (Grpc.Core.RpcException ex)
         {
-            Console.Error.WriteLine($"service unreachable: {ex.Status.Detail}");
+            PrintServiceUnavailable(ex.Status.Detail);
             return 3;
         }
     }
@@ -105,13 +113,14 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
 {
     if (args.Length < 2)
     {
+        Console.Error.WriteLine("Missing domain.");
         return Usage();
     }
 
     var (channel, error) = Connect();
     if (channel is null)
     {
-        Console.Error.WriteLine(error);
+        PrintServiceUnavailable(error);
         return 3;
     }
 
@@ -131,7 +140,7 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         }
         catch (Grpc.Core.RpcException ex)
         {
-            Console.Error.WriteLine($"service unreachable: {ex.Status.Detail}");
+            PrintServiceUnavailable(ex.Status.Detail);
             return 3;
         }
     }
@@ -142,7 +151,7 @@ static async Task<int> ExportAsync(string path)
     var (channel, error) = Connect();
     if (channel is null)
     {
-        Console.Error.WriteLine(error);
+        PrintServiceUnavailable(error);
         return 3;
     }
 
@@ -166,7 +175,7 @@ static async Task<int> ExportAsync(string path)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            Console.Error.WriteLine($"service unreachable: {ex.Status.Detail}");
+            PrintServiceUnavailable(ex.Status.Detail);
             return 3;
         }
     }
@@ -174,10 +183,16 @@ static async Task<int> ExportAsync(string path)
 
 static async Task<int> ModeAsync(string? requested)
 {
+    if (requested is not null && requested is not ("normal" or "notify" or "learning"))
+    {
+        Console.Error.WriteLine("Invalid mode. Use normal, notify, or learning.");
+        return 1;
+    }
+
     var (channel, error) = Connect();
     if (channel is null)
     {
-        Console.Error.WriteLine(error);
+        PrintServiceUnavailable(error);
         return 3;
     }
 
@@ -199,7 +214,7 @@ static async Task<int> ModeAsync(string? requested)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            Console.Error.WriteLine($"service unreachable: {ex.Status.Detail}");
+            PrintServiceUnavailable(ex.Status.Detail);
             return 3;
         }
     }
