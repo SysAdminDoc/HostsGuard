@@ -2,6 +2,51 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.6.4] — 2026-07-03
+
+Third premium-polish pass: the remaining system-chrome surfaces now follow the
+theme, search became live everywhere, and a long-standing grouped-grid layout
+bug was found and fixed.
+
+### Fixed
+- **Live-connections grid collapse** — the grouped Firewall Activity grid could
+  render every column at minimum width (a WPF race: the grid's internal scroll
+  viewport reports zero when the tab first realizes, the width distribution
+  clamps all columns, and no public invalidation path recovers). A visibility
+  guard now revives the scroll host and reruns the width computation. This bug
+  predates this release.
+- **Status-bar counters** — the old Run markup rendered "Hosts blocked:1234"
+  with no space; counters now read "Hosts file: N · Blocked: N · Allowed: N"
+  with explanatory tooltips.
+- **Firewall Rules search** — the filter now also matches the service column,
+  which its tooltip already promised.
+- **Learning review loads on connect** — the card populated only after a manual
+  Refresh; it now loads with the rest of the tab.
+- **CLI help** — `help`, `--help`, `-h`, `-?`, and `/?` print usage and exit 0
+  (falling into usage from an unknown command still exits 1).
+
+### Changed
+- **Search-as-you-type** — Hosts Activity, Managed Domains, and Firewall Rules
+  re-query 350 ms after typing stops (matching the live Firewall Activity
+  filter) instead of waiting for Refresh; a down service degrades to a calm
+  status line. Search and entry fields across the app gained watermark hints.
+- **Themed system chrome** — scrollbars, expander chevrons, grid column headers
+  (hover + sort indicators, resize grippers preserved), context/tray menu items
+  (token highlight, check-glyph support), and status-bar separators now render
+  from Hg.* tokens instead of Aero system colors in both themes.
+- **Interaction polish** — buttons gained hover shades (new `Hg.AccentHover`
+  token; dark `Hg.DangerHover` retuned for white-text contrast), text inputs
+  and combos show hover borders, the active tab carries an accent indicator,
+  combo text no longer underlaps the chevron, and the checkbox glyph switches
+  to `Hg.OnSel` for correct contrast in both themes.
+- **Clearer shell** — "FW" tabs spell out Firewall, the tray menu checkmarks
+  the active filtering mode, the UI-scale picker shows percentages, timestamps
+  in activity/history/decision grids display compactly ("14:32:07" today)
+  instead of raw ISO strings, the raw hosts editor flags unsaved changes,
+  consent history explains its empty state, the blocklist health column is
+  labeled, and the settings-lock card names its password field and unlock
+  window.
+
 ## [0.6.3] — 2026-07-03
 
 Second premium-polish pass focused on interaction-state consistency, visible
