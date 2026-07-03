@@ -76,6 +76,27 @@ public sealed class HostsViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Typing_a_filter_refreshes_without_pressing_refresh()
+    {
+        await new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "live.example.com" }.BlockCommand.ExecuteAsync(null);
+        await new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "other.site.com" }.BlockCommand.ExecuteAsync(null);
+        var vm = new HostsViewModel(_client, new FakeConfirm(true));
+        await vm.RefreshCommand.ExecuteAsync(null);
+        vm.Domains.Should().HaveCountGreaterThan(1);
+
+        vm.Filter = "live";
+
+        // The debounced refresh lands on its own; poll rather than assume timing.
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (DateTime.UtcNow < deadline && vm.Domains.Count != 1)
+        {
+            await Task.Delay(50);
+        }
+
+        vm.Domains.Should().OnlyContain(d => d.Domain.Contains("live"));
+    }
+
+    [Fact]
     public async Task Unblock_removes_from_service_and_grid()
     {
         var block = new HostsViewModel(_client, new FakeConfirm(true)) { NewDomain = "gone.example.com" };

@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Grpc.Core;
 using HostsGuard.App.Services;
 using HostsGuard.Contracts;
 
@@ -20,6 +22,10 @@ public sealed partial class HostsViewModel : ObservableObject
 
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
+    private CancellationTokenSource? _filterCts;
+
+    /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
+    public static TimeSpan FilterDebounce { get; set; } = TimeSpan.FromMilliseconds(350);
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BlockCommand))]
@@ -42,7 +48,37 @@ public sealed partial class HostsViewModel : ObservableObject
 
     public ObservableCollection<ManagedDomainViewModel> Domains { get; } = new();
 
-    partial void OnStatusFilterChanged(string value) => _ = RefreshAsync();
+    partial void OnStatusFilterChanged(string value) => _ = GuardedRefreshAsync(CancellationToken.None);
+
+    /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
+    partial void OnFilterChanged(string value)
+    {
+        _filterCts?.Cancel();
+        _filterCts?.Dispose();
+        _filterCts = new CancellationTokenSource();
+        _ = GuardedRefreshAsync(_filterCts.Token);
+    }
+
+    private async Task GuardedRefreshAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (ct.CanBeCanceled)
+            {
+                await Task.Delay(FilterDebounce, ct);
+            }
+
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer keystroke.
+        }
+        catch (Exception ex) when (ex is RpcException or IOException)
+        {
+            StatusText = "Service unavailable — reconnect from the status bar";
+        }
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()

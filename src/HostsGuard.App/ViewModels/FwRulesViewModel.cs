@@ -1,8 +1,10 @@
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Grpc.Core;
 using HostsGuard.App.Services;
 using HostsGuard.Contracts;
 
@@ -74,6 +76,10 @@ public sealed partial class FwRulesViewModel : ObservableObject
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
     private readonly IFilePicker? _filePicker;
+    private CancellationTokenSource? _filterCts;
+
+    /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
+    public static TimeSpan FilterDebounce { get; set; } = TimeSpan.FromMilliseconds(350);
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -119,7 +125,37 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
     public static IReadOnlyList<string> Protocols { get; } = new[] { "Any", "TCP", "UDP" };
 
-    partial void OnHostsGuardOnlyChanged(bool value) => _ = RefreshAsync();
+    partial void OnHostsGuardOnlyChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+
+    /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
+    partial void OnFilterChanged(string value)
+    {
+        _filterCts?.Cancel();
+        _filterCts?.Dispose();
+        _filterCts = new CancellationTokenSource();
+        _ = GuardedRefreshAsync(_filterCts.Token);
+    }
+
+    private async Task GuardedRefreshAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (ct.CanBeCanceled)
+            {
+                await Task.Delay(FilterDebounce, ct);
+            }
+
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer keystroke.
+        }
+        catch (Exception ex) when (ex is RpcException or IOException)
+        {
+            StatusText = "Service unavailable — reconnect from the status bar";
+        }
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -137,7 +173,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
             if (filter.Length != 0 &&
                 !r.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.RemoteAddr.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
-                !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.ServiceName.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

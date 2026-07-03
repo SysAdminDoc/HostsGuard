@@ -23,6 +23,10 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private readonly HostsServiceClient _client;
     private readonly SynchronizationContext? _ui;
     private CancellationTokenSource? _watchCts;
+    private CancellationTokenSource? _filterCts;
+
+    /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
+    public static TimeSpan FilterDebounce { get; set; } = TimeSpan.FromMilliseconds(350);
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -41,7 +45,37 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     public ObservableCollection<ActivityRowViewModel> Rows { get; } = new();
 
-    partial void OnShowHiddenChanged(bool value) => _ = RefreshAsync();
+    partial void OnShowHiddenChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+
+    /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
+    partial void OnFilterChanged(string value)
+    {
+        _filterCts?.Cancel();
+        _filterCts?.Dispose();
+        _filterCts = new CancellationTokenSource();
+        _ = GuardedRefreshAsync(_filterCts.Token);
+    }
+
+    private async Task GuardedRefreshAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (ct.CanBeCanceled)
+            {
+                await Task.Delay(FilterDebounce, ct);
+            }
+
+            await RefreshAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer keystroke.
+        }
+        catch (Exception ex) when (ex is RpcException or IOException)
+        {
+            StatusText = "Service unavailable — reconnect from the status bar";
+        }
+    }
 
     [RelayCommand]
     public async Task RefreshAsync()
@@ -239,5 +273,8 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         _watchCts?.Cancel();
         _watchCts?.Dispose();
         _watchCts = null;
+        _filterCts?.Cancel();
+        _filterCts?.Dispose();
+        _filterCts = null;
     }
 }
