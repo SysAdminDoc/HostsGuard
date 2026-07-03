@@ -2,7 +2,9 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.9.6] — 2026-07-03
+
+Post-audit UX/perf/security polish and README screenshots.
 
 ### Security
 - **Closed the SSRF DNS-rebinding window in list fetching.** The guard resolved
