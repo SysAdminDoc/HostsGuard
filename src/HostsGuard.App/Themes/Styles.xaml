@@ -117,18 +117,35 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.S1}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="Hg.AccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{DynamicResource Hg.Blue}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.OnSel}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.Blue}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.AccentHover}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.AccentHover}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="Hg.DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.Danger2}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.DangerHover}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.DangerHover}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="TextBox">
@@ -151,6 +168,9 @@
                         <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
                         </Trigger>
@@ -183,6 +203,9 @@
                         <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
                         </Trigger>
@@ -211,7 +234,7 @@
                                 VerticalAlignment="Center">
                             <Path x:Name="Check" Stretch="Uniform" Margin="2.5"
                                   Data="M 0 5 L 3.5 8.5 L 9 1"
-                                  Stroke="{DynamicResource Hg.OnDanger}" StrokeThickness="1.6"
+                                  Stroke="{DynamicResource Hg.OnSel}" StrokeThickness="1.6"
                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                   Visibility="Collapsed" />
                         </Border>
@@ -251,14 +274,21 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="6,6,0,0"
-                            BorderBrush="Transparent" BorderThickness="1,1,1,0"
-                            Padding="14,8" Margin="0,0,2,0">
-                        <ContentPresenter ContentSource="Header" />
-                    </Border>
+                    <Grid Margin="0,0,2,0">
+                        <Border x:Name="Chrome" Background="Transparent" CornerRadius="6,6,0,0"
+                                BorderBrush="Transparent" BorderThickness="1,1,1,0"
+                                Padding="14,8">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <!-- Accent bar marks the active tab beyond the surface change alone. -->
+                        <Rectangle x:Name="ActiveIndicator" Height="2" Margin="10,1,10,0"
+                                   VerticalAlignment="Top" RadiusX="1" RadiusY="1"
+                                   Fill="{DynamicResource Hg.Blue}" Visibility="Collapsed" />
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Base}" />
+                            <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible" />
                             <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
                         </Trigger>
                         <MultiTrigger>
@@ -295,6 +325,19 @@
         <Setter Property="RowHeaderWidth" Value="0" />
     </Style>
 
+    <!-- Invisible 6px-wide grab handles the DataGrid needs for column resizing. -->
+    <Style x:Key="Hg.HeaderGripper" TargetType="Thumb">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="Cursor" Value="SizeWE" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Rectangle Fill="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
@@ -302,6 +345,43 @@
         <Setter Property="BorderThickness" Value="0,0,1,1" />
         <Setter Property="Padding" Value="8,6" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Grid>
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal">
+                                <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True" />
+                                <Path x:Name="SortArrow" Margin="6,0,0,0" VerticalAlignment="Center"
+                                      Data="M 0 4 L 3.5 0 L 7 4" Visibility="Collapsed"
+                                      Stroke="{DynamicResource Hg.Blue}" StrokeThickness="1.4"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </StackPanel>
+                        </Border>
+                        <Thumb x:Name="PART_LeftHeaderGripper" HorizontalAlignment="Left"
+                               Style="{StaticResource Hg.HeaderGripper}" />
+                        <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right"
+                               Style="{StaticResource Hg.HeaderGripper}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="SortDirection" Value="Ascending">
+                            <Setter TargetName="SortArrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="SortDirection" Value="Descending">
+                            <Setter TargetName="SortArrow" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="SortArrow" Property="Data" Value="M 0 0 L 3.5 4 L 7 0" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.S0}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="DataGridRow">
@@ -344,9 +424,100 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ─── Scrollbars: slim themed track + rounded thumb (replaces the system-
+             gray Aero chrome, which ignores the dark palette entirely). ─── -->
+    <Style x:Key="Hg.ScrollPageButton" TargetType="RepeatButton">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Rectangle Fill="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Hg.ScrollThumb" TargetType="Thumb">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="ThumbChrome" Background="{DynamicResource Hg.S1}"
+                            CornerRadius="4" Margin="2" />
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="ThumbChrome" Property="Background" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Width" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="{TemplateBinding Background}">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource Hg.ScrollPageButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource Hg.ScrollPageButton}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource Hg.ScrollThumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="Height" Value="12" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid Background="{TemplateBinding Background}">
+                                <Track x:Name="PART_Track">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource Hg.ScrollPageButton}" />
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Style="{StaticResource Hg.ScrollPageButton}" />
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource Hg.ScrollThumb}" />
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style TargetType="StatusBar">
         <Setter Property="Background" Value="{DynamicResource Hg.Crust}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+    </Style>
+
+    <!-- StatusBar separators resolve through their own style key, not the
+         implicit Separator style — without this they render in system colors. -->
+    <Style x:Key="{x:Static StatusBar.SeparatorStyleKey}" TargetType="Separator">
+        <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Margin" Value="8,3" />
     </Style>
 
     <Style TargetType="GroupBox">
@@ -369,20 +540,64 @@
         <Setter Property="Padding" Value="4" />
     </Style>
 
+    <!-- Context/submenu roles only (the app has no top-level menu bar). The
+         default template highlights in system blue and paints a light icon
+         gutter; this one stays on Hg.* tokens and shows IsChecked marks. -->
     <Style TargetType="MenuItem">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Padding" Value="6,6" />
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Style.Triggers>
-            <Trigger Property="IsHighlighted" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
-            </Trigger>
-            <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Opacity" Value="0.45" />
-            </Trigger>
-        </Style.Triggers>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="4"
+                            Padding="{TemplateBinding Padding}" MinHeight="{TemplateBinding MinHeight}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="18" />
+                            </Grid.ColumnDefinitions>
+                            <Path x:Name="CheckGlyph" Grid.Column="0" Visibility="Hidden"
+                                  Data="M 0 4 L 3 7 L 8 0" VerticalAlignment="Center"
+                                  Stroke="{DynamicResource Hg.Blue}" StrokeThickness="1.6"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                              VerticalAlignment="Center" RecognizesAccessKey="True" />
+                            <Path x:Name="SubmenuChevron" Grid.Column="2" Visibility="Collapsed"
+                                  Data="M 0 0 L 4 4 L 0 8" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Stroke="{DynamicResource Hg.Sub}" StrokeThickness="1.5"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="2" VerticalOffset="-8"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   AllowsTransparency="True" Focusable="False">
+                                <Border Background="{DynamicResource Hg.Mantle}"
+                                        BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
+                                        CornerRadius="6" Padding="4">
+                                    <ItemsPresenter />
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Role" Value="SubmenuHeader">
+                            <Setter TargetName="SubmenuChevron" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Sel}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="Separator">
@@ -390,10 +605,65 @@
         <Setter Property="Margin" Value="2,4" />
     </Style>
 
+    <!-- Down-expanding only (the sole direction the app uses). The default
+         template's arrow circle draws in hardcoded system grays. -->
     <Style TargetType="Expander">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <StackPanel>
+                        <ToggleButton x:Name="HeaderSite" Cursor="Hand"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      Content="{TemplateBinding Header}"
+                                      ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                      IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="4"
+                                            BorderBrush="Transparent" BorderThickness="1"
+                                            Padding="4,3" HorizontalAlignment="Left">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path x:Name="Chevron" Data="M 0 0 L 4 4 L 0 8" Margin="2,0,8,0"
+                                                  VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+                                                  Stroke="{DynamicResource Hg.Sub}" StrokeThickness="1.5"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform Angle="0" />
+                                                </Path.RenderTransform>
+                                            </Path>
+                                            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Chevron" Property="RenderTransform">
+                                                <Setter.Value>
+                                                    <RotateTransform Angle="90" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.S0}" />
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True">
+                                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ExpandSite" Visibility="Collapsed" Margin="0,4,0,0" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="ComboBoxItem">
@@ -447,7 +717,8 @@
                                 </ControlTemplate>
                             </ToggleButton.Template>
                         </ToggleButton>
-                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                        <!-- Right margin reserves room for the chevron so long values never sit under it. -->
+                        <ContentPresenter Margin="8,4,22,4"
                                           HorizontalAlignment="Left" VerticalAlignment="Center"
                                           IsHitTestVisible="False"
                                           Content="{TemplateBinding SelectionBoxItem}"
@@ -465,9 +736,13 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
                         <!-- Keyboard focus visibility (WCAG 2.4.7): the ToggleButton
                              Chrome binds its BorderBrush to the ComboBox's, so
-                             recoloring the ComboBox border shows a focus ring. -->
+                             recoloring the ComboBox border shows a focus ring.
+                             Listed after hover so focus wins when both apply. -->
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
                         </Trigger>

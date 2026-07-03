@@ -15,10 +15,11 @@
     <SolidColorBrush x:Key="Hg.Sub" Color="#b8c1d1" />
     <SolidColorBrush x:Key="Hg.Dim" Color="#8490a3" />
     <SolidColorBrush x:Key="Hg.Blue" Color="#77a7ff" />
+    <SolidColorBrush x:Key="Hg.AccentHover" Color="#8fb7ff" />
     <SolidColorBrush x:Key="Hg.Green" Color="#8bd17c" />
     <SolidColorBrush x:Key="Hg.Red" Color="#ff7f9a" />
     <SolidColorBrush x:Key="Hg.Danger2" Color="#c84b69" />
-    <SolidColorBrush x:Key="Hg.DangerHover" Color="#ff9aac" />
+    <SolidColorBrush x:Key="Hg.DangerHover" Color="#b64158" />
     <SolidColorBrush x:Key="Hg.OnDanger" Color="#ffffff" />
     <SolidColorBrush x:Key="Hg.Peach" Color="#ffb16c" />
     <SolidColorBrush x:Key="Hg.Yellow" Color="#e7c36f" />

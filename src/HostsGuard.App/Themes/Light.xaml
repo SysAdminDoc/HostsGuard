@@ -15,6 +15,7 @@
     <SolidColorBrush x:Key="Hg.Sub" Color="#455368" />
     <SolidColorBrush x:Key="Hg.Dim" Color="#68778d" />
     <SolidColorBrush x:Key="Hg.Blue" Color="#1f68e5" />
+    <SolidColorBrush x:Key="Hg.AccentHover" Color="#1a58c4" />
     <SolidColorBrush x:Key="Hg.Green" Color="#207a36" />
     <SolidColorBrush x:Key="Hg.Red" Color="#c91d42" />
     <SolidColorBrush x:Key="Hg.Danger2" Color="#941332" />
