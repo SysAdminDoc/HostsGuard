@@ -13,6 +13,7 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     private string _root = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBlockCandidate))]
     private string _status = string.Empty;
 
     [ObservableProperty]
@@ -45,6 +46,28 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     [ObservableProperty]
     private string _purpose = string.Empty;
 
+    /// <summary>Reference blocklists that block this domain (intelligence index).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BlocklistsText))]
+    [NotifyPropertyChangedFor(nameof(BlocklistsTip))]
+    [NotifyPropertyChangedFor(nameof(IsBlockCandidate))]
+    private IReadOnlyList<string> _blocklists = Array.Empty<string>();
+
+    /// <summary>Short list-membership label ("3 lists"); "" when clean.</summary>
+    public string BlocklistsText => Blocklists.Count switch
+    {
+        0 => string.Empty,
+        1 => "1 list",
+        var n => $"{n} lists",
+    };
+
+    public string BlocklistsTip => Blocklists.Count == 0
+        ? string.Empty
+        : "Blocked by: " + string.Join(", ", Blocklists);
+
+    /// <summary>Undecided domain the reference lists would block — a candidate.</summary>
+    public bool IsBlockCandidate => Blocklists.Count > 0 && Status.Length == 0;
+
     public static ActivityRowViewModel From(ActivityRow r) => new()
     {
         Domain = r.Domain,
@@ -56,5 +79,6 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         Hidden = r.Hidden,
         Reason = r.Reason,
         Purpose = Core.DomainPurpose.Lookup(r.Domain),
+        Blocklists = r.Blocklists.ToList(),
     };
 }

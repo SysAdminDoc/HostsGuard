@@ -29,8 +29,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             DbBlocked = stats.Blocked,
             DbAllowed = stats.Whitelisted,
             FeedTotal = stats.FeedTotal,
-            DnsMonitorActive = false,
-            ConnectionMonitorActive = false,
+            DnsMonitorActive = _state.DnsMonitorActive,
+            ConnectionMonitorActive = _state.ConnectionMonitorActive,
         };
         return Task.FromResult(status);
     }

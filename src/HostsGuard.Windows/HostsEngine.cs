@@ -225,6 +225,89 @@ public sealed class HostsEngine
         }
     }
 
+    /// <summary>
+    /// Re-home managed block entries under "# &lt;Category&gt;" comment sections
+    /// (matching the hand-organized hosts style): entries for mapped domains are
+    /// moved under their category header — appended to an existing section when
+    /// one matches (case-insensitive), else a new section is created at the end.
+    /// Unmapped lines, custom mappings, and hand-placed entries stay put.
+    /// Returns how many entries were re-homed.
+    /// </summary>
+    public int OrganizeByCategory(IReadOnlyDictionary<string, string> categories)
+    {
+        ArgumentNullException.ThrowIfNull(categories);
+        lock (_gate)
+        {
+            // Pass 1: pull out the sink lines for mapped domains that are
+            // actually present, remembering each domain's category.
+            var kept = new List<string>();
+            var moved = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var l in _lines)
+            {
+                var line = l.Trim();
+                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (line.Length != 0 && !line.StartsWith('#') &&
+                    parts.Length >= 2 && parts[0] is "0.0.0.0" or "127.0.0.1" or "::" or "::1")
+                {
+                    var d = parts[1].ToLowerInvariant().TrimEnd('.');
+                    if (categories.TryGetValue(d, out var category) && !string.IsNullOrWhiteSpace(category))
+                    {
+                        if (!moved.TryGetValue(category, out var list))
+                        {
+                            moved[category] = list = new List<string>();
+                        }
+
+                        list.Add(d);
+                        continue;
+                    }
+                }
+
+                kept.Add(l);
+            }
+
+            if (moved.Count == 0)
+            {
+                return 0;
+            }
+
+            // Pass 2: insert each group under its section header, creating the
+            // section at the end when no header matches.
+            var count = 0;
+            foreach (var (category, domains) in moved.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                domains.Sort(StringComparer.Ordinal);
+                count += domains.Count;
+                var header = kept.FindIndex(l =>
+                    l.TrimStart().StartsWith('#') &&
+                    string.Equals(l.TrimStart('#', ' ', '\t').Trim(), category, StringComparison.OrdinalIgnoreCase));
+                if (header < 0)
+                {
+                    if (kept.Count != 0 && kept[^1].Trim().Length != 0)
+                    {
+                        kept.Add(string.Empty);
+                    }
+
+                    kept.Add($"# {category}");
+                    kept.AddRange(domains.Select(d => $"0.0.0.0 {d}"));
+                    continue;
+                }
+
+                // Append after the section's contiguous entry block.
+                var insert = header + 1;
+                while (insert < kept.Count && kept[insert].Trim().Length != 0 && !kept[insert].TrimStart().StartsWith('#'))
+                {
+                    insert++;
+                }
+
+                kept.InsertRange(insert, domains.Select(d => $"0.0.0.0 {d}"));
+            }
+
+            AtomicWrite(Join(kept));
+            Read();
+            return count;
+        }
+    }
+
     /// <summary>Replace the hosts file with just the Windows sample header.</summary>
     public void EmergencyReset()
     {

@@ -21,6 +21,9 @@ public sealed partial class ManagedDomainViewModel : ObservableObject
     [ObservableProperty]
     private long _hits;
 
+    [ObservableProperty]
+    private string _category = string.Empty;
+
     public static ManagedDomainViewModel From(ManagedDomain d) => new()
     {
         Domain = d.Domain,
@@ -28,5 +31,6 @@ public sealed partial class ManagedDomainViewModel : ObservableObject
         Source = d.Source,
         Reason = d.Reason,
         Hits = d.Hits,
+        Category = d.Category,
     };
 }

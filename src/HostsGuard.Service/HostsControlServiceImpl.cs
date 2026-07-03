@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Runtime.Versioning;
 using Grpc.Core;
 using HostsGuard.Contracts;
@@ -26,7 +27,35 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             var wrote = _state.Hosts.Block(d);
             _state.Db.AddDomain(d, "blocked", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
             _state.Db.LogEvent(d, "blocked", details: "hosts file", reason: request.Reason);
+            AutoCategorize(d);
             return Ok(wrote ? $"blocked {d}" : $"already blocked {d}");
+        });
+    }
+
+    /// <summary>
+    /// Fire-and-forget AI categorization of a freshly blocked domain (when
+    /// enabled): assigns a DB category and re-homes the hosts entry under its
+    /// "# Category" section. Never blocks or fails the block itself.
+    /// </summary>
+    private void AutoCategorize(string domain)
+    {
+        var settings = _state.Ai.Settings;
+        if (!settings.Enabled || settings.ApiKey.Length == 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _state.Ai.CategorizeAsync(new[] { domain }, CancellationToken.None);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
+                or TaskCanceledException or IOException or UnauthorizedAccessException)
+            {
+                _state.Db.LogEvent(domain, "ai_categorize_failed", details: ex.Message);
+            }
         });
     }
 
@@ -93,6 +122,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 Reason = r.Reason ?? string.Empty,
                 Hits = r.Hits,
                 Notes = r.Notes ?? string.Empty,
+                Category = r.Category ?? string.Empty,
             });
         }
 
@@ -191,8 +221,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     {
         var limit = request.Limit is > 0 and <= 5000 ? request.Limit : 500;
         var hiddenRoots = _state.Db.GetHiddenRoots();
+        var feed = _state.Db.GetFeed(limit);
+        // Reference-list membership for the whole page in one batched query
+        // (an empty intelligence index simply matches nothing).
+        var membership = _state.Db.GetListMembership(feed.Select(r => r.Domain));
         var list = new ActivityList();
-        foreach (var row in _state.Db.GetFeed(limit))
+        foreach (var row in feed)
         {
             var root = Domains.GetRoot(row.Domain);
             var hidden = row.Hidden != 0 || hiddenRoots.Contains(root);
@@ -214,7 +248,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 continue;
             }
 
-            list.Rows.Add(new ActivityRow
+            var activityRow = new ActivityRow
             {
                 Domain = row.Domain,
                 Root = root,
@@ -225,10 +259,89 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 LastSeen = row.LastSeen ?? string.Empty,
                 Hidden = hidden,
                 Reason = row.Reason ?? string.Empty,
-            });
+            };
+            if (membership.TryGetValue(row.Domain, out var lists))
+            {
+                activityRow.Blocklists.AddRange(lists);
+            }
+
+            list.Rows.Add(activityRow);
         }
 
         return Task.FromResult(list);
+    }
+
+    // ─── AI categorization (DeepSeek) ─────────────────────────────────────────
+
+    public override Task<Ack> SetAiConfig(AiConfig request, ServerCallContext context)
+    {
+        try
+        {
+            _state.Ai.SaveSettings(request.ApiKey, request.Model, request.Endpoint, request.Enabled);
+            var s = _state.Ai.Settings;
+            return Task.FromResult(Ok(s.ApiKey.Length == 0
+                ? "AI settings saved — add a DeepSeek API key to enable categorization"
+                : $"AI settings saved — {s.Model}, auto-categorize {(s.Enabled ? "on" : "off")}"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(Error("ai_config_failed", ex.Message));
+        }
+    }
+
+    public override Task<AiStatus> GetAiStatus(Empty request, ServerCallContext context)
+    {
+        var s = _state.Ai.Settings;
+        return Task.FromResult(new AiStatus
+        {
+            Configured = s.ApiKey.Length != 0,
+            Enabled = s.Enabled,
+            Model = s.Model,
+            Endpoint = s.Endpoint,
+            LastRun = _state.Db.GetMeta("ai_last_run") ?? string.Empty,
+            LastResult = _state.Db.GetMeta("ai_last_result") ?? string.Empty,
+        });
+    }
+
+    public override async Task<CategorizeResult> CategorizeDomains(CategorizeRequest request, ServerCallContext context)
+    {
+        var targets = request.AllUncategorized
+            ? _state.Db.GetDomains(status: "blocked")
+                .Where(r => string.IsNullOrEmpty(r.Category))
+                .Select(r => r.Domain)
+                .ToList()
+            : request.Domains.ToList();
+        if (targets.Count == 0)
+        {
+            return new CategorizeResult { Ok = true, Message = "nothing to categorize", Categorized = 0 };
+        }
+
+        try
+        {
+            var results = await _state.Ai.CategorizeAsync(targets, context.CancellationToken);
+            var response = new CategorizeResult
+            {
+                Ok = true,
+                Message = $"categorized {results.Count} of {targets.Count} domains",
+                Categorized = results.Count,
+            };
+            foreach (var (domain, category) in results)
+            {
+                response.Items.Add(new DomainCategory { Domain = domain, Category = category });
+            }
+
+            return response;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
+            or TaskCanceledException or IOException or UnauthorizedAccessException)
+        {
+            return new CategorizeResult
+            {
+                Ok = false,
+                Message = $"AI categorization failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/ai_failed",
+            };
+        }
     }
 
     public override Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)

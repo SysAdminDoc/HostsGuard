@@ -217,6 +217,44 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         }
     }
 
+    // ─── Blocklist intelligence (reference index, not active blocks) ─────────
+
+    public override Task<BlocklistIntelStatus> GetBlocklistIntelligence(Empty request, ServerCallContext context)
+    {
+        var (lists, rows) = _state.Db.GetListIndexStats();
+        return Task.FromResult(new BlocklistIntelStatus
+        {
+            Lists = lists,
+            Domains = rows,
+            Refreshed = _state.Intel?.LastRefreshed ?? string.Empty,
+            Refreshing = _state.Intel?.IsRefreshing ?? false,
+        });
+    }
+
+    public override async Task<Ack> RefreshBlocklistIntelligence(Empty request, ServerCallContext context)
+    {
+        if (_state.Intel is not { } intel)
+        {
+            return new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" };
+        }
+
+        if (intel.IsRefreshing)
+        {
+            return new Ack { Ok = true, Message = "intelligence refresh already running" };
+        }
+
+        var (indexed, failed) = await intel.RefreshAsync(context.CancellationToken);
+        var (lists, rows) = _state.Db.GetListIndexStats();
+        return new Ack
+        {
+            Ok = indexed > 0,
+            Message = indexed > 0
+                ? $"indexed {indexed} lists ({rows:N0} domains total{(failed > 0 ? $", {failed} failed" : string.Empty)})"
+                : "no lists could be downloaded — check connectivity and retry",
+            ErrorCode = indexed > 0 ? string.Empty : "hostsguard.error.v1/intel_failed",
+        };
+    }
+
     private static BlocklistResult ListsUnavailable() => new()
     {
         Ok = false,

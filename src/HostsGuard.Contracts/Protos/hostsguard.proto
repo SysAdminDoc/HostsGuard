@@ -85,6 +85,48 @@ service HostsControl {
   rpc HardenAcl(Empty) returns (Ack);
   // One-click: add the hosts file to Windows Defender's exclusions (WMI).
   rpc AddDefenderExclusion(Empty) returns (Ack);
+  // AI domain categorization (DeepSeek). Config is stored in the ACL-locked
+  // service data dir; the key is write-only (never returned).
+  rpc SetAiConfig(AiConfig) returns (Ack);
+  rpc GetAiStatus(Empty) returns (AiStatus);
+  // Categorize the given domains (or every uncategorized blocked domain when
+  // all_uncategorized is set), persist categories, and reorganize the managed
+  // hosts entries under "# <Category>" section headers.
+  rpc CategorizeDomains(CategorizeRequest) returns (CategorizeResult);
+}
+
+message AiConfig {
+  string api_key = 1;    // "" keeps the stored key
+  string model = 2;      // "" = deepseek-chat
+  string endpoint = 3;   // "" = https://api.deepseek.com
+  bool enabled = 4;      // auto-categorize new manual blocks
+}
+
+message AiStatus {
+  bool configured = 1;   // an API key is stored
+  bool enabled = 2;
+  string model = 3;
+  string endpoint = 4;
+  string last_run = 5;   // ISO timestamp of the last categorization; "" = never
+  string last_result = 6;
+}
+
+message CategorizeRequest {
+  repeated string domains = 1;
+  bool all_uncategorized = 2;
+}
+
+message DomainCategory {
+  string domain = 1;
+  string category = 2;
+}
+
+message CategorizeResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  int32 categorized = 4;
+  repeated DomainCategory items = 5;
 }
 
 // ─── Blocklist / allowlist subscriptions ─────────────────────────────────────
@@ -105,6 +147,18 @@ service ListControl {
   // Threat-intel IP overlay (Feodo) and the offline GeoIP database.
   rpc RefreshThreatIntel(Empty) returns (Ack);
   rpc RefreshGeoIp(Empty) returns (Ack);
+  // Blocklist intelligence: every catalog source downloaded into a local
+  // domain→list index (NOT imported as blocks) so the feed can flag domains
+  // the reference lists would block. Refreshed on first start and weekly.
+  rpc GetBlocklistIntelligence(Empty) returns (BlocklistIntelStatus);
+  rpc RefreshBlocklistIntelligence(Empty) returns (Ack);
+}
+
+message BlocklistIntelStatus {
+  int32 lists = 1;        // reference lists currently indexed
+  int64 domains = 2;      // distinct (domain, list) rows
+  string refreshed = 3;   // ISO timestamp of the last successful refresh; "" = never
+  bool refreshing = 4;    // a refresh is running right now
 }
 
 message BlocklistRequest {
@@ -196,6 +250,9 @@ message ActivityRow {
   string last_seen = 7;
   bool hidden = 8;
   string reason = 9;
+  // Blocklist-intelligence membership: names of downloaded reference lists
+  // that block this exact domain (a block-candidate signal in the feed).
+  repeated string blocklists = 10;
 }
 
 message ActivityList {
@@ -227,6 +284,7 @@ message ManagedDomain {
   google.protobuf.Timestamp added = 6;
   google.protobuf.Timestamp modified = 7;
   string notes = 8;
+  string category = 9;   // e.g. "Google Ads", "Microsoft Telemetry"; "" = uncategorized
 }
 
 message DomainList {
@@ -480,6 +538,8 @@ message DnsEvent {
   int32 pid = 3;
   bool blocked = 4;
   google.protobuf.Timestamp ts = 5;
+  // Blocklist-intelligence membership (see ActivityRow.blocklists).
+  repeated string blocklists = 6;
 }
 
 message ConnectionEvent {

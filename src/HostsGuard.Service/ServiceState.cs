@@ -23,7 +23,8 @@ public sealed class ServiceState : IDisposable
         IDnsConfig? dns = null,
         string? dataDir = null,
         IListFetcher? listFetcher = null,
-        IDefender? defender = null)
+        IDefender? defender = null,
+        IAiCompleter? aiCompleter = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -51,9 +52,12 @@ public sealed class ServiceState : IDisposable
         Lock = new SettingsLock(DataDir);
         ListFetcher = listFetcher;
         Defender = defender;
+        ResolvedIps = new Core.ResolvedIpCache();
+        Ai = new AiCategorizer(db, hosts, aiCompleter ?? new DeepSeekCompleter(), DataDir);
         if (listFetcher is not null)
         {
             Lists = new ListImporter(hosts, db, listFetcher);
+            Intel = new BlocklistIntelligence(db, listFetcher);
         }
     }
 
@@ -86,6 +90,21 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>Direct-to-IP (no-DNS) heuristic for the block-P2P signal (NET-076).</summary>
     public Core.DirectIpHeuristic DirectIp { get; }
+
+    /// <summary>ETW-fed IP→domain map so live connections show the site name.</summary>
+    public Core.ResolvedIpCache ResolvedIps { get; }
+
+    /// <summary>Reference blocklist index for block-candidate flagging; null without a fetcher.</summary>
+    public BlocklistIntelligence? Intel { get; }
+
+    /// <summary>DeepSeek domain categorization.</summary>
+    public AiCategorizer Ai { get; }
+
+    /// <summary>Live ETW DNS monitor state (wired by the host; false when unavailable).</summary>
+    public bool DnsMonitorActive { get; set; }
+
+    /// <summary>Live connection-feed state (wired by the host).</summary>
+    public bool ConnectionMonitorActive { get; set; }
 
     public EventBus Bus { get; }
 
@@ -144,14 +163,16 @@ public sealed class ServiceState : IDisposable
 
         Db.RecordFeed(d, process);
         Db.RecordHourly(Core.Domains.GetRoot(d), DateTime.Now);
-        Bus.Publish(new DnsEvent
+        var ev = new DnsEvent
         {
             Domain = d,
             Process = process,
             Pid = pid,
             Blocked = blocked,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
-        });
+        };
+        ev.Blocklists.AddRange(Db.GetBlocklistsFor(d));
+        Bus.Publish(ev);
     }
 
     /// <summary>
@@ -186,6 +207,7 @@ public sealed class ServiceState : IDisposable
             LocalPort = info.LocalPort,
             RemoteAddr = info.RemoteAddress,
             RemotePort = info.RemotePort,
+            Host = ResolvedIps.Lookup(info.RemoteAddress, DateTime.Now),
             Process = info.Process,
             Pid = info.Pid,
             State = info.State,
@@ -199,6 +221,7 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        Intel?.Dispose();
         SecureRules.Dispose();
         Consent.Dispose();
         GeoIp.Dispose();

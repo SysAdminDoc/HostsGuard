@@ -210,6 +210,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             Process = ev.Process,
             Hits = 1,
             LastSeen = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            Blocklists = ev.Blocklists.ToList(),
         });
         while (Rows.Count > MaxRows)
         {

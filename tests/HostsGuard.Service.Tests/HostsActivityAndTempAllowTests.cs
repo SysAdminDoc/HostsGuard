@@ -53,6 +53,22 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     private HostsControl.HostsControlClient Hosts(Grpc.Net.Client.GrpcChannel ch) => new(ch);
 
     [Fact]
+    public async Task Activity_rows_carry_reference_blocklist_membership()
+    {
+        _state.Db.ReplaceListIndex("HaGezi Ultimate", new[] { "flagged.example.com" });
+        _state.Db.ReplaceListIndex("OISD Full", new[] { "flagged.example.com" });
+        _state.RecordDns("flagged.example.com");
+        _state.RecordDns("clean.example.org");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var list = await Hosts(channel).GetActivityAsync(new ActivityRequest());
+
+        list.Rows.Single(r => r.Domain == "flagged.example.com").Blocklists
+            .Should().BeEquivalentTo(new[] { "HaGezi Ultimate", "OISD Full" });
+        list.Rows.Single(r => r.Domain == "clean.example.org").Blocklists.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
     {
         // A scanner-style persistent hold (read handle, no delete share) must

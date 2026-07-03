@@ -608,4 +608,83 @@ public sealed partial class ToolsViewModel : ObservableObject
             await LoadSchedulesAsync();
         }
     }
+
+    // ─── AI categorization (DeepSeek) ─────────────────────────────────────────
+
+    /// <summary>Pushed from the API-key PasswordBox before commands run (no binding).</summary>
+    public string AiApiKey { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    private string _aiModel = "deepseek-chat";
+
+    [ObservableProperty]
+    private bool _aiEnabled;
+
+    [ObservableProperty]
+    private string _aiStatusText = "Checking AI configuration…";
+
+    public async Task LoadAiStatusAsync()
+    {
+        var status = await _client.Hosts.GetAiStatusAsync(new Empty());
+        AiEnabled = status.Enabled;
+        if (status.Model.Length != 0)
+        {
+            AiModel = status.Model;
+        }
+
+        AiStatusText = !status.Configured
+            ? "No DeepSeek API key stored — add one to categorize domains with AI."
+            : $"DeepSeek key stored · {status.Model} · auto-categorize {(status.Enabled ? "on" : "off")}"
+              + (status.LastRun.Length != 0 ? $" · last run {TimeText.Compact(status.LastRun)} ({status.LastResult})" : string.Empty);
+    }
+
+    [RelayCommand]
+    public async Task SaveAiConfigAsync()
+    {
+        var ack = await _client.Hosts.SetAiConfigAsync(new AiConfig
+        {
+            ApiKey = AiApiKey,
+            Model = AiModel.Trim(),
+            Endpoint = string.Empty, // keep the default endpoint
+            Enabled = AiEnabled,
+        });
+        AiApiKey = string.Empty;
+        StatusText = ack.Message;
+        await LoadAiStatusAsync();
+    }
+
+    [RelayCommand]
+    public async Task CategorizeAllAsync()
+    {
+        AiStatusText = "Asking DeepSeek to categorize uncategorized blocked domains…";
+        var result = await _client.Hosts.CategorizeDomainsAsync(
+            new CategorizeRequest { AllUncategorized = true });
+        StatusText = result.Message;
+        await LoadAiStatusAsync();
+    }
+
+    // ─── Blocklist intelligence ───────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string _intelStatusText = "Checking blocklist intelligence…";
+
+    public async Task LoadIntelStatusAsync()
+    {
+        var status = await _client.Lists.GetBlocklistIntelligenceAsync(new Empty());
+        IntelStatusText = status.Refreshing
+            ? "Downloading reference blocklists in the background…"
+            : status.Lists == 0
+                ? "No reference lists downloaded yet — refresh to build the block-candidate index."
+                : $"{status.Lists} reference lists · {status.Domains:N0} domains indexed"
+                  + (status.Refreshed.Length != 0 ? $" · refreshed {TimeText.Compact(status.Refreshed)}" : string.Empty);
+    }
+
+    [RelayCommand]
+    public async Task RefreshIntelAsync()
+    {
+        IntelStatusText = "Downloading reference blocklists — this can take a few minutes…";
+        var ack = await _client.Lists.RefreshBlocklistIntelligenceAsync(new Empty());
+        StatusText = ack.Message;
+        await LoadIntelStatusAsync();
+    }
 }

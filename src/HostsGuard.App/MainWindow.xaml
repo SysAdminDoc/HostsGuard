@@ -192,7 +192,36 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
+                                <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <!-- Yellow = undecided domain the reference blocklists would
+                                             block: a candidate worth reviewing. -->
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="ToolTip" Value="{Binding BlocklistsTip}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding BlocklistsText}" Value="">
+                                                    <Setter Property="ToolTip" Value="{x:Null}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsBlockCandidate}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Yellow}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Lists" Binding="{Binding BlocklistsText}" Width="70">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Yellow}" />
+                                            <Setter Property="ToolTip" Value="{Binding BlocklistsTip}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding BlocklistsText}" Value="">
+                                                    <Setter Property="ToolTip" Value="{x:Null}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}" Width="150">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -339,7 +368,14 @@
                                 <DataGridTextColumn Header="Service" Binding="{Binding Service}" Width="140" />
                                 <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60" />
                                 <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />
-                                <DataGridTextColumn Header="Remote address" Binding="{Binding RemoteAddr}" Width="*" />
+                                <DataGridTextColumn Header="Remote address" Binding="{Binding RemoteAddr}" Width="135" />
+                                <DataGridTextColumn Header="Site" Binding="{Binding Host}" Width="*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="ToolTip" Value="Domain this IP was resolved as (live DNS)" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Port" Binding="{Binding RemotePort}" Width="60" />
                                 <DataGridTextColumn Header="State" Binding="{Binding State}" Width="110" />
                                 <DataGridTextColumn Header="Country" Binding="{Binding Country}" Width="80" />
@@ -649,6 +685,7 @@
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
                                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" />
                                         <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
                                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
                                         <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
@@ -1132,6 +1169,64 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Blocklist intelligence (reference index for candidate flagging) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Blocklist intelligence" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Every catalog blocklist is downloaded into a local reference index (never imported as blocks). Feed domains found on these lists show yellow as block candidates."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="Refresh reference lists"
+                                                Command="{Binding RefreshIntelCommand}" Margin="8,0,0,0"
+                                                ToolTip="Re-download every catalog list into the index (runs for a few minutes)" />
+                                        <Border Style="{StaticResource Hg.StatusStrip}">
+                                            <TextBlock Text="{Binding IntelStatusText}"
+                                                       Style="{StaticResource Hg.SubText}"
+                                                       TextWrapping="Wrap"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </Border>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- AI domain categorization (DeepSeek) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="AI categorization (DeepSeek)" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Uses the DeepSeek API to bucket blocked domains into hosts-file categories (Google Ads, Microsoft Telemetry, …) and re-homes the entries under matching '# Category' sections. With auto-categorize on, every new manual block is filed automatically."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
+                                    <TextBlock Text="DeepSeek API key" Style="{StaticResource Hg.FieldLabel}" />
+                                    <DockPanel LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="Save AI settings"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding SaveAiConfigCommand}" Click="OnAiKeySync"
+                                                Margin="8,0,0,0"
+                                                ToolTip="Store the key in the service's protected data folder (leave blank to keep the current key)" />
+                                        <TextBox DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                 Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="Model"
+                                                 AutomationProperties.Name="AI model"
+                                                 ToolTip="DeepSeek model (deepseek-chat is the default)" />
+                                        <PasswordBox x:Name="AiKeyBox" VerticalAlignment="Center"
+                                                     AutomationProperties.Name="DeepSeek API key" />
+                                    </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <CheckBox DockPanel.Dock="Left" Content="Auto-categorize new blocks" VerticalAlignment="Center"
+                                                  IsChecked="{Binding AiEnabled}" Margin="0,0,12,0"
+                                                  ToolTip="File every new manual block under its AI-assigned category (save settings to apply)" />
+                                        <Button DockPanel.Dock="Left" Content="Categorize uncategorized domains"
+                                                Command="{Binding CategorizeAllCommand}"
+                                                ToolTip="Send every uncategorized blocked domain to DeepSeek and organize the hosts file by category" />
+                                    </DockPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding AiStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
                                 </StackPanel>
                             </Border>
 

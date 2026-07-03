@@ -38,6 +38,11 @@ var defender = new DefenderConfig();
 using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender);
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
+state.ConnectionMonitorActive = true;
+
+// Blocklist intelligence: download the reference index on first start
+// (post-install) or when older than a week; refreshes weekly after that.
+state.Intel?.StartIfStale();
 
 // Real-time DNS monitor (ETW): feeds the activity feed + 24h sparkline, and
 // drives CNAME-cloak reactive blocking (NET-075). Elevation-gated; degrades
@@ -50,8 +55,12 @@ dnsMonitor.DnsResolved += (_, e) =>
     // Feed the direct-IP heuristic (NET-076): resolved addresses are "known
     // good" — a later connection to a public IP never resolved is direct-to-IP.
     state.DirectIp.RecordResolved(e.Addresses, DateTime.Now);
+    // Remember which site each IP belongs to so the live-connections view can
+    // show the domain next to the raw remote address.
+    state.ResolvedIps.Record(e.QueryName, e.Addresses, DateTime.Now);
 };
 var dnsStatus = dnsMonitor.Start();
+state.DnsMonitorActive = dnsStatus == DnsMonitorStatus.Started;
 db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
 
 // Per-app byte counters (NET-070): ETW kernel NetworkTCPIP → per-minute DB

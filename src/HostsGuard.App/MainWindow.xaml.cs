@@ -132,6 +132,16 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Push the AI API key to the VM before saving, then clear the box.</summary>
+    private void OnAiKeySync(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel { Tools: { } tools } && AiKeyBox is not null)
+        {
+            tools.AiApiKey = AiKeyBox.Password;
+            AiKeyBox.Clear();
+        }
+    }
+
     protected override void OnClosing(CancelEventArgs e)
     {
         if (!_exiting)

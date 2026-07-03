@@ -89,6 +89,48 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public void OrganizeByCategory_appends_to_an_existing_section_and_creates_missing_ones()
+    {
+        File.WriteAllText(_hosts, "# Google Ads\n0.0.0.0 ad.doubleclick.net\n\n# HostsGuard\n0.0.0.0 pagead2.googlesyndication.com\n0.0.0.0 telemetry.microsoft.com\n");
+        var e = New();
+
+        var moved = e.OrganizeByCategory(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["pagead2.googlesyndication.com"] = "Google Ads",
+            ["telemetry.microsoft.com"] = "Microsoft Telemetry",
+        });
+
+        moved.Should().Be(2);
+        var lines = File.ReadAllLines(_hosts).ToList();
+        // Appended inside the existing Google Ads section (after its last entry).
+        lines.IndexOf("0.0.0.0 pagead2.googlesyndication.com")
+            .Should().Be(lines.IndexOf("# Google Ads") + 2);
+        // New section created for the category with no header.
+        var header = lines.IndexOf("# Microsoft Telemetry");
+        header.Should().BeGreaterThan(0);
+        lines[header + 1].Should().Be("0.0.0.0 telemetry.microsoft.com");
+        // Both domains still blocked exactly once.
+        e.GetBlocked().Should().Contain(new[] { "pagead2.googlesyndication.com", "telemetry.microsoft.com" });
+        lines.Count(l => l.Contains("pagead2")).Should().Be(1);
+    }
+
+    [Fact]
+    public void OrganizeByCategory_leaves_unmapped_and_custom_lines_alone()
+    {
+        File.WriteAllText(_hosts, "# custom header\n127.0.0.1 myserver\n0.0.0.0 keep-where-it-is.com\n");
+        var e = New();
+
+        e.OrganizeByCategory(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["not-in-file.com"] = "Ads",
+        }).Should().Be(0);
+
+        File.ReadAllLines(_hosts).Should().ContainInOrder(
+            "# custom header", "127.0.0.1 myserver", "0.0.0.0 keep-where-it-is.com");
+        File.ReadAllText(_hosts).Should().NotContain("not-in-file.com");
+    }
+
+    [Fact]
     public void Reconcile_enforces_exact_set_preserving_custom_lines()
     {
         var e = New();

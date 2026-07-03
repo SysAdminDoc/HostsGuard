@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 6;
+    public const int SchemaVersion = 7;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -120,6 +120,10 @@ public sealed class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_app_bandwidth_minute ON app_bandwidth(minute);
             CREATE TABLE IF NOT EXISTS network_profiles(
                 fingerprint TEXT PRIMARY KEY, profile TEXT, label TEXT);
+            CREATE TABLE IF NOT EXISTS list_index(
+                domain TEXT NOT NULL, list TEXT NOT NULL,
+                PRIMARY KEY(domain, list)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_list_index_list ON list_index(list);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -192,6 +196,90 @@ public sealed class HostsDatabase : IDisposable
                     reason=excluded.reason
                 """,
                 new { domain = domain.ToLowerInvariant(), status, category, source, now, reason = canonical });
+        }
+    }
+
+    /// <summary>Set (or clear with "") a managed domain's category.</summary>
+    public void SetCategory(string domain, string category)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            _conn.Execute(
+                "UPDATE domains SET category=@category, modified=@now WHERE domain=@domain",
+                new
+                {
+                    domain = domain.ToLowerInvariant(),
+                    category = category ?? string.Empty,
+                    now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                });
+        }
+    }
+
+    // ─── Blocklist intelligence index (domain → reference lists) ─────────────
+
+    /// <summary>Replace one reference list's rows in the intelligence index.</summary>
+    public void ReplaceListIndex(string list, IEnumerable<string> domains)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(list);
+        ArgumentNullException.ThrowIfNull(domains);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM list_index WHERE list=@list", new { list }, tx);
+            foreach (var chunk in domains.Chunk(2000))
+            {
+                _conn.Execute(
+                    "INSERT OR IGNORE INTO list_index(domain,list) VALUES(@d,@list)",
+                    chunk.Select(d => new { d, list }), tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
+    /// <summary>Reference-list membership for a batch of domains (chunked IN queries).</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> GetListMembership(IEnumerable<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var chunk in domains.Distinct(StringComparer.Ordinal).Chunk(500))
+            {
+                var rows = _conn.Query<(string Domain, string List)>(
+                    "SELECT domain, list FROM list_index WHERE domain IN @chunk ORDER BY list",
+                    new { chunk });
+                foreach (var group in rows.GroupBy(r => r.Domain, StringComparer.Ordinal))
+                {
+                    result[group.Key] = group.Select(r => r.List).ToList();
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Reference lists that block one domain (ordered by list name).</summary>
+    public IReadOnlyList<string> GetBlocklistsFor(string domain)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            return _conn.Query<string>(
+                "SELECT list FROM list_index WHERE domain=@d ORDER BY list",
+                new { d = domain.ToLowerInvariant() }).ToList();
+        }
+    }
+
+    /// <summary>Intelligence-index size: (distinct lists, total rows).</summary>
+    public (int Lists, long Rows) GetListIndexStats()
+    {
+        lock (_gate)
+        {
+            var lists = _conn.ExecuteScalar<int>("SELECT COUNT(DISTINCT list) FROM list_index");
+            var rows = _conn.ExecuteScalar<long>("SELECT COUNT(*) FROM list_index");
+            return (lists, rows);
         }
     }
 

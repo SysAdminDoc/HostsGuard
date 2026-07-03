@@ -29,6 +29,10 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     [ObservableProperty]
     private int _remotePort;
 
+    /// <summary>Site the remote IP was resolved as (ETW DNS); "" when unknown.</summary>
+    [ObservableProperty]
+    private string _host = string.Empty;
+
     [ObservableProperty]
     private string _process = string.Empty;
 
@@ -332,6 +336,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         {
             existing.State = ev.State;
             existing.FwStatus = ev.FwStatus;
+            if (ev.Host.Length != 0)
+            {
+                existing.Host = ev.Host; // the resolution can arrive after the first sighting
+            }
+
             return;
         }
 
@@ -342,6 +351,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             LocalPort = ev.LocalPort,
             RemoteAddr = ev.RemoteAddr,
             RemotePort = ev.RemotePort,
+            Host = ev.Host,
             Process = ev.Process,
             Pid = ev.Pid,
             State = ev.State,
