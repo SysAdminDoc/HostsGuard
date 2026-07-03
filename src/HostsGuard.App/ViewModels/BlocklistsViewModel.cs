@@ -87,7 +87,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 
         var allow = await _client.Lists.GetAllowlistsAsync(new Empty());
         AllowlistUrlsText = string.Join(Environment.NewLine, allow.Urls);
-        StatusText = $"{Sources.Count} sources, {Sources.Count(s => s.Subscribed)} subscribed";
+        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed";
     }
 
     [RelayCommand]

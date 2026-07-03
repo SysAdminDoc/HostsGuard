@@ -387,7 +387,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         });
         await File.WriteAllTextAsync(path, System.Text.Json.JsonSerializer.Serialize(
             rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-        ConnectionText = $"Exported {list.Domains.Count} domains to {path}";
+        ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
     }
 
     // ─── View menu ────────────────────────────────────────────────────────────

@@ -199,8 +199,8 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
 
         StatusText = hidden > 0
-            ? $"{Rows.Count} domains in feed · {hidden} hidden"
-            : $"{Rows.Count} domains in feed";
+            ? $"{Plural.Of(Rows.Count, "domain")} in feed · {hidden} hidden"
+            : $"{Plural.Of(Rows.Count, "domain")} in feed";
         await LoadSparklinesAsync();
     }
 
@@ -226,7 +226,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
                 foreach (var row in group)
                 {
                     row.SparklinePoints = points;
-                    row.SparklineTip = $"{total} hits in the last 24h";
+                    row.SparklineTip = $"{Plural.Of((int)total, "hit")} in the last 24h";
                 }
             }
             catch (Exception ex) when (ex is RpcException or IOException)

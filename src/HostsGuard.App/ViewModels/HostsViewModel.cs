@@ -94,7 +94,7 @@ public sealed partial class HostsViewModel : ObservableObject
             Domains.Add(ManagedDomainViewModel.From(d));
         }
 
-        StatusText = $"{Domains.Count} domains";
+        StatusText = Plural.Of(Domains.Count, "domain");
     }
 
     [RelayCommand(CanExecute = nameof(CanBlock))]

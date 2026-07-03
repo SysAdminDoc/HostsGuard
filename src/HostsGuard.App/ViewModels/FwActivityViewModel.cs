@@ -383,7 +383,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        StatusText = $"Asking DeepSeek about {pending.Count} connections…";
+        StatusText = $"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…";
         var request = new IdentifyRequest();
         foreach (var row in pending)
         {
@@ -517,7 +517,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             Rows.RemoveAt(Rows.Count - 1);
         }
 
-        StatusText = $"{Rows.Count} connections";
+        StatusText = Plural.Of(Rows.Count, "connection");
         RecordConnectionEvent(DateTime.Now, ev.Process);
     }
 
@@ -601,7 +601,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             });
         }
 
-        TimelineStatus = $"Top {top.Count} apps · last {TimelineMinutes} min · peak {peak}/min";
+        TimelineStatus = $"Top {Plural.Of(top.Count, "app")} · last {TimelineMinutes} min · peak {peak}/min";
     }
 
     // ─── Connection history + per-app bandwidth (NET-070) ────────────────────
@@ -648,7 +648,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             });
         }
 
-        HistoryStatus = $"{HistoryRows.Count} recorded connections · retained {RetentionDays} days";
+        HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
         await LoadBandwidthAsync();
     }
 
@@ -707,7 +707,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             });
         }
 
-        BandwidthStatus = $"Top {list.Series.Count} apps · last 60 min · peak {FormatBytes(peak)}/min";
+        BandwidthStatus = $"Top {Plural.Of(list.Series.Count, "app")} · last 60 min · peak {FormatBytes(peak)}/min";
     }
 
     /// <summary>Humanized byte count ("1.4 MB").</summary>
@@ -827,7 +827,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         LearnedStatus = Learned.Count == 0
             ? "No learning-mode decisions awaiting review"
-            : $"{Learned.Count} auto-allowed apps awaiting review";
+            : $"{Plural.Of(Learned.Count, "auto-allowed app")} awaiting review";
     }
 
     [RelayCommand]

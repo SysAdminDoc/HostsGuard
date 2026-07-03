@@ -59,7 +59,7 @@ public sealed class HostsViewModelTests : IAsyncLifetime
         await vm.BlockCommand.ExecuteAsync(null);
 
         vm.Domains.Should().Contain(d => d.Domain == "ads.example.com" && d.Status == "blocked");
-        vm.StatusText.Should().Contain("domains");
+        vm.StatusText.Should().Contain("domain"); // "1 domain" — singular-aware
         _state.Hosts.GetBlocked().Should().Contain("ads.example.com");
     }
 

@@ -581,7 +581,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             Schedules.Add(ScheduleRowViewModel.From(s));
         }
 
-        StatusText = $"{Schedules.Count} schedules";
+        StatusText = Plural.Of(Schedules.Count, "schedule");
     }
 
     [RelayCommand]
@@ -693,7 +693,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             ? "Downloading reference blocklists in the background…"
             : status.Lists == 0
                 ? "No reference lists downloaded yet — refresh to build the block-candidate index."
-                : $"{status.Lists} reference lists · {status.Domains:N0} domains indexed"
+                : $"{Plural.Of(status.Lists, "reference list")} · {status.Domains:N0} domains indexed"
                   + (status.Refreshed.Length != 0 ? $" · refreshed {TimeText.Compact(status.Refreshed)}" : string.Empty);
     }
 

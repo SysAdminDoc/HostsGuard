@@ -53,6 +53,6 @@ public sealed class BandwidthViewTests
         s.Name.Should().Be("chrome");
         s.LegendText.Should().Be("↑2 KB ↓1 MB");
         s.PointsText.Split(' ').Should().HaveCount(4);
-        vm.BandwidthStatus.Should().Contain("Top 1 apps");
+        vm.BandwidthStatus.Should().Contain("Top 1 app").And.NotContain("Top 1 apps");
     }
 }

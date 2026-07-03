@@ -182,7 +182,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
             Rules.Add(FwRuleViewModel.From(r));
         }
 
-        StatusText = $"{Rules.Count} rules";
+        StatusText = Plural.Of(Rules.Count, "rule");
     }
 
     [RelayCommand]
@@ -227,7 +227,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
             }
         }
 
-        StatusText = $"Deleted {deleted}/{names.Count} rules";
+        StatusText = $"Deleted {deleted} of {Plural.Of(names.Count, "rule")}";
         await RefreshAsync();
     }
 
