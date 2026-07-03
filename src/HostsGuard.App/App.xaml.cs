@@ -70,27 +70,15 @@ public partial class App : Application
 
         // A dropped service connection surfaces as a gRPC/pipe error — show a calm,
         // actionable message instead of a raw "StatusCode=Unavailable" dump.
-        var (message, title, icon) = IsConnectivityError(e.Exception)
+        // Handler-side failures (StatusCode.Unknown) are NOT connectivity: the
+        // service is up, so don't tell the user to restart it.
+        var (message, title, icon) = Services.ServiceErrors.IsConnectivity(e.Exception)
             ? ("HostsGuard can't reach its background service. It may be starting, stopped, or restarting — "
                + "wait a moment and try again, or reopen HostsGuard.",
                "HostsGuard — service unavailable", MessageBoxImage.Warning)
-            : (e.Exception.Message, "HostsGuard — unexpected error", MessageBoxImage.Error);
+            : (Services.ServiceErrors.Describe(e.Exception), "HostsGuard — action failed", MessageBoxImage.Error);
 
         MessageBox.Show(message, title, MessageBoxButton.OK, icon);
         e.Handled = true;
-    }
-
-    /// <summary>True when the failure is a lost/absent service connection, not a real crash.</summary>
-    private static bool IsConnectivityError(Exception ex)
-    {
-        for (var e = ex; e is not null; e = e.InnerException)
-        {
-            if (e is Grpc.Core.RpcException or IOException or TimeoutException or OperationCanceledException)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

@@ -53,6 +53,21 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     private HostsControl.HostsControlClient Hosts(Grpc.Net.Client.GrpcChannel ch) => new(ch);
 
     [Fact]
+    public async Task Block_returns_a_typed_error_when_the_hosts_file_is_held()
+    {
+        // A scanner-style persistent hold (read handle, no delete share) must
+        // surface as an actionable Ack, not an opaque handler exception.
+        using var hold = new FileStream(_hostsPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await Hosts(channel).BlockAsync(new DomainRequest { Domain = "locked.example.com" });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/hosts_locked");
+        ack.Message.Should().Contain("locked");
+    }
+
+    [Fact]
     public async Task Sparkline_reports_24h_hourly_hits_for_a_domain_root()
     {
         // Sightings on the same root roll up hourly; GetSparkline returns 24 buckets.

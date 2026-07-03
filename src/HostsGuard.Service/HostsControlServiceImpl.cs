@@ -21,10 +21,13 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
         }
 
-        var wrote = _state.Hosts.Block(d);
-        _state.Db.AddDomain(d, "blocked", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
-        _state.Db.LogEvent(d, "blocked", details: "hosts file", reason: request.Reason);
-        return Task.FromResult(Ok(wrote ? $"blocked {d}" : $"already blocked {d}"));
+        return GuardHostsWrite(() =>
+        {
+            var wrote = _state.Hosts.Block(d);
+            _state.Db.AddDomain(d, "blocked", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
+            _state.Db.LogEvent(d, "blocked", details: "hosts file", reason: request.Reason);
+            return Ok(wrote ? $"blocked {d}" : $"already blocked {d}");
+        });
     }
 
     public override Task<Ack> Allow(DomainRequest request, ServerCallContext context)
@@ -35,18 +38,24 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
         }
 
-        _state.Hosts.Unblock(d);
-        _state.Db.AddDomain(d, "whitelisted", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
-        _state.Db.LogEvent(d, "whitelisted", reason: request.Reason);
-        return Task.FromResult(Ok($"allowed {d}"));
+        return GuardHostsWrite(() =>
+        {
+            _state.Hosts.Unblock(d);
+            _state.Db.AddDomain(d, "whitelisted", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
+            _state.Db.LogEvent(d, "whitelisted", reason: request.Reason);
+            return Ok($"allowed {d}");
+        });
     }
 
     public override Task<Ack> Unblock(DomainRequest request, ServerCallContext context)
     {
         var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
-        _state.Hosts.Unblock(d);
-        _state.Db.RemoveDomain(d);
-        return Task.FromResult(Ok($"unblocked {d}"));
+        return GuardHostsWrite(() =>
+        {
+            _state.Hosts.Unblock(d);
+            _state.Db.RemoveDomain(d);
+            return Ok($"unblocked {d}");
+        });
     }
 
     public override Task<Ack> BlockRoot(DomainRequest request, ServerCallContext context)
@@ -58,9 +67,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         var root = Domains.GetRoot(d);
-        _state.Hosts.Block(root);
-        _state.Db.AddDomain(root, "blocked", "manual", reason: request.Reason);
-        return Task.FromResult(Ok($"blocked root {root}"));
+        return GuardHostsWrite(() =>
+        {
+            _state.Hosts.Block(root);
+            _state.Db.AddDomain(root, "blocked", "manual", reason: request.Reason);
+            return Ok($"blocked root {root}");
+        });
     }
 
     public override Task<DomainList> ListDomains(ListDomainsRequest request, ServerCallContext context)
@@ -88,16 +100,18 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     }
 
     public override Task<Ack> Reconcile(ReconcileRequest request, ServerCallContext context)
-    {
-        var (added, target) = _state.Hosts.Reconcile(request.Blocked);
-        return Task.FromResult(Ok($"reconciled: +{added} to {target} target"));
-    }
+        => GuardHostsWrite(() =>
+        {
+            var (added, target) = _state.Hosts.Reconcile(request.Blocked);
+            return Ok($"reconciled: +{added} to {target} target");
+        });
 
     public override Task<Ack> EmergencyReset(Empty request, ServerCallContext context)
-    {
-        _state.Hosts.EmergencyReset();
-        return Task.FromResult(Ok("hosts file reset to Windows defaults"));
-    }
+        => GuardHostsWrite(() =>
+        {
+            _state.Hosts.EmergencyReset();
+            return Ok("hosts file reset to Windows defaults");
+        });
 
     public override Task<Ack> TempAllow(TempAllowRequest request, ServerCallContext context)
     {
@@ -144,9 +158,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             return Task.FromResult(Error("too_large", "hosts content exceeds 10 MB"));
         }
 
-        _state.Hosts.SaveRaw(text);
-        _state.Db.LogEvent("hosts", "raw_edit", details: "raw editor save");
-        return Task.FromResult(Ok("hosts file saved"));
+        return GuardHostsWrite(() =>
+        {
+            _state.Hosts.SaveRaw(text);
+            _state.Db.LogEvent("hosts", "raw_edit", details: "raw editor save");
+            return Ok("hosts file saved");
+        });
     }
 
     public override Task<Ack> HideRoot(DomainRequest request, ServerCallContext context)
@@ -283,10 +300,13 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         var text = System.IO.File.ReadAllText(path);
-        _state.Hosts.Backup(backupDir); // snapshot the current file before replacing it
-        _state.Hosts.SaveRaw(text);
-        _state.Db.LogEvent("hosts", "backup_restored", details: name);
-        return Task.FromResult(Ok($"restored {name}"));
+        return GuardHostsWrite(() =>
+        {
+            _state.Hosts.Backup(backupDir); // snapshot the current file before replacing it
+            _state.Hosts.SaveRaw(text);
+            _state.Db.LogEvent("hosts", "backup_restored", details: name);
+            return Ok($"restored {name}");
+        });
     }
 
     public override Task<Ack> AddDefenderExclusion(Empty request, ServerCallContext context)
@@ -329,6 +349,25 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.IO.IOException or InvalidOperationException)
         {
             return Task.FromResult(Error("acl_failed", ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Run a hosts-file mutation and translate write failures (typically a
+    /// scanner holding the file open) into a typed, actionable Ack instead of
+    /// letting the exception escape as an opaque StatusCode.Unknown RPC error.
+    /// </summary>
+    private static Task<Ack> GuardHostsWrite(Func<Ack> action)
+    {
+        try
+        {
+            return Task.FromResult(action());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(Error("hosts_locked",
+                "the hosts file is locked by another program (usually antivirus scanning it) — "
+                + "wait a few seconds and retry; Tools → 'Exclude hosts in Defender' prevents this"));
         }
     }
 

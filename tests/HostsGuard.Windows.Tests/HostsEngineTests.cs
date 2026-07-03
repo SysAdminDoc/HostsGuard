@@ -45,6 +45,39 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task Block_survives_a_transient_hold_on_the_hosts_file()
+    {
+        // Simulates a scanner holding the hosts file open right after a write:
+        // File.Move needs delete access on the target, which a plain read
+        // handle (no FileShare.Delete) denies. The engine must retry past it.
+        var e = New();
+        var hold = new FileStream(_hosts, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var release = Task.Run(async () =>
+        {
+            await Task.Delay(300);
+            hold.Dispose();
+        });
+
+        e.Block("retry.example.com").Should().BeTrue();
+
+        await release;
+        New().GetBlocked().Should().Contain("retry.example.com");
+    }
+
+    [Fact]
+    public void Block_surfaces_a_persistent_hold_as_a_write_failure()
+    {
+        var engine = New();
+        using var hold = new FileStream(_hosts, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        // Windows reports the denied replace as either exception depending on
+        // the path taken; both mean "hosts file held" to callers.
+        var ex = Record.Exception(() => engine.Block("stuck.example.com"));
+
+        ex.Should().Match(e => e is IOException || e is UnauthorizedAccessException);
+    }
+
+    [Fact]
     public void Unblock_removes_only_that_domain_and_preserves_custom()
     {
         var e = New();
