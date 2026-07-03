@@ -101,6 +101,25 @@ state.Consent.DisarmDetection = blockedWatch.Stop;
 // re-arm it now; failures degrade to a logged, disarmed state.
 state.Consent.ResumeFromPersistedMode();
 
+// Optional headless JSON-RPC/OpenAPI loopback (NET-044). OFF by default; only
+// starts when HG_LOOPBACK_API is truthy. Token minted to the ACL-locked dir.
+LoopbackApi? loopbackApi = null;
+if (LoopbackApi.IsEnabled())
+{
+    try
+    {
+        var apiToken = LoopbackApi.EnsureToken(baseDir);
+        loopbackApi = new LoopbackApi(state, apiToken, LoopbackApi.PortFromEnv());
+        loopbackApi.Start();
+        db.LogEvent("loopback", "api_start", details: $"127.0.0.1:{LoopbackApi.PortFromEnv()}");
+    }
+    catch (Exception ex) when (ex is System.Net.HttpListenerException or InvalidOperationException)
+    {
+        db.LogEvent("loopback", "api_start_failed", details: ex.Message);
+        Console.WriteLine($"HostsGuard: loopback API could not start ({ex.Message}); continuing without it.");
+    }
+}
+
 // Mint a per-session token and publish it to the ACL'd handshake file.
 var token = SessionToken.Generate();
 SessionToken.WriteHandshake(handshakePath, token);
@@ -116,4 +135,10 @@ app.Lifetime.ApplicationStopping.Register(() =>
     Console.WriteLine("HostsGuard service stopping.");
 });
 Console.WriteLine($"HostsGuard service listening on named pipe '{NamedPipeSecurity.PipeName}'.");
+if (loopbackApi is not null)
+{
+    Console.WriteLine($"HostsGuard loopback API on http://127.0.0.1:{LoopbackApi.PortFromEnv()} (token in {baseDir}\\loopback_token).");
+}
+
 await app.RunAsync();
+loopbackApi?.Dispose();

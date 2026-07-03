@@ -4,6 +4,17 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — optional headless JSON-RPC/OpenAPI loopback (NET-044)
+- **Loopback API (off by default)** — set `HG_LOOPBACK_API=1` to expose a
+  token-authed HTTP surface on `127.0.0.1:HG_PORT` (default 7847): `GET /status
+  /stats /domains /log /openapi.json` and `POST /domains {action, domain}`.
+  1 MB body cap, `hostsguard.error.v1` error shape, `X-HG-Token` header
+  (minted to `%ProgramData%\HostsGuard\loopback_token` in the ACL-locked dir),
+  the active port advertised in the OpenAPI `servers` list, `/log` validates
+  `limit` and filters by `action`/`reason`, and `POST` respects the settings
+  lock. Built on in-box `HttpListener` — no extra dependency; the request
+  router is a pure method (fully unit-tested without a socket).
+
 ### Added — consent-prompt micro-features (NET-085)
 - **Reputation lookup** — the consent prompt has a "look up ↗" link that opens a
   VirusTotal search for the process (or remote IP), one click from the decision.
