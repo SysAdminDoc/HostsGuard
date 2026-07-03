@@ -34,6 +34,9 @@ public sealed class AppConfigStore
     /// <summary>Observe mode: record decisions silently instead of prompting.</summary>
     public bool ObserveMode { get; private set; }
 
+    /// <summary>Play a system sound when a connection is blocked/prompted (NET-085).</summary>
+    public bool SoundOnBlock { get; private set; }
+
     /// <summary>Clamp any persisted value to the nearest supported scale step.</summary>
     public static int CoerceUiScale(object? value)
     {
@@ -55,6 +58,16 @@ public sealed class AppConfigStore
         UiScalePct = CoerceUiScale(root["ui_scale_pct"]?.ToString());
         LearningMode = ReadBool(root, "learning_mode");
         ObserveMode = ReadBool(root, "observe_mode");
+        SoundOnBlock = ReadBool(root, "sound_on_block");
+    }
+
+    /// <summary>Persist the block-sound toggle (NET-085).</summary>
+    public void SaveSoundOnBlock(bool enabled)
+    {
+        SoundOnBlock = enabled;
+        var root = ReadRoot();
+        root["sound_on_block"] = enabled;
+        WriteRoot(root);
     }
 
     public void Save(string theme, int uiScalePct)

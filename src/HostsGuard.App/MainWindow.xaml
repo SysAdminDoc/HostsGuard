@@ -389,7 +389,23 @@
                                     <TextBlock DockPanel.Dock="Left" Text="Recent connection decisions" FontWeight="SemiBold" />
                                     <Button DockPanel.Dock="Right" Content="Refresh"
                                             Command="{Binding LoadConsentHistoryCommand}" Padding="10,2" />
+                                    <CheckBox DockPanel.Dock="Right" Content="Sound on block" VerticalAlignment="Center" Margin="0,0,12,0"
+                                              IsChecked="{Binding SoundOnBlock}"
+                                              AutomationProperties.Name="Play a sound when a connection is blocked"
+                                              ToolTip="Play a system sound when a new connection is blocked or prompts" />
                                 </DockPanel>
+                                <ItemsControl ItemsSource="{Binding TopTriggered}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource Hg.S1}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                <TextBlock Text="{Binding}" Style="{StaticResource Hg.DimText}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                                 <DataGrid ItemsSource="{Binding ConsentHistory}" MaxHeight="150" Margin="0,6,0,0">
                                     <DataGrid.ContextMenu>
                                         <ContextMenu>

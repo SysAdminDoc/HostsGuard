@@ -4,6 +4,15 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added — consent-prompt micro-features (NET-085)
+- **Reputation lookup** — the consent prompt has a "look up ↗" link that opens a
+  VirusTotal search for the process (or remote IP), one click from the decision.
+- **Most-triggered apps** — the FW Activity decisions panel ranks the top 5 apps
+  by how often they trigger consent decisions.
+- **Optional block sound** — a "Sound on block" toggle plays a system sound when
+  a new connection is blocked/prompted (off by default; persists in config.json,
+  foreign keys preserved).
+
 ### Added — firewall rule scheduler (NET-084)
 - **Scheduled firewall rules** — a schedule target prefixed `fw:` names an HG_
   firewall rule instead of a domain: the rule is enabled inside its weekly

@@ -225,6 +225,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             using var call = client.Consent.WatchDecisions(new Empty(), cancellationToken: ct);
             await foreach (var request in call.ResponseStream.ReadAllAsync(ct))
             {
+                // Optional audible alert on a new block/prompt (NET-085).
+                if (_config.SoundOnBlock)
+                {
+                    try
+                    {
+                        System.Media.SystemSounds.Exclamation.Play();
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // No audio device — never let it break the prompt flow.
+                    }
+                }
+
                 if (_ui is null)
                 {
                     DecisionRequested?.Invoke(request);

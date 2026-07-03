@@ -134,4 +134,15 @@ public partial class ConsentWindow : Window
     private void OnAllow(object sender, RoutedEventArgs e) => Decide("allow");
 
     private void OnBlock(object sender, RoutedEventArgs e) => Decide("block");
+
+    /// <summary>Open a reputation lookup for the process on VirusTotal (NET-085).</summary>
+    private void OnLookup(object sender, RoutedEventArgs e)
+    {
+        var name = Path.GetFileName(_request.Application);
+        var query = name.Length != 0 ? name : _request.RemoteAddress;
+        if (query.Length != 0)
+        {
+            Services.Research.Open("https://www.virustotal.com/gui/search/{d}", query);
+        }
+    }
 }

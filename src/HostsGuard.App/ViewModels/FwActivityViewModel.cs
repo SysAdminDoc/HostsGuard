@@ -201,6 +201,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             _suppressModeWrite = true;
             LearningMode = _config.LearningMode;
             ObserveMode = _config.ObserveMode;
+            SoundOnBlock = _config.SoundOnBlock;
             _suppressModeWrite = false;
         }
     }
@@ -557,12 +558,18 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<DecisionRowViewModel> ConsentHistory { get; } = new();
 
+    /// <summary>Most-triggered apps: (application, count), highest first (NET-085).</summary>
+    public ObservableCollection<string> TopTriggered { get; } = new();
+
+    [ObservableProperty]
+    private bool _soundOnBlock;
+
     [RelayCommand]
     public async Task LoadConsentHistoryAsync()
     {
-        var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 50 });
+        var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 200 });
         ConsentHistory.Clear();
-        foreach (var entry in history.Entries)
+        foreach (var entry in history.Entries.Take(50))
         {
             ConsentHistory.Add(new DecisionRowViewModel
             {
@@ -574,6 +581,27 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                 Verdict = entry.Verdict,
                 Permanent = entry.Permanent,
             });
+        }
+
+        // Rank the apps that trigger the most decisions (NET-085).
+        TopTriggered.Clear();
+        foreach (var group in history.Entries
+                     .Where(e => e.Application.Length != 0)
+                     .GroupBy(e => System.IO.Path.GetFileName(e.Application), StringComparer.OrdinalIgnoreCase)
+                     .Select(g => (App: g.Key, Count: g.Count()))
+                     .OrderByDescending(g => g.Count)
+                     .ThenBy(g => g.App, StringComparer.OrdinalIgnoreCase)
+                     .Take(5))
+        {
+            TopTriggered.Add($"{group.App} — {group.Count}");
+        }
+    }
+
+    partial void OnSoundOnBlockChanged(bool value)
+    {
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveSoundOnBlock(value);
         }
     }
 
