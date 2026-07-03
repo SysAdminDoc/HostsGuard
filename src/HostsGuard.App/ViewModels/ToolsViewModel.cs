@@ -674,9 +674,20 @@ public sealed partial class ToolsViewModel : ObservableObject
         var payload = await _client.Hosts.ExportAiKnowledgeAsync(new Empty());
         var dir = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HostsGuard");
-        System.IO.Directory.CreateDirectory(dir);
         var path = System.IO.Path.Combine(dir, "ai_knowledge.json");
-        await System.IO.File.WriteAllTextAsync(path, payload.Text);
+        try
+        {
+            System.IO.Directory.CreateDirectory(dir);
+            await System.IO.File.WriteAllTextAsync(path, payload.Text);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            // A file error must not reach the global handler, which would
+            // misreport it as a lost service connection.
+            StatusText = $"Couldn't write the knowledge log: {ex.Message}";
+            return;
+        }
+
         StatusText = $"AI knowledge exported to {path}";
         AiStatusText = $"Knowledge log saved: {path}";
     }

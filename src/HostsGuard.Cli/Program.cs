@@ -177,7 +177,17 @@ static async Task<int> ExportAsync(string path)
                 hits = d.Hits,
                 notes = d.Notes,
             });
-            await File.WriteAllTextAsync(path, JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true }));
+            var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
+            try
+            {
+                await File.WriteAllTextAsync(path, json);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
+                return 2;
+            }
+
             Console.WriteLine($"exported {list.Domains.Count} domains to {Path.GetFullPath(path)}");
             return 0;
         }

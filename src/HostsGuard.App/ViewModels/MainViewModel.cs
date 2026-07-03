@@ -323,8 +323,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        string text;
+        try
+        {
+            text = await File.ReadAllTextAsync(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ConnectionText = $"Couldn't read {Path.GetFileName(path)}: {ex.Message}";
+            return;
+        }
+
         await _client.Hosts.BackupHostsAsync(new Empty());
-        var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = await File.ReadAllTextAsync(path) });
+        var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = text });
         ConnectionText = ack.Ok ? $"Imported {Path.GetFileName(path)} into the hosts file" : ack.Message;
         if (ack.Ok)
         {
@@ -356,8 +367,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         var text = await _client.Hosts.GetHostsTextAsync(new Empty());
-        await File.WriteAllTextAsync(path, text.Text);
-        ConnectionText = $"Hosts file exported to {path}";
+        if (await TryWriteFileAsync(path, text.Text))
+        {
+            ConnectionText = $"Hosts file exported to {path}";
+        }
+    }
+
+    /// <summary>
+    /// Write a file, reporting any I/O failure in the status bar. File errors
+    /// must NOT reach the global handler, which would misclassify an IOException
+    /// as a lost service connection.
+    /// </summary>
+    private async Task<bool> TryWriteFileAsync(string path, string content)
+    {
+        try
+        {
+            await File.WriteAllTextAsync(path, content);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            ConnectionText = $"Couldn't write {Path.GetFileName(path)}: {ex.Message}";
+            return false;
+        }
     }
 
     /// <summary>Export the managed-domain policy (with categories) as JSON.</summary>
@@ -385,9 +417,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             reason = d.Reason,
             hits = d.Hits,
         });
-        await File.WriteAllTextAsync(path, System.Text.Json.JsonSerializer.Serialize(
-            rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-        ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        if (await TryWriteFileAsync(path, json))
+        {
+            ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
+        }
     }
 
     // ─── View menu ────────────────────────────────────────────────────────────

@@ -103,6 +103,22 @@ public sealed class MenuCommandTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Export_to_an_unwritable_path_reports_cleanly_without_throwing()
+    {
+        using var vm = CreateVm();
+        await vm.ConnectAsync();
+        // A path under a non-existent directory: the write throws a file I/O
+        // error that must be caught and surfaced, not escape to the global
+        // handler (which would misreport it as a lost service connection).
+        _picker.SavePath = Path.Combine(_dir, "no-such-dir", "sub", "out.txt");
+
+        await vm.ExportHostsFileCommand.ExecuteAsync(null);
+
+        vm.ConnectionText.Should().Contain("Couldn't write");
+        vm.IsConnected.Should().BeTrue("the service is fine — only the file write failed");
+    }
+
+    [Fact]
     public void Reset_view_returns_every_toggle_and_filter_to_defaults()
     {
         var vm = CreateVm();
