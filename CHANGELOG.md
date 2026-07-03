@@ -4,6 +4,15 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **Closed the SSRF DNS-rebinding window in list fetching.** The guard resolved
+  and validated a blocklist/allowlist host, but `HttpClient` re-resolved for the
+  actual GET — a rebinding server could return a public IP to the guard and a
+  private one to the fetch. The fetcher now dials through a `ConnectCallback`
+  that re-resolves and connects only to a public address, so the socket can
+  never reach loopback/private/link-local/metadata regardless of the second
+  lookup.
+
 ### Fixed
 - Settings-lock password field now clears after arm/disarm/unlock instead of
   leaving the masked value on screen.

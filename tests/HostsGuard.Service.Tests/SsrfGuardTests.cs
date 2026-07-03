@@ -55,4 +55,29 @@ public sealed class SsrfGuardTests
     [Fact]
     public async Task Public_https_literal_passes()
         => await SsrfGuard.EnsurePublicHttpsAsync("https://1.1.1.1/hosts.txt", default);
+
+    // DNS-rebinding defense: the connect-time filter drops private addresses even
+    // when the pre-check saw a public one, and throws if nothing public survives.
+    [Fact]
+    public void Connect_time_filter_keeps_only_public_addresses()
+    {
+        var mixed = new[]
+        {
+            IPAddress.Parse("192.168.1.5"),   // private — must be dropped
+            IPAddress.Parse("8.8.8.8"),       // public — must survive
+            IPAddress.Parse("127.0.0.1"),     // loopback — must be dropped
+        };
+
+        HttpListFetcher.PublicAddressesOrThrow("evil.example", mixed)
+            .Should().ContainSingle().Which.Should().Be(IPAddress.Parse("8.8.8.8"));
+    }
+
+    [Fact]
+    public void Connect_time_filter_throws_when_all_private()
+    {
+        var rebind = new[] { IPAddress.Parse("169.254.169.254"), IPAddress.Parse("10.0.0.1") };
+
+        FluentActions.Invoking(() => HttpListFetcher.PublicAddressesOrThrow("rebind.example", rebind))
+            .Should().Throw<SsrfBlockedException>();
+    }
 }
