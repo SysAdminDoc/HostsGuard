@@ -49,6 +49,10 @@ All notable changes to HostsGuard are documented in this file.
   Windows DoH per-interface `DohFlags`, surfaced on `DohStatus.dns_encrypted_only`.
 
 ### Security
+- **NET-122 — SQLite pin regression gate.** A test asserts the bundled native
+  SQLite stays ≥ 3.50.2, failing the build if the dependency ever regresses to the
+  vulnerable 2.1.x bundle that would reopen CVE-2025-6965.
+
 - **NET-110 — The settings lock now protects the hosts file.** Previously the
   lock gated firewall/mode/posture mutations but not hosts mutations, so an armed
   lock could not stop a desktop process from whitelisting a tracker or wiping
