@@ -44,6 +44,14 @@ public partial class ConsentWindow : Window
             TrustPublisher.Visibility = Visibility.Visible;
         }
 
+        // NET-117: offer trust-by-folder when the app has a resolvable parent dir.
+        var folder = HostsGuard.Core.PathScope.ParentFolder(request.Application);
+        if (folder.Length != 0)
+        {
+            TrustFolder.Content = $"Trust all software in \"{folder}\"";
+            TrustFolder.Visibility = Visibility.Visible;
+        }
+
         // svchost attribution (NET-073): show the owning service; offer the
         // per-service scope only when it's unambiguous (one service, known key).
         if (request.Service.Length != 0)
@@ -133,6 +141,7 @@ public partial class ConsentWindow : Window
             ServiceKey = _request.ServiceKey,
             Duration = SelectedDuration(),
             TrustPublisher = TrustPublisher.IsChecked == true,
+            TrustFolder = TrustFolder.IsChecked == true,
         };
         Close();
     }

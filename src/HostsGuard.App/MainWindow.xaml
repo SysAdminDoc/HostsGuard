@@ -1730,6 +1730,33 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Trusted folders (NET-117) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="Trusted folders" FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right" Content="Refresh"
+                                                Command="{Binding LoadTrustedFoldersCommand}" Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="Any binary under these folders is auto-allowed without a prompt — the driver-free 'trust this whole install directory'. Add one from a consent prompt's 'Trust all software in…' checkbox."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8" />
+                                    <ItemsControl ItemsSource="{Binding TrustedFolders}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding}" VerticalAlignment="Center" />
+                                                    <Button DockPanel.Dock="Right" Content="Remove" Padding="8,2"
+                                                            Command="{Binding DataContext.RemoveTrustedFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="No trusted folders yet." Style="{StaticResource Hg.DimText}"
+                                               Visibility="{Binding TrustedFolders.Count, Converter={StaticResource EmptyStateVis}}" />
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,0">
                                 <TextBlock Text="{Binding StatusText}"
                                            Style="{StaticResource Hg.SubText}"

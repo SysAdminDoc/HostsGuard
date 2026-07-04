@@ -5,6 +5,14 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.0] — 2026-07-04
 
 ### Added
+- **NET-117 — Trust-by-folder.** A consent prompt now offers *Trust all software
+  in "&lt;folder&gt;"*; once trusted, any binary under that folder auto-allows
+  without prompting — the driver-free "trust this whole install/portable-app
+  directory" (Windows Firewall can't glob paths, so this is enforced in the
+  consent broker). A Tools → *Trusted folders* card reviews/removes them. New
+  `Consent.GetTrustedFolders`/`SetTrustedFolders` RPCs, a `trust_folder` decision
+  flag, and `Core.PathScope`; the set persists in `consent_state.json`.
+
 - **NET-123 — Endpoint knowledge pack.** The curated offline domain-purpose table
   gains a versioned pack (`DomainPurpose.EndpointPackVersion`) of ~45 common
   Windows/vendor endpoints — DoH resolvers, browser/vendor updaters and telemetry

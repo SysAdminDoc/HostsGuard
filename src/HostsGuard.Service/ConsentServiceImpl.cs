@@ -54,6 +54,16 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
     public override Task<Ack> SetTrustedPublishers(PublisherList request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetTrustedPublishers(request.Publishers));
 
+    public override Task<FolderList> GetTrustedFolders(Empty request, ServerCallContext context)
+    {
+        var list = new FolderList();
+        list.Folders.AddRange(_state.Consent.TrustedFolders);
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> SetTrustedFolders(FolderList request, ServerCallContext context)
+        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetTrustedFolders(request.Folders));
+
     public override Task<Ack> SetMode(FilteringMode request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode, request.LearnMinutes));
 

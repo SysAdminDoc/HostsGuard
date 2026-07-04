@@ -44,6 +44,7 @@ public sealed class ConsentBroker : IDisposable
     private const string BasePrefix = "HG_Base_";
     private const string ChildPrefix = "HG_Child_";
     private const string PublisherPrefix = "HG_Pub_";
+    private const string FolderPrefix = "HG_Folder_";
 
     private readonly IFirewallEngine? _firewall;
     private readonly FirewallIdentity? _identity;
@@ -357,6 +358,14 @@ public sealed class ConsentBroker : IDisposable
             return;
         }
 
+        // Trust-by-folder (NET-117): a binary under a user-trusted folder is
+        // auto-allowed — the driver-free "trust this whole install directory".
+        if (IsTrustedFolder(blocked.Application))
+        {
+            AutoAllowFolder(blocked);
+            return;
+        }
+
         if (mode == ModeLearning)
         {
             AutoAllow(blocked);
@@ -619,6 +628,87 @@ public sealed class ConsentBroker : IDisposable
             details: $"{blocked.Direction}|trusted publisher", reason: "consent");
     }
 
+    // ─── Trust-by-folder (NET-117) ───────────────────────────────────────────
+
+    /// <summary>Folders whose binaries auto-allow without a prompt.</summary>
+    public IReadOnlyList<string> TrustedFolders
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state.TrustedFolders.ToList();
+            }
+        }
+    }
+
+    /// <summary>Replace the trusted-folder set.</summary>
+    public Ack SetTrustedFolders(IEnumerable<string> folders)
+    {
+        ArgumentNullException.ThrowIfNull(folders);
+        var cleaned = folders.Select(f => (f ?? string.Empty).Trim().TrimEnd('\\', '/'))
+            .Where(f => f.Length != 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        lock (_gate)
+        {
+            _state.TrustedFolders = cleaned;
+            SaveState();
+        }
+
+        _db.LogEvent("consent", "trusted_folders", details: $"{cleaned.Count} folders", reason: "consent");
+        return new Ack { Ok = true, Message = $"{cleaned.Count} trusted folder(s)" };
+    }
+
+    /// <summary>Add one folder to the trusted set (idempotent).</summary>
+    public void AddTrustedFolder(string folder)
+    {
+        var f = (folder ?? string.Empty).Trim().TrimEnd('\\', '/');
+        if (f.Length == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            if (!_state.TrustedFolders.Contains(f, StringComparer.OrdinalIgnoreCase))
+            {
+                _state.TrustedFolders.Add(f);
+                SaveState();
+            }
+        }
+    }
+
+    private bool IsTrustedFolder(string application)
+    {
+        List<string> trusted;
+        lock (_gate)
+        {
+            if (_state.TrustedFolders.Count == 0)
+            {
+                return false;
+            }
+
+            trusted = _state.TrustedFolders.ToList();
+        }
+
+        return trusted.Any(f => Core.PathScope.IsUnder(application, f));
+    }
+
+    private void AutoAllowFolder(BlockedConnection blocked)
+    {
+        var name = $"{FolderPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
+        if (_firewall is { } fw && !fw.RuleExists(name) &&
+            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+        {
+            _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
+            _identity?.Remember(name, blocked.Application);
+        }
+
+        _db.LogEvent(blocked.Application, "consent_folder_allow",
+            details: $"{blocked.Direction}|trusted folder", reason: "consent");
+    }
+
     /// <summary>Silently allow a known-safe OS binary (NET-068 baseline).</summary>
     private void AutoAllowBaseline(string application, string direction)
     {
@@ -701,6 +791,13 @@ public sealed class ConsentBroker : IDisposable
         if (decision.TrustPublisher)
         {
             AddTrustedPublisher(Core.PublisherName.Of(SafeSigner(application)));
+        }
+
+        // NET-117: "trust the folder" remembers the app's parent directory so any
+        // binary under it (e.g. a portable app's versioned exes) auto-allows.
+        if (decision.TrustFolder)
+        {
+            AddTrustedFolder(Core.PathScope.ParentFolder(application));
         }
 
         if (decision.Id.Length != 0)
@@ -1111,6 +1208,9 @@ public sealed class ConsentBroker : IDisposable
 
         /// <summary>Publisher CNs whose signed binaries auto-allow without a prompt (NET-113).</summary>
         public List<string> TrustedPublishers { get; set; } = new();
+
+        /// <summary>Folders whose binaries auto-allow without a prompt (NET-117).</summary>
+        public List<string> TrustedFolders { get; set; } = new();
 
         public List<OnceRule> OnceRules { get; set; } = new();
     }

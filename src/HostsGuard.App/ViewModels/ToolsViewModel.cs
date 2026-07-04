@@ -623,6 +623,38 @@ public sealed partial class ToolsViewModel : ObservableObject
         await LoadTrustedPublishersAsync();
     }
 
+    // ─── Trusted folders (NET-117) ───────────────────────────────────────────
+
+    public ObservableCollection<string> TrustedFolders { get; } = new();
+
+    [RelayCommand]
+    public async Task LoadTrustedFoldersAsync()
+    {
+        var list = await _client.Consent.GetTrustedFoldersAsync(new Empty());
+        TrustedFolders.Clear();
+        foreach (var f in list.Folders)
+        {
+            TrustedFolders.Add(f);
+        }
+    }
+
+    [RelayCommand]
+    public async Task RemoveTrustedFolderAsync(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder) ||
+            !_confirm.Confirm("Remove trusted folder",
+                $"Stop auto-allowing software in \"{folder}\"? Existing rules are unchanged."))
+        {
+            return;
+        }
+
+        var remaining = new FolderList();
+        remaining.Folders.AddRange(TrustedFolders.Where(f => f != folder));
+        var ack = await _client.Consent.SetTrustedFoldersAsync(remaining);
+        StatusText = ack.Message;
+        await LoadTrustedFoldersAsync();
+    }
+
     [ObservableProperty]
     private bool _secureRulesActive;
 

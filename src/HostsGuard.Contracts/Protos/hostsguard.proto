@@ -754,10 +754,18 @@ service Consent {
   // publisher CNs whose signed binaries auto-allow without a prompt.
   rpc GetTrustedPublishers(Empty) returns (PublisherList);
   rpc SetTrustedPublishers(PublisherList) returns (Ack);
+  // Trusted folders (NET-117): review/replace the folders whose binaries
+  // auto-allow without a prompt.
+  rpc GetTrustedFolders(Empty) returns (FolderList);
+  rpc SetTrustedFolders(FolderList) returns (Ack);
 }
 
 message PublisherList {
   repeated string publishers = 1;
+}
+
+message FolderList {
+  repeated string folders = 1;
 }
 
 message ChildInheritRequest {
@@ -835,6 +843,9 @@ message ConnectionDecision {
   // Trust-by-publisher (NET-113): remember the app's Authenticode publisher so
   // any binary signed by it auto-allows without prompting.
   bool trust_publisher = 16;
+  // Trust-by-folder (NET-117): remember the app's parent folder so any binary
+  // under it auto-allows (portable-app / whole-install-dir trust).
+  bool trust_folder = 17;
 }
 
 message FilteringMode {

@@ -87,6 +87,12 @@
                       ToolTip="On Allow, auto-allow any future binary signed by the same publisher without prompting"
                       Foreground="{DynamicResource Hg.Sub}" />
 
+            <!-- NET-117: trust the app's parent folder (any binary under it). -->
+            <CheckBox x:Name="TrustFolder" Visibility="Collapsed" Margin="0,6,0,0" TabIndex="10"
+                      AutomationProperties.Name="Trust all software in this folder"
+                      ToolTip="On Allow, auto-allow any future binary under this program's folder without prompting"
+                      Foreground="{DynamicResource Hg.Sub}" />
+
             <DockPanel Margin="0,12,0,0" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="Duration" VerticalAlignment="Center"
                            Margin="0,0,10,0" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
