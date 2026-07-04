@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Dependency alignment.** The stray 8.0.x framework packages
+  (`System.Diagnostics.EventLog`, `System.Management`,
+  `Microsoft.Extensions.DependencyInjection`) are re-pinned to 10.0.9 to match the
+  runtime and inherit .NET 10 servicing; `MaxMind.Db` → 5.1.0 and the test SDK →
+  18.7.0. Full suite green after the bumps.
 - **Tabs grouped by domain.** Order is now Hosts Activity → Hosts File →
   Firewall Activity → Firewall Rules → Tools, so the hosts views sit together
   and the firewall views sit together instead of interleaving.
