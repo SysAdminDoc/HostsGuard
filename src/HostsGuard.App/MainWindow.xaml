@@ -401,6 +401,241 @@
                     </Grid>
                 </TabItem>
 
+                <TabItem Header="Hosts File">
+                    <TabControl Margin="0,4,0,0">
+                        <TabItem Header="Managed Domains">
+                            <Grid Margin="4" DataContext="{Binding Hosts}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="Refresh"
+                                            Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
+                                            Command="{Binding AiCategorizeCommand}" Margin="8,0,0,0"
+                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
+                                    <Button DockPanel.Dock="Right" Content="Block"
+                                            Style="{StaticResource Hg.AccentButton}"
+                                            Command="{Binding BlockCommand}" Margin="8,0,0,0"
+                                            ToolTip="Enter a domain, then add it to managed blocks" />
+                                    <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
+                                             Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}"
+                                             Tag="Domain to block"
+                                             AutomationProperties.Name="Domain to block"
+                                             ToolTip="Domain to block" />
+                                    <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
+                                              ItemsSource="{x:Static vm:HostsViewModel.StatusFilters}"
+                                              AutomationProperties.Name="Managed-domain status filter"
+                                              SelectedItem="{Binding StatusFilter}" />
+                                    <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}"
+                                             Tag="Search managed domains — try field:value or !term"
+                                             AutomationProperties.Name="Search managed domains"
+                                             ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
+                                </DockPanel>
+
+                                <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}"
+                                          IsVisibleChanged="OnGridVisible">
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                    <DataGrid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Block selected"
+                                                      Command="{Binding PlacementTarget.DataContext.BlockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Allow selected"
+                                                      Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <MenuItem Header="Remove selected"
+                                                      Command="{Binding PlacementTarget.DataContext.RemoveSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <Separator />
+                                            <MenuItem Header="Block root"
+                                                      Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            <Separator />
+                                            <MenuItem Header="Research online">
+                                                <MenuItem Header="Google"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                <MenuItem Header="VirusTotal"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                                <MenuItem Header="who.is"
+                                                          Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                            </MenuItem>
+                                        </ContextMenu>
+                                    </DataGrid.ContextMenu>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" />
+                                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
+                                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
+                                        <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
+                                        <DataGridTemplateColumn Header="" Width="170">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Allow" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding Domain}" />
+                                                        <Button Content="Remove" Padding="8,2"
+                                                                Style="{StaticResource Hg.DangerButton}"
+                                                                Command="{Binding DataContext.UnblockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding Domain}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Border Grid.Row="1"
+                                        Style="{StaticResource Hg.EmptyState}"
+                                        Visibility="{Binding Domains.Count, Converter={StaticResource EmptyStateVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="No managed domains"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,4" />
+                                        <TextBlock Text="Add a domain above or import a blocklist. If you are filtering, clear the filter and refresh."
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Blocklists">
+                            <Grid Margin="4" DataContext="{Binding Blocklists}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                                        <DataGridCheckBoxColumn Header="Subscribed" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
+                                        <DataGridTextColumn Header="Domains" Binding="{Binding DomainCount}" Width="90" />
+                                        <DataGridTextColumn Header="Last refresh" Binding="{Binding LastRefresh}" Width="160" />
+                                        <DataGridTextColumn Header="Health" Binding="{Binding Flags}" Width="90">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                                                    <Setter Property="ToolTip" Value="Source-health flags: very large lists and mirror fallbacks" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTemplateColumn Header="" Width="190">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Import" Padding="8,2" Margin="0,0,6,0"
+                                                                Style="{StaticResource Hg.AccentButton}"
+                                                                Command="{Binding DataContext.ImportCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="Unsubscribe" Padding="8,2"
+                                                                Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.UnsubscribeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Border Grid.Row="0"
+                                        Style="{StaticResource Hg.EmptyState}"
+                                        Visibility="{Binding Sources.Count, Converter={StaticResource EmptyStateVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="No blocklist sources"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,4" />
+                                        <TextBlock Text="The service did not return the curated catalog. Reconnect to the service, then refresh subscriptions."
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Save + apply allowlists"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding SaveAllowlistsCommand}" Margin="8,0,0,0"
+                                                VerticalAlignment="Top" />
+                                        <Button DockPanel.Dock="Right" Content="Refresh all subscriptions"
+                                                Command="{Binding RefreshAllListsCommand}" Margin="8,0,0,0"
+                                                VerticalAlignment="Top" />
+                                        <StackPanel>
+                                            <TextBlock Text="Allowlist URLs (one per line — whitelisted domains always win over blocklists)"
+                                                       Style="{StaticResource Hg.SubText}" Margin="0,0,0,4" />
+                                            <TextBox Text="{Binding AllowlistUrlsText, UpdateSourceTrigger=PropertyChanged}"
+                                                     AutomationProperties.Name="Allowlist subscription URLs"
+                                                     AcceptsReturn="True" MinHeight="52" MaxHeight="110"
+                                                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem Header="Raw Editor">
+                            <Grid Margin="4" DataContext="{Binding RawHosts}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+                                    <Button DockPanel.Dock="Right" Content="Save"
+                                            Style="{StaticResource Hg.AccentButton}"
+                                            Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}"
+                                            ToolTip="Write the edited text back to the hosts file (enabled once the text changes)" />
+                                    <Button DockPanel.Dock="Right" Content="Reload"
+                                            Command="{Binding LoadCommand}" Margin="0,0,8,0"
+                                            ToolTip="Discard edits and reload the hosts file from disk" />
+                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
+                                            Command="{Binding AiCategorizeCommand}" Margin="0,0,8,0"
+                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
+                                    <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
+                                               Text="● Unsaved changes" Foreground="{DynamicResource Hg.Peach}"
+                                               Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}" />
+                                </DockPanel>
+
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Raw hosts file editor"
+                                         AcceptsReturn="True" AcceptsTab="True"
+                                         FontFamily="Consolas"
+                                         VerticalScrollBarVisibility="Auto"
+                                         HorizontalScrollBarVisibility="Auto" />
+
+                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </TabItem>
+
                 <TabItem Header="Firewall Activity">
                     <Grid Margin="4" DataContext="{Binding FwActivity}">
                         <Grid.RowDefinitions>
@@ -759,241 +994,6 @@
                         <TextBlock Grid.Row="5" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
-                </TabItem>
-
-                <TabItem Header="Hosts File">
-                    <TabControl Margin="0,4,0,0">
-                        <TabItem Header="Managed Domains">
-                            <Grid Margin="4" DataContext="{Binding Hosts}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Content="Refresh"
-                                            Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
-                                            Command="{Binding AiCategorizeCommand}" Margin="8,0,0,0"
-                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
-                                    <Button DockPanel.Dock="Right" Content="Block"
-                                            Style="{StaticResource Hg.AccentButton}"
-                                            Command="{Binding BlockCommand}" Margin="8,0,0,0"
-                                            ToolTip="Enter a domain, then add it to managed blocks" />
-                                    <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
-                                             Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource Hg.HintBox}"
-                                             Tag="Domain to block"
-                                             AutomationProperties.Name="Domain to block"
-                                             ToolTip="Domain to block" />
-                                    <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
-                                              ItemsSource="{x:Static vm:HostsViewModel.StatusFilters}"
-                                              AutomationProperties.Name="Managed-domain status filter"
-                                              SelectedItem="{Binding StatusFilter}" />
-                                    <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource Hg.HintBox}"
-                                             Tag="Search managed domains — try field:value or !term"
-                                             AutomationProperties.Name="Search managed domains"
-                                             ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
-                                </DockPanel>
-
-                                <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}"
-                                          IsVisibleChanged="OnGridVisible">
-                                    <DataGrid.RowStyle>
-                                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
-                                        </Style>
-                                    </DataGrid.RowStyle>
-                                    <DataGrid.ContextMenu>
-                                        <ContextMenu>
-                                            <MenuItem Header="Block selected"
-                                                      Command="{Binding PlacementTarget.DataContext.BlockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                            <MenuItem Header="Allow selected"
-                                                      Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                            <MenuItem Header="Remove selected"
-                                                      Command="{Binding PlacementTarget.DataContext.RemoveSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                            <Separator />
-                                            <MenuItem Header="Block root"
-                                                      Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                      CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                            <Separator />
-                                            <MenuItem Header="Research online">
-                                                <MenuItem Header="Google"
-                                                          Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                                <MenuItem Header="VirusTotal"
-                                                          Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                                <MenuItem Header="who.is"
-                                                          Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                            </MenuItem>
-                                        </ContextMenu>
-                                    </DataGrid.ContextMenu>
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="2*" />
-                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
-                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="140" />
-                                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
-                                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
-                                        <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
-                                        <DataGridTemplateColumn Header="" Width="170">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Button Content="Allow" Padding="8,2" Margin="0,0,6,0"
-                                                                Command="{Binding DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding Domain}" />
-                                                        <Button Content="Remove" Padding="8,2"
-                                                                Style="{StaticResource Hg.DangerButton}"
-                                                                Command="{Binding DataContext.UnblockCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding Domain}" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-
-                                <Border Grid.Row="1"
-                                        Style="{StaticResource Hg.EmptyState}"
-                                        Visibility="{Binding Domains.Count, Converter={StaticResource EmptyStateVis}}">
-                                    <StackPanel>
-                                        <TextBlock Text="No managed domains"
-                                                   Style="{StaticResource Hg.SectionTitle}"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0,0,0,4" />
-                                        <TextBlock Text="Add a domain above or import a blocklist. If you are filtering, clear the filter and refresh."
-                                                   Style="{StaticResource Hg.EmptyText}" />
-                                    </StackPanel>
-                                </Border>
-
-                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
-                            </Grid>
-                        </TabItem>
-
-                        <TabItem Header="Blocklists">
-                            <Grid Margin="4" DataContext="{Binding Blocklists}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
-                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
-                                        <DataGridCheckBoxColumn Header="Subscribed" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
-                                        <DataGridTextColumn Header="Domains" Binding="{Binding DomainCount}" Width="90" />
-                                        <DataGridTextColumn Header="Last refresh" Binding="{Binding LastRefresh}" Width="160" />
-                                        <DataGridTextColumn Header="Health" Binding="{Binding Flags}" Width="90">
-                                            <DataGridTextColumn.ElementStyle>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
-                                                    <Setter Property="ToolTip" Value="Source-health flags: very large lists and mirror fallbacks" />
-                                                </Style>
-                                            </DataGridTextColumn.ElementStyle>
-                                        </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="" Width="190">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <Button Content="Import" Padding="8,2" Margin="0,0,6,0"
-                                                                Style="{StaticResource Hg.AccentButton}"
-                                                                Command="{Binding DataContext.ImportCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}" />
-                                                        <Button Content="Unsubscribe" Padding="8,2"
-                                                                Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
-                                                                Command="{Binding DataContext.UnsubscribeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-
-                                <Border Grid.Row="0"
-                                        Style="{StaticResource Hg.EmptyState}"
-                                        Visibility="{Binding Sources.Count, Converter={StaticResource EmptyStateVis}}">
-                                    <StackPanel>
-                                        <TextBlock Text="No blocklist sources"
-                                                   Style="{StaticResource Hg.SectionTitle}"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0,0,0,4" />
-                                        <TextBlock Text="The service did not return the curated catalog. Reconnect to the service, then refresh subscriptions."
-                                                   Style="{StaticResource Hg.EmptyText}" />
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
-                                    <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="Save + apply allowlists"
-                                                Style="{StaticResource Hg.AccentButton}"
-                                                Command="{Binding SaveAllowlistsCommand}" Margin="8,0,0,0"
-                                                VerticalAlignment="Top" />
-                                        <Button DockPanel.Dock="Right" Content="Refresh all subscriptions"
-                                                Command="{Binding RefreshAllListsCommand}" Margin="8,0,0,0"
-                                                VerticalAlignment="Top" />
-                                        <StackPanel>
-                                            <TextBlock Text="Allowlist URLs (one per line — whitelisted domains always win over blocklists)"
-                                                       Style="{StaticResource Hg.SubText}" Margin="0,0,0,4" />
-                                            <TextBox Text="{Binding AllowlistUrlsText, UpdateSourceTrigger=PropertyChanged}"
-                                                     AutomationProperties.Name="Allowlist subscription URLs"
-                                                     AcceptsReturn="True" MinHeight="52" MaxHeight="110"
-                                                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" />
-                                        </StackPanel>
-                                    </DockPanel>
-                                </Border>
-
-                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
-                            </Grid>
-                        </TabItem>
-
-                        <TabItem Header="Raw Editor">
-                            <Grid Margin="4" DataContext="{Binding RawHosts}">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
-                                    <Button DockPanel.Dock="Right" Content="Save"
-                                            Style="{StaticResource Hg.AccentButton}"
-                                            Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}"
-                                            ToolTip="Write the edited text back to the hosts file (enabled once the text changes)" />
-                                    <Button DockPanel.Dock="Right" Content="Reload"
-                                            Command="{Binding LoadCommand}" Margin="0,0,8,0"
-                                            ToolTip="Discard edits and reload the hosts file from disk" />
-                                    <Button DockPanel.Dock="Right" Content="AI Categorize"
-                                            Command="{Binding AiCategorizeCommand}" Margin="0,0,8,0"
-                                            ToolTip="Have DeepSeek categorize every hosts-file entry and organize the file under '# Category' sections (existing sections are reused)" />
-                                    <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
-                                               Text="● Unsaved changes" Foreground="{DynamicResource Hg.Peach}"
-                                               Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}" />
-                                </DockPanel>
-
-                                <TextBox Grid.Row="1"
-                                         Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
-                                         AutomationProperties.Name="Raw hosts file editor"
-                                         AcceptsReturn="True" AcceptsTab="True"
-                                         FontFamily="Consolas"
-                                         VerticalScrollBarVisibility="Auto"
-                                         HorizontalScrollBarVisibility="Auto" />
-
-                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
-                            </Grid>
-                        </TabItem>
-                    </TabControl>
                 </TabItem>
 
                 <TabItem Header="Firewall Rules">

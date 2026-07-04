@@ -4,6 +4,11 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **Tabs grouped by domain.** Order is now Hosts Activity → Hosts File →
+  Firewall Activity → Firewall Rules → Tools, so the hosts views sit together
+  and the firewall views sit together instead of interleaving.
+
 ### Added
 - **One-click "See everything" (close DNS bypass).** A prominent toggle in the
   Tools tab enables the QUIC/UDP-443 and DoH-bootstrap firewall blocks together,
