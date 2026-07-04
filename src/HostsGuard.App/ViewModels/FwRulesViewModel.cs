@@ -55,6 +55,35 @@ public sealed partial class FwRuleViewModel : ObservableObject
         + (Drifted ? "⚠ drifted " : string.Empty)
         + (Adopted ? "★ adopted" : string.Empty);
 
+    /// <summary>
+    /// Provenance (NET-118): why this rule exists, derived from its HG_ name
+    /// prefix (or adopted/system source). Turns an opaque rule list into an
+    /// auditable one.
+    /// </summary>
+    public string Origin => OriginFor(Name, Source, Adopted);
+
+    public static string OriginFor(string name, string source, bool adopted)
+    {
+        if (source != "hostsguard")
+        {
+            return adopted ? "adopted" : "system";
+        }
+
+        return name switch
+        {
+            _ when name.StartsWith("HG_Consent_", StringComparison.Ordinal) => "consent",
+            _ when name.StartsWith("HG_Learn_", StringComparison.Ordinal) => "learning",
+            _ when name.StartsWith("HG_Base_", StringComparison.Ordinal) => "baseline",
+            _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => "child-allow",
+            _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => "temporary",
+            _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => "app-scope",
+            _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
+                || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => "DoH block",
+            _ when name.StartsWith("HG_QUIC_", StringComparison.Ordinal) => "QUIC block",
+            _ => "manual",
+        };
+    }
+
     public static FwRuleViewModel From(FirewallRule r) => new()
     {
         Name = r.Name,

@@ -1072,6 +1072,7 @@
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
                                 <DataGridTextColumn Header="Dir" Binding="{Binding Direction}" Width="50" />
                                 <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="70" />
+                                <DataGridTextColumn Header="Origin" Binding="{Binding Origin}" Width="90" IsReadOnly="True" />
                                 <DataGridCheckBoxColumn Header="On" Binding="{Binding Enabled}" Width="46" IsReadOnly="True" />
                                 <DataGridTextColumn Header="Remote" Binding="{Binding RemoteAddr}" Width="*" />
                                 <DataGridTextColumn Header="Proto" Binding="{Binding Protocol}" Width="60" />

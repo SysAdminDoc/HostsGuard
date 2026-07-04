@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.11.0] — 2026-07-04
 
 ### Added
+- **NET-118 — Rule provenance column.** The Firewall Rules tab now shows an
+  **Origin** column deriving why each rule exists from its HG_ name prefix —
+  consent, learning, baseline, child-allow, temporary, app-scope, DoH/QUIC block,
+  manual — plus adopted/system for non-HG_ rules, turning an opaque list into an
+  auditable one.
+
 - **NET-114 — CLI per-app firewall verbs.** `HostsGuard.Cli block-app <exe> [out|in]`
   creates the HG_ program-block rule and `unblock-app` removes it — scriptable
   per-app control to match the existing per-domain `block`/`allow`/`unblock` verbs.
