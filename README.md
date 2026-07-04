@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.11.0-blue)
+![Version](https://img.shields.io/badge/version-0.12.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -60,6 +60,8 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Scope + duration | Allow/block by program, remote IP, or port — permanently or for a limited time window |
 | Known-safe baseline | OS-essential binaries (Windows Update, Defender, kernel, LSA) are auto-allowed so prompts target interesting traffic |
 | Identity-bound rules | Rules record the binary's SHA-256 and signer; a renamed impostor at a whitelisted path is re-prompted, while an auto-updater moving to a new versioned directory is recognized as the same app |
+| Trust publisher / folder | Auto-allow future software signed by a trusted Authenticode publisher, or any binary under a trusted install folder — opted in from the prompt |
+| Inbound consent | Opt-in prompting on unruled **inbound** connections too, producing scoped inbound rules (off by default to avoid unsolicited-inbound noise) |
 | Decision history | Every consent decision is recorded and reviewable |
 | Posture rails | Arming Notify/Learning sets default-outbound Block per profile; the prior posture is restored on switch back to Normal and on service stop |
 | Accessibility | Full AutomationProperties coverage, explicit tab order, live-region threat banner, keyboard/screen-reader focus management |
@@ -90,6 +92,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
 | Connection history | Retention-bounded searchable log of past connections (default 30 days) |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
+| Explain / look up connection | Right-click a connection to look it up — VirusTotal, who.is, Google on the resolved domain; AbuseIPDB on the IP |
 | Learning review | Batch-promote, reverse, or discard Learning-mode auto-decisions |
 
 ### Hosts File
@@ -113,6 +116,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable |
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back (only HostsGuard's own rules — your other configuration is never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
+| Rule groups | Assign `HG_` rules to a named group and toggle the whole group on/off atomically; groups round-trip through the portable policy |
 | Rule authoring | Custom rules with direction, action, protocol, address, and program — COM API, no PowerShell shelling |
 
 ### Tools
@@ -127,7 +131,9 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
 | Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; one-click hosts-file write protection |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector (no restart) |
+| VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
+| Event webhooks | Opt-in signed HTTP(S) POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event log of every block, allow, firewall, and policy action |
@@ -159,11 +165,11 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 713 tests, no elevation needed
+dotnet test HostsGuard.sln           # 774 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.11.0-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.0-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
