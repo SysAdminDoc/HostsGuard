@@ -36,4 +36,24 @@ public sealed class HostsActivityGroupingTests
         vm.GroupByRoot = false;
         view.GroupDescriptions.Should().BeEmpty();
     }
+
+    [Fact]
+    public void SelectedDomains_collects_every_selected_row_deduped_not_just_one()
+    {
+        // Regression: bulk hide used to send only the primary SelectedItem, so a
+        // multi-selection hid one row. It must collect ALL selected domains.
+        var selection = new System.Collections.ArrayList
+        {
+            new ActivityRowViewModel { Domain = "a.example.com" },
+            new ActivityRowViewModel { Domain = "b.example.com" },
+            new ActivityRowViewModel { Domain = "a.example.com" }, // dup
+            new ActivityRowViewModel { Domain = "" },              // skipped
+            "not a row",                                           // ignored
+        };
+
+        HostsActivityViewModel.SelectedDomains(selection)
+            .Should().BeEquivalentTo(new[] { "a.example.com", "b.example.com" });
+
+        HostsActivityViewModel.SelectedDomains(null).Should().BeEmpty();
+    }
 }

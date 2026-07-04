@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.9] — 2026-07-03
+
+### Fixed
+- **Bulk hide now hides every selected domain.** The feed's "Hide domain" menu
+  was bound to the singular `SelectedItem`, so hiding a multi-selection only hid
+  one row. It now sends the whole selection in one call (menu relabeled "Hide
+  domain(s)"); multi-select with Ctrl/Shift, then right-click within the
+  selection to hide them all.
+
 ## [0.9.8] — 2026-07-03
 
 ### Fixed

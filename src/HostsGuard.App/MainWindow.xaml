@@ -272,10 +272,10 @@
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
                                     <Separator />
-                                    <MenuItem Header="Hide domain"
-                                              Command="{Binding PlacementTarget.DataContext.HideDomainCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              ToolTip="Hide just this exact domain from the feed (remembered)" />
+                                    <MenuItem Header="Hide domain(s)"
+                                              Command="{Binding PlacementTarget.DataContext.HideSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Hide every selected domain from the feed (remembered) — multi-select with Ctrl/Shift" />
                                     <MenuItem Header="Hide root"
                                               Command="{Binding PlacementTarget.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

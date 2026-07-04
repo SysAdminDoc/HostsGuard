@@ -431,6 +431,36 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     }
 
     /// <summary>
+    /// Hide every selected feed row in one call. The context menu passes the
+    /// grid's SelectedItems so a multi-selection hides all of them, not just the
+    /// primary SelectedItem (which the singular bind used to send).
+    /// </summary>
+    [RelayCommand]
+    public async Task HideSelectedAsync(System.Collections.IList? selected)
+    {
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var request = new HideDomainsRequest();
+        request.Domains.AddRange(domains);
+        var ack = await _client.Hosts.HideDomainsAsync(request);
+        StatusText = ack.Message;
+        await RefreshAsync();
+    }
+
+    /// <summary>Distinct, non-empty domains from a grid multi-selection.</summary>
+    public static IReadOnlyList<string> SelectedDomains(System.Collections.IList? selected)
+        => (selected ?? Array.Empty<object>())
+            .OfType<ActivityRowViewModel>()
+            .Select(r => r.Domain)
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
     /// Hide a whole group: store the exact domains currently listed under that
     /// root, not the root itself — so future new subdomains still surface.
     /// </summary>
