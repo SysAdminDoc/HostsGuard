@@ -221,6 +221,18 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    /// <summary>Set a managed domain's notes (no-op when the row is absent).</summary>
+    public void SetNotes(string domain, string notes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            _conn.Execute(
+                "UPDATE domains SET notes=@notes WHERE domain=@domain",
+                new { domain = domain.ToLowerInvariant(), notes = notes ?? string.Empty });
+        }
+    }
+
     /// <summary>Set (or clear with "") a managed domain's category.</summary>
     public void SetCategory(string domain, string category)
     {
@@ -868,6 +880,36 @@ public sealed class HostsDatabase : IDisposable
             _conn.Execute(
                 "INSERT INTO profile_rules(profile,domain,status,source) SELECT @name, domain, status, source FROM domains",
                 new { name }, tx);
+            tx.Commit();
+        }
+    }
+
+    /// <summary>
+    /// Create/replace a profile from explicit rows (NET-089 policy import),
+    /// rather than snapshotting the current domain set like <see cref="SaveProfile"/>.
+    /// </summary>
+    public void ImportProfile(string name, IEnumerable<(string Domain, string Status, string? Source)> rows)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(rows);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("INSERT OR REPLACE INTO profiles(name,created) VALUES(@name,@now)", new { name, now }, tx);
+            _conn.Execute("DELETE FROM profile_rules WHERE profile=@name", new { name }, tx);
+            foreach (var (domain, status, source) in rows)
+            {
+                if (string.IsNullOrWhiteSpace(domain))
+                {
+                    continue;
+                }
+
+                _conn.Execute(
+                    "INSERT INTO profile_rules(profile,domain,status,source) VALUES(@name,@domain,@status,@source)",
+                    new { name, domain = domain.ToLowerInvariant(), status, source = source ?? string.Empty }, tx);
+            }
+
             tx.Commit();
         }
     }

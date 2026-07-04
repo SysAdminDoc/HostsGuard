@@ -776,6 +776,28 @@ service Policy {
   rpc GetCurrentNetwork(Empty) returns (CurrentNetwork);
   rpc GetNetworkProfiles(Empty) returns (NetworkProfileMap);
   rpc SetNetworkProfile(NetworkProfileEntry) returns (Ack);
+  // Full portable-policy export/import (NET-089): one versioned JSON document
+  // covering managed domains, HG_ firewall rules, schedules, profiles, the
+  // settings lock, network profiles, and allow/blocklist subscriptions. Import
+  // reconstructs the policy on a clean machine; the round-trip is idempotent.
+  rpc ExportPolicy(Empty) returns (PolicyDocument);
+  rpc ImportPolicy(ImportPolicyRequest) returns (ImportPolicyResult);
+}
+
+message PolicyDocument {
+  string json = 1;   // the versioned portable-policy JSON
+}
+
+message ImportPolicyRequest {
+  string json = 1;
+  bool merge = 2;    // reserved; import currently reconstructs (idempotent merge)
+}
+
+message ImportPolicyResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  repeated string summary = 4;   // per-section applied counts (human-readable)
 }
 
 message CurrentNetwork {

@@ -56,6 +56,11 @@
                     <MenuItem Header="Export managed domains (JSON)…" Command="{Binding ExportDomainsCommand}" />
                     <MenuItem Header="Export AI knowledge" Command="{Binding Tools.ExportAiKnowledgeCommand}" />
                     <Separator />
+                    <MenuItem Header="Export policy (JSON)…" Command="{Binding ExportPolicyCommand}"
+                              ToolTip="Save the whole policy — domains, firewall rules, schedules, profiles, locks, subscriptions — as one portable JSON file" />
+                    <MenuItem Header="Import policy (JSON)…" Command="{Binding ImportPolicyCommand}"
+                              ToolTip="Reconstruct the policy from an exported JSON file (merges into the current machine)" />
+                    <Separator />
                     <MenuItem Header="Save hosts file" Command="{Binding RawHosts.SaveCommand}"
                               ToolTip="Write unsaved Raw Editor changes to the hosts file" />
                     <MenuItem Header="Backup hosts file" Command="{Binding Tools.BackupHostsCommand}" />

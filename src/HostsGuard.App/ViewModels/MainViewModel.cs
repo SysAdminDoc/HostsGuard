@@ -425,6 +425,79 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Export the whole machine policy as one versioned JSON document (NET-089).</summary>
+    [RelayCommand]
+    public async Task ExportPolicyAsync()
+    {
+        if (_client is null || _filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export policy", "hostsguard_policy.json", JsonFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var doc = await _client.Policy.ExportPolicyAsync(new Empty());
+        if (await TryWriteFileAsync(path, doc.Json))
+        {
+            ConnectionText = $"Policy exported to {path}";
+        }
+    }
+
+    /// <summary>Reconstruct the machine policy from an exported JSON document (NET-089).</summary>
+    [RelayCommand]
+    public async Task ImportPolicyAsync()
+    {
+        if (_client is null || _filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.PickFile("Import policy", filter: JsonFilter);
+        if (path is null)
+        {
+            return;
+        }
+
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length > MaxImportBytes)
+        {
+            ConnectionText = "Import failed — the file is missing or over 10 MB";
+            return;
+        }
+
+        if (!_confirm.Confirm("Import policy",
+            $"Reconstruct domains, firewall rules, schedules, profiles, locks and subscriptions from {Path.GetFileName(path)}? Existing policy is merged, not wiped."))
+        {
+            return;
+        }
+
+        string json;
+        try
+        {
+            json = await File.ReadAllTextAsync(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ConnectionText = $"Couldn't read {Path.GetFileName(path)}: {ex.Message}";
+            return;
+        }
+
+        var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
+        ConnectionText = result.Ok ? $"Policy imported — {string.Join("; ", result.Summary)}" : result.Message;
+        if (result.Ok)
+        {
+            await RefreshAllAsync();
+            if (RawHosts is not null)
+            {
+                await RawHosts.LoadAsync();
+            }
+        }
+    }
+
     // ─── View menu ────────────────────────────────────────────────────────────
 
     /// <summary>Back to defaults: filters cleared, toggles reset, 100% scale.</summary>

@@ -20,6 +20,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "allow" => await DomainOpAsync(args, (c, r) => c.AllowAsync(r).ResponseAsync),
     "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
+    "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
+    "import-policy" => await ImportPolicyAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
@@ -46,6 +48,8 @@ static int Usage()
           HostsGuard.Cli allow <domain> [reason]
           HostsGuard.Cli unblock <domain>
           HostsGuard.Cli export [path.json]
+          HostsGuard.Cli export-policy [path.json]
+          HostsGuard.Cli import-policy <path.json>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
@@ -190,6 +194,91 @@ static async Task<int> ExportAsync(string path)
 
             Console.WriteLine($"exported {list.Domains.Count} domains to {Path.GetFullPath(path)}");
             return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+// NET-089: export the whole machine policy as one versioned JSON document.
+static async Task<int> ExportPolicyAsync(string path)
+{
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var doc = await new Policy.PolicyClient(channel).ExportPolicyAsync(new Empty());
+            try
+            {
+                await File.WriteAllTextAsync(path, doc.Json);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"exported policy to {Path.GetFullPath(path)}");
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+// NET-089: reconstruct a machine's policy from an exported JSON document.
+static async Task<int> ImportPolicyAsync(string[] args)
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing policy file. Usage: import-policy <path.json>");
+        return Usage();
+    }
+
+    var path = args[1];
+    string json;
+    try
+    {
+        json = await File.ReadAllTextAsync(path);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+    {
+        Console.Error.WriteLine($"Couldn't read '{path}': {ex.Message}");
+        return 2;
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var result = await new Policy.PolicyClient(channel).ImportPolicyAsync(new ImportPolicyRequest { Json = json });
+            Console.WriteLine(result.Message);
+            foreach (var line in result.Summary)
+            {
+                Console.WriteLine($"  {line}");
+            }
+
+            return result.Ok ? 0 : 2;
         }
         catch (Grpc.Core.RpcException ex)
         {

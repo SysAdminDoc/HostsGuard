@@ -320,6 +320,44 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             : $"'{request.Label}' will auto-activate profile '{profile}'"));
     }
 
+    // ─── Portable policy export/import (NET-089) ─────────────────────────────
+
+    public override Task<PolicyDocument> ExportPolicy(Empty request, ServerCallContext context)
+    {
+        var policy = PolicyPortability.Export(_state);
+        return Task.FromResult(new PolicyDocument { Json = policy.ToJson() });
+    }
+
+    public override Task<ImportPolicyResult> ImportPolicy(ImportPolicyRequest request, ServerCallContext context)
+    {
+        // A policy import is a broad mutation — respect the settings lock, and it
+        // may also re-arm the lock from the document.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
+        Core.PortablePolicy policy;
+        try
+        {
+            policy = Core.PortablePolicy.FromJson(request.Json ?? string.Empty);
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException or ArgumentException)
+        {
+            return Task.FromResult(new ImportPolicyResult
+            {
+                Ok = false,
+                Message = $"could not read the policy document: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/invalid_policy",
+            });
+        }
+
+        var summary = PolicyPortability.Import(_state, policy);
+        var result = new ImportPolicyResult { Ok = true, Message = $"policy imported ({policy.Domains.Count} domains)" };
+        result.Summary.AddRange(summary);
+        return Task.FromResult(result);
+    }
+
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 
     private static Ack Error(string code, string message) =>

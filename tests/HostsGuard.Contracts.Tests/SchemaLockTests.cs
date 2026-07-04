@@ -108,10 +108,12 @@ public class SchemaLockTests
           WatchEvents(Empty) returns (stream ActivityEvent)
         service Policy
           DeleteProfile(ProfileRequest) returns (Ack)
+          ExportPolicy(Empty) returns (PolicyDocument)
           GetCurrentNetwork(Empty) returns (CurrentNetwork)
           GetLockState(Empty) returns (LockState)
           GetNetworkProfiles(Empty) returns (NetworkProfileMap)
           GetSchedules(Empty) returns (ScheduleList)
+          ImportPolicy(ImportPolicyRequest) returns (ImportPolicyResult)
           ListProfiles(Empty) returns (ProfileList)
           ListServices(Empty) returns (ServiceStates)
           SaveProfile(ProfileRequest) returns (Ack)

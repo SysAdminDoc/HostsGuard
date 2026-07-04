@@ -110,6 +110,29 @@ public sealed class SettingsLock
         return (true, $"unlocked for {Math.Clamp(minutes <= 0 ? 1 : minutes, 1, 240)} minutes");
     }
 
+    /// <summary>Export the raw lock state (armed + hash) for a portable-policy snapshot (NET-089).</summary>
+    public (bool Enabled, string Hash) ExportState()
+    {
+        lock (_gate)
+        {
+            return (_state.Enabled, _state.Hash);
+        }
+    }
+
+    /// <summary>
+    /// Replace the lock state from an imported policy (NET-089). Clears any
+    /// timed-unlock window so the imported armed state takes effect immediately.
+    /// </summary>
+    public void ImportState(bool enabled, string hash)
+    {
+        lock (_gate)
+        {
+            _state = new State { Enabled = enabled, Hash = hash ?? string.Empty };
+            _unlockedUntilUtc = DateTime.MinValue;
+            Save();
+        }
+    }
+
     private sealed class State
     {
         public bool Enabled { get; set; }

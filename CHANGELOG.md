@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.10.0] — 2026-07-04
+
+### Added
+- **NET-089 — Full portable-policy export/import.** File → *Export policy (JSON)*
+  writes one versioned JSON document covering managed domains (status, category,
+  notes, reason, source), HG_-authored firewall rules, scheduled block windows,
+  named rule-set profiles, the settings-lock state (armed flag + password hash,
+  never plaintext), network→profile auto-switch mappings, allow/blocklist
+  subscriptions, and carried meta settings. *Import policy (JSON)* reconstructs
+  the whole policy on a clean machine and reconciles the hosts file to match; the
+  round-trip is idempotent (re-applying the same document changes nothing). New
+  `Policy.ExportPolicy`/`ImportPolicy` RPCs (schema-lock updated), a versioned
+  `HostsGuard.Core.PortablePolicy` DTO, and CLI `export-policy`/`import-policy`
+  subcommands give the UI, CLI, and service the same capability. Import respects
+  the settings lock.
+
 ## [0.9.13] — 2026-07-03
 
 ### Changed
