@@ -10,6 +10,10 @@ All notable changes to HostsGuard are documented in this file.
   and the firewall views sit together instead of interleaving.
 
 ### Added
+- **Export connection history to CSV.** The Firewall Activity → History card has
+  an "Export CSV" button that writes the loaded connection history (time,
+  process, PID, protocol, remote, port, country, firewall status) to a CSV file
+  for reporting — RFC-4180 quoted, opens cleanly in Excel.
 - **One-click "See everything" (close DNS bypass).** A prominent toggle in the
   Tools tab enables the QUIC/UDP-443 and DoH-bootstrap firewall blocks together,
   forcing browsers doing their own encrypted DNS back onto the OS resolver — so

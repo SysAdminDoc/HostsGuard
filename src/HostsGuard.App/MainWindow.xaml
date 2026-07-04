@@ -919,6 +919,9 @@
                                     <DockPanel LastChildFill="True">
                                         <Button DockPanel.Dock="Right" Content="Load" Padding="10,2" Margin="6,0,0,0"
                                                 Command="{Binding LoadHistoryCommand}" />
+                                        <Button DockPanel.Dock="Right" Content="Export CSV" Padding="10,2" Margin="6,0,0,0"
+                                                Command="{Binding ExportHistoryCsvCommand}"
+                                                ToolTip="Save the loaded connection history to a CSV file (opens in Excel)" />
                                         <Button DockPanel.Dock="Right" Content="Set retention" Padding="10,2" Margin="6,0,0,0"
                                                 Command="{Binding SaveRetentionCommand}" />
                                         <TextBox DockPanel.Dock="Right" Width="46" Margin="6,0,0,0" VerticalAlignment="Center"

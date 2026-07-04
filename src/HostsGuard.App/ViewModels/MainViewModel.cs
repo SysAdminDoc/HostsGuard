@@ -118,7 +118,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Activity.StartWatching();
             RawHosts ??= new RawHostsViewModel(_client);
             await RawHosts.LoadAsync();
-            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config);
+            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config, _filePicker);
             FwActivity.StartWatching();
             await FwActivity.LoadPostureAsync();
             await FwActivity.LoadConsentHistoryAsync();

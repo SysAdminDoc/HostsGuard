@@ -178,6 +178,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
     private readonly AppConfigStore? _config;
+    private readonly IFilePicker? _filePicker;
     private readonly SynchronizationContext? _ui;
     private readonly List<(DateTime Ts, string Process)> _events = new();
     private CancellationTokenSource? _watchCts;
@@ -206,11 +207,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _timelineStatus = "No activity yet";
 
-    public FwActivityViewModel(HostsServiceClient client, IConfirm confirm, AppConfigStore? config = null)
+    public FwActivityViewModel(HostsServiceClient client, IConfirm confirm, AppConfigStore? config = null,
+        IFilePicker? filePicker = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _config = config;
+        _filePicker = filePicker;
         _ui = SynchronizationContext.Current;
         if (_config is not null)
         {
@@ -663,6 +666,67 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         var ack = await _client.Monitoring.SetHistorySettingsAsync(new HistorySettings { RetentionDays = RetentionDays });
         HistoryStatus = ack.Message;
+    }
+
+    /// <summary>Export the loaded connection history to a CSV file (NET-091).</summary>
+    [RelayCommand]
+    public void ExportHistoryCsv()
+    {
+        if (_filePicker is null)
+        {
+            return;
+        }
+
+        if (HistoryRows.Count == 0)
+        {
+            HistoryStatus = "Load history first — nothing to export.";
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export connection history (CSV)", "connection_history.csv",
+            "CSV files (*.csv)|*.csv");
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        try
+        {
+            System.IO.File.WriteAllText(path, BuildHistoryCsv(HistoryRows));
+            HistoryStatus = $"Exported {Plural.Of(HistoryRows.Count, "connection")} to {System.IO.Path.GetFileName(path)}";
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            HistoryStatus = $"Export failed: {ex.Message}";
+        }
+    }
+
+    /// <summary>Serialize connection-history rows to CSV (RFC-4180 quoting). Pure — unit-tested.</summary>
+    public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("When,Process,PID,Protocol,Remote,Port,Country,Firewall\r\n");
+        foreach (var r in rows)
+        {
+            sb.Append(Csv(r.Ts)).Append(',')
+              .Append(Csv(r.Process)).Append(',')
+              .Append(r.Pid).Append(',')
+              .Append(Csv(r.Protocol)).Append(',')
+              .Append(Csv(r.RemoteAddr)).Append(',')
+              .Append(r.RemotePort).Append(',')
+              .Append(Csv(r.Country)).Append(',')
+              .Append(Csv(r.FwStatus)).Append("\r\n");
+        }
+
+        return sb.ToString();
+
+        static string Csv(string? v)
+        {
+            v ??= string.Empty;
+            return v.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
+                ? "\"" + v.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
+                : v;
+        }
     }
 
     public async Task LoadBandwidthAsync()

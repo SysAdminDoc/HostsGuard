@@ -55,4 +55,30 @@ public sealed class BandwidthViewTests
         s.PointsText.Split(' ').Should().HaveCount(4);
         vm.BandwidthStatus.Should().Contain("Top 1 app").And.NotContain("Top 1 apps");
     }
+
+    [Fact]
+    public void History_csv_has_a_header_and_rfc4180_quotes_fields_with_commas()
+    {
+        var rows = new[]
+        {
+            new HistoryRowViewModel
+            {
+                Ts = "2026-07-03T10:00:00", Process = "chrome", Pid = 42, Protocol = "TCP",
+                RemoteAddr = "203.0.113.9", RemotePort = 443, Country = "US", FwStatus = "allowed",
+            },
+            new HistoryRowViewModel
+            {
+                Ts = "2026-07-03T10:01:00", Process = "Some App, Inc", Pid = 7, Protocol = "UDP",
+                RemoteAddr = "198.51.100.4", RemotePort = 53, Country = "", FwStatus = "blocked",
+            },
+        };
+
+        var csv = FwActivityViewModel.BuildHistoryCsv(rows);
+        var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+        lines[0].Should().Be("When,Process,PID,Protocol,Remote,Port,Country,Firewall");
+        lines[1].Should().Be("2026-07-03T10:00:00,chrome,42,TCP,203.0.113.9,443,US,allowed");
+        // The process name with a comma is quoted so it stays one column.
+        lines[2].Should().Contain("\"Some App, Inc\"");
+    }
 }
