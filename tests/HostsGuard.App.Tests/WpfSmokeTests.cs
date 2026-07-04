@@ -120,6 +120,44 @@ public sealed class WpfSmokeTests
             $"every text/combo/password input on tab {tabIndex} ({theme}) must expose an AutomationProperties.Name");
     }
 
+    /// <summary>
+    /// NET-116 accessibility conformance: an icon-only button (no textual Content)
+    /// must carry an AutomationProperties.Name, and every realized DataGrid column
+    /// must have a header — both are announced by screen readers, and a blank one
+    /// leaves the control unlabeled. Deterministic on the realized tree, no desktop
+    /// session required.
+    /// </summary>
+    private static void AssertTabAccessible(Window window, int tabIndex, string theme)
+    {
+        var iconButtons = new List<string>();
+        foreach (var b in Descendants<Button>(window))
+        {
+            var hasText = b.Content is string s && !string.IsNullOrWhiteSpace(s);
+            if (!hasText && string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(b)))
+            {
+                iconButtons.Add(b.Name.Length != 0 ? b.Name : b.Content?.GetType().Name ?? "Button");
+            }
+        }
+
+        iconButtons.Should().BeEmpty(
+            $"every non-text (icon) button on tab {tabIndex} ({theme}) must expose an AutomationProperties.Name");
+
+        var unlabeledColumns = new List<string>();
+        foreach (var grid in Descendants<DataGrid>(window))
+        {
+            foreach (var col in grid.Columns)
+            {
+                if (col.Header is null || (col.Header is string h && string.IsNullOrWhiteSpace(h)))
+                {
+                    unlabeledColumns.Add($"{grid.Name}[{grid.Columns.IndexOf(col)}]");
+                }
+            }
+        }
+
+        unlabeledColumns.Should().BeEmpty(
+            $"every DataGrid column on tab {tabIndex} ({theme}) must have a header label");
+    }
+
     [Fact]
     public void Every_window_constructs_in_both_themes_without_a_service()
     {
@@ -170,6 +208,7 @@ public sealed class WpfSmokeTests
                     mainTabs.SelectedIndex = tab;
                     window.UpdateLayout();
                     AssertAllInputsNamed(window, mainTabs, tab, theme);
+                    AssertTabAccessible(window, tab, theme);
                 }
 
                 mainTabs.SelectedIndex = 3; // FW Rules.

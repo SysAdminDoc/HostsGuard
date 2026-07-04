@@ -4,6 +4,13 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [0.11.0] — 2026-07-04
 
+### Changed
+- **NET-116 — Broadened accessibility regression gate.** The headless WPF smoke
+  now also asserts that every icon-only (non-text) button carries an
+  `AutomationProperties.Name` and every realized DataGrid column has a header
+  label, across both themes — passing clean today and guarding the five main tabs
+  against a11y regressions.
+
 ### Added
 - **NET-115 — "Block/Allow this site" from a live connection.** The Firewall
   Activity connections view gains right-click *Block this site (domain)* / *Allow
