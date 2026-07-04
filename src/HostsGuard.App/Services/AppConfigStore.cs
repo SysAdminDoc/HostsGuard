@@ -28,6 +28,17 @@ public sealed class AppConfigStore
 
     public int UiScalePct { get; private set; } = 100;
 
+    /// <summary>UI language BCP-47 tag ("" = follow the Windows display language) — NET-098.</summary>
+    public string Language { get; private set; } = string.Empty;
+
+    /// <summary>Offered UI languages: (tag, English name). "" = system default.</summary>
+    public static readonly IReadOnlyList<(string Tag, string Name)> Languages = new[]
+    {
+        ("", "System default"),
+        ("en", "English"),
+        ("es", "Español"),
+    };
+
     /// <summary>Learning mode: surface trust prompts for unknown processes.</summary>
     public bool LearningMode { get; private set; }
 
@@ -59,6 +70,16 @@ public sealed class AppConfigStore
         LearningMode = ReadBool(root, "learning_mode");
         ObserveMode = ReadBool(root, "observe_mode");
         SoundOnBlock = ReadBool(root, "sound_on_block");
+        Language = root["language"]?.GetValue<string>() ?? string.Empty;
+    }
+
+    /// <summary>Persist the UI language tag (NET-098); "" follows the system.</summary>
+    public void SaveLanguage(string tag)
+    {
+        Language = tag ?? string.Empty;
+        var root = ReadRoot();
+        root["language"] = Language;
+        WriteRoot(root);
     }
 
     /// <summary>Persist the block-sound toggle (NET-085).</summary>

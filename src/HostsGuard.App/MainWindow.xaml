@@ -49,7 +49,7 @@
 
             <!-- Menu bar -->
             <Menu DockPanel.Dock="Top">
-                <MenuItem Header="_File">
+                <MenuItem Header="{svc:Loc Key=Menu_File, Default=_File}">
                     <MenuItem Header="Import hosts file…" Command="{Binding ImportHostsFileCommand}"
                               ToolTip="Replace the live hosts file with a picked file (backs up the current one first)" />
                     <MenuItem Header="Export hosts file…" Command="{Binding ExportHostsFileCommand}" />
@@ -67,7 +67,7 @@
                     <Separator />
                     <MenuItem Header="Exit" Click="OnTrayExit" />
                 </MenuItem>
-                <MenuItem Header="_View">
+                <MenuItem Header="{svc:Loc Key=Menu_View, Default=_View}">
                     <MenuItem Header="Group by root (activity)" IsCheckable="True" IsChecked="{Binding Activity.GroupByRoot}" />
                     <MenuItem Header="Hide blocked (activity)" IsCheckable="True" IsChecked="{Binding Activity.HideBlocked}" />
                     <MenuItem Header="Show hidden (activity)" IsCheckable="True" IsChecked="{Binding Activity.ShowHidden}" />
@@ -87,12 +87,17 @@
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
                     <MenuItem Header="Toggle theme" Command="{Binding ToggleThemeCommand}" />
+                    <MenuItem Header="{svc:Loc Key=Menu_Language, Default=Language}">
+                        <MenuItem Header="System default" Command="{Binding SetLanguageCommand}" CommandParameter="" />
+                        <MenuItem Header="English" Command="{Binding SetLanguageCommand}" CommandParameter="en" />
+                        <MenuItem Header="Español" Command="{Binding SetLanguageCommand}" CommandParameter="es" />
+                    </MenuItem>
                     <Separator />
                     <MenuItem Header="Reset view" Command="{Binding ResetViewCommand}"
                               ToolTip="Clear every filter and toggle, back to defaults at 100% scale" />
                     <MenuItem Header="Refresh all" Command="{Binding RefreshAllCommand}" />
                 </MenuItem>
-                <MenuItem Header="_Help">
+                <MenuItem Header="{svc:Loc Key=Menu_Help, Default=_Help}">
                     <MenuItem Header="Open GitHub repository" Click="OnOpenGitHub" />
                     <MenuItem Header="About HostsGuard" Click="OnAbout" />
                 </MenuItem>
@@ -166,7 +171,7 @@
 
             <!-- Main tabs -->
             <TabControl x:Name="MainTabs" Margin="8">
-                <TabItem Header="Hosts Activity">
+                <TabItem Header="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}">
                     <Grid Margin="4" DataContext="{Binding Activity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -415,9 +420,9 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Hosts File">
+                <TabItem Header="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}">
                     <TabControl Margin="0,4,0,0">
-                        <TabItem Header="Managed Domains">
+                        <TabItem Header="{svc:Loc Key=Tab_ManagedDomains, Default=Managed Domains}">
                             <Grid Margin="4" DataContext="{Binding Hosts}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -531,7 +536,7 @@
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="Blocklists">
+                        <TabItem Header="{svc:Loc Key=Tab_Blocklists, Default=Blocklists}">
                             <Grid Margin="4" DataContext="{Binding Blocklists}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="*" />
@@ -611,7 +616,7 @@
                             </Grid>
                         </TabItem>
 
-                        <TabItem Header="Raw Editor">
+                        <TabItem Header="{svc:Loc Key=Tab_RawEditor, Default=Raw Editor}">
                             <Grid Margin="4" DataContext="{Binding RawHosts}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -650,7 +655,7 @@
                     </TabControl>
                 </TabItem>
 
-                <TabItem Header="Firewall Activity">
+                <TabItem Header="{svc:Loc Key=Tab_FirewallActivity, Default=Firewall Activity}">
                     <Grid Margin="4" DataContext="{Binding FwActivity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1017,7 +1022,7 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Firewall Rules">
+                <TabItem Header="{svc:Loc Key=Tab_FirewallRules, Default=Firewall Rules}">
                     <Grid Margin="4" DataContext="{Binding FwRules}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1168,7 +1173,7 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="Tools">
+                <TabItem Header="{svc:Loc Key=Tab_Tools, Default=Tools}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="8" DataContext="{Binding Tools}">
 

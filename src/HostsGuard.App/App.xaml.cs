@@ -39,6 +39,9 @@ public partial class App : Application
 
         var config = _provider.GetRequiredService<AppConfigStore>();
         config.Load();
+        // Fix the UI culture before any window is built — the Loc markup extension
+        // resolves at load time, so a language change applies on next launch (NET-098).
+        ApplyCulture(config.Language);
         _provider.GetRequiredService<ThemeManager>().Apply(config.Theme);
 
         var window = _provider.GetRequiredService<MainWindow>();
@@ -46,6 +49,26 @@ public partial class App : Application
 
         var main = _provider.GetRequiredService<MainViewModel>();
         _ = main.ConnectCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>Pin the UI culture from the persisted language tag ("" = system).</summary>
+    private static void ApplyCulture(string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            return;
+        }
+
+        try
+        {
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(tag);
+            System.Globalization.CultureInfo.CurrentUICulture = culture;
+            System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            // Unknown tag — fall back to the Windows display language.
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

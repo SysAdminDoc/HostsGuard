@@ -5,6 +5,16 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-098 — i18n wiring + first non-English locale (Spanish).** The i18n
+  scaffold is now wired to real `.resx` resources with a `{svc:Loc}` XAML markup
+  extension and a shipped Spanish satellite assembly (`Strings.es.resx`). The
+  app's primary navigation (all five tab headers + the Hosts File sub-tabs) and
+  the File/View/Help menus resolve from resources and render fully in Spanish; a
+  new View → Language selector (System / English / Español) persists the choice
+  to `config.json` and applies on the next launch (the culture is pinned before
+  any window is built). Missing keys fall back to the English default so an
+  incomplete locale never blanks the UI.
+
 - **NET-095 — Adopt existing Windows Firewall rules (opt-in, non-destructive).**
   An *Import existing rules* button on the Firewall Rules tab reads the machine's
   current non-HG_ Windows Firewall rules into HostsGuard's view so onboarding

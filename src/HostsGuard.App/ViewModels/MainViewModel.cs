@@ -528,6 +528,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     // ─── View menu ────────────────────────────────────────────────────────────
 
+    /// <summary>Persist the UI language (NET-098); it applies on the next launch.</summary>
+    [RelayCommand]
+    public void SetLanguage(string? tag)
+    {
+        _config.SaveLanguage(tag ?? string.Empty);
+        var name = AppConfigStore.Languages.FirstOrDefault(l => l.Tag == (tag ?? string.Empty)).Name ?? "System default";
+        ConnectionText = $"Language set to {name} — restart HostsGuard to apply.";
+    }
+
     /// <summary>Back to defaults: filters cleared, toggles reset, 100% scale.</summary>
     [RelayCommand]
     public void ResetView()
