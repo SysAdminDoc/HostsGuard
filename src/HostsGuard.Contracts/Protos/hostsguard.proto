@@ -750,6 +750,14 @@ service Consent {
   // app that already has an allow rule inherits that allow for a bounded TTL
   // instead of prompting. Off preserves deny-by-default.
   rpc SetChildInherit(ChildInheritRequest) returns (Ack);
+  // Trusted publishers (NET-113): review/replace the set of Authenticode
+  // publisher CNs whose signed binaries auto-allow without a prompt.
+  rpc GetTrustedPublishers(Empty) returns (PublisherList);
+  rpc SetTrustedPublishers(PublisherList) returns (Ack);
+}
+
+message PublisherList {
+  repeated string publishers = 1;
 }
 
 message ChildInheritRequest {
@@ -824,6 +832,9 @@ message ConnectionDecision {
   // Prompt-burst blanket decision (NET-099): apply this verdict to EVERY pending
   // prompt from the same application as one whole-app rule, clearing the queue.
   bool apply_to_app = 15;
+  // Trust-by-publisher (NET-113): remember the app's Authenticode publisher so
+  // any binary signed by it auto-allows without prompting.
+  bool trust_publisher = 16;
 }
 
 message FilteringMode {

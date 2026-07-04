@@ -141,6 +141,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadSecureRulesAsync();
             await Tools.LoadAiStatusAsync();
             await Tools.LoadIntelStatusAsync();
+            await Tools.LoadTrustedPublishersAsync();
             Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
             await LoadFilteringModeAsync();

@@ -1692,6 +1692,33 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Trusted publishers (NET-113) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="Trusted publishers" FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right" Content="Refresh"
+                                                Command="{Binding LoadTrustedPublishersCommand}" Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="Software signed by these Authenticode publishers is auto-allowed without a prompt. Add one from a consent prompt's 'Trust all software signed by…' checkbox."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8" />
+                                    <ItemsControl ItemsSource="{Binding TrustedPublishers}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding}" VerticalAlignment="Center" />
+                                                    <Button DockPanel.Dock="Right" Content="Remove" Padding="8,2"
+                                                            Command="{Binding DataContext.RemoveTrustedPublisherCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                            CommandParameter="{Binding}" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="No trusted publishers yet." Style="{StaticResource Hg.DimText}"
+                                               Visibility="{Binding TrustedPublishers.Count, Converter={StaticResource EmptyStateVis}}" />
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,0">
                                 <TextBlock Text="{Binding StatusText}"
                                            Style="{StaticResource Hg.SubText}"

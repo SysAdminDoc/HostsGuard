@@ -43,6 +43,7 @@ public sealed class ConsentBroker : IDisposable
     private const string LearnPrefix = "HG_Learn_";
     private const string BasePrefix = "HG_Base_";
     private const string ChildPrefix = "HG_Child_";
+    private const string PublisherPrefix = "HG_Pub_";
 
     private readonly IFirewallEngine? _firewall;
     private readonly FirewallIdentity? _identity;
@@ -72,6 +73,13 @@ public sealed class ConsentBroker : IDisposable
 
     /// <summary>Threat-intel membership test for a remote IP (NET-066 prompt enrichment).</summary>
     public Func<string, bool>? LookupThreat { get; set; }
+
+    /// <summary>
+    /// Authenticode signer-subject lookup for an application (NET-113); overrides
+    /// the default file-based probe (injectable for tests). Returns null/"" when
+    /// unsigned or unknown.
+    /// </summary>
+    public Func<string, string?>? LookupSigner { get; set; }
 
     /// <summary>
     /// PID→sole-owning-service resolution (NET-073): (SCM key, display name),
@@ -341,6 +349,14 @@ public sealed class ConsentBroker : IDisposable
             return;
         }
 
+        // Trust-by-publisher (NET-113): a binary signed by a user-trusted publisher
+        // is auto-allowed without a prompt, like a known-safe baseline binary.
+        if (IsTrustedPublisher(blocked.Application))
+        {
+            AutoAllowPublisher(blocked);
+            return;
+        }
+
         if (mode == ModeLearning)
         {
             AutoAllow(blocked);
@@ -393,8 +409,13 @@ public sealed class ConsentBroker : IDisposable
     }
 
     /// <summary>Best-effort Authenticode signer subject for the prompt; blank on failure.</summary>
-    private static string SafeSigner(string application)
+    private string SafeSigner(string application)
     {
+        if (LookupSigner is { } hook)
+        {
+            return SafeInvoke(() => hook(application)) ?? string.Empty;
+        }
+
         try
         {
             if (application.Length == 0 || !File.Exists(application))
@@ -516,6 +537,88 @@ public sealed class ConsentBroker : IDisposable
             details: $"{blocked.Direction}|inherited from {Path.GetFileName(parentPath)}|1h", reason: "consent");
     }
 
+    // ─── Trust-by-publisher (NET-113) ────────────────────────────────────────
+
+    /// <summary>Publisher CNs whose signed binaries auto-allow without a prompt.</summary>
+    public IReadOnlyList<string> TrustedPublishers
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state.TrustedPublishers.ToList();
+            }
+        }
+    }
+
+    /// <summary>Replace the trusted-publisher set.</summary>
+    public Ack SetTrustedPublishers(IEnumerable<string> publishers)
+    {
+        ArgumentNullException.ThrowIfNull(publishers);
+        var cleaned = publishers.Select(p => (p ?? string.Empty).Trim())
+            .Where(p => p.Length != 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        lock (_gate)
+        {
+            _state.TrustedPublishers = cleaned;
+            SaveState();
+        }
+
+        _db.LogEvent("consent", "trusted_publishers", details: $"{cleaned.Count} publishers", reason: "consent");
+        return new Ack { Ok = true, Message = $"{cleaned.Count} trusted publisher(s)" };
+    }
+
+    /// <summary>Add one publisher CN to the trusted set (idempotent).</summary>
+    public void AddTrustedPublisher(string publisher)
+    {
+        var p = (publisher ?? string.Empty).Trim();
+        if (p.Length == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            if (!_state.TrustedPublishers.Contains(p, StringComparer.OrdinalIgnoreCase))
+            {
+                _state.TrustedPublishers.Add(p);
+                SaveState();
+            }
+        }
+    }
+
+    private bool IsTrustedPublisher(string application)
+    {
+        List<string> trusted;
+        lock (_gate)
+        {
+            if (_state.TrustedPublishers.Count == 0)
+            {
+                return false;
+            }
+
+            trusted = _state.TrustedPublishers.ToList();
+        }
+
+        var publisher = Core.PublisherName.Of(SafeSigner(application));
+        return publisher.Length != 0 && trusted.Any(t => string.Equals(t, publisher, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AutoAllowPublisher(BlockedConnection blocked)
+    {
+        var name = $"{PublisherPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
+        if (_firewall is { } fw && !fw.RuleExists(name) &&
+            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+        {
+            _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
+            _identity?.Remember(name, blocked.Application);
+        }
+
+        _db.LogEvent(blocked.Application, "consent_publisher_allow",
+            details: $"{blocked.Direction}|trusted publisher", reason: "consent");
+    }
+
     /// <summary>Silently allow a known-safe OS binary (NET-068 baseline).</summary>
     private void AutoAllowBaseline(string application, string direction)
     {
@@ -591,6 +694,13 @@ public sealed class ConsentBroker : IDisposable
         if (application.Length == 0)
         {
             return new Ack { Ok = false, Message = "application path is required", ErrorCode = "hostsguard.error.v1/invalid_program" };
+        }
+
+        // NET-113: "trust the publisher" remembers the app's signer CN so future
+        // binaries signed by it auto-allow without prompting.
+        if (decision.TrustPublisher)
+        {
+            AddTrustedPublisher(Core.PublisherName.Of(SafeSigner(application)));
         }
 
         if (decision.Id.Length != 0)
@@ -998,6 +1108,9 @@ public sealed class ConsentBroker : IDisposable
 
         /// <summary>Deadline for a time-boxed Learning window (NET-101); null = unbounded.</summary>
         public DateTime? LearnUntilUtc { get; set; }
+
+        /// <summary>Publisher CNs whose signed binaries auto-allow without a prompt (NET-113).</summary>
+        public List<string> TrustedPublishers { get; set; } = new();
 
         public List<OnceRule> OnceRules { get; set; } = new();
     }

@@ -12,6 +12,13 @@ All notable changes to HostsGuard are documented in this file.
   against a11y regressions.
 
 ### Added
+- **NET-113 — Trust-by-publisher.** A consent prompt for a signed app now offers
+  *Trust all software signed by "&lt;publisher&gt;"*; once trusted, any binary
+  signed by that Authenticode publisher auto-allows without prompting (the
+  simplewall #1727 ask). A Tools → *Trusted publishers* card reviews and removes
+  them. New `Consent.GetTrustedPublishers`/`SetTrustedPublishers` RPCs and a
+  `trust_publisher` decision flag; the set persists in `consent_state.json`.
+
 - **NET-105 — Single-write bulk block/allow.** New `BlockMany`/`AllowMany` RPCs
   apply a whole selection in one DB update + one hosts-file reconcile instead of N
   per-domain rewrites (each of which was a separate AV-lock opportunity that could

@@ -36,6 +36,14 @@ public partial class ConsentWindow : Window
         SignerText.Text = request.Signer.Length != 0 ? request.Signer : "unsigned / unknown";
         ThreatBanner.Visibility = request.Threat ? Visibility.Visible : Visibility.Collapsed;
 
+        // NET-113: offer trust-by-publisher only when the binary is signed.
+        var publisher = HostsGuard.Core.PublisherName.Of(request.Signer);
+        if (publisher.Length != 0)
+        {
+            TrustPublisher.Content = $"Trust all software signed by \"{publisher}\"";
+            TrustPublisher.Visibility = Visibility.Visible;
+        }
+
         // svchost attribution (NET-073): show the owning service; offer the
         // per-service scope only when it's unambiguous (one service, known key).
         if (request.Service.Length != 0)
@@ -124,6 +132,7 @@ public partial class ConsentWindow : Window
             ScopeService = ScopeService.IsChecked == true,
             ServiceKey = _request.ServiceKey,
             Duration = SelectedDuration(),
+            TrustPublisher = TrustPublisher.IsChecked == true,
         };
         Close();
     }

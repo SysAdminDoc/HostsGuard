@@ -591,6 +591,38 @@ public sealed partial class ToolsViewModel : ObservableObject
         StatusText = ack.Message;
     }
 
+    // ─── Trusted publishers (NET-113) ────────────────────────────────────────
+
+    public ObservableCollection<string> TrustedPublishers { get; } = new();
+
+    [RelayCommand]
+    public async Task LoadTrustedPublishersAsync()
+    {
+        var list = await _client.Consent.GetTrustedPublishersAsync(new Empty());
+        TrustedPublishers.Clear();
+        foreach (var p in list.Publishers)
+        {
+            TrustedPublishers.Add(p);
+        }
+    }
+
+    [RelayCommand]
+    public async Task RemoveTrustedPublisherAsync(string publisher)
+    {
+        if (string.IsNullOrWhiteSpace(publisher) ||
+            !_confirm.Confirm("Remove trusted publisher",
+                $"Stop auto-allowing software signed by \"{publisher}\"? Existing rules are unchanged."))
+        {
+            return;
+        }
+
+        var remaining = new PublisherList();
+        remaining.Publishers.AddRange(TrustedPublishers.Where(p => p != publisher));
+        var ack = await _client.Consent.SetTrustedPublishersAsync(remaining);
+        StatusText = ack.Message;
+        await LoadTrustedPublishersAsync();
+    }
+
     [ObservableProperty]
     private bool _secureRulesActive;
 

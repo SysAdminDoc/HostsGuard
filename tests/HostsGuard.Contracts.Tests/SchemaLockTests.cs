@@ -22,9 +22,11 @@ public class SchemaLockTests
           GetDecisionHistory(HistoryRequest) returns (DecisionHistory)
           GetLearned(Empty) returns (LearnedList)
           GetMode(Empty) returns (FilteringMode)
+          GetTrustedPublishers(Empty) returns (PublisherList)
           ReviewLearned(LearnedReviewRequest) returns (Ack)
           SetChildInherit(ChildInheritRequest) returns (Ack)
           SetMode(FilteringMode) returns (Ack)
+          SetTrustedPublishers(PublisherList) returns (Ack)
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics
           ExportSupportBundle(Empty) returns (Ack)

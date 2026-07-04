@@ -44,6 +44,16 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
     public override Task<Ack> SetChildInherit(ChildInheritRequest request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetChildInherit(request.Enabled));
 
+    public override Task<PublisherList> GetTrustedPublishers(Empty request, ServerCallContext context)
+    {
+        var list = new PublisherList();
+        list.Publishers.AddRange(_state.Consent.TrustedPublishers);
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> SetTrustedPublishers(PublisherList request, ServerCallContext context)
+        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetTrustedPublishers(request.Publishers));
+
     public override Task<Ack> SetMode(FilteringMode request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode, request.LearnMinutes));
 
