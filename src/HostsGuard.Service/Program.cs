@@ -165,6 +165,19 @@ if (LoopbackApi.IsEnabled())
     }
 }
 
+// Outbound event webhooks (NET-044b). The deliverer always subscribes to the
+// engine-event stream but only POSTs when webhooks.json (ACL-locked dir) has a
+// URL — so enabling webhooks via the loopback API takes effect without a
+// restart (the config object is shared). Signed with X-HG-Signature.
+using var webhookHttp = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+using var webhooks = new WebhookDeliverer(state.Webhooks, WebhookDeliverer.HttpSender(webhookHttp),
+    message => db.LogEvent("webhook", "delivery", details: message));
+webhooks.Start(state.Bus);
+if (state.Webhooks.Enabled)
+{
+    db.LogEvent("webhook", "start", details: $"{state.Webhooks.Urls.Count} endpoint(s)");
+}
+
 // Mint a per-session token and publish it to the ACL'd handshake file.
 var token = SessionToken.Generate();
 SessionToken.WriteHandshake(handshakePath, token);

@@ -157,7 +157,9 @@ public sealed class LoopbackApi : IDisposable
             ("GET", "/stats") => (200, Stats()),
             ("GET", "/domains") => (200, Domains(query)),
             ("GET", "/log") => Log(query),
+            ("GET", "/webhooks") => (200, GetWebhooks()),
             ("POST", "/domains") => PostDomain(body),
+            ("POST", "/webhooks") => PostWebhooks(body),
             _ => (404, Error("not_found", $"no route for {method} {path}")),
         };
     }
@@ -308,6 +310,82 @@ public sealed class LoopbackApi : IDisposable
         return (200, new JsonObject { ["ok"] = true, ["action"] = action, ["domain"] = domain }.ToJsonString());
     }
 
+    // ─── Webhooks (NET-044b): configure the outbound event delivery ──────────
+
+    private string GetWebhooks()
+    {
+        var urls = new JsonArray();
+        foreach (var u in _state.Webhooks.Urls)
+        {
+            urls.Add(u);
+        }
+
+        // The secret is never returned — only whether one is set.
+        return new JsonObject
+        {
+            ["urls"] = urls,
+            ["secret_set"] = _state.Webhooks.Secret.Length != 0,
+        }.ToJsonString();
+    }
+
+    private (int, string) PostWebhooks(string? body)
+    {
+        if (_state.GateWhenLocked() is not null)
+        {
+            return (423, Error("locked", "settings are locked"));
+        }
+
+        JsonObject? obj;
+        try
+        {
+            obj = JsonNode.Parse(body ?? string.Empty) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            return (400, Error("invalid_json", "request body is not valid JSON"));
+        }
+
+        var urls = new List<string>();
+        if (obj?["urls"] is JsonArray arr)
+        {
+            foreach (var node in arr)
+            {
+                var u = node?.GetValue<string>()?.Trim() ?? string.Empty;
+                if (u.Length == 0)
+                {
+                    continue;
+                }
+
+                if (!Uri.TryCreate(u, UriKind.Absolute, out var uri) ||
+                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                {
+                    return (400, Error("invalid_url", $"'{u}' is not a valid http(s) URL"));
+                }
+
+                urls.Add(u);
+            }
+        }
+
+        _state.Webhooks.Urls = urls;
+        // "secret" is write-only: absent keeps the stored secret; "" clears it.
+        if (obj?["secret"] is JsonNode s)
+        {
+            _state.Webhooks.Secret = s.GetValue<string>() ?? string.Empty;
+        }
+
+        try
+        {
+            _state.Webhooks.Save(_state.DataDir);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (503, Error("write_failed", $"could not persist webhook config: {ex.Message}"));
+        }
+
+        _state.Db.LogEvent("webhook", "config", details: $"{urls.Count} endpoint(s)", reason: "loopback");
+        return (200, new JsonObject { ["ok"] = true, ["urls"] = urls.Count, ["secret_set"] = _state.Webhooks.Secret.Length != 0 }.ToJsonString());
+    }
+
     private static string Error(string code, string message) =>
         new JsonObject { ["error_code"] = $"hostsguard.error.v1/{code}", ["message"] = message }.ToJsonString();
 
@@ -325,6 +403,7 @@ public sealed class LoopbackApi : IDisposable
                 ["/stats"] = PathGet("Domain statistics"),
                 ["/domains"] = PathGet("Managed domains"),
                 ["/log"] = PathGet("Event log (limit/action/reason filters)"),
+                ["/webhooks"] = PathGet("Outbound event-webhook config (secret redacted)"),
                 ["/openapi.json"] = PathGet("This document"),
             },
         };

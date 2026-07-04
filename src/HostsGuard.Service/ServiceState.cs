@@ -50,6 +50,7 @@ public sealed class ServiceState : IDisposable
         SecureRules = new SecureRulesGuard(firewall, db);
         CnameCloak = new CnameCloakGuard(hosts, db);
         Lock = new SettingsLock(DataDir);
+        Webhooks = WebhookConfig.Load(DataDir);
         ListFetcher = listFetcher;
         Defender = defender;
         ResolvedIps = new Core.ResolvedIpCache();
@@ -116,6 +117,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>Settings/rule lock (NET-079).</summary>
     public SettingsLock Lock { get; }
+
+    /// <summary>Outbound event-webhook config (NET-044b); shared with the deliverer + loopback API.</summary>
+    public WebhookConfig Webhooks { get; }
 
     /// <summary>
     /// Refuse a mutating action when the settings lock is armed and not inside a

@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.0] — 2026-07-04
+
+### Added
+- **NET-044b — Outbound event webhooks.** The service can POST each engine event
+  (the ActivityEvent stream) to configured HTTP(S) endpoints, signed with an
+  `X-HG-Signature` HMAC-SHA256 of the body, with bounded exponential-backoff
+  retries (retry on transport error / 429 / 5xx; 4xx is terminal). Config lives in
+  the ACL-locked `%ProgramData%\HostsGuard\webhooks.json` (so the shared secret
+  stays SYSTEM+Admins-only) and is settable via the loopback API
+  (`GET`/`POST /webhooks`, secret redacted on read). Delivery is off until a URL
+  is configured; enabling it via the loopback API takes effect without a restart.
+
 ## [0.11.0] — 2026-07-04
 
 ### Changed
