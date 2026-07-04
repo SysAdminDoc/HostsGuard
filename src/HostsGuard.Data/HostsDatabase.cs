@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 11;
+    public const int SchemaVersion = 12;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -135,6 +135,10 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS adopted_rules(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT,
                 protocol TEXT, program TEXT, enabled INTEGER DEFAULT 1, adopted_at TEXT);
+            CREATE TABLE IF NOT EXISTS domain_usage(
+                domain TEXT NOT NULL, process TEXT NOT NULL DEFAULT '',
+                sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0, updated TEXT,
+                PRIMARY KEY(domain, process)) WITHOUT ROWID;
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -831,6 +835,70 @@ public sealed class HostsDatabase : IDisposable
         lock (_gate)
         {
             _conn.Execute("DELETE FROM app_bandwidth WHERE minute < @cutoff", new { cutoff });
+        }
+    }
+
+    // ─── Per-domain data usage (NET-108: DNS → process → bytes) ──────────────
+
+    /// <summary>Accumulate bytes attributed to a domain (via a resolved remote IP), keyed by requesting process.</summary>
+    public void AddDomainUsage(string domain, string process, long sent, long recv)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        if (sent == 0 && recv == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO domain_usage(domain,process,sent,recv,updated)
+                VALUES(@domain,@process,@sent,@recv,@now)
+                ON CONFLICT(domain,process) DO UPDATE SET
+                    sent=sent+excluded.sent, recv=recv+excluded.recv, updated=excluded.updated
+                """,
+                new
+                {
+                    domain = domain.ToLowerInvariant(),
+                    process = process ?? string.Empty,
+                    sent,
+                    recv,
+                    now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                });
+        }
+    }
+
+    /// <summary>Total bytes (sent+recv) per domain, for the feed's Data column.</summary>
+    public IReadOnlyDictionary<string, long> GetDomainUsageTotals(IEnumerable<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        var result = new Dictionary<string, long>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var chunk in domains.Select(d => d.ToLowerInvariant()).Distinct(StringComparer.Ordinal).Chunk(500))
+            {
+                foreach (var row in _conn.Query<(string Domain, long Bytes)>(
+                    "SELECT domain, SUM(sent+recv) AS Bytes FROM domain_usage WHERE domain IN @chunk GROUP BY domain",
+                    new { chunk }))
+                {
+                    result[row.Domain] = row.Bytes;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Per-domain usage rows (domain, process, sent, recv) — diagnostics/quota input.</summary>
+    public IReadOnlyList<(string Domain, string Process, long Sent, long Recv)> GetDomainUsage(string domain)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, long, long)>(
+                "SELECT domain, process, sent, recv FROM domain_usage WHERE domain=@d ORDER BY sent+recv DESC",
+                new { d = domain.ToLowerInvariant() }).ToList();
         }
     }
 

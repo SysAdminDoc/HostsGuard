@@ -5,6 +5,15 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-108 — Link DNS → process → per-domain bandwidth.** The ETW kernel byte
+  counters now also tally per-(PID, remote-IP), and the bandwidth aggregator maps
+  each remote IP to its resolved domain (forward-DNS cache → persistent store) to
+  attribute bytes per domain, keyed by the requesting process, in a new
+  `domain_usage` table (schema v12). The Hosts Activity feed gains a **Data**
+  column showing per-domain data volume (sent+recv), and `ActivityRow` carries a
+  `bytes` field. Bare-IP dials with no DNS name contribute to no domain. This
+  per-domain usage feeds the NET-094 quota work.
+
 - **NET-098 — i18n wiring + first non-English locale (Spanish).** The i18n
   scaffold is now wired to real `.resx` resources with a `{svc:Loc}` XAML markup
   extension and a shipped Spanish satellite assembly (`Strings.es.resx`). The

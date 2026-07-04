@@ -339,6 +339,9 @@ message ActivityRow {
   // Purpose description: the curated table first, then AI-researched
   // knowledge (ai_knowledge kind=purpose); "" when unknown.
   string purpose = 11;
+  // Per-domain data volume in bytes (sent+recv), attributed via the resolved
+  // remote IP (NET-108); 0 when no bytes have been attributed yet.
+  int64 bytes = 12;
 }
 
 message ActivityList {

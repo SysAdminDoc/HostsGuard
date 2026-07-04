@@ -46,6 +46,30 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     [ObservableProperty]
     private string _purpose = string.Empty;
 
+    /// <summary>Per-domain data volume in bytes (sent+recv), attributed via resolved IP (NET-108).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DataText))]
+    private long _bytes;
+
+    /// <summary>Humanized data volume ("" when nothing has been attributed yet).</summary>
+    public string DataText => Bytes <= 0 ? string.Empty : FormatBytes(Bytes);
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        double value = bytes;
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return unit == 0
+            ? $"{value:0} {units[unit]}"
+            : $"{value:0.#} {units[unit]}";
+    }
+
     /// <summary>Reference blocklists that block this domain (intelligence index).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BlocklistsText))]
@@ -80,5 +104,6 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         Reason = r.Reason,
         Purpose = r.Purpose.Length != 0 ? r.Purpose : Core.DomainPurpose.Lookup(r.Domain),
         Blocklists = r.Blocklists.ToList(),
+        Bytes = r.Bytes,
     };
 }

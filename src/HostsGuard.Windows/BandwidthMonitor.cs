@@ -16,6 +16,14 @@ public interface IBandwidthSource
 
     /// <summary>Snapshot and reset the accumulated per-PID (sent, recv) bytes.</summary>
     IReadOnlyDictionary<int, (long Sent, long Recv)> Drain();
+
+    /// <summary>
+    /// Snapshot and reset per-(PID, remote-IP) byte tallies (NET-108). The remote
+    /// IP lets the aggregator attribute bytes to a resolved domain. Default: none
+    /// (sources that don't track endpoints, e.g. test fakes, opt out for free).
+    /// </summary>
+    IReadOnlyDictionary<(int Pid, string RemoteAddress), (long Sent, long Recv)> DrainByEndpoint()
+        => new Dictionary<(int, string), (long, long)>();
 }
 
 /// <summary>
@@ -39,6 +47,7 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
     private TraceEventSession? _session;
     private Thread? _pump;
     private ConcurrentDictionary<int, Counter> _counters = new();
+    private ConcurrentDictionary<(int, string), Counter> _endpoints = new();
 
     public BandwidthMonitor(string sessionName = "HostsGuardBandwidth") => _sessionName = sessionName;
 
@@ -57,14 +66,17 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
             _session = new TraceEventSession(_sessionName) { StopOnDispose = true };
             _session.EnableKernelProvider(KernelTraceEventParser.Keywords.NetworkTCPIP);
             var kernel = _session.Source.Kernel;
-            kernel.TcpIpSend += d => Add(d.ProcessID, d.size, 0);
-            kernel.TcpIpRecv += d => Add(d.ProcessID, 0, d.size);
-            kernel.TcpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0);
-            kernel.TcpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size);
-            kernel.UdpIpSend += d => Add(d.ProcessID, d.size, 0);
-            kernel.UdpIpRecv += d => Add(d.ProcessID, 0, d.size);
-            kernel.UdpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0);
-            kernel.UdpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size);
+            // On send the remote is the destination (daddr); on recv it's the
+            // source (saddr). Track both a per-PID total and a per-(PID, remote-IP)
+            // tally so bytes can be attributed to a resolved domain (NET-108).
+            kernel.TcpIpSend += d => Add(d.ProcessID, d.size, 0, d.daddr);
+            kernel.TcpIpRecv += d => Add(d.ProcessID, 0, d.size, d.saddr);
+            kernel.TcpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0, d.daddr);
+            kernel.TcpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size, d.saddr);
+            kernel.UdpIpSend += d => Add(d.ProcessID, d.size, 0, d.daddr);
+            kernel.UdpIpRecv += d => Add(d.ProcessID, 0, d.size, d.saddr);
+            kernel.UdpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0, d.daddr);
+            kernel.UdpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size, d.saddr);
             _pump = new Thread(() => _session.Source.Process()) { IsBackground = true, Name = "HostsGuardBwEtw" };
             _pump.Start();
             return DnsMonitorStatus.Started;
@@ -76,7 +88,7 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         }
     }
 
-    private void Add(int pid, long sent, long recv)
+    private void Add(int pid, long sent, long recv, System.Net.IPAddress? remote = null)
     {
         if (pid <= 0)
         {
@@ -93,6 +105,39 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         {
             Interlocked.Add(ref c.Recv, recv);
         }
+
+        if (remote is null)
+        {
+            return;
+        }
+
+        var e = _endpoints.GetOrAdd((pid, remote.ToString()), static _ => new Counter());
+        if (sent != 0)
+        {
+            Interlocked.Add(ref e.Sent, sent);
+        }
+
+        if (recv != 0)
+        {
+            Interlocked.Add(ref e.Recv, recv);
+        }
+    }
+
+    public IReadOnlyDictionary<(int Pid, string RemoteAddress), (long Sent, long Recv)> DrainByEndpoint()
+    {
+        var drained = Interlocked.Exchange(ref _endpoints, new ConcurrentDictionary<(int, string), Counter>());
+        var result = new Dictionary<(int, string), (long, long)>(drained.Count);
+        foreach (var (key, c) in drained)
+        {
+            var sent = Interlocked.Read(ref c.Sent);
+            var recv = Interlocked.Read(ref c.Recv);
+            if (sent != 0 || recv != 0)
+            {
+                result[key] = (sent, recv);
+            }
+        }
+
+        return result;
     }
 
     public IReadOnlyDictionary<int, (long Sent, long Recv)> Drain()

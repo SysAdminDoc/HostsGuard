@@ -264,6 +264,8 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var learnedPurposes = _state.Db.GetAiKnowledge("purpose", feed.Select(r => r.Domain));
         // User overrides beat both the curated table and the AI (NET-107).
         var overriddenPurposes = _state.Db.GetUserOverrides("purpose", feed.Select(r => r.Domain));
+        // Per-domain data volume (NET-108), one batched query for the page.
+        var usage = _state.Db.GetDomainUsageTotals(feed.Select(r => r.Domain));
         var list = new ActivityList();
         foreach (var row in feed)
         {
@@ -303,6 +305,8 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             {
                 activityRow.Blocklists.AddRange(lists);
             }
+
+            activityRow.Bytes = usage.GetValueOrDefault(row.Domain, 0);
 
             // Precedence: user override → curated table → AI-researched knowledge.
             if (overriddenPurposes.TryGetValue(row.Domain, out var userPurpose) && userPurpose.Length != 0)

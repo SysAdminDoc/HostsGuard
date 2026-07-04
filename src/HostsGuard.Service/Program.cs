@@ -86,7 +86,9 @@ db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
 // connection feed works regardless.
 using var bandwidthMonitor = new BandwidthMonitor();
 var bandwidthStatus = bandwidthMonitor.Start();
-using var bandwidth = new BandwidthAggregator(db, bandwidthMonitor);
+// NET-108: resolveHost maps a connection's remote IP → its resolved domain
+// (ETW forward-DNS cache → persistent store) so bytes attribute to a domain.
+using var bandwidth = new BandwidthAggregator(db, bandwidthMonitor, resolveHost: state.ResolveKnownHost);
 if (bandwidthStatus == DnsMonitorStatus.Started)
 {
     bandwidth.Start();

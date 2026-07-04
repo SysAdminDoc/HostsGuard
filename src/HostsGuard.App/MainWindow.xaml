@@ -384,6 +384,7 @@
                                 </DataGridTextColumn>
                                 <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="80" IsReadOnly="True" />
                                 <DataGridTemplateColumn Header="24h" Width="132">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
