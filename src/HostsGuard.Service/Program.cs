@@ -97,6 +97,19 @@ if (bandwidthStatus == DnsMonitorStatus.Started)
 state.Bandwidth = bandwidth;
 db.LogEvent("bandwidth", "monitor_start", details: bandwidthStatus.ToString());
 
+// TLS SNI capture (NET-109): driver-free raw-socket ClientHello sniffing so
+// HTTPS connections resolved over DoH still show a hostname. Opt-in (privacy +
+// AV friendly): created always, started only when the persisted flag is on.
+using var sniSniffer = new SniSniffer(
+    obs => state.RecordSni(obs),
+    message => db.LogEvent("sni", "capture_log", details: message));
+state.Sni = sniSniffer;
+if (db.GetMeta("sni_capture") == "on")
+{
+    var sniStatus = sniSniffer.Start();
+    db.LogEvent("sni", "capture_start", details: sniStatus.ToString());
+}
+
 // svchost per-service attribution (NET-073): SCM enumeration, cached; feeds
 // both the live connection stream and the consent prompt.
 var serviceAttribution = new ServiceAttribution();

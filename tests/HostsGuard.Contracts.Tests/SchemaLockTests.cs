@@ -38,6 +38,7 @@ public class SchemaLockTests
           ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult)
           SetCnameCloak(CnameCloakRequest) returns (Ack)
           SetResolver(ResolverRequest) returns (Ack)
+          SetSniCapture(SniCaptureRequest) returns (Ack)
         service FirewallControl
           AdoptFirewallRules(Empty) returns (AdoptResult)
           BlockAppScope(AppScopeRequest) returns (Ack)

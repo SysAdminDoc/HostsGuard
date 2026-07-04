@@ -1338,6 +1338,27 @@
                                                    Style="{StaticResource Hg.DimText}"
                                                    Text="Blocks first-party hosts that alias to blocked trackers" />
                                     </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Left" Margin="0,0,10,0"
+                                                Command="{Binding ToggleSniCaptureCommand}"
+                                                ToolTip="TLS SNI capture (NET-109): recover the hostname of HTTPS connections even when DNS was resolved over DoH, by reading the ClientHello SNI. Driver-free raw-socket capture; ECH-encrypted SNI stays unavailable.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Capture TLS SNI" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SniCaptureActive}" Value="True">
+                                                            <Setter Property="Content" Value="Stop SNI capture" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                                   Style="{StaticResource Hg.DimText}"
+                                                   Text="Names HTTPS dials the OS resolver never saw (DoH), ECH excepted" />
+                                    </DockPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
                                         <TextBlock Text="{Binding DohStatusText}"
                                                    Style="{StaticResource Hg.SubText}"

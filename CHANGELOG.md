@@ -5,6 +5,18 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-109 — TLS SNI capture (recover DoH-hidden hostnames).** A driver-free
+  raw-socket capture (`SIO_RCVALL`, elevation the LocalSystem service already has —
+  no kernel driver, no third-party capture library) reads the TLS ClientHello SNI
+  from outbound HTTPS (TCP/443) segments and names connections whose DNS was
+  resolved out-of-band (DoH). Recovered hostnames flow into the persistent
+  resolved-host store (source `sni`), so the connections feed's Site column and
+  the activity feed name the dial automatically. ECH-encrypted SNI carries no
+  cleartext name and is reported as unavailable (never fabricated). Opt-in via a
+  Tools → *Capture TLS SNI* toggle (new `SetSniCapture` RPC, schema-lock updated;
+  `sni_capture` on `DohStatus`); off by default. The ClientHello parser
+  (`Core.TlsClientHello`) and packet layer are fully unit-tested.
+
 - **NET-108 — Link DNS → process → per-domain bandwidth.** The ETW kernel byte
   counters now also tally per-(PID, remote-IP), and the bandwidth aggregator maps
   each remote IP to its resolved domain (forward-DNS cache → persistent store) to

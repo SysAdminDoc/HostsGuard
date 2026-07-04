@@ -465,6 +465,10 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     private bool _cnameCloakActive;
 
+    /// <summary>TLS SNI capture is running (NET-109).</summary>
+    [ObservableProperty]
+    private bool _sniCaptureActive;
+
     /// <summary>
     /// "See everything": both QUIC/UDP-443 and the DoH bootstrap blocks are on, so
     /// browsers doing their own encrypted DNS fall back to the OS resolver and the
@@ -485,6 +489,7 @@ public sealed partial class ToolsViewModel : ObservableObject
         DohBlockingActive = status.BlockingActive;
         QuicBlockingActive = status.QuicBlocked;
         CnameCloakActive = status.CnameCloak;
+        SniCaptureActive = status.SniCapture;
         DohStatusText = status.Updated.Length != 0
             ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
             : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
@@ -546,6 +551,15 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task ToggleCnameCloakAsync()
     {
         var ack = await _client.Dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = !CnameCloakActive });
+        StatusText = ack.Message;
+        await LoadDohStatusAsync();
+    }
+
+    /// <summary>Toggle driver-free TLS SNI capture (NET-109).</summary>
+    [RelayCommand]
+    public async Task ToggleSniCaptureAsync()
+    {
+        var ack = await _client.Dns.SetSniCaptureAsync(new SniCaptureRequest { Enabled = !SniCaptureActive });
         StatusText = ack.Message;
         await LoadDohStatusAsync();
     }

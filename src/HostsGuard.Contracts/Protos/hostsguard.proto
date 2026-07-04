@@ -538,6 +538,14 @@ service DnsControl {
   // persist every result so future connections to the same IP show the host
   // automatically. Returns the resolved (address, host) pairs.
   rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult);
+  // TLS SNI capture (NET-109): recover hostnames for HTTPS connections resolved
+  // over DoH by reading the ClientHello SNI (driver-free raw socket). Opt-in;
+  // ECH-encrypted SNI is noted as unavailable.
+  rpc SetSniCapture(SniCaptureRequest) returns (Ack);
+}
+
+message SniCaptureRequest {
+  bool enabled = 1;
 }
 
 message CnameCloakRequest {
@@ -566,6 +574,7 @@ message DohStatus {
   bool blocking_active = 6; // HG_DoH_* rules currently exist
   bool quic_blocked = 7;    // HG_QUIC_UDP443 rule currently exists
   bool cname_cloak = 8;     // CNAME-cloak reactive blocking is armed
+  bool sni_capture = 9;     // TLS SNI capture is running (NET-109)
 }
 
 message DohRefreshRequest {

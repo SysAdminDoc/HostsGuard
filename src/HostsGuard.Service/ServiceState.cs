@@ -147,6 +147,28 @@ public sealed class ServiceState : IDisposable
     /// <summary>Current-network identity source (NET-083); wired by the host.</summary>
     public Windows.INetworkIdentity? NetworkIdentity { get; set; }
 
+    /// <summary>Driver-free TLS SNI capture (NET-109); wired by the host, opt-in.</summary>
+    public Windows.SniSniffer? Sni { get; set; }
+
+    /// <summary>
+    /// Record a TLS SNI observation (NET-109): persist the IP→host mapping (source
+    /// "sni") and seed the live cache so the connection feed names an HTTPS dial
+    /// even when DNS was resolved over DoH. ECH-encrypted SNI carries no cleartext
+    /// name, so nothing is recorded — the connection stays IP-only (as intended).
+    /// </summary>
+    public void RecordSni(Windows.SniObservation obs)
+    {
+        ArgumentNullException.ThrowIfNull(obs);
+        if (obs.EchUnavailable || string.IsNullOrEmpty(obs.Host) || string.IsNullOrEmpty(obs.RemoteAddress))
+        {
+            return;
+        }
+
+        var host = obs.Host.ToLowerInvariant();
+        ResolvedIps.Record(host, new[] { obs.RemoteAddress }, DateTime.Now);
+        Db.UpsertResolvedHost(obs.RemoteAddress, host, "sni");
+    }
+
     public DateTime StartedAtUtc { get; }
 
     /// <summary>

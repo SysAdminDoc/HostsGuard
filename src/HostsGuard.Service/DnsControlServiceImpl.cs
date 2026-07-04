@@ -106,7 +106,31 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             BlockingActive = _state.Firewall?.RuleExists("HG_DoT_TCP") ?? false,
             QuicBlocked = _state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false,
             CnameCloak = _state.CnameCloak.Enabled,
+            SniCapture = _state.Sni?.Active ?? false,
         });
+    }
+
+    public override Task<Ack> SetSniCapture(SniCaptureRequest request, ServerCallContext context)
+    {
+        if (_state.Sni is not { } sni)
+        {
+            return Task.FromResult(Error("sni_unavailable", "SNI capture is not available in this service instance"));
+        }
+
+        _state.Db.SetMeta("sni_capture", request.Enabled ? "on" : "off");
+        if (request.Enabled)
+        {
+            var status = sni.Start();
+            return Task.FromResult(status switch
+            {
+                Windows.DnsMonitorStatus.Started => Ok("TLS SNI capture on — HTTPS connections resolved over DoH now show their hostname (ECH-encrypted SNI stays unavailable)"),
+                Windows.DnsMonitorStatus.RequiresElevation => Error("sni_elevation", "SNI capture requires the elevated service"),
+                _ => Error("sni_unavailable", "SNI capture couldn't open a capture socket (it may be blocked by security software)"),
+            });
+        }
+
+        sni.Stop();
+        return Task.FromResult(Ok("TLS SNI capture off"));
     }
 
     public override async Task<Ack> RefreshDohIntelligence(DohRefreshRequest request, ServerCallContext context)
