@@ -49,6 +49,17 @@ All notable changes to HostsGuard are documented in this file.
   noisy): inbound blocks are dropped without a prompt until enabled. New
   `Consent.SetInboundConsent` RPC; the opt-in persists in `consent_state.json`.
 
+- **NET-119 — VPN-presence kill-switch.** A *VPN kill-switch* card on the Tools
+  tab watches a chosen VPN adapter; whenever it goes down, HostsGuard forces
+  default-outbound Block on every firewall profile so nothing leaks outside the
+  tunnel, and restores the exact prior per-profile posture when it reconnects.
+  Enforcement flips the profile default (like the consent-mode rails), so existing
+  Allow rules still apply — keep one for the VPN client and the tunnel can
+  reconnect. Opt-in, off by default; an engaged state survives a service restart
+  without capturing its own block-all as the "prior". New
+  `Firewall.GetKillSwitch`/`SetKillSwitch` RPCs; the config persists in
+  `killswitch_state.json`.
+
 ## [0.11.0] — 2026-07-04
 
 ### Changed

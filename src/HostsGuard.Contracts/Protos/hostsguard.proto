@@ -447,6 +447,30 @@ service FirewallControl {
   // Internet / LAN / localhost, or all inbound. Portmaster-style scope rules.
   rpc BlockAppScope(AppScopeRequest) returns (Ack);
   rpc UnblockAppScope(AppScopeRequest) returns (Ack);
+  // VPN-presence kill-switch (NET-119): when the chosen VPN adapter is down,
+  // force default-outbound Block on every profile so nothing leaks outside the
+  // tunnel; restore the prior posture when it returns. Opt-in, off by default.
+  rpc GetKillSwitch(Empty) returns (KillSwitchStatus);
+  rpc SetKillSwitch(KillSwitchRequest) returns (Ack);
+}
+
+message KillSwitchRequest {
+  bool enabled = 1;
+  string adapter = 2;   // name/description substring of the VPN adapter to watch
+}
+
+message KillSwitchStatus {
+  bool enabled = 1;
+  string adapter = 2;
+  bool engaged = 3;                   // block-all is being enforced right now (VPN down)
+  repeated NetworkAdapterInfo adapters = 4;  // interfaces for the picker
+}
+
+message NetworkAdapterInfo {
+  string name = 1;
+  string description = 2;
+  bool is_up = 3;
+  bool is_vpn_likely = 4;
 }
 
 message GlobalModeRequest {

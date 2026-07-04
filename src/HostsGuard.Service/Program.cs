@@ -128,6 +128,13 @@ using var networkWatcher = new NetworkProfileWatcher(state, networkIdentity,
     profile => policyForSwitch.ApplyProfile(profile, "network_profile_switched"));
 networkWatcher.Start();
 
+// VPN-presence kill-switch (NET-119): force default-outbound Block whenever the
+// chosen VPN adapter drops, restore on reconnect. Opt-in; the monitor self-checks
+// its persisted enable flag, so Start() is a no-op until the user turns it on.
+using var killSwitch = new KillSwitchMonitor(firewall, db, NetworkAdapters.IsUp, baseDir);
+state.KillSwitch = killSwitch;
+killSwitch.Start();
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(

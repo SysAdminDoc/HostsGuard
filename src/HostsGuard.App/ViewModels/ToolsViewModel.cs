@@ -98,6 +98,17 @@ public sealed partial class KnowledgeEntryViewModel : ObservableObject
     public string CreatedText => TimeText.Compact(Created);
 }
 
+/// <summary>Row VM for the VPN kill-switch adapter picker (NET-119).</summary>
+public sealed partial class AdapterRowViewModel : ObservableObject
+{
+    /// <summary>The name/description substring passed to the service as the match key.</summary>
+    [ObservableProperty]
+    private string _match = string.Empty;
+
+    [ObservableProperty]
+    private string _label = string.Empty;
+}
+
 /// <summary>Row VM for a one-click blockable service.</summary>
 public sealed partial class BlockableServiceViewModel : ObservableObject
 {
@@ -653,6 +664,73 @@ public sealed partial class ToolsViewModel : ObservableObject
         var ack = await _client.Consent.SetTrustedFoldersAsync(remaining);
         StatusText = ack.Message;
         await LoadTrustedFoldersAsync();
+    }
+
+    // ─── VPN-presence kill-switch (NET-119) ──────────────────────────────────
+
+    public ObservableCollection<AdapterRowViewModel> Adapters { get; } = new();
+
+    [ObservableProperty]
+    private AdapterRowViewModel? _selectedAdapter;
+
+    [ObservableProperty]
+    private bool _killSwitchEnabled;
+
+    [ObservableProperty]
+    private string _killSwitchStatusText = "VPN kill-switch off.";
+
+    [RelayCommand]
+    public async Task LoadKillSwitchAsync()
+    {
+        var status = await _client.Firewall.GetKillSwitchAsync(new Empty());
+        Adapters.Clear();
+        foreach (var a in status.Adapters)
+        {
+            Adapters.Add(new AdapterRowViewModel
+            {
+                Match = a.Name,
+                Label = $"{a.Name} — {a.Description} ({(a.IsUp ? "up" : "down")}{(a.IsVpnLikely ? ", VPN" : string.Empty)})",
+            });
+        }
+
+        KillSwitchEnabled = status.Enabled;
+        SelectedAdapter = Adapters.FirstOrDefault(a => a.Match == status.Adapter)
+            ?? Adapters.FirstOrDefault(a => a.Label.Contains(", VPN", StringComparison.Ordinal))
+            ?? Adapters.FirstOrDefault();
+        KillSwitchStatusText = status.Enabled
+            ? status.Engaged
+                ? $"ENGAGED — all outbound blocked while '{status.Adapter}' is down"
+                : $"On — watching '{status.Adapter}'"
+            : "VPN kill-switch off.";
+    }
+
+    [RelayCommand]
+    public async Task ToggleKillSwitchAsync()
+    {
+        var adapter = SelectedAdapter?.Match ?? string.Empty;
+        if (!KillSwitchEnabled)
+        {
+            if (adapter.Length == 0)
+            {
+                StatusText = "Choose a VPN adapter before enabling the kill-switch.";
+                return;
+            }
+
+            if (!_confirm.Confirm("Enable VPN kill-switch",
+                $"Block ALL outbound traffic whenever '{adapter}' is down? Existing allow rules still apply — "
+                + "keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time."))
+            {
+                return;
+            }
+        }
+
+        var ack = await _client.Firewall.SetKillSwitchAsync(new KillSwitchRequest
+        {
+            Enabled = !KillSwitchEnabled,
+            Adapter = adapter,
+        });
+        StatusText = ack.Message;
+        await LoadKillSwitchAsync();
     }
 
     [ObservableProperty]

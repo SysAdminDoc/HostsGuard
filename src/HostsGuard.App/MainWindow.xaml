@@ -1789,6 +1789,48 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- VPN-presence kill-switch (NET-119) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="VPN kill-switch" FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right" Content="Refresh"
+                                                Command="{Binding LoadKillSwitchCommand}" Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="Block ALL outbound whenever the chosen VPN adapter is down, so nothing leaks outside the tunnel; the prior posture is restored on reconnect. Existing allow rules still apply — keep one for your VPN client so the tunnel can reconnect. Opt-in, off by default."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8" TextWrapping="Wrap" />
+                                    <WrapPanel>
+                                        <TextBlock Text="VPN adapter:" VerticalAlignment="Center" Margin="0,0,8,8" />
+                                        <ComboBox Width="360" Margin="0,0,8,8"
+                                                  ItemsSource="{Binding Adapters}"
+                                                  SelectedItem="{Binding SelectedAdapter}"
+                                                  DisplayMemberPath="Label"
+                                                  AutomationProperties.Name="VPN adapter to watch"
+                                                  ToolTip="Pick the network adapter your VPN creates; when it drops the kill-switch engages" />
+                                        <Button Command="{Binding ToggleKillSwitchCommand}" Margin="0,0,10,8"
+                                                ToolTip="Turn the VPN kill-switch on or off">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="Enable kill-switch" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding KillSwitchEnabled}" Value="True">
+                                                            <Setter Property="Content" Value="Disable kill-switch" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </WrapPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,4,0,0">
+                                        <TextBlock Text="{Binding KillSwitchStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,0">
                                 <TextBlock Text="{Binding StatusText}"
                                            Style="{StaticResource Hg.SubText}"

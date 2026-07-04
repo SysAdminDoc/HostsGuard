@@ -665,6 +665,45 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok(removed ? $"unblocked {Path.GetFileName(path)} → {scope}" : "scope was not blocked"));
     }
 
+    public override Task<KillSwitchStatus> GetKillSwitch(Empty request, ServerCallContext context)
+    {
+        var status = new KillSwitchStatus();
+        if (_state.KillSwitch is { } ks)
+        {
+            status.Enabled = ks.Enabled;
+            status.Adapter = ks.Adapter;
+            status.Engaged = ks.IsEngaged;
+        }
+
+        foreach (var a in NetworkAdapters.List())
+        {
+            status.Adapters.Add(new NetworkAdapterInfo
+            {
+                Name = a.Name,
+                Description = a.Description,
+                IsUp = a.IsUp,
+                IsVpnLikely = a.IsVpnLikely,
+            });
+        }
+
+        return Task.FromResult(status);
+    }
+
+    public override Task<Ack> SetKillSwitch(KillSwitchRequest request, ServerCallContext context)
+    {
+        if (_state.KillSwitch is not { } ks)
+        {
+            return Task.FromResult(Error("killswitch_unavailable", "kill-switch monitor is not attached to this service instance"));
+        }
+
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return Task.FromResult(ks.Configure(request.Enabled, request.Adapter));
+    }
+
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);
 

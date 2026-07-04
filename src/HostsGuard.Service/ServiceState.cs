@@ -154,6 +154,9 @@ public sealed class ServiceState : IDisposable
     /// <summary>Driver-free TLS SNI capture (NET-109); wired by the host, opt-in.</summary>
     public Windows.SniSniffer? Sni { get; set; }
 
+    /// <summary>VPN-presence kill-switch (NET-119); wired by the host, opt-in.</summary>
+    public KillSwitchMonitor? KillSwitch { get; set; }
+
     /// <summary>
     /// Record a TLS SNI observation (NET-109): persist the IP→host mapping (source
     /// "sni") and seed the live cache so the connection feed names an HTTPS dial
