@@ -121,8 +121,8 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
-    public void Schema_version_is_v9()
+    public void Schema_version_is_current()
     {
-        _db.SchemaVersionOnDisk().Should().Be(9);
+        _db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
     }
 }

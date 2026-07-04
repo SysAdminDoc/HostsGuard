@@ -71,6 +71,33 @@ public sealed partial class BackupRowViewModel : ObservableObject
     public string Label => $"{FileName} — {Created} ({SizeBytes / 1024.0:0.#} KB)";
 }
 
+/// <summary>Row VM for the AI-knowledge review panel (NET-107).</summary>
+public sealed partial class KnowledgeEntryViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _kind = string.Empty;   // "purpose" | "category" | "connection"
+
+    [ObservableProperty]
+    private string _key = string.Empty;    // domain, or host/ip
+
+    [ObservableProperty]
+    private string _value = string.Empty;  // AI-learned label
+
+    [ObservableProperty]
+    private string _editValue = string.Empty; // editable before promoting
+
+    [ObservableProperty]
+    private string _userOverride = string.Empty; // "" until promoted/corrected
+
+    [ObservableProperty]
+    private string _created = string.Empty;
+
+    [ObservableProperty]
+    private bool _isNew;
+
+    public string CreatedText => TimeText.Compact(Created);
+}
+
 /// <summary>Row VM for a one-click blockable service.</summary>
 public sealed partial class BlockableServiceViewModel : ObservableObject
 {
@@ -741,6 +768,112 @@ public sealed partial class ToolsViewModel : ObservableObject
 
         StatusText = $"AI knowledge exported to {path}";
         AiStatusText = $"Knowledge log saved: {path}";
+    }
+
+    // ─── AI-knowledge review & promote (NET-107) ─────────────────────────────
+
+    public ObservableCollection<KnowledgeEntryViewModel> Knowledge { get; } = new();
+
+    [ObservableProperty]
+    private bool _knowledgeOnlyNew = true;
+
+    [ObservableProperty]
+    private string _knowledgeStatusText = "Load what the AI has learned to review it.";
+
+    // Inline "correct a domain" mini-form (the remembered correction path).
+    [ObservableProperty]
+    private string _correctDomain = string.Empty;
+
+    [ObservableProperty]
+    private string _correctKind = "category"; // "category" | "purpose"
+
+    [ObservableProperty]
+    private string _correctValue = string.Empty;
+
+    public static IReadOnlyList<string> CorrectionKinds { get; } = new[] { "category", "purpose" };
+
+    [RelayCommand]
+    public async Task LoadKnowledgeAsync()
+    {
+        var list = await _client.Hosts.ListAiKnowledgeAsync(new AiKnowledgeRequest { SinceLastReview = KnowledgeOnlyNew });
+        Knowledge.Clear();
+        foreach (var e in list.Entries.OrderByDescending(e => e.Created))
+        {
+            Knowledge.Add(new KnowledgeEntryViewModel
+            {
+                Kind = e.Kind,
+                Key = e.Key,
+                Value = e.Value,
+                EditValue = e.UserOverride.Length != 0 ? e.UserOverride : e.Value,
+                UserOverride = e.UserOverride,
+                Created = e.Created,
+                IsNew = e.IsNew,
+            });
+        }
+
+        KnowledgeStatusText = Knowledge.Count == 0
+            ? (KnowledgeOnlyNew ? "Nothing new learned since your last review." : "The AI hasn't learned anything yet.")
+            : $"{Plural.Of(Knowledge.Count, "learned entry", "learned entries")}"
+              + (list.LastReviewed.Length != 0 ? $" · last review {TimeText.Compact(list.LastReviewed)}" : " · never reviewed");
+    }
+
+    [RelayCommand]
+    public async Task PromoteKnowledgeAsync(KnowledgeEntryViewModel row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var request = new KnowledgeReviewRequest();
+        request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "promote", Value = row.EditValue });
+        var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
+        StatusText = ack.Message;
+        await LoadKnowledgeAsync();
+    }
+
+    [RelayCommand]
+    public async Task DiscardKnowledgeAsync(KnowledgeEntryViewModel row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        var request = new KnowledgeReviewRequest();
+        request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "discard" });
+        var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
+        StatusText = ack.Message;
+        await LoadKnowledgeAsync();
+    }
+
+    [RelayCommand]
+    public async Task MarkKnowledgeReviewedAsync()
+    {
+        var ack = await _client.Hosts.PromoteKnowledgeAsync(new KnowledgeReviewRequest { MarkReviewed = true });
+        StatusText = ack.Message;
+        await LoadKnowledgeAsync();
+    }
+
+    [RelayCommand]
+    public async Task CorrectDomainAsync()
+    {
+        var domain = CorrectDomain.Trim();
+        if (domain.Length == 0)
+        {
+            StatusText = "Enter a domain to correct.";
+            return;
+        }
+
+        var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+        {
+            Kind = CorrectKind,
+            Key = domain,
+            Value = CorrectValue.Trim(),
+        });
+        StatusText = ack.Message;
+        CorrectValue = string.Empty;
+        await LoadKnowledgeAsync();
     }
 
     // ─── Blocklist intelligence ───────────────────────────────────────────────

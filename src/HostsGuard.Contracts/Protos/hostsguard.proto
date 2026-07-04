@@ -105,6 +105,50 @@ service HostsControl {
   // Everything the AI has learned (purposes, categories, connection info) as
   // reviewable JSON — the promotion path into the curated built-ins.
   rpc ExportAiKnowledge(Empty) returns (HostsText);
+  // In-app AI-knowledge review (NET-107): list what the AI has learned (all or
+  // only new since the last review), promote/discard entries into a persisted
+  // user-override table that beats the AI, and correct a single domain's
+  // category/purpose directly (the right-click "fix" path).
+  rpc ListAiKnowledge(AiKnowledgeRequest) returns (AiKnowledgeList);
+  rpc PromoteKnowledge(KnowledgeReviewRequest) returns (Ack);
+  rpc OverrideKnowledge(KnowledgeOverrideRequest) returns (Ack);
+}
+
+message AiKnowledgeRequest {
+  bool since_last_review = 1;   // true = only entries newer than the last review mark
+}
+
+message AiKnowledgeEntry {
+  string kind = 1;        // "purpose" | "category" | "connection"
+  string key = 2;         // domain, or host/ip for connections
+  string value = 3;       // the AI-learned label
+  string model = 4;
+  string created = 5;
+  string user_override = 6; // current user override for (kind,key); "" when none
+  bool is_new = 7;        // created after the last review mark
+}
+
+message AiKnowledgeList {
+  repeated AiKnowledgeEntry entries = 1;
+  string last_reviewed = 2;   // ISO timestamp of the last review; "" = never
+}
+
+message KnowledgeReviewAction {
+  string kind = 1;
+  string key = 2;
+  string action = 3;      // "promote" | "discard"
+  string value = 4;       // promote: the (optionally edited) value to persist as an override
+}
+
+message KnowledgeReviewRequest {
+  repeated KnowledgeReviewAction actions = 1;
+  bool mark_reviewed = 2; // stamp the review timestamp (advances "since last review")
+}
+
+message KnowledgeOverrideRequest {
+  string kind = 1;        // "purpose" | "category"
+  string key = 2;         // domain
+  string value = 3;       // the corrected label ("" clears the override)
 }
 
 message IdentifyItem {

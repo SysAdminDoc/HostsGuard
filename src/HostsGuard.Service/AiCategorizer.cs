@@ -193,8 +193,18 @@ public sealed class AiCategorizer
         // Only domains the shipped table doesn't know go to the AI.
         var results = new List<(string, string)>();
         var unknown = new List<string>();
+        // User overrides beat both the curated table and the AI (NET-107).
+        var overrides = _db.GetUserOverrides("category", cleaned);
         foreach (var d in cleaned)
         {
+            if (overrides.TryGetValue(d, out var user) && user.Length != 0)
+            {
+                var canonical = Core.DomainCategories.Canonicalize(user);
+                _db.SetCategory(d, canonical);
+                results.Add((d, canonical));
+                continue;
+            }
+
             var curated = Core.DomainCategories.Lookup(d);
             if (curated.Length != 0)
             {

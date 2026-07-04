@@ -5,6 +5,18 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-107 — In-app AI-knowledge review & promote panel.** A new *AI knowledge
+  review* card on the Tools tab lists what the AI has learned (all, or only what's
+  new since your last review), with per-row **Promote** (into a persisted
+  user-override store that beats the AI and survives restart), **Discard**, and an
+  editable "promote as" value. A *Correct a domain* mini-form and a right-click
+  *Fix purpose…* / *Fix category…* on the Hosts Activity feed re-label a domain
+  directly; the correction is remembered and wins over both the curated tables and
+  the AI everywhere the label is resolved (feed purpose, categorization). New
+  `ListAiKnowledge`/`PromoteKnowledge`/`OverrideKnowledge` RPCs (schema-lock
+  updated), a `user_overrides` table (schema v10), and a themed `InputDialog`
+  behind an `IPrompt` seam.
+
 - **NET-089 — Full portable-policy export/import.** File → *Export policy (JSON)*
   writes one versioned JSON document covering managed domains (status, category,
   notes, reason, source), HG_-authored firewall rules, scheduled block windows,

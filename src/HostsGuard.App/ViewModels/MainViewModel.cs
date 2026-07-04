@@ -21,6 +21,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly ThemeManager _themes;
     private readonly IConfirm _confirm;
     private readonly IFilePicker? _filePicker;
+    private readonly IPrompt? _prompt;
     private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
     private HostsServiceClient? _client;
     private CancellationTokenSource? _decisionCts;
@@ -82,13 +83,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel(
         Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes,
-        IConfirm confirm, IFilePicker? filePicker = null)
+        IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null)
     {
         _connectFactory = connectFactory ?? throw new ArgumentNullException(nameof(connectFactory));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _themes = themes ?? throw new ArgumentNullException(nameof(themes));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _filePicker = filePicker;
+        _prompt = prompt;
         _theme = config.Theme;
         _uiScalePct = config.UiScalePct;
     }
@@ -113,7 +115,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbAllowed = status.DbAllowed;
             Hosts ??= new HostsViewModel(_client, _confirm);
             await Hosts.RefreshAsync();
-            Activity ??= new HostsActivityViewModel(_client, _config);
+            Activity ??= new HostsActivityViewModel(_client, _config, _prompt);
             await Activity.RefreshAsync();
             Activity.StartWatching();
             RawHosts ??= new RawHostsViewModel(_client);

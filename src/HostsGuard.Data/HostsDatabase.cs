@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 9;
+    public const int SchemaVersion = 10;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -129,6 +129,9 @@ public sealed class HostsDatabase : IDisposable
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;
             CREATE TABLE IF NOT EXISTS resolved_hosts(
                 ip TEXT PRIMARY KEY, host TEXT, source TEXT, updated TEXT) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS user_overrides(
+                kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, created TEXT,
+                PRIMARY KEY(kind, key)) WITHOUT ROWID;
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -442,6 +445,95 @@ public sealed class HostsDatabase : IDisposable
         {
             return _conn.Query<(string, string, string, string, string)>(
                 "SELECT kind, key, value, COALESCE(model,''), COALESCE(created,'') FROM ai_knowledge ORDER BY kind, key")
+                .ToList();
+        }
+    }
+
+    /// <summary>Remove a learned AI-knowledge entry (discarded during review; NET-107).</summary>
+    public void RemoveAiKnowledge(string kind, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM ai_knowledge WHERE kind=@kind AND key=@key",
+                new { kind, key = key.ToLowerInvariant() });
+        }
+    }
+
+    // ─── User overrides (curated labels that BEAT the AI; NET-107) ────────────
+
+    /// <summary>
+    /// Persist a user-authoritative label (kind ∈ purpose|category) that wins over
+    /// both the curated tables and the AI. An empty value clears the override.
+    /// </summary>
+    public void UpsertUserOverride(string kind, string key, string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        var k = key.ToLowerInvariant();
+        lock (_gate)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                _conn.Execute("DELETE FROM user_overrides WHERE kind=@kind AND key=@k", new { kind, k });
+                return;
+            }
+
+            _conn.Execute(
+                """
+                INSERT INTO user_overrides(kind,key,value,created) VALUES(@kind,@k,@value,@now)
+                ON CONFLICT(kind,key) DO UPDATE SET value=excluded.value, created=excluded.created
+                """,
+                new { kind, k, value = value.Trim(), now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture) });
+        }
+    }
+
+    /// <summary>The user override for one (kind,key), or "" when none.</summary>
+    public string GetUserOverride(string kind, string key)
+    {
+        if (string.IsNullOrWhiteSpace(kind) || string.IsNullOrWhiteSpace(key))
+        {
+            return string.Empty;
+        }
+
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string?>(
+                "SELECT value FROM user_overrides WHERE kind=@kind AND key=@k",
+                new { kind, k = key.ToLowerInvariant() }) ?? string.Empty;
+        }
+    }
+
+    /// <summary>User overrides for a batch of keys within one kind (chunked IN queries).</summary>
+    public IReadOnlyDictionary<string, string> GetUserOverrides(string kind, IEnumerable<string> keys)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(keys);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var chunk in keys.Distinct(StringComparer.Ordinal).Chunk(500))
+            {
+                foreach (var row in _conn.Query<(string Key, string Value)>(
+                    "SELECT key, value FROM user_overrides WHERE kind=@kind AND key IN @chunk",
+                    new { kind, chunk }))
+                {
+                    result[row.Key] = row.Value;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>All user overrides: (kind, key, value, created).</summary>
+    public IReadOnlyList<(string Kind, string Key, string Value, string Created)> GetAllUserOverrides()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string, string, string)>(
+                "SELECT kind, key, value, COALESCE(created,'') FROM user_overrides ORDER BY kind, key")
                 .ToList();
         }
     }

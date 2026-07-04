@@ -1,0 +1,72 @@
+<Window x:Class="HostsGuard.App.InputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{StaticResource Hg.Window}"
+        Title="Enter a value"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        AutomationProperties.Name="HostsGuard input">
+    <Border BorderBrush="{DynamicResource Hg.S1}"
+            BorderThickness="1"
+            Background="{DynamicResource Hg.Base}">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0">
+                <Border DockPanel.Dock="Left"
+                        Width="6"
+                        Height="28"
+                        CornerRadius="4"
+                        Background="{DynamicResource Hg.Mauve}"
+                        Margin="0,0,10,0" />
+                <TextBlock x:Name="TitleText"
+                           FontSize="17"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center" />
+            </DockPanel>
+
+            <TextBlock Grid.Row="1"
+                       x:Name="MessageText"
+                       Margin="0,12,0,0"
+                       Style="{StaticResource Hg.SubText}"
+                       TextWrapping="Wrap"
+                       LineHeight="20" />
+
+            <TextBox Grid.Row="2"
+                     x:Name="InputBox"
+                     Margin="0,14,0,0"
+                     AutomationProperties.Name="Input value" />
+
+            <Grid Grid.Row="3" Margin="0,18,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="1"
+                        x:Name="CancelButton"
+                        Content="Cancel"
+                        MinWidth="92"
+                        Margin="0,0,8,0"
+                        IsCancel="True"
+                        Click="OnCancel" />
+                <Button Grid.Column="2"
+                        x:Name="OkButton"
+                        Content="Save"
+                        MinWidth="104"
+                        Style="{StaticResource Hg.AccentButton}"
+                        IsDefault="True"
+                        Click="OnOk" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

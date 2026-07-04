@@ -22,6 +22,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     private readonly HostsServiceClient _client;
     private readonly AppConfigStore? _config;
+    private readonly IPrompt? _prompt;
     private readonly SynchronizationContext? _ui;
     private CancellationTokenSource? _watchCts;
     private CancellationTokenSource? _filterCts;
@@ -54,10 +55,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     private string _statusText = "Ready";
 
-    public HostsActivityViewModel(HostsServiceClient client, AppConfigStore? config = null)
+    public HostsActivityViewModel(HostsServiceClient client, AppConfigStore? config = null, IPrompt? prompt = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _config = config;
+        _prompt = prompt;
         _ui = SynchronizationContext.Current;
 
         // Restore the persisted view toggles without triggering a refresh/save.
@@ -489,6 +491,47 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             ? $"allowed {Plural.Of(allowed, "domain")}"
             : $"allowed {allowed} of {domains.Count}";
         await RefreshAsync();
+    }
+
+    /// <summary>
+    /// Right-click "fix purpose": re-label a domain's purpose. The correction is
+    /// persisted as a user override that beats the AI and survives restart (NET-107).
+    /// </summary>
+    [RelayCommand]
+    public Task FixPurposeAsync(ActivityRowViewModel? row) => FixLabelAsync(row, "purpose");
+
+    /// <summary>Right-click "fix category": re-label a domain's category (NET-107).</summary>
+    [RelayCommand]
+    public Task FixCategoryAsync(ActivityRowViewModel? row) => FixLabelAsync(row, "category");
+
+    private async Task FixLabelAsync(ActivityRowViewModel? row, string kind)
+    {
+        if (row is null || _prompt is null || string.IsNullOrWhiteSpace(row.Domain))
+        {
+            return;
+        }
+
+        var current = kind == "purpose" ? row.Purpose : string.Empty;
+        var value = _prompt.Ask(
+            $"Fix {kind}",
+            $"Set the {kind} for {row.Domain}. Leave blank to clear the override.",
+            current);
+        if (value is null)
+        {
+            return;
+        }
+
+        var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+        {
+            Kind = kind,
+            Key = row.Domain,
+            Value = value,
+        });
+        StatusText = ack.Message;
+        if (kind == "purpose")
+        {
+            await RefreshAsync();
+        }
     }
 
     [RelayCommand]

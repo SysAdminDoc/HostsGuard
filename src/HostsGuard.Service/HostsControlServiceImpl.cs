@@ -262,6 +262,8 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         // two batched queries (empty stores simply match nothing).
         var membership = _state.Db.GetListMembership(feed.Select(r => r.Domain));
         var learnedPurposes = _state.Db.GetAiKnowledge("purpose", feed.Select(r => r.Domain));
+        // User overrides beat both the curated table and the AI (NET-107).
+        var overriddenPurposes = _state.Db.GetUserOverrides("purpose", feed.Select(r => r.Domain));
         var list = new ActivityList();
         foreach (var row in feed)
         {
@@ -302,11 +304,18 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 activityRow.Blocklists.AddRange(lists);
             }
 
-            // Curated purpose table first; AI-researched knowledge second.
-            var curated = Domains.LooksLikeDomain(row.Domain) ? DomainPurpose.Lookup(row.Domain) : string.Empty;
-            activityRow.Purpose = curated.Length != 0
-                ? curated
-                : learnedPurposes.GetValueOrDefault(row.Domain, string.Empty);
+            // Precedence: user override → curated table → AI-researched knowledge.
+            if (overriddenPurposes.TryGetValue(row.Domain, out var userPurpose) && userPurpose.Length != 0)
+            {
+                activityRow.Purpose = userPurpose;
+            }
+            else
+            {
+                var curated = Domains.LooksLikeDomain(row.Domain) ? DomainPurpose.Lookup(row.Domain) : string.Empty;
+                activityRow.Purpose = curated.Length != 0
+                    ? curated
+                    : learnedPurposes.GetValueOrDefault(row.Domain, string.Empty);
+            }
 
             list.Rows.Add(activityRow);
         }
@@ -648,6 +657,122 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             rows.Select(r => new { kind = r.Kind, key = r.Key, value = r.Value, model = r.Model, created = r.Created }),
             new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
         return Task.FromResult(new HostsText { Text = json });
+    }
+
+    // ─── AI-knowledge review & promote (NET-107) ─────────────────────────────
+
+    private const string ReviewMetaKey = "ai_knowledge_reviewed_at";
+
+    public override Task<AiKnowledgeList> ListAiKnowledge(AiKnowledgeRequest request, ServerCallContext context)
+    {
+        var lastReviewed = _state.Db.GetMeta(ReviewMetaKey) ?? string.Empty;
+        var overrides = new Dictionary<(string, string), string>();
+        foreach (var (kind, key, value, _) in _state.Db.GetAllUserOverrides())
+        {
+            overrides[(kind, key)] = value;
+        }
+
+        var list = new AiKnowledgeList { LastReviewed = lastReviewed };
+        foreach (var (kind, key, value, model, created) in _state.Db.GetAllAiKnowledge())
+        {
+            var isNew = lastReviewed.Length == 0 || string.CompareOrdinal(created, lastReviewed) > 0;
+            if (request.SinceLastReview && !isNew)
+            {
+                continue;
+            }
+
+            list.Entries.Add(new AiKnowledgeEntry
+            {
+                Kind = kind,
+                Key = key,
+                Value = value,
+                Model = model,
+                Created = created,
+                UserOverride = overrides.GetValueOrDefault((kind, key), string.Empty),
+                IsNew = isNew,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> PromoteKnowledge(KnowledgeReviewRequest request, ServerCallContext context)
+    {
+        var promoted = 0;
+        var discarded = 0;
+        foreach (var a in request.Actions)
+        {
+            var kind = (a.Kind ?? string.Empty).Trim().ToLowerInvariant();
+            var key = (a.Key ?? string.Empty).Trim().ToLowerInvariant();
+            if (kind.Length == 0 || key.Length == 0)
+            {
+                continue;
+            }
+
+            switch ((a.Action ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "promote":
+                    var value = string.IsNullOrWhiteSpace(a.Value) ? string.Empty : a.Value.Trim();
+                    if (value.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    ApplyOverride(kind, key, value);
+                    promoted++;
+                    break;
+                case "discard":
+                    _state.Db.RemoveAiKnowledge(kind, key);
+                    discarded++;
+                    break;
+            }
+        }
+
+        if (request.MarkReviewed)
+        {
+            _state.Db.SetMeta(ReviewMetaKey, DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        _state.Db.LogEvent("ai", "knowledge_review", details: $"promoted {promoted}, discarded {discarded}");
+        return Task.FromResult(Ok($"promoted {promoted}, discarded {discarded}"));
+    }
+
+    public override Task<Ack> OverrideKnowledge(KnowledgeOverrideRequest request, ServerCallContext context)
+    {
+        var kind = (request.Kind ?? string.Empty).Trim().ToLowerInvariant();
+        var key = (request.Key ?? string.Empty).Trim().ToLowerInvariant();
+        if (kind is not ("purpose" or "category"))
+        {
+            return Task.FromResult(Error("invalid_override", "kind must be 'purpose' or 'category'"));
+        }
+
+        if (key.Length == 0)
+        {
+            return Task.FromResult(Error("invalid_override", "a domain key is required"));
+        }
+
+        ApplyOverride(kind, key, request.Value ?? string.Empty);
+        return Task.FromResult(Ok(string.IsNullOrWhiteSpace(request.Value)
+            ? $"cleared {kind} override for {key}"
+            : $"set {kind} for {key} to \"{request.Value.Trim()}\""));
+    }
+
+    /// <summary>
+    /// Persist a user override and, for categories, reflect it live in the managed
+    /// row + hosts-file section so the correction is immediately visible.
+    /// </summary>
+    private void ApplyOverride(string kind, string key, string value)
+    {
+        _state.Db.UpsertUserOverride(kind, key, value);
+        if (kind == "category" && !string.IsNullOrWhiteSpace(value) && Domains.LooksLikeDomain(key))
+        {
+            var canonical = DomainCategories.Canonicalize(value.Trim());
+            _state.Db.SetCategory(key, canonical);
+            if (_state.Hosts.GetBlocked().Contains(key))
+            {
+                _state.Hosts.OrganizeByCategory(new Dictionary<string, string>(StringComparer.Ordinal) { [key] = canonical });
+            }
+        }
     }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };

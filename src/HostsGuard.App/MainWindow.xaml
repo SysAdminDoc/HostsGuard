@@ -304,6 +304,15 @@
                                               Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <Separator />
+                                    <MenuItem Header="Fix purpose…"
+                                              Command="{Binding PlacementTarget.DataContext.FixPurposeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Correct this domain's purpose — remembered as a user override that beats the AI" />
+                                    <MenuItem Header="Fix category…"
+                                              Command="{Binding PlacementTarget.DataContext.FixCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Correct this domain's category — remembered as a user override that beats the AI" />
+                                    <Separator />
                                     <MenuItem Header="Research online">
                                         <MenuItem Header="Google"
                                                   Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -1412,6 +1421,79 @@
                                     </DockPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
                                         <TextBlock Text="{Binding AiStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- AI knowledge review & promote (NET-107) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="AI knowledge review" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="Review what the AI has learned and promote good labels into a user-curated store that beats the AI and survives restart. Discard wrong guesses. Every promotion/correction is remembered."
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
+                                    <DockPanel LastChildFill="False" Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Left" Content="Load learned" Command="{Binding LoadKnowledgeCommand}"
+                                                Margin="0,0,8,0" ToolTip="List what the AI has learned" />
+                                        <Button DockPanel.Dock="Left" Content="Mark all reviewed" Command="{Binding MarkKnowledgeReviewedCommand}"
+                                                Margin="0,0,8,0" ToolTip="Advance the 'new since last review' marker to now" />
+                                        <CheckBox DockPanel.Dock="Left" Content="Only new since last review" VerticalAlignment="Center"
+                                                  IsChecked="{Binding KnowledgeOnlyNew}"
+                                                  ToolTip="Show only entries the AI learned since your last review" />
+                                    </DockPanel>
+                                    <DataGrid ItemsSource="{Binding Knowledge}" AutoGenerateColumns="False"
+                                              MaxHeight="240" IsReadOnly="False" CanUserAddRows="False"
+                                              HeadersVisibility="Column" Margin="0,0,0,8"
+                                              AutomationProperties.Name="Learned AI knowledge">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Kind" Binding="{Binding Kind}" IsReadOnly="True" Width="80" />
+                                            <DataGridTextColumn Header="Domain / key" Binding="{Binding Key}" IsReadOnly="True" Width="1.4*" />
+                                            <DataGridTextColumn Header="AI label" Binding="{Binding Value}" IsReadOnly="True" Width="1.4*" />
+                                            <DataGridTextColumn Header="Promote as" Binding="{Binding EditValue, UpdateSourceTrigger=PropertyChanged}" Width="1.4*" />
+                                            <DataGridTemplateColumn Header="Override" Width="1*">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding UserOverride}" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource Hg.Mauve}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTemplateColumn Header="" Width="Auto">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Button Content="Promote" Margin="2,1"
+                                                                    Command="{Binding DataContext.PromoteKnowledgeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}" />
+                                                            <Button Content="Discard" Margin="2,1"
+                                                                    Command="{Binding DataContext.DiscardKnowledgeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <TextBlock Text="Correct a domain directly (remembered override):" Style="{StaticResource Hg.FieldLabel}" />
+                                    <DockPanel LastChildFill="False">
+                                        <ComboBox DockPanel.Dock="Left" Width="110" VerticalAlignment="Center"
+                                                  ItemsSource="{Binding CorrectionKinds}" SelectedItem="{Binding CorrectKind}"
+                                                  AutomationProperties.Name="Correction kind" />
+                                        <TextBox DockPanel.Dock="Left" Width="190" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                 Text="{Binding CorrectDomain, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="domain.example.com"
+                                                 AutomationProperties.Name="Correction domain" />
+                                        <TextBox DockPanel.Dock="Left" Width="220" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                 Text="{Binding CorrectValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="new label (blank clears)"
+                                                 AutomationProperties.Name="Correction value" />
+                                        <Button DockPanel.Dock="Left" Content="Apply" Margin="8,0,0,0"
+                                                Style="{StaticResource Hg.AccentButton}" Command="{Binding CorrectDomainCommand}" />
+                                    </DockPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding KnowledgeStatusText}"
                                                    Style="{StaticResource Hg.SubText}"
                                                    TextWrapping="Wrap"
                                                    AutomationProperties.LiveSetting="Polite" />
