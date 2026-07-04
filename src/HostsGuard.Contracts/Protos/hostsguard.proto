@@ -802,6 +802,9 @@ message ConnectionDecision {
   string duration = 12;       // "once" | "1h" | "session" | "always" (blank = legacy permanent flag)
   bool scope_service = 13;    // restrict the rule to the owning service (NET-073)
   string service_key = 14;    // echoed request.service_key (SCM short name)
+  // Prompt-burst blanket decision (NET-099): apply this verdict to EVERY pending
+  // prompt from the same application as one whole-app rule, clearing the queue.
+  bool apply_to_app = 15;
 }
 
 message FilteringMode {

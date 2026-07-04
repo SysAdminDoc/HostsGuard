@@ -105,6 +105,21 @@
                         Style="{StaticResource Hg.DangerButton}" Click="OnBlock" />
             </Grid>
 
+            <!-- NET-099: blanket decisions for a prompt burst from the same app. -->
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition /> <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Allow all from this app" Margin="0,0,6,0" Padding="8,6" TabIndex="7"
+                        AutomationProperties.Name="Allow all pending connections from this app"
+                        ToolTip="Write one whole-app allow rule and answer every pending prompt from this program"
+                        Click="OnAllowAll" />
+                <Button Grid.Column="1" Content="Block all from this app" Padding="8,6" TabIndex="8"
+                        AutomationProperties.Name="Block all pending connections from this app"
+                        ToolTip="Write one whole-app block rule and answer every pending prompt from this program"
+                        Click="OnBlockAll" />
+            </Grid>
+
             <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="{DynamicResource Hg.Dim}" TextWrapping="Wrap"
                        Text="If the timer expires, this connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically." />
         </StackPanel>

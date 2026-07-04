@@ -606,6 +606,14 @@ public sealed class ConsentBroker : IDisposable
             return new Ack { Ok = false, Message = "firewall engine is not attached to this service instance", ErrorCode = "hostsguard.error.v1/firewall_unavailable" };
         }
 
+        // Prompt-burst blanket decision (NET-099): a single whole-app rule per
+        // direction present in the queue, clearing every pending prompt from this
+        // app. Ignores per-connection scoping (the point is one broad decision).
+        if (decision.ApplyToApp)
+        {
+            return DecideAll(fw, application, verdict == "allow" ? "Allow" : "Block");
+        }
+
         var direction = decision.Direction == "In" ? "In" : "Out";
         var action = verdict == "allow" ? "Allow" : "Block";
         var stem = Path.GetFileNameWithoutExtension(application);
@@ -668,6 +676,60 @@ public sealed class ConsentBroker : IDisposable
         {
             Ok = true,
             Message = created ? $"{verdict} {stem} ({label}) — {name}" : $"{name} already exists",
+        };
+    }
+
+    /// <summary>
+    /// NET-099: apply one whole-app verdict to every pending prompt from
+    /// <paramref name="application"/>. Writes a permanent HG_ rule per direction
+    /// seen in the queue (plus the just-answered direction) and drops all matching
+    /// pending requests so the burst is answered in one click.
+    /// </summary>
+    private Ack DecideAll(IFirewallEngine fw, string application, string action)
+    {
+        List<string> directions;
+        lock (_gate)
+        {
+            directions = _pending.Values
+                .Select(p => p.Request)
+                .Where(r => r.Application.Equals(application, StringComparison.OrdinalIgnoreCase))
+                .Select(r => r.Direction == "In" ? "In" : "Out")
+                .Append("Out")
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var id in _pending
+                         .Where(kv => kv.Value.Request.Application.Equals(application, StringComparison.OrdinalIgnoreCase))
+                         .Select(kv => kv.Key).ToList())
+            {
+                _pending.Remove(id);
+            }
+        }
+
+        var stem = Path.GetFileNameWithoutExtension(application);
+        var written = 0;
+        foreach (var direction in directions)
+        {
+            var name = $"{ConsentPrefix}{action}_{stem}_{direction}";
+            if (fw.RuleExists(name))
+            {
+                continue;
+            }
+
+            if (fw.CreateRule(new FwRule(name, direction, action, true, "Any", "Any", application, "hostsguard")))
+            {
+                _db.UpsertFwState(name, direction, action, "Any", "Any", application);
+                _identity?.Remember(name, application);
+                written++;
+            }
+
+            LogDecision(application, direction, "Any", "Any", action == "Allow" ? "allow" : "block", permanent: true);
+        }
+
+        return new Ack
+        {
+            Ok = true,
+            Message = $"{(action == "Allow" ? "allowed" : "blocked")} all pending from {stem} ({written} rule{(written == 1 ? "" : "s")})",
         };
     }
 

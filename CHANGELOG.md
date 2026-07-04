@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-099 — Allow-all / Block-all on a prompt burst.** The consent prompt gains
+  *Allow all from this app* / *Block all from this app* buttons: one whole-app
+  rule (per direction in the queue) answers every pending prompt from the same
+  program at once — the fix for an app that fans out to many endpoints. Backed by
+  a new `apply_to_app` flag on `ConnectionDecision`.
+
 - **NET-101 — Time-boxed Learning-mode auto-lock.** The tray's Filtering-mode
   menu gains *Learning — 15 min, then lock* and *Learning — 1 hour, then lock*:
   the service arms a bounded Learning window and the consent sweep auto-reverts to

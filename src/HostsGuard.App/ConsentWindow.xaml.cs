@@ -135,6 +135,28 @@ public partial class ConsentWindow : Window
 
     private void OnBlock(object sender, RoutedEventArgs e) => Decide("block");
 
+    private void OnAllowAll(object sender, RoutedEventArgs e) => DecideAll("allow");
+
+    private void OnBlockAll(object sender, RoutedEventArgs e) => DecideAll("block");
+
+    /// <summary>NET-099: answer every pending prompt from this app with one verdict.</summary>
+    private void DecideAll(string verdict)
+    {
+        Result = new ConnectionDecision
+        {
+            Id = _request.Id,
+            Application = _request.Application,
+            Direction = _request.Direction,
+            RemoteAddress = _request.RemoteAddress,
+            Protocol = _request.Protocol,
+            RemotePort = _request.RemotePort,
+            Verdict = verdict,
+            Duration = "always",
+            ApplyToApp = true,
+        };
+        Close();
+    }
+
     /// <summary>Open a reputation lookup for the process on VirusTotal (NET-085).</summary>
     private void OnLookup(object sender, RoutedEventArgs e)
     {
