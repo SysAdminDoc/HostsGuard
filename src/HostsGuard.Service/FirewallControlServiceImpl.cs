@@ -45,6 +45,89 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         });
     }
 
+    // ─── Subscribable rule groups (NET-103) ──────────────────────────────────
+
+    public override Task<Ack> AssignRuleGroup(RuleGroupAssignment request, ServerCallContext context)
+    {
+        var name = (request.RuleName ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(Error("invalid_rule", "rule name is required"));
+        }
+
+        // Only HostsGuard's own rules can be grouped/toggled.
+        if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+        {
+            return Task.FromResult(Error("not_ours", "only HG_-prefixed rules can be grouped"));
+        }
+
+        _state.Db.AssignRuleToGroup(name, request.Group ?? string.Empty);
+        return Task.FromResult(Ok(string.IsNullOrWhiteSpace(request.Group)
+            ? $"removed {name} from all groups"
+            : $"added {name} to group '{request.Group.Trim()}'"));
+    }
+
+    public override Task<RuleGroupList> ListRuleGroups(Empty request, ServerCallContext context)
+    {
+        var list = new RuleGroupList();
+        var enabled = _state.Firewall is { } fw
+            ? fw.ListRules().Where(r => r.Enabled).Select(r => r.Name).ToHashSet(StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var byGroup in _state.Db.GetRuleGroups().GroupBy(g => g.Group, StringComparer.Ordinal))
+        {
+            var rules = byGroup.Select(g => g.RuleName).ToList();
+            var info = new RuleGroupInfo
+            {
+                Name = byGroup.Key,
+                EnabledCount = rules.Count(enabled.Contains),
+                Total = rules.Count,
+            };
+            info.Rules.AddRange(rules);
+            list.Groups.Add(info);
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> ToggleRuleGroup(RuleGroupToggle request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        var group = (request.Group ?? string.Empty).Trim();
+        if (group.Length == 0)
+        {
+            return Task.FromResult(Error("invalid_group", "group name is required"));
+        }
+
+        var rules = _state.Db.GetRulesInGroup(group);
+        if (rules.Count == 0)
+        {
+            return Task.FromResult(Error("empty_group", $"group '{group}' has no rules"));
+        }
+
+        var changed = 0;
+        foreach (var name in rules.Where(n => n.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)))
+        {
+            if (fw.SetRuleEnabled(name, request.Enabled))
+            {
+                changed++;
+            }
+        }
+
+        _state.Db.LogEvent("firewall", request.Enabled ? "group_enabled" : "group_disabled",
+            details: $"{group} ({changed}/{rules.Count})", reason: "manual");
+        return Task.FromResult(Ok($"{(request.Enabled ? "enabled" : "disabled")} group '{group}' ({changed} of {rules.Count} rules)"));
+    }
+
     public override Task<Ack> BlockIp(FirewallIpRequest request, ServerCallContext context)
     {
         if (_state.Firewall is not { } fw)

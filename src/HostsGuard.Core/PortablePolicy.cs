@@ -36,6 +36,8 @@ public sealed class PortablePolicy
 
     public List<PolicyNetworkProfile> NetworkProfiles { get; set; } = new();
 
+    public List<PolicyRuleGroup> RuleGroups { get; set; } = new();
+
     public List<PolicyBlocklistSub> BlocklistSubs { get; set; } = new();
 
     public List<string> AllowlistSubs { get; set; } = new();
@@ -75,6 +77,7 @@ public sealed class PortablePolicy
         policy.Profiles ??= new();
         policy.Lock ??= new();
         policy.NetworkProfiles ??= new();
+        policy.RuleGroups ??= new();
         policy.BlocklistSubs ??= new();
         policy.AllowlistSubs ??= new();
         policy.Settings ??= new(StringComparer.Ordinal);
@@ -166,6 +169,14 @@ public sealed class PolicyNetworkProfile
     public string Profile { get; set; } = string.Empty;
 
     public string Label { get; set; } = string.Empty;
+}
+
+/// <summary>A named rule group and its member HG_ rule names (NET-103).</summary>
+public sealed class PolicyRuleGroup
+{
+    public string Name { get; set; } = string.Empty;
+
+    public List<string> Rules { get; set; } = new();
 }
 
 /// <summary>A subscribed blocklist source (refresh re-imports its domains).</summary>

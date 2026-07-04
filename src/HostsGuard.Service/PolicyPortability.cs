@@ -81,6 +81,11 @@ public static class PolicyPortability
             policy.NetworkProfiles.Add(new PolicyNetworkProfile { Fingerprint = fingerprint, Profile = profile, Label = label });
         }
 
+        foreach (var byGroup in state.Db.GetRuleGroups().GroupBy(g => g.Group, StringComparer.Ordinal))
+        {
+            policy.RuleGroups.Add(new PolicyRuleGroup { Name = byGroup.Key, Rules = byGroup.Select(g => g.RuleName).ToList() });
+        }
+
         foreach (var (name, url, _, _) in state.Db.GetBlocklistSubs())
         {
             policy.BlocklistSubs.Add(new PolicyBlocklistSub { Name = name, Url = url });
@@ -209,6 +214,22 @@ public static class PolicyPortability
         }
 
         summary.Add($"{policy.NetworkProfiles.Count} network profiles");
+
+        // ── Rule groups (NET-103) ──
+        foreach (var g in policy.RuleGroups)
+        {
+            if (string.IsNullOrWhiteSpace(g.Name))
+            {
+                continue;
+            }
+
+            foreach (var rule in g.Rules.Where(r => !string.IsNullOrWhiteSpace(r)))
+            {
+                state.Db.AssignRuleToGroup(rule, g.Name);
+            }
+        }
+
+        summary.Add($"{policy.RuleGroups.Count} rule groups");
 
         // ── Blocklist subscriptions (a later refresh re-imports domains) ──
         foreach (var b in policy.BlocklistSubs)

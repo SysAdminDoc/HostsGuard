@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 12;
+    public const int SchemaVersion = 13;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -139,6 +139,10 @@ public sealed class HostsDatabase : IDisposable
                 domain TEXT NOT NULL, process TEXT NOT NULL DEFAULT '',
                 sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0, updated TEXT,
                 PRIMARY KEY(domain, process)) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS rule_groups(
+                grp TEXT NOT NULL, rule_name TEXT NOT NULL,
+                PRIMARY KEY(grp, rule_name)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_rule_groups_rule ON rule_groups(rule_name);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -1305,6 +1309,56 @@ public sealed class HostsDatabase : IDisposable
         lock (_gate)
         {
             return _conn.Query<string>("SELECT name FROM fw_state").ToHashSet(StringComparer.Ordinal);
+        }
+    }
+
+    // ─── Rule groups (NET-103): assign HG_ rules to named toggleable groups ───
+
+    /// <summary>Assign a rule to a group (idempotent). Empty group removes all of the rule's group memberships.</summary>
+    public void AssignRuleToGroup(string ruleName, string group)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ruleName);
+        lock (_gate)
+        {
+            if (string.IsNullOrWhiteSpace(group))
+            {
+                _conn.Execute("DELETE FROM rule_groups WHERE rule_name=@r", new { r = ruleName });
+                return;
+            }
+
+            _conn.Execute("INSERT OR IGNORE INTO rule_groups(grp,rule_name) VALUES(@g,@r)",
+                new { g = group.Trim(), r = ruleName });
+        }
+    }
+
+    /// <summary>Remove a whole group (its rule memberships; the rules themselves stay).</summary>
+    public void RemoveRuleGroup(string group)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(group);
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM rule_groups WHERE grp=@g", new { g = group.Trim() });
+        }
+    }
+
+    /// <summary>Rule names in a group.</summary>
+    public IReadOnlyList<string> GetRulesInGroup(string group)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(group);
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT rule_name FROM rule_groups WHERE grp=@g ORDER BY rule_name",
+                new { g = group.Trim() }).ToList();
+        }
+    }
+
+    /// <summary>All group→rule-name memberships (for listing + portable-policy export).</summary>
+    public IReadOnlyList<(string Group, string RuleName)> GetRuleGroups()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string, string)>(
+                "SELECT grp, rule_name FROM rule_groups ORDER BY grp, rule_name").ToList();
         }
     }
 

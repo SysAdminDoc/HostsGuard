@@ -1082,6 +1082,10 @@
                                               Command="{Binding PlacementTarget.DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <Separator />
+                                    <MenuItem Header="Assign to group…"
+                                              Command="{Binding PlacementTarget.DataContext.AssignToGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Assign the selected HG_ rules to a named group you can enable/disable as a unit (blank name removes them)" />
                                     <MenuItem Header="Suggest / rebind program…"
                                               Command="{Binding PlacementTarget.DataContext.RebindRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
@@ -1120,8 +1124,32 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Rule groups (NET-103): enable/disable a named set atomically -->
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding RuleGroups}" Margin="0,8,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Hg.Card}" Padding="8,4" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <Button Content="On" Padding="8,1" Margin="0,0,4,0"
+                                                    Command="{Binding DataContext.EnableGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="Off" Padding="8,1"
+                                                    Command="{Binding DataContext.DisableGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
                         <!-- Inline custom-rule form -->
-                        <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                        <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />

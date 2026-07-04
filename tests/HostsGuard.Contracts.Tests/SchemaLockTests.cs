@@ -45,6 +45,7 @@ public class SchemaLockTests
           SetSniCapture(SniCaptureRequest) returns (Ack)
         service FirewallControl
           AdoptFirewallRules(Empty) returns (AdoptResult)
+          AssignRuleGroup(RuleGroupAssignment) returns (Ack)
           BlockAppScope(AppScopeRequest) returns (Ack)
           BlockEncryptedDns(DohBlockRequest) returns (Ack)
           BlockIp(FirewallIpRequest) returns (Ack)
@@ -54,6 +55,7 @@ public class SchemaLockTests
           DeleteRule(RuleNameRequest) returns (Ack)
           GetPosture(Empty) returns (FirewallPosture)
           GetSecureRules(Empty) returns (SecureRulesStatus)
+          ListRuleGroups(Empty) returns (RuleGroupList)
           ListRules(Empty) returns (FirewallRuleList)
           RebindRule(RebindRequest) returns (Ack)
           SetDefaultOutbound(OutboundRequest) returns (Ack)
@@ -61,6 +63,7 @@ public class SchemaLockTests
           SetRuleEnabled(RuleEnabledRequest) returns (Ack)
           SetSecureRules(SecureRulesRequest) returns (Ack)
           SuggestRebind(RuleNameRequest) returns (RebindSuggestions)
+          ToggleRuleGroup(RuleGroupToggle) returns (Ack)
           UnblockAppScope(AppScopeRequest) returns (Ack)
           UnblockEncryptedDns(Empty) returns (Ack)
           UnblockQuic(Empty) returns (Ack)

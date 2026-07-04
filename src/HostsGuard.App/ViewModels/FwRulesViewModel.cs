@@ -101,6 +101,23 @@ public sealed partial class FwRuleViewModel : ObservableObject
     };
 }
 
+/// <summary>Row VM for a named rule group (NET-103).</summary>
+public sealed partial class RuleGroupViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label))]
+    private int _enabledCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Label))]
+    private int _total;
+
+    public string Label => $"{Name} ({EnabledCount}/{Total} on)";
+}
+
 /// <summary>
 /// FW Rules tab: rule viewer (all rules or HostsGuard-only), enable/disable and
 /// delete for HG_ rules, bulk delete, quick-block, and an inline custom-rule
@@ -112,6 +129,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
     private readonly IFilePicker? _filePicker;
+    private readonly IPrompt? _prompt;
     private CancellationTokenSource? _filterCts;
 
     /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
@@ -146,14 +164,18 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [ObservableProperty]
     private string _newRuleProgram = string.Empty;
 
-    public FwRulesViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null)
+    public FwRulesViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _filePicker = filePicker;
+        _prompt = prompt;
     }
 
     public ObservableCollection<FwRuleViewModel> Rules { get; } = new();
+
+    /// <summary>Named rule groups (NET-103) with enable/disable toggles.</summary>
+    public ObservableCollection<RuleGroupViewModel> RuleGroups { get; } = new();
 
     public static IReadOnlyList<string> Directions { get; } = new[] { "Out", "In" };
 
@@ -219,6 +241,74 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
 
         StatusText = Plural.Of(Rules.Count, "rule");
+        await LoadRuleGroupsAsync();
+    }
+
+    // ─── Rule groups (NET-103) ───────────────────────────────────────────────
+
+    [RelayCommand]
+    public async Task LoadRuleGroupsAsync()
+    {
+        var list = await _client.Firewall.ListRuleGroupsAsync(new Empty());
+        RuleGroups.Clear();
+        foreach (var g in list.Groups.OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            RuleGroups.Add(new RuleGroupViewModel { Name = g.Name, EnabledCount = g.EnabledCount, Total = g.Total });
+        }
+    }
+
+    /// <summary>Assign the selected HG_ rules to a named group (prompting for the name).</summary>
+    [RelayCommand]
+    public async Task AssignToGroupAsync(System.Collections.IList? selected)
+    {
+        var names = selected?.OfType<FwRuleViewModel>()
+            .Where(r => r.Source == "hostsguard")
+            .Select(r => r.Name).ToList() ?? new List<string>();
+        if (names.Count == 0)
+        {
+            StatusText = "Select one or more HostsGuard (HG_) rules first";
+            return;
+        }
+
+        var group = _prompt?.Ask("Assign to rule group",
+            $"Group name for {Plural.Of(names.Count, "rule")} (blank removes them from all groups):");
+        if (group is null)
+        {
+            return;
+        }
+
+        var assigned = 0;
+        foreach (var name in names)
+        {
+            var ack = await _client.Firewall.AssignRuleGroupAsync(new RuleGroupAssignment { RuleName = name, Group = group });
+            if (ack.Ok)
+            {
+                assigned++;
+            }
+        }
+
+        StatusText = group.Trim().Length == 0
+            ? $"removed {assigned} rules from groups"
+            : $"assigned {assigned} rules to '{group.Trim()}'";
+        await LoadRuleGroupsAsync();
+    }
+
+    [RelayCommand]
+    public async Task EnableGroupAsync(RuleGroupViewModel? group) => await ToggleGroupAsync(group, true);
+
+    [RelayCommand]
+    public async Task DisableGroupAsync(RuleGroupViewModel? group) => await ToggleGroupAsync(group, false);
+
+    private async Task ToggleGroupAsync(RuleGroupViewModel? group, bool enabled)
+    {
+        if (group is null)
+        {
+            return;
+        }
+
+        var ack = await _client.Firewall.ToggleRuleGroupAsync(new RuleGroupToggle { Group = group.Name, Enabled = enabled });
+        StatusText = ack.Message;
+        await RefreshAsync();
     }
 
     [RelayCommand]

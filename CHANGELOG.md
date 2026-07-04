@@ -5,6 +5,13 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.0] — 2026-07-04
 
 ### Added
+- **NET-103 — Subscribable rule groups.** HG_ firewall rules can be assigned to a
+  named group (Firewall Rules → right-click → *Assign to group…*) and the whole
+  group toggled on/off atomically from a chips strip on the Firewall Rules tab.
+  Groups round-trip through the portable policy (NET-089), so a shareable rule set
+  exports and re-imports. New `Firewall.AssignRuleGroup`/`ListRuleGroups`/
+  `ToggleRuleGroup` RPCs and a `rule_groups` table (schema v13).
+
 - **NET-117 — Trust-by-folder.** A consent prompt now offers *Trust all software
   in "&lt;folder&gt;"*; once trusted, any binary under that folder auto-allows
   without prompting — the driver-free "trust this whole install/portable-app
