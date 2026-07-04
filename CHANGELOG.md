@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.11.0] — 2026-07-04
+
+### Security
+- **NET-110 — The settings lock now protects the hosts file.** Previously the
+  lock gated firewall/mode/posture mutations but not hosts mutations, so an armed
+  lock could not stop a desktop process from whitelisting a tracker or wiping
+  every block (`Allow`/`Unblock`/`SetHostsText`/`EmergencyReset`/`TempAllow`/
+  `Reconcile`/`RestoreBackup`). Those posture-*weakening* operations are now
+  refused with a typed `locked` error when the lock is armed, while
+  posture-*strengthening* `Block`/`BlockRoot` always proceed — locked means "can't
+  weaken, can always strengthen."
+
 ## [0.10.0] — 2026-07-04
 
 ### Added

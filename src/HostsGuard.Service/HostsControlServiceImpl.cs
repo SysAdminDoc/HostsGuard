@@ -68,6 +68,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
         }
 
+        // NET-110: whitelisting weakens blocking — gate it behind the settings lock.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         return GuardHostsWrite(() =>
         {
             _state.Hosts.Unblock(d);
@@ -80,6 +86,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     public override Task<Ack> Unblock(DomainRequest request, ServerCallContext context)
     {
         var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        // NET-110: removing a block weakens posture — gate behind the settings lock.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         return GuardHostsWrite(() =>
         {
             _state.Hosts.Unblock(d);
@@ -132,18 +144,34 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     }
 
     public override Task<Ack> Reconcile(ReconcileRequest request, ServerCallContext context)
-        => GuardHostsWrite(() =>
+    {
+        // NET-110: reconcile can remove blocks (weakening) — gate behind the lock.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return GuardHostsWrite(() =>
         {
             var (added, target) = _state.Hosts.Reconcile(request.Blocked);
             return Ok($"reconciled: +{added} to {target} target");
         });
+    }
 
     public override Task<Ack> EmergencyReset(Empty request, ServerCallContext context)
-        => GuardHostsWrite(() =>
+    {
+        // NET-110: wiping every block is the most destructive weakening — gate it.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return GuardHostsWrite(() =>
         {
             _state.Hosts.EmergencyReset();
             return Ok("hosts file reset to Windows defaults");
         });
+    }
 
     public override Task<Ack> TempAllow(TempAllowRequest request, ServerCallContext context)
     {
@@ -156,6 +184,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         if (request.Minutes < 1 || request.Minutes > TempAllowScheduler.MaxMinutes)
         {
             return Task.FromResult(Error("invalid_duration", $"minutes must be 1..{TempAllowScheduler.MaxMinutes}"));
+        }
+
+        // NET-110: a temp-allow lifts a block for a window (weakening) — gate it.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
         }
 
         _state.TempAllows.Add(d, request.Minutes, string.IsNullOrEmpty(request.Source) ? "temp_allow" : request.Source);
@@ -188,6 +222,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         if (System.Text.Encoding.UTF8.GetByteCount(text) > MaxBytes)
         {
             return Task.FromResult(Error("too_large", "hosts content exceeds 10 MB"));
+        }
+
+        // NET-110: a raw hosts rewrite can drop every block — gate behind the lock.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
         }
 
         return GuardHostsWrite(() =>
@@ -506,6 +546,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         if (new System.IO.FileInfo(path).Length > MaxBytes)
         {
             return Task.FromResult(Error("too_large", "backup exceeds 10 MB"));
+        }
+
+        // NET-110: restoring an older backup can drop current blocks — gate it.
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
         }
 
         var text = System.IO.File.ReadAllText(path);
