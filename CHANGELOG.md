@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.11.0] — 2026-07-04
 
 ### Added
+- **NET-115 — "Block/Allow this site" from a live connection.** The Firewall
+  Activity connections view gains right-click *Block this site (domain)* / *Allow
+  this site (domain)* that pivot a connection to a durable hosts-file rule on its
+  resolved hostname (the driver-free answer to rotating IPs), falling back to
+  blocking the raw IP when the row has no resolved host.
+
 - **NET-118 — Rule provenance column.** The Firewall Rules tab now shows an
   **Origin** column deriving why each rule exists from its HG_ name prefix —
   consent, learning, baseline, child-allow, temporary, app-scope, DoH/QUIC block,

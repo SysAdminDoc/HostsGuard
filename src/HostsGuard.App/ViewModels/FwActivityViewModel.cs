@@ -1060,6 +1060,52 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         StatusText = ack.Message;
     }
 
+    /// <summary>
+    /// NET-115: pivot a connection to a domain rule — block the row's resolved site
+    /// (hostname) via the hosts file, the durable driver-free rule since IPs rotate.
+    /// Falls back to blocking the IP when the row has no resolved host, so the
+    /// action is never a no-op.
+    /// </summary>
+    [RelayCommand]
+    public async Task BlockSiteAsync(ConnectionRowViewModel? row)
+    {
+        if (row is null)
+        {
+            StatusText = "Select a row first";
+            return;
+        }
+
+        var host = row.Host.Trim().ToLowerInvariant();
+        if (HostsGuard.Core.Domains.LooksLikeDomain(host))
+        {
+            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
+            StatusText = ack.Ok ? $"blocked {host} (hosts)" : ack.Message;
+        }
+        else if (!string.IsNullOrWhiteSpace(row.RemoteAddr))
+        {
+            await QuickBlockIpAsync(row.RemoteAddr);
+        }
+        else
+        {
+            StatusText = "No site or address to block for this row";
+        }
+    }
+
+    /// <summary>NET-115: allow (whitelist) the row's resolved site via the hosts file.</summary>
+    [RelayCommand]
+    public async Task AllowSiteAsync(ConnectionRowViewModel? row)
+    {
+        var host = (row?.Host ?? string.Empty).Trim().ToLowerInvariant();
+        if (!HostsGuard.Core.Domains.LooksLikeDomain(host))
+        {
+            StatusText = "This row has no resolved domain to allow";
+            return;
+        }
+
+        var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
+        StatusText = ack.Ok ? $"allowed {host} (hosts)" : ack.Message;
+    }
+
     /// <summary>Per-app scope block (NET-076): "internet" | "lan" | "localhost" | "inbound".</summary>
     [RelayCommand]
     public async Task BlockScopeAsync(string parameter)

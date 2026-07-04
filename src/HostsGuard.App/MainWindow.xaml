@@ -733,6 +733,14 @@
                             </DataGrid.GroupStyle>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="Block this site (domain)"
+                                              Command="{Binding PlacementTarget.DataContext.BlockSiteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Block the resolved domain via the hosts file (durable — survives IP rotation); falls back to the IP when unresolved" />
+                                    <MenuItem Header="Allow this site (domain)"
+                                              Command="{Binding PlacementTarget.DataContext.AllowSiteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Whitelist the resolved domain via the hosts file" />
                                     <MenuItem Header="Block remote IP"
                                               Command="{Binding PlacementTarget.DataContext.QuickBlockIpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
