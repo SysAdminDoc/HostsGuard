@@ -1212,6 +1212,28 @@
                                     <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0" />
 
                                     <Separator Margin="0,10" Background="{DynamicResource Hg.S0}" />
+                                    <TextBlock Text="Close DNS bypass" FontWeight="SemiBold" Margin="0,0,0,2" />
+                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Hg.HelperText}" Margin="0,0,0,6"
+                                               Text="Browsers using their own Secure DNS (DoH) resolve ad/tracker domains past the OS resolver, so they never appear in the feed and the hosts file can't block them. Turn this on to force browser DNS back onto the OS resolver — then everything shows up and is blockable." />
+                                    <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                                        <Button DockPanel.Dock="Left"
+                                                Command="{Binding ToggleSeeEverythingCommand}"
+                                                AutomationProperties.Name="See everything — force browser DNS to the OS resolver"
+                                                ToolTip="One click: block QUIC/UDP-443 and the DoH bootstrap together so browser DNS falls back to the OS resolver and the activity feed can see (and block) what loads.">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource Hg.AccentButton}">
+                                                    <Setter Property="Content" Value="See everything (force browser DNS to OS resolver)" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SeeEverythingActive}" Value="True">
+                                                            <Setter Property="Content" Value="See-everything is ON — click to turn off" />
+                                                            <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                    </DockPanel>
                                     <DockPanel LastChildFill="False">
                                         <Button DockPanel.Dock="Left" Margin="0,0,10,0"
                                                 Command="{Binding ToggleEncryptedDnsCommand}"

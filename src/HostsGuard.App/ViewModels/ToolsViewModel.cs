@@ -428,13 +428,22 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _dohStatusText = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SeeEverythingActive))]
     private bool _dohBlockingActive;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SeeEverythingActive))]
     private bool _quicBlockingActive;
 
     [ObservableProperty]
     private bool _cnameCloakActive;
+
+    /// <summary>
+    /// "See everything": both QUIC/UDP-443 and the DoH bootstrap blocks are on, so
+    /// browsers doing their own encrypted DNS fall back to the OS resolver and the
+    /// activity feed can see — and block — what they load.
+    /// </summary>
+    public bool SeeEverythingActive => DohBlockingActive && QuicBlockingActive;
 
     [ObservableProperty]
     private string _dohUrl = string.Empty;
@@ -452,6 +461,48 @@ public sealed partial class ToolsViewModel : ObservableObject
         DohStatusText = status.Updated.Length != 0
             ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
             : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+    }
+
+    /// <summary>
+    /// One-click coverage: turn the QUIC/UDP-443 and DoH-bootstrap blocks on (or
+    /// off) together. With them on, a browser's own DoH/DoH3 can't reach its
+    /// resolver, so it falls back to the OS resolver — which HostsGuard's ETW feed
+    /// sees and the hosts file can block. This is the fix for "ads load but never
+    /// show up in the feed."
+    /// </summary>
+    [RelayCommand]
+    public async Task ToggleSeeEverythingAsync()
+    {
+        if (SeeEverythingActive)
+        {
+            if (QuicBlockingActive)
+            {
+                await _client.Firewall.UnblockQuicAsync(new Empty());
+            }
+
+            if (DohBlockingActive)
+            {
+                await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
+            }
+
+            StatusText = "See-everything OFF — QUIC + DoH blocking removed";
+        }
+        else
+        {
+            if (!QuicBlockingActive)
+            {
+                await _client.Firewall.BlockQuicAsync(new Empty());
+            }
+
+            if (!DohBlockingActive)
+            {
+                await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
+            }
+
+            StatusText = "See-everything ON — browser DNS forced onto the OS resolver so the feed can see it";
+        }
+
+        await LoadDohStatusAsync();
     }
 
     [RelayCommand]
