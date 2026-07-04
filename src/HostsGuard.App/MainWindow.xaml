@@ -252,14 +252,16 @@
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Block"
-                                              Command="{Binding PlacementTarget.DataContext.BlockCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                              Command="{Binding PlacementTarget.DataContext.BlockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Block every selected domain (multi-select with Ctrl/Shift)" />
                                     <MenuItem Header="Block root"
                                               Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <MenuItem Header="Allow"
-                                              Command="{Binding PlacementTarget.DataContext.AllowCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                              Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Allow every selected domain (multi-select with Ctrl/Shift)" />
                                     <MenuItem Header="Temp allow">
                                         <MenuItem Header="15 minutes"
                                                   Command="{Binding PlacementTarget.DataContext.TempAllow15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

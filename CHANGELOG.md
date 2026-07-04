@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.10] — 2026-07-03
+
+### Fixed
+- **Bulk block/allow now applies to every selected feed row.** The Hosts
+  Activity "Block" and "Allow" menu items were bound to the singular
+  `SelectedItem`, so a multi-selection only blocked/allowed one domain. They now
+  act on the whole selection and report "blocked X of Y" if any fail (e.g. a
+  transient hosts-file lock) instead of silently dropping the rest.
+
 ## [0.9.9] — 2026-07-03
 
 ### Fixed

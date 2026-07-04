@@ -367,6 +367,63 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         await RefreshAsync();
     }
 
+    /// <summary>
+    /// Block every selected feed row. The context menu passes the grid's
+    /// SelectedItems so a multi-selection blocks all of them; the singular
+    /// SelectedItem bind used to block only the primary row. Reports partial
+    /// failures (e.g. a transient hosts-file lock) rather than claiming success.
+    /// </summary>
+    [RelayCommand]
+    public async Task BlockSelectedAsync(System.Collections.IList? selected)
+    {
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var blocked = 0;
+        foreach (var domain in domains)
+        {
+            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
+            if (ack.Ok)
+            {
+                blocked++;
+            }
+        }
+
+        StatusText = blocked == domains.Count
+            ? $"blocked {Plural.Of(blocked, "domain")}"
+            : $"blocked {blocked} of {domains.Count} — retry the rest (the hosts file may be briefly locked)";
+        await RefreshAsync();
+    }
+
+    /// <summary>Allow every selected feed row (bulk counterpart to <see cref="AllowAsync"/>).</summary>
+    [RelayCommand]
+    public async Task AllowSelectedAsync(System.Collections.IList? selected)
+    {
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var allowed = 0;
+        foreach (var domain in domains)
+        {
+            var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "feed" });
+            if (ack.Ok)
+            {
+                allowed++;
+            }
+        }
+
+        StatusText = allowed == domains.Count
+            ? $"allowed {Plural.Of(allowed, "domain")}"
+            : $"allowed {allowed} of {domains.Count}";
+        await RefreshAsync();
+    }
+
     [RelayCommand]
     public async Task BlockRootAsync(string domain)
     {
