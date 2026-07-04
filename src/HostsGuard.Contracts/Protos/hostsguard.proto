@@ -384,6 +384,10 @@ message ReconcileRequest {
 // ─── Firewall control ────────────────────────────────────────────────────────
 
 service FirewallControl {
+  // Adopt existing Windows Firewall rules (NET-095, opt-in, non-destructive):
+  // record the machine's current non-HG_ WF rules into HostsGuard's view so
+  // onboarding isn't a blank slate. Nothing on the live firewall is mutated.
+  rpc AdoptFirewallRules(Empty) returns (AdoptResult);
   rpc BlockIp(FirewallIpRequest) returns (Ack);
   rpc BlockProgram(FirewallProgramRequest) returns (Ack);
   rpc CreateRule(FirewallRule) returns (Ack);
@@ -493,10 +497,19 @@ message FirewallRule {
   bool drifted = 10;    // HG_ rule tracked in the DB but missing live (or vice versa)
   string remote_ports = 11; // "Any" or a COM port list, e.g. "853" (TCP/UDP only)
   string service_name = 12; // SCM short name the rule is scoped to (NET-073); "" = whole program
+  bool adopted = 13;        // existing WF rule HostsGuard adopted into its view (NET-095)
 }
 
 message FirewallRuleList {
   repeated FirewallRule rules = 1;
+}
+
+message AdoptResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  int32 adopted = 4;   // newly-adopted rules this run
+  int32 total = 5;     // existing non-HG_ WF rules seen
 }
 
 message RuleNameRequest { string name = 1; }

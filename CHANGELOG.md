@@ -5,6 +5,15 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-095 — Adopt existing Windows Firewall rules (opt-in, non-destructive).**
+  An *Import existing rules* button on the Firewall Rules tab reads the machine's
+  current non-HG_ Windows Firewall rules into HostsGuard's view so onboarding
+  isn't a blank slate — nothing on the live firewall is mutated. Adopted rules
+  persist in a new `adopted_rules` table (schema v11) and are marked ★ in the
+  Flags column, visually distinct from HG_-authored rules. New
+  `AdoptFirewallRules` RPC (schema-lock updated) and an `adopted` flag on
+  `FirewallRule`.
+
 - **NET-093 — Child-process auto-allow (opt-in).** A new *Inherit to children*
   toggle on the Firewall Activity tab lets a direct child of an app that already
   has an HG allow rule inherit that allow — bounded to a 1-hour TTL rule

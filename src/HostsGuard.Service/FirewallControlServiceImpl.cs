@@ -21,6 +21,30 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public FirewallControlServiceImpl(ServiceState state) => _state = state;
 
+    public override Task<AdoptResult> AdoptFirewallRules(Empty request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(new AdoptResult { Ok = false, Message = "firewall engine is not attached", ErrorCode = "hostsguard.error.v1/firewall_unavailable" });
+        }
+
+        // Only non-HG_ (system-authored) rules are candidates — HostsGuard's own
+        // rules are already modelled. Nothing on the live firewall is mutated.
+        var candidates = fw.ListRules()
+            .Where(r => r.Source != "hostsguard" && r.Name.Length != 0)
+            .ToList();
+        var adopted = _state.Db.AdoptRules(candidates.Select(r =>
+            (r.Name, r.Direction, r.Action, r.RemoteAddr, r.Protocol, r.Program, r.Enabled)));
+        _state.Db.LogEvent("firewall", "rules_adopted", details: $"{adopted} of {candidates.Count} existing rules", reason: "manual");
+        return Task.FromResult(new AdoptResult
+        {
+            Ok = true,
+            Adopted = adopted,
+            Total = candidates.Count,
+            Message = $"adopted {adopted} of {candidates.Count} existing firewall rules (read-only; nothing was changed)",
+        });
+    }
+
     public override Task<Ack> BlockIp(FirewallIpRequest request, ServerCallContext context)
     {
         if (_state.Firewall is not { } fw)
@@ -178,6 +202,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
         var live = fw.ListRules();
         var liveNames = new HashSet<string>(live.Select(r => r.Name), StringComparer.Ordinal);
+        var adoptedNames = _state.Db.GetAdoptedRuleNames();
         foreach (var r in live)
         {
             list.Rules.Add(new FirewallRule
@@ -193,6 +218,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
                 Orphaned = FirewallIdentity.IsOrphaned(r),
                 RemotePorts = r.RemotePorts,
                 ServiceName = r.ServiceName,
+                Adopted = r.Source != "hostsguard" && adoptedNames.Contains(r.Name),
             });
         }
 

@@ -38,7 +38,7 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 10;
+    public const int SchemaVersion = 11;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -132,6 +132,9 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS user_overrides(
                 kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, created TEXT,
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS adopted_rules(
+                name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT,
+                protocol TEXT, program TEXT, enabled INTEGER DEFAULT 1, adopted_at TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.
@@ -1248,6 +1251,63 @@ public sealed class HostsDatabase : IDisposable
                        remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program
                 FROM fw_state
                 """).ToList();
+        }
+    }
+
+    // ─── Adopted (imported) Windows Firewall rules (NET-095) ─────────────────
+
+    /// <summary>
+    /// Record existing (non-HG_) Windows Firewall rules HostsGuard adopts into its
+    /// view. Non-destructive: the live WF rules are never changed — this only
+    /// remembers them so they persist in HostsGuard's model, tagged distinctly.
+    /// Returns the number of newly-adopted rows.
+    /// </summary>
+    public int AdoptRules(IEnumerable<(string Name, string Direction, string Action, string RemoteAddr, string Protocol, string Program, bool Enabled)> rows)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var added = 0;
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            foreach (var r in rows)
+            {
+                if (string.IsNullOrWhiteSpace(r.Name))
+                {
+                    continue;
+                }
+
+                added += _conn.Execute(
+                    """
+                    INSERT INTO adopted_rules(name,direction,action,remote_addr,protocol,program,enabled,adopted_at)
+                    VALUES(@Name,@Direction,@Action,@RemoteAddr,@Protocol,@Program,@Enabled,@now)
+                    ON CONFLICT(name) DO UPDATE SET
+                        direction=excluded.direction, action=excluded.action, remote_addr=excluded.remote_addr,
+                        protocol=excluded.protocol, program=excluded.program, enabled=excluded.enabled
+                    """,
+                    new { r.Name, r.Direction, r.Action, r.RemoteAddr, r.Protocol, r.Program, Enabled = r.Enabled ? 1 : 0, now }, tx);
+            }
+
+            tx.Commit();
+        }
+
+        return added;
+    }
+
+    public IReadOnlySet<string> GetAdoptedRuleNames()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<string>("SELECT name FROM adopted_rules").ToHashSet(StringComparer.Ordinal);
+        }
+    }
+
+    public void RemoveAdoptedRule(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM adopted_rules WHERE name=@name", new { name });
         }
     }
 

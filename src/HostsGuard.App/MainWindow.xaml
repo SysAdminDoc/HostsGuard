@@ -1029,6 +1029,9 @@
                         <DockPanel Grid.Row="0" Margin="0,0,0,8">
                             <Button DockPanel.Dock="Right" Content="Refresh"
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                            <Button DockPanel.Dock="Right" Content="Import existing rules"
+                                    Command="{Binding AdoptRulesCommand}" Margin="8,0,0,0"
+                                    ToolTip="Read the machine's current Windows Firewall rules into HostsGuard's view (read-only; adopted rules are marked ★)" />
                             <CheckBox DockPanel.Dock="Right" Content="HostsGuard rules only" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"

@@ -43,11 +43,17 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private bool _drifted;
 
+    /// <summary>An existing WF rule HostsGuard adopted into its view (NET-095).</summary>
+    [ObservableProperty]
+    private bool _adopted;
+
     /// <summary>SCM short name the rule is scoped to (NET-073); "" = whole program.</summary>
     [ObservableProperty]
     private string _serviceName = string.Empty;
 
-    public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty) + (Drifted ? "⚠ drifted" : string.Empty);
+    public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty)
+        + (Drifted ? "⚠ drifted " : string.Empty)
+        + (Adopted ? "★ adopted" : string.Empty);
 
     public static FwRuleViewModel From(FirewallRule r) => new()
     {
@@ -61,6 +67,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
         Source = r.Source,
         Orphaned = r.Orphaned,
         Drifted = r.Drifted,
+        Adopted = r.Adopted,
         ServiceName = r.ServiceName,
     };
 }
@@ -278,6 +285,30 @@ public sealed partial class FwRulesViewModel : ObservableObject
         StatusText = ack.Message;
         if (ack.Ok)
         {
+            await RefreshAsync();
+        }
+    }
+
+    /// <summary>
+    /// NET-095: adopt the machine's existing (non-HG_) Windows Firewall rules into
+    /// HostsGuard's view so onboarding isn't a blank slate. Non-destructive — the
+    /// live firewall is never changed. Shows all rules afterward so they're visible.
+    /// </summary>
+    [RelayCommand]
+    public async Task AdoptRulesAsync()
+    {
+        if (!_confirm.Confirm("Import existing firewall rules",
+            "Read the machine's current Windows Firewall rules into HostsGuard's view? " +
+            "This is read-only — nothing on the live firewall is changed. Adopted rules are marked ★."))
+        {
+            return;
+        }
+
+        var result = await _client.Firewall.AdoptFirewallRulesAsync(new Empty());
+        StatusText = result.Message;
+        if (result.Ok)
+        {
+            HostsGuardOnly = false; // reveal the adopted (non-HG_) rules
             await RefreshAsync();
         }
     }

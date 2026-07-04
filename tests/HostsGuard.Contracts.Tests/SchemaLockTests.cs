@@ -39,6 +39,7 @@ public class SchemaLockTests
           SetCnameCloak(CnameCloakRequest) returns (Ack)
           SetResolver(ResolverRequest) returns (Ack)
         service FirewallControl
+          AdoptFirewallRules(Empty) returns (AdoptResult)
           BlockAppScope(AppScopeRequest) returns (Ack)
           BlockEncryptedDns(DohBlockRequest) returns (Ack)
           BlockIp(FirewallIpRequest) returns (Ack)
