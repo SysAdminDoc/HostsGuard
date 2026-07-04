@@ -5,6 +5,15 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-101 — Time-boxed Learning-mode auto-lock.** The tray's Filtering-mode
+  menu gains *Learning — 15 min, then lock* and *Learning — 1 hour, then lock*:
+  the service arms a bounded Learning window and the consent sweep auto-reverts to
+  Normal (deny-by-default) on expiry, leaving the auto-allowed batch for review in
+  the Learning-review panel. The deadline persists across a service restart. Plain
+  Learning is unchanged (unbounded). `FilteringMode` gains a `learn_minutes` field
+  (SetMode arms the window; GetMode reports minutes remaining, shown in the mode
+  status line).
+
 - **NET-109 — TLS SNI capture (recover DoH-hidden hostnames).** A driver-free
   raw-socket capture (`SIO_RCVALL`, elevation the LocalSystem service already has —
   no kernel driver, no third-party capture library) reads the TLS ClientHello SNI

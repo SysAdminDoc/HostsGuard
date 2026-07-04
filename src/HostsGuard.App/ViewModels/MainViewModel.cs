@@ -170,7 +170,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         var mode = await _client.Consent.GetModeAsync(new Empty());
         FilteringMode = mode.Mode;
-        FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed);
+        FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed, mode.LearnMinutes);
         _suppressChildInherit = true;
         ChildInherit = mode.ChildInherit;
         _suppressChildInherit = false;
@@ -196,7 +196,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public async Task SetFilteringModeAsync(string mode)
+    public Task SetFilteringModeAsync(string mode) => SetFilteringModeAsync(mode, 0);
+
+    /// <summary>
+    /// Switch filtering mode; when <paramref name="learnMinutes"/> &gt; 0 and mode
+    /// is "learning", arm a time-boxed window that auto-reverts to Normal (NET-101).
+    /// </summary>
+    public async Task SetFilteringModeAsync(string mode, int learnMinutes)
     {
         if (_client is null)
         {
@@ -211,7 +217,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode });
+        var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode, LearnMinutes = learnMinutes });
         ConnectionText = ack.Message;
         await LoadFilteringModeAsync();
         if (FwActivity is not null)
@@ -627,12 +633,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static string DescribeFilteringMode(string mode, bool armed)
+    private static string DescribeFilteringMode(string mode, bool armed, int learnMinutes = 0)
     {
         var label = mode switch
         {
             "notify" => "Notify - prompt on new outbound connections",
-            "learning" => "Learning - auto-allow and record for review",
+            "learning" => learnMinutes > 0
+                ? $"Learning - auto-allow and record ({learnMinutes} min left, then locks)"
+                : "Learning - auto-allow and record for review",
             _ => "Normal - enforce existing policy silently",
         };
         return armed ? $"{label} (default-deny armed)" : label;

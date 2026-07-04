@@ -38,13 +38,14 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
             Mode = _state.Consent.Mode,
             DetectionArmed = _state.Consent.DetectionArmed,
             ChildInherit = _state.Consent.ChildInherit,
+            LearnMinutes = _state.Consent.LearnMinutesRemaining,
         });
 
     public override Task<Ack> SetChildInherit(ChildInheritRequest request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetChildInherit(request.Enabled));
 
     public override Task<Ack> SetMode(FilteringMode request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode));
+        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode, request.LearnMinutes));
 
     public override Task<DecisionHistory> GetDecisionHistory(HistoryRequest request, ServerCallContext context)
         => Task.FromResult(_state.Consent.History(request.Limit));

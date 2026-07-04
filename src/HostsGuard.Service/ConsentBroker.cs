@@ -156,8 +156,34 @@ public sealed class ConsentBroker : IDisposable
         }
     }
 
+    /// <summary>Minutes remaining in a time-boxed Learning window (NET-101); 0 = none/unbounded.</summary>
+    public int LearnMinutesRemaining
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (_state.Mode != ModeLearning || _state.LearnUntilUtc is not { } until)
+                {
+                    return 0;
+                }
+
+                var remaining = (int)Math.Ceiling((until - DateTime.UtcNow).TotalMinutes);
+                return remaining > 0 ? remaining : 0;
+            }
+        }
+    }
+
     /// <summary>Switch filtering mode with the posture rails applied.</summary>
-    public Ack SetMode(string requested)
+    public Ack SetMode(string requested) => SetMode(requested, 0);
+
+    /// <summary>
+    /// Switch filtering mode. When switching to Learning with
+    /// <paramref name="learnMinutes"/> &gt; 0 (NET-101), the window auto-reverts to
+    /// Normal on expiry (checked by <see cref="Sweep"/>) and the batch is left for
+    /// review.
+    /// </summary>
+    public Ack SetMode(string requested, int learnMinutes)
     {
         var mode = (requested ?? string.Empty).Trim().ToLowerInvariant();
         if (mode is not (ModeNormal or ModeNotify or ModeLearning))
@@ -167,8 +193,18 @@ public sealed class ConsentBroker : IDisposable
 
         lock (_gate)
         {
+            // Setting a bounded window while already learning just re-arms the timer.
             if (_state.Mode == mode)
             {
+                if (mode == ModeLearning)
+                {
+                    _state.LearnUntilUtc = learnMinutes > 0
+                        ? DateTime.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
+                        : null;
+                    SaveState();
+                    return new Ack { Ok = true, Message = learnMinutes > 0 ? $"learning for {learnMinutes} more minutes" : "already in learning mode" };
+                }
+
                 return new Ack { Ok = true, Message = $"already in {mode} mode" };
             }
 
@@ -195,10 +231,13 @@ public sealed class ConsentBroker : IDisposable
             }
 
             _state.Mode = mode;
+            _state.LearnUntilUtc = mode == ModeLearning && learnMinutes > 0
+                ? DateTime.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
+                : null;
             SaveState();
         }
 
-        _db.LogEvent("consent", "mode_changed", details: mode);
+        _db.LogEvent("consent", "mode_changed", details: mode + (mode == ModeLearning && learnMinutes > 0 ? $" ({learnMinutes}m)" : string.Empty));
         return new Ack
         {
             Ok = true,
@@ -656,6 +695,20 @@ public sealed class ConsentBroker : IDisposable
     /// <summary>Expire pending prompts (safe action: stays blocked) and reap once-rules.</summary>
     public void Sweep(DateTime nowUtc)
     {
+        // NET-101: a time-boxed Learning window auto-reverts to Normal on expiry;
+        // the auto-allowed batch stays for review (GetLearned).
+        bool autoLock;
+        lock (_gate)
+        {
+            autoLock = _state.Mode == ModeLearning && _state.LearnUntilUtc is { } until && nowUtc >= until;
+        }
+
+        if (autoLock)
+        {
+            _db.LogEvent("consent", "learning_autolock", details: "learning window expired — reverted to Normal; batch left for review");
+            SetMode(ModeNormal);
+        }
+
         List<ConnectionDecisionRequest> expired;
         lock (_gate)
         {
@@ -880,6 +933,9 @@ public sealed class ConsentBroker : IDisposable
         public Dictionary<string, bool>? PriorOutboundBlock { get; set; }
 
         public bool ChildInherit { get; set; }
+
+        /// <summary>Deadline for a time-boxed Learning window (NET-101); null = unbounded.</summary>
+        public DateTime? LearnUntilUtc { get; set; }
 
         public List<OnceRule> OnceRules { get; set; } = new();
     }

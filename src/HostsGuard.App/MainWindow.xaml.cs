@@ -60,9 +60,13 @@ public partial class MainWindow : Window
 
     private void OnTrayMode(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string mode } && DataContext is MainViewModel vm)
+        if (sender is FrameworkElement { Tag: string tag } && DataContext is MainViewModel vm)
         {
-            _ = vm.SetFilteringModeAsync(mode);
+            // "learning:15" arms a time-boxed Learning window (NET-101); plain
+            // "learning"/"notify"/"normal" keep the existing behavior.
+            var parts = tag.Split(':', 2);
+            var minutes = parts.Length == 2 && int.TryParse(parts[1], out var m) ? m : 0;
+            _ = vm.SetFilteringModeAsync(parts[0], minutes);
         }
     }
 

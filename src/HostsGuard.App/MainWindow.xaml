@@ -31,6 +31,8 @@
                         <MenuItem x:Name="TrayModeNormal" Header="Normal — enforce silently" Tag="normal" Click="OnTrayMode" />
                         <MenuItem x:Name="TrayModeNotify" Header="Notify — prompt on new connections" Tag="notify" Click="OnTrayMode" />
                         <MenuItem x:Name="TrayModeLearning" Header="Learning — auto-allow and record" Tag="learning" Click="OnTrayMode" />
+                        <MenuItem Header="Learning — 15 min, then lock" Tag="learning:15" Click="OnTrayMode" />
+                        <MenuItem Header="Learning — 1 hour, then lock" Tag="learning:60" Click="OnTrayMode" />
                     </MenuItem>
                     <MenuItem Header="Global outbound">
                         <MenuItem Header="Block all outbound" Tag="block-all" Click="OnTrayGlobalMode" />

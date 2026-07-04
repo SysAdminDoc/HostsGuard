@@ -808,6 +808,10 @@ message FilteringMode {
   string mode = 1;            // "normal" | "notify" | "learning"
   bool detection_armed = 2;   // audit + watch active (read-only, set by server)
   bool child_inherit = 3;     // child-process auto-allow is on (read-only, set by server)
+  // Time-boxed Learning auto-lock (NET-101): on SetMode(learning) a positive
+  // value learns for that many minutes then auto-reverts to Normal. On GetMode
+  // it's the minutes remaining in the current learning window (0 = unbounded).
+  int32 learn_minutes = 4;
 }
 
 message HistoryRequest {
