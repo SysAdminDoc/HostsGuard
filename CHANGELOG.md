@@ -2,7 +2,7 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.9.13] — 2026-07-03
 
 ### Changed
 - **Dependency alignment.** The stray 8.0.x framework packages
