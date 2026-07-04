@@ -1,0 +1,14 @@
+PackageIdentifier: SysAdminDoc.HostsGuard
+PackageVersion: 0.11.0
+InstallerType: inno
+Scope: machine
+InstallModes:
+  - silent
+  - silentWithProgress
+UpgradeBehavior: install
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/SysAdminDoc/HostsGuard/releases/download/v0.11.0/HostsGuard-v0.11.0-dotnet-Setup.exe
+    InstallerSha256: 38BF06CBC4E488CD874F9064B7DB1320A0DDAF770BA22FF9CF2CA55F46958F11
+ManifestType: installer
+ManifestVersion: 1.6.0

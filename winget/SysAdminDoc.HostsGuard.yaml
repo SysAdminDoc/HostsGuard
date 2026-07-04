@@ -1,0 +1,9 @@
+# winget package manifest (version) for HostsGuard.
+# Ready to submit to microsoft/winget-pkgs — winget accepts an unsigned Inno
+# installer (signing is required only for MSIX). Update PackageVersion + the
+# installer SHA/URL on each release, then open a PR to winget-pkgs.
+PackageIdentifier: SysAdminDoc.HostsGuard
+PackageVersion: 0.11.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

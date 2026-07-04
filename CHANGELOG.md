@@ -12,6 +12,11 @@ All notable changes to HostsGuard are documented in this file.
   against a11y regressions.
 
 ### Added
+- **NET-097 (manifest) — winget package manifest.** A validated winget manifest
+  (`winget/`, schema 1.6.0, `SysAdminDoc.HostsGuard`) is ready to submit to
+  microsoft/winget-pkgs — winget accepts the unsigned Inno installer (signing is
+  required only for MSIX). The service self-update leg remains signing-gated.
+
 - **NET-124 — Group live connections by country.** The Firewall Activity view
   gains a *Group by country* toggle (a triage axis alongside Group by app; combine
   both to nest country → app), persisted like the other view toggles.
