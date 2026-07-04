@@ -776,6 +776,9 @@ service Consent {
   // app that already has an allow rule inherits that allow for a bounded TTL
   // instead of prompting. Off preserves deny-by-default.
   rpc SetChildInherit(ChildInheritRequest) returns (Ack);
+  // Inbound-connection consent (NET-104, opt-in): prompt on unruled inbound
+  // connections too. Off by default to avoid unsolicited-inbound prompt noise.
+  rpc SetInboundConsent(InboundConsentRequest) returns (Ack);
   // Trusted publishers (NET-113): review/replace the set of Authenticode
   // publisher CNs whose signed binaries auto-allow without a prompt.
   rpc GetTrustedPublishers(Empty) returns (PublisherList);
@@ -795,6 +798,10 @@ message FolderList {
 }
 
 message ChildInheritRequest {
+  bool enabled = 1;
+}
+
+message InboundConsentRequest {
   bool enabled = 1;
 }
 
@@ -882,6 +889,7 @@ message FilteringMode {
   // value learns for that many minutes then auto-reverts to Normal. On GetMode
   // it's the minutes remaining in the current learning window (0 = unbounded).
   int32 learn_minutes = 4;
+  bool inbound_consent = 5;   // inbound-connection consent is on (read-only, set by server)
 }
 
 message HistoryRequest {

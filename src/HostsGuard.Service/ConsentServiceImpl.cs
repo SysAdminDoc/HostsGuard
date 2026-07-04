@@ -39,10 +39,14 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
             DetectionArmed = _state.Consent.DetectionArmed,
             ChildInherit = _state.Consent.ChildInherit,
             LearnMinutes = _state.Consent.LearnMinutesRemaining,
+            InboundConsent = _state.Consent.InboundConsent,
         });
 
     public override Task<Ack> SetChildInherit(ChildInheritRequest request, ServerCallContext context)
         => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetChildInherit(request.Enabled));
+
+    public override Task<Ack> SetInboundConsent(InboundConsentRequest request, ServerCallContext context)
+        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetInboundConsent(request.Enabled));
 
     public override Task<PublisherList> GetTrustedPublishers(Empty request, ServerCallContext context)
     {

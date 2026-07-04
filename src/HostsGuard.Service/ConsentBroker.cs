@@ -136,6 +136,37 @@ public sealed class ConsentBroker : IDisposable
         }
     }
 
+    /// <summary>Whether unruled inbound connections prompt (NET-104).</summary>
+    public bool InboundConsent
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state.InboundConsent;
+            }
+        }
+    }
+
+    /// <summary>Toggle inbound-connection consent prompting (NET-104).</summary>
+    public Ack SetInboundConsent(bool enabled)
+    {
+        lock (_gate)
+        {
+            _state.InboundConsent = enabled;
+            SaveState();
+        }
+
+        _db.LogEvent("consent", "inbound_consent", details: enabled ? "on" : "off", reason: "consent");
+        return new Ack
+        {
+            Ok = true,
+            Message = enabled
+                ? "inbound consent ON — unruled inbound connections prompt in Notify mode"
+                : "inbound consent OFF — inbound connections are not prompted",
+        };
+    }
+
     /// <summary>Toggle child-process auto-allow (NET-093).</summary>
     public Ack SetChildInherit(bool enabled)
     {
@@ -304,11 +335,20 @@ public sealed class ConsentBroker : IDisposable
 
         string mode;
         bool childInherit;
+        bool inboundConsent;
         lock (_gate)
         {
             mode = _state.Mode;
             childInherit = _state.ChildInherit;
+            inboundConsent = _state.InboundConsent;
             if (mode == ModeNormal)
+            {
+                return;
+            }
+
+            // Inbound consent (NET-104) is opt-in — unsolicited inbound blocks are
+            // noisy, so drop them unless the user enabled inbound prompting.
+            if (blocked.Direction == "In" && !inboundConsent)
             {
                 return;
             }
@@ -1211,6 +1251,9 @@ public sealed class ConsentBroker : IDisposable
 
         /// <summary>Folders whose binaries auto-allow without a prompt (NET-117).</summary>
         public List<string> TrustedFolders { get; set; } = new();
+
+        /// <summary>Prompt on unruled inbound connections too (NET-104); default off (noise).</summary>
+        public bool InboundConsent { get; set; }
 
         public List<OnceRule> OnceRules { get; set; } = new();
     }

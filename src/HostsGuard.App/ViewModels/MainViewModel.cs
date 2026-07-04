@@ -82,6 +82,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _childInherit;
 
+    /// <summary>Inbound-connection consent (NET-104): prompt on unruled inbound too (opt-in, default off).</summary>
+    [ObservableProperty]
+    private bool _inboundConsent;
+
     /// <summary>Raised on the UI thread when the service pushes a consent prompt.</summary>
     public event Action<ConnectionDecisionRequest>? DecisionRequested;
 
@@ -176,9 +180,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _suppressChildInherit = true;
         ChildInherit = mode.ChildInherit;
         _suppressChildInherit = false;
+        _suppressInboundConsent = true;
+        InboundConsent = mode.InboundConsent;
+        _suppressInboundConsent = false;
     }
 
     private bool _suppressChildInherit;
+    private bool _suppressInboundConsent;
 
     /// <summary>Two-way bound from the consent UI toggle; pushes to the service.</summary>
     partial void OnChildInheritChanged(bool value)
@@ -194,6 +202,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private async Task SetChildInheritAsync(bool enabled)
     {
         var ack = await _client!.Consent.SetChildInheritAsync(new ChildInheritRequest { Enabled = enabled });
+        ConnectionText = ack.Message;
+    }
+
+    /// <summary>Two-way bound from the inbound-consent UI toggle; pushes to the service.</summary>
+    partial void OnInboundConsentChanged(bool value)
+    {
+        if (_client is null || _suppressInboundConsent)
+        {
+            return;
+        }
+
+        _ = SetInboundConsentAsync(value);
+    }
+
+    private async Task SetInboundConsentAsync(bool enabled)
+    {
+        var ack = await _client!.Consent.SetInboundConsentAsync(new InboundConsentRequest { Enabled = enabled });
         ConnectionText = ack.Message;
     }
 

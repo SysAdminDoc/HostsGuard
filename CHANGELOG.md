@@ -42,6 +42,13 @@ All notable changes to HostsGuard are documented in this file.
   (`GET`/`POST /webhooks`, secret redacted on read). Delivery is off until a URL
   is configured; enabling it via the loopback API takes effect without a restart.
 
+- **NET-104 — Inbound-connection consent.** An *Inbound prompts* toggle on the
+  Firewall Activity toolbar lets Notify/Learning mode also prompt on unruled
+  inbound connections and produce a scoped inbound Allow/Block rule — closing the
+  other direction for users who want it. Off by default (unsolicited inbound is
+  noisy): inbound blocks are dropped without a prompt until enabled. New
+  `Consent.SetInboundConsent` RPC; the opt-in persists in `consent_state.json`.
+
 ## [0.11.0] — 2026-07-04
 
 ### Changed

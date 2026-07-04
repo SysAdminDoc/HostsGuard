@@ -26,6 +26,7 @@ public class SchemaLockTests
           GetTrustedPublishers(Empty) returns (PublisherList)
           ReviewLearned(LearnedReviewRequest) returns (Ack)
           SetChildInherit(ChildInheritRequest) returns (Ack)
+          SetInboundConsent(InboundConsentRequest) returns (Ack)
           SetMode(FilteringMode) returns (Ack)
           SetTrustedFolders(FolderList) returns (Ack)
           SetTrustedPublishers(PublisherList) returns (Ack)

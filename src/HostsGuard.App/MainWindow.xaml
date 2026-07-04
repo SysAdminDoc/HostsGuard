@@ -684,6 +684,10 @@
                                       IsChecked="{Binding DataContext.ChildInherit, RelativeSource={RelativeSource AncestorType=Window}}"
                                       AutomationProperties.Name="Child-process auto-allow"
                                       ToolTip="Child-process auto-allow: a direct child of an app that already has an allow rule inherits its allow for 1 hour instead of prompting (opt-in; deny-by-default when off)" />
+                            <CheckBox DockPanel.Dock="Left" Content="Inbound prompts" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding DataContext.InboundConsent, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      AutomationProperties.Name="Inbound-connection consent"
+                                      ToolTip="Inbound-connection consent: also prompt on unruled inbound connections and let you create inbound rules (opt-in; off by default because unsolicited inbound is noisy)" />
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
                             <Button DockPanel.Dock="Right" Content="AI identify" Margin="10,0,0,0" Padding="10,3"
