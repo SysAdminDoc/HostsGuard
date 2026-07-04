@@ -78,4 +78,70 @@ public sealed class DnsConfig : IDnsConfig
             .SelectMany(n => n.GetIPProperties().DnsAddresses)
             .Distinct()
             .ToList();
+
+    // ─── Encrypted-DNS (DoH) posture (NET-112) ───────────────────────────────
+
+    private const string DohInterfacesKey =
+        @"SYSTEM\CurrentControlSet\Services\Dnscache\InterfaceSpecificParameters";
+
+    /// <summary>
+    /// True when a configured DoH server requires encryption with no plaintext
+    /// fallback (the "encrypted DNS only" posture). Windows stores this per DoH
+    /// server as <c>DohFlags</c>: 2 (and the 3 variant) mean require-no-fallback;
+    /// 1 is opportunistic (fallback allowed). Best-effort — see
+    /// <see cref="RequiresEncryption"/>.
+    /// </summary>
+    public static bool RequiresEncryption(int dohFlags) => dohFlags is 2 or 3;
+
+    /// <summary>
+    /// Best-effort probe of whether the machine is in an encrypted-DNS-only posture
+    /// (any active interface has a DoH server flagged require-no-fallback). Blocking
+    /// encrypted DNS on such a machine can sever name resolution unless the resolver
+    /// is exempted — the caller should warn. Never throws.
+    /// </summary>
+    public static bool IsEncryptedDnsOnly()
+    {
+        try
+        {
+            using var root = Registry.LocalMachine.OpenSubKey(DohInterfacesKey);
+            if (root is null)
+            {
+                return false;
+            }
+
+            foreach (var ifaceName in root.GetSubKeyNames())
+            {
+                // …\{iface}\DohInterfaceSettings\Doh(6)?\{serverIp} → DohFlags DWORD.
+                using var doh = root.OpenSubKey($@"{ifaceName}\DohInterfaceSettings");
+                if (doh is null)
+                {
+                    continue;
+                }
+
+                foreach (var family in doh.GetSubKeyNames()) // "Doh", "Doh6"
+                {
+                    using var servers = doh.OpenSubKey(family);
+                    if (servers is null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var server in servers.GetSubKeyNames())
+                    {
+                        using var s = servers.OpenSubKey(server);
+                        if (s?.GetValue("DohFlags") is int flags && RequiresEncryption(flags))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            // Best-effort: an unreadable registry means we simply don't warn.
+        }
+
+        return false;
+    }
 }

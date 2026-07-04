@@ -469,6 +469,10 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     private bool _sniCaptureActive;
 
+    /// <summary>OS is in encrypted-DNS-only posture — warn before blocking DoH (NET-112).</summary>
+    [ObservableProperty]
+    private bool _dnsEncryptedOnly;
+
     /// <summary>
     /// "See everything": both QUIC/UDP-443 and the DoH bootstrap blocks are on, so
     /// browsers doing their own encrypted DNS fall back to the OS resolver and the
@@ -490,6 +494,7 @@ public sealed partial class ToolsViewModel : ObservableObject
         QuicBlockingActive = status.QuicBlocked;
         CnameCloakActive = status.CnameCloak;
         SniCaptureActive = status.SniCapture;
+        DnsEncryptedOnly = status.DnsEncryptedOnly;
         DohStatusText = status.Updated.Length != 0
             ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
             : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
@@ -502,9 +507,24 @@ public sealed partial class ToolsViewModel : ObservableObject
     /// sees and the hosts file can block. This is the fix for "ads load but never
     /// show up in the feed."
     /// </summary>
+    /// <summary>
+    /// NET-112: on an encrypted-DNS-only machine, blocking DoH can sever name
+    /// resolution if the resolver changes (the current one is exempted). Warn
+    /// before arming. Returns false to abort.
+    /// </summary>
+    private bool ConfirmDohBlockArm()
+        => !DnsEncryptedOnly || _confirm.Confirm("Encrypted-DNS-only system detected",
+            "Your system is set to require encrypted DNS with no plaintext fallback. HostsGuard exempts your "
+            + "current resolver, but blocking encrypted DNS could break name resolution if your DNS server changes. Continue?");
+
     [RelayCommand]
     public async Task ToggleSeeEverythingAsync()
     {
+        if (!SeeEverythingActive && !ConfirmDohBlockArm())
+        {
+            return;
+        }
+
         if (SeeEverythingActive)
         {
             if (QuicBlockingActive)
@@ -598,6 +618,11 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ToggleEncryptedDnsAsync()
     {
+        if (!DohBlockingActive && !ConfirmDohBlockArm())
+        {
+            return;
+        }
+
         Ack ack;
         if (DohBlockingActive)
         {

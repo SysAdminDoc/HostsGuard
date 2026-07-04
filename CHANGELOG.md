@@ -4,6 +4,14 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [0.11.0] — 2026-07-04
 
+### Added
+- **NET-112 — Encrypted-DNS-only safety warning.** When the OS is configured to
+  require encrypted DNS with no plaintext fallback, arming the DoH block (or
+  "See everything") now warns that resolution could break if the DNS server
+  changes — the current resolver is already exempted from the block, but a strict
+  encrypted-only posture has no Do53 fallback. Best-effort detection via the
+  Windows DoH per-interface `DohFlags`, surfaced on `DohStatus.dns_encrypted_only`.
+
 ### Security
 - **NET-110 — The settings lock now protects the hosts file.** Previously the
   lock gated firewall/mode/posture mutations but not hosts mutations, so an armed

@@ -107,6 +107,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             QuicBlocked = _state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false,
             CnameCloak = _state.CnameCloak.Enabled,
             SniCapture = _state.Sni?.Active ?? false,
+            DnsEncryptedOnly = Windows.DnsConfig.IsEncryptedDnsOnly(),
         });
     }
 

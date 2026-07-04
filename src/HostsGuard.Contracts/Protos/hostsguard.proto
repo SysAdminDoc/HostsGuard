@@ -575,6 +575,7 @@ message DohStatus {
   bool quic_blocked = 7;    // HG_QUIC_UDP443 rule currently exists
   bool cname_cloak = 8;     // CNAME-cloak reactive blocking is armed
   bool sni_capture = 9;     // TLS SNI capture is running (NET-109)
+  bool dns_encrypted_only = 10; // OS is in encrypted-DNS-only posture (NET-112 warn)
 }
 
 message DohRefreshRequest {
