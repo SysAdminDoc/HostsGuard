@@ -19,6 +19,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "block" => await DomainOpAsync(args, (c, r) => c.BlockAsync(r).ResponseAsync),
     "allow" => await DomainOpAsync(args, (c, r) => c.AllowAsync(r).ResponseAsync),
     "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
+    "block-app" => await ProgramOpAsync(args, block: true),
+    "unblock-app" => await ProgramOpAsync(args, block: false),
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
@@ -47,6 +49,8 @@ static int Usage()
           HostsGuard.Cli block <domain> [reason]
           HostsGuard.Cli allow <domain> [reason]
           HostsGuard.Cli unblock <domain>
+          HostsGuard.Cli block-app <exe-path> [out|in]
+          HostsGuard.Cli unblock-app <exe-path> [out|in]
           HostsGuard.Cli export [path.json]
           HostsGuard.Cli export-policy [path.json]
           HostsGuard.Cli import-policy <path.json>
@@ -147,6 +151,54 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
                 Source = "cli",
             };
             var ack = await op(new HostsControl.HostsControlClient(channel), request);
+            Console.WriteLine(ack.Message);
+            return ack.Ok ? 0 : 2;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+// NET-114: block/unblock a program's outbound (or inbound) via the HG_ firewall
+// rule. block-app creates it (BlockProgram); unblock-app deletes the same-named
+// rule, mirroring the service's HG_BlockApp_<stem>_<dir> naming.
+static async Task<int> ProgramOpAsync(string[] args, bool block)
+{
+    if (args.Length < 2 || string.IsNullOrWhiteSpace(args[1]))
+    {
+        Console.Error.WriteLine("Missing program path.");
+        return Usage();
+    }
+
+    var path = args[1];
+    var dir = args.Length > 2 && args[2].Trim().ToLowerInvariant() is "in" or "inbound" ? "In" : "Out";
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var fw = new FirewallControl.FirewallControlClient(channel);
+            Ack ack;
+            if (block)
+            {
+                ack = await fw.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = dir });
+            }
+            else
+            {
+                var name = $"HG_BlockApp_{Path.GetFileNameWithoutExtension(path)}_{dir}";
+                ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = name });
+            }
+
             Console.WriteLine(ack.Message);
             return ack.Ok ? 0 : 2;
         }

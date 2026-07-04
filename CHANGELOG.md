@@ -5,6 +5,10 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.11.0] — 2026-07-04
 
 ### Added
+- **NET-114 — CLI per-app firewall verbs.** `HostsGuard.Cli block-app <exe> [out|in]`
+  creates the HG_ program-block rule and `unblock-app` removes it — scriptable
+  per-app control to match the existing per-domain `block`/`allow`/`unblock` verbs.
+
 - **NET-112 — Encrypted-DNS-only safety warning.** When the OS is configured to
   require encrypted DNS with no plaintext fallback, arming the DoH block (or
   "See everything") now warns that resolution could break if the DNS server
