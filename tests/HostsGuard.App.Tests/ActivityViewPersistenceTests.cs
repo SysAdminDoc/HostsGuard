@@ -55,11 +55,13 @@ public sealed class ActivityViewPersistenceTests : IDisposable
 
         vm.HideReverseDns = true;
         vm.GroupByRoot = true;
+        vm.BlockedOnly = true;
 
         var restored = new HostsActivityViewModel(LazyClient(), new AppConfigStore(_configPath));
         restored.HideReverseDns.Should().BeTrue();
         restored.GroupByRoot.Should().BeTrue();
         restored.HideBlocked.Should().BeFalse();
+        restored.BlockedOnly.Should().BeTrue();
     }
 
     [Fact]

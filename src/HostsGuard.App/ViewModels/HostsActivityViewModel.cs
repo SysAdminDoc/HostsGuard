@@ -42,6 +42,15 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     private bool _hideReverseDns;
 
+    /// <summary>
+    /// Troubleshooting view: show ONLY currently-blocked domains, overriding
+    /// "Hide blocked". Lets you refresh a page, see exactly what HostsGuard
+    /// blocked, and unblock it to test — the "did I block something I shouldn't
+    /// have?" workflow.
+    /// </summary>
+    [ObservableProperty]
+    private bool _blockedOnly;
+
     [ObservableProperty]
     private string _statusText = "Ready";
 
@@ -59,6 +68,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             _hideBlocked = _config.GetViewFlag("activity_hide_blocked");
             _hideReverseDns = _config.GetViewFlag("activity_hide_reverse_dns");
             _groupByRoot = _config.GetViewFlag("activity_group_by_root");
+            _blockedOnly = _config.GetViewFlag("activity_blocked_only");
             _loading = false;
         }
     }
@@ -147,6 +157,15 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
     }
 
+    partial void OnBlockedOnlyChanged(bool value)
+    {
+        Persist("activity_blocked_only", value);
+        if (!_loading)
+        {
+            _ = GuardedRefreshAsync(CancellationToken.None);
+        }
+    }
+
     /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
     partial void OnFilterChanged(string value)
     {
@@ -189,7 +208,23 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         var hidden = 0;
         foreach (var row in list.Rows)
         {
-            if ((HideBlocked && row.Status == "blocked") || (HideReverseDns && IsReverseDns(row.Domain)))
+            var isBlocked = row.Status == "blocked";
+            // "Blocked only" is a troubleshooting override: show blocked, drop the
+            // rest, and ignore "Hide blocked" while it's on.
+            if (BlockedOnly)
+            {
+                if (!isBlocked)
+                {
+                    continue;
+                }
+            }
+            else if (HideBlocked && isBlocked)
+            {
+                hidden++;
+                continue;
+            }
+
+            if (HideReverseDns && IsReverseDns(row.Domain))
             {
                 hidden++;
                 continue;
@@ -267,7 +302,8 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private void Upsert(DnsEvent ev)
     {
         var existing = Rows.FirstOrDefault(r => r.Domain == ev.Domain);
-        if ((HideBlocked && ev.Blocked)
+        var dropForBlockFilter = BlockedOnly ? !ev.Blocked : (HideBlocked && ev.Blocked);
+        if (dropForBlockFilter
             || (HideReverseDns && IsReverseDns(ev.Domain))
             || (ev.Hidden && !ShowHidden))
         {
@@ -395,6 +431,37 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         StatusText = blocked == domains.Count
             ? $"blocked {Plural.Of(blocked, "domain")}"
             : $"blocked {blocked} of {domains.Count} — retry the rest (the hosts file may be briefly locked)";
+        await RefreshAsync();
+    }
+
+    /// <summary>
+    /// Unblock every selected feed row — remove its <c>0.0.0.0</c> line from the
+    /// hosts file so the domain resolves normally again. Unlike Allow (which also
+    /// whitelists it against future blocklist imports), this just lifts the block
+    /// so you can refresh a page and confirm the fix.
+    /// </summary>
+    [RelayCommand]
+    public async Task UnblockSelectedAsync(System.Collections.IList? selected)
+    {
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var removed = 0;
+        foreach (var domain in domains)
+        {
+            var ack = await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
+            if (ack.Ok)
+            {
+                removed++;
+            }
+        }
+
+        StatusText = removed == domains.Count
+            ? $"unblocked {Plural.Of(removed, "domain")} — removed from hosts"
+            : $"unblocked {removed} of {domains.Count}";
         await RefreshAsync();
     }
 

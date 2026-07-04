@@ -184,6 +184,11 @@
                                       IsChecked="{Binding HideBlocked}"
                                       AutomationProperties.Name="Hide already-blocked domains"
                                       ToolTip="Hide domains that are already blocked, so the feed shows only traffic that still needs a decision" />
+                            <CheckBox DockPanel.Dock="Right" Content="Blocked only" Margin="8,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding BlockedOnly}"
+                                      AutomationProperties.Name="Show only blocked domains"
+                                      ToolTip="Troubleshoot: show ONLY blocked domains. Refresh a page, see what got blocked, then right-click to Unblock." />
                             <CheckBox DockPanel.Dock="Right" Content="Group by root" Margin="8,0,0,0"
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding GroupByRoot}"
@@ -261,7 +266,11 @@
                                     <MenuItem Header="Allow"
                                               Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              ToolTip="Allow every selected domain (multi-select with Ctrl/Shift)" />
+                                              ToolTip="Allow every selected domain — remove from hosts AND whitelist against future blocklists (multi-select with Ctrl/Shift)" />
+                                    <MenuItem Header="Unblock (remove from hosts)"
+                                              Command="{Binding PlacementTarget.DataContext.UnblockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Remove the selected domains' 0.0.0.0 entries from the hosts file so they resolve again — for troubleshooting a page you may have over-blocked" />
                                     <MenuItem Header="Temp allow">
                                         <MenuItem Header="15 minutes"
                                                   Command="{Binding PlacementTarget.DataContext.TempAllow15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -341,7 +350,19 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <!-- Blocked stands out red so an over-block is easy to spot when troubleshooting. -->
+                                                <DataTrigger Binding="{Binding Status}" Value="blocked">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="160" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
                                 <DataGridTemplateColumn Header="24h" Width="132">

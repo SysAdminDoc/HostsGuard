@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.9.12] — 2026-07-03
+
+### Added
+- **Unblock from the feed.** A new "Unblock (remove from hosts)" right-click
+  action on the Hosts Activity feed removes the selected domains' `0.0.0.0`
+  entries so they resolve again — bulk-capable, distinct from "Allow" (which also
+  whitelists against future blocklists).
+- **"Blocked only" troubleshooting filter.** A one-click toggle shows *only*
+  currently-blocked domains (overriding "Hide blocked"): refresh a page, see
+  exactly what HostsGuard blocked, and right-click → Unblock to test. Blocked
+  status now renders in red so an over-block is easy to spot.
+
 ## [0.9.11] — 2026-07-03
 
 ### Changed
