@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.0] — 2026-07-04
 
 ### Added
+- **NET-121 — "Explain / look up connection".** The Firewall Activity connections
+  view's research menu now pivots on the connection's *resolved domain* (the
+  meaningful identity) rather than the raw IP — VirusTotal, who.is, and Google on
+  the site, plus AbuseIPDB on the IP — the standard "what is this connection"
+  triage flow.
+
 - **NET-044b — Outbound event webhooks.** The service can POST each engine event
   (the ActivityEvent stream) to configured HTTP(S) endpoints, signed with an
   `X-HG-Signature` HMAC-SHA256 of the body, with bounded exponential-backoff

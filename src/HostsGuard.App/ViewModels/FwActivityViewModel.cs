@@ -31,11 +31,18 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
 
     /// <summary>Site the remote IP was resolved as (ETW DNS); "" when unknown.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ResearchTarget))]
     private string _host = string.Empty;
 
     /// <summary>AI explanation of what this connection is likely for; "" until identified.</summary>
     [ObservableProperty]
     private string _info = string.Empty;
+
+    /// <summary>
+    /// The identity to research (NET-121): the resolved domain when known —
+    /// the meaningful identity — else the raw remote IP.
+    /// </summary>
+    public string ResearchTarget => Host.Length != 0 ? Host : RemoteAddr;
 
     [ObservableProperty]
     private string _process = string.Empty;
@@ -1165,6 +1172,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     public void ResearchGoogle(string remoteAddr) => Research.Open(Research.Sites[0].UrlTemplate, remoteAddr);
+
+    // NET-121: VirusTotal + who.is on the connection's resolved domain (or IP).
+    [RelayCommand]
+    public void ResearchVirusTotal(string target) => Research.Open(Research.Sites[1].UrlTemplate, target);
+
+    [RelayCommand]
+    public void ResearchWhois(string target) => Research.Open(Research.Sites[2].UrlTemplate, target);
 
     [RelayCommand]
     public void ResearchAbuseIpdb(string remoteAddr) => Research.Open(Research.Sites[7].UrlTemplate, remoteAddr);

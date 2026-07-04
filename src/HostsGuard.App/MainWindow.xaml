@@ -766,11 +766,18 @@
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='inbound|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
                                     <Separator />
-                                    <MenuItem Header="Research online">
+                                    <MenuItem Header="Explain / look up connection"
+                                              ToolTip="Look up the connection's resolved domain (or IP) on threat-intel sites">
+                                        <MenuItem Header="VirusTotal (site)"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.ResearchTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="who.is (site)"
+                                                  Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.ResearchTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                         <MenuItem Header="Google"
                                                   Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                        <MenuItem Header="AbuseIPDB"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.ResearchTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="AbuseIPDB (IP)"
                                                   Command="{Binding PlacementTarget.DataContext.ResearchAbuseIpdbCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.RemoteAddr, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
