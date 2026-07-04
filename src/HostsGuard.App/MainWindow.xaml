@@ -672,6 +672,10 @@
                             <CheckBox DockPanel.Dock="Left" Content="Observe" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding ObserveMode}"
                                       ToolTip="Record new processes silently instead of prompting" />
+                            <CheckBox DockPanel.Dock="Left" Content="Inherit to children" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding DataContext.ChildInherit, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      AutomationProperties.Name="Child-process auto-allow"
+                                      ToolTip="Child-process auto-allow: a direct child of an app that already has an allow rule inherits its allow for 1 hour instead of prompting (opt-in; deny-by-default when off)" />
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
                             <Button DockPanel.Dock="Right" Content="AI identify" Margin="10,0,0,0" Padding="10,3"

@@ -78,6 +78,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _filteringModeText = string.Empty;
 
+    /// <summary>Child-process auto-allow (NET-093): direct children inherit a trusted parent's allow.</summary>
+    [ObservableProperty]
+    private bool _childInherit;
+
     /// <summary>Raised on the UI thread when the service pushes a consent prompt.</summary>
     public event Action<ConnectionDecisionRequest>? DecisionRequested;
 
@@ -167,6 +171,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var mode = await _client.Consent.GetModeAsync(new Empty());
         FilteringMode = mode.Mode;
         FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed);
+        _suppressChildInherit = true;
+        ChildInherit = mode.ChildInherit;
+        _suppressChildInherit = false;
+    }
+
+    private bool _suppressChildInherit;
+
+    /// <summary>Two-way bound from the consent UI toggle; pushes to the service.</summary>
+    partial void OnChildInheritChanged(bool value)
+    {
+        if (_client is null || _suppressChildInherit)
+        {
+            return;
+        }
+
+        _ = SetChildInheritAsync(value);
+    }
+
+    private async Task SetChildInheritAsync(bool enabled)
+    {
+        var ack = await _client!.Consent.SetChildInheritAsync(new ChildInheritRequest { Enabled = enabled });
+        ConnectionText = ack.Message;
     }
 
     [RelayCommand]

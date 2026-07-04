@@ -702,6 +702,14 @@ service Consent {
   // blocks, or discard them (back to prompting).
   rpc GetLearned(Empty) returns (LearnedList);
   rpc ReviewLearned(LearnedReviewRequest) returns (Ack);
+  // Child-process auto-allow (NET-093, opt-in): when on, a direct child of an
+  // app that already has an allow rule inherits that allow for a bounded TTL
+  // instead of prompting. Off preserves deny-by-default.
+  rpc SetChildInherit(ChildInheritRequest) returns (Ack);
+}
+
+message ChildInheritRequest {
+  bool enabled = 1;
 }
 
 message LearnedEntry {
@@ -774,6 +782,7 @@ message ConnectionDecision {
 message FilteringMode {
   string mode = 1;            // "normal" | "notify" | "learning"
   bool detection_armed = 2;   // audit + watch active (read-only, set by server)
+  bool child_inherit = 3;     // child-process auto-allow is on (read-only, set by server)
 }
 
 message HistoryRequest {

@@ -35,10 +35,14 @@ public sealed class ConsentBroker : IDisposable
     public static readonly TimeSpan PendingTtl = TimeSpan.FromSeconds(60);
     public static readonly TimeSpan OnceRuleLifetime = TimeSpan.FromMinutes(15);
 
+    /// <summary>How long a child auto-allow rule lives before it's reaped (NET-093).</summary>
+    public static readonly TimeSpan ChildRuleLifetime = TimeSpan.FromHours(1);
+
     private const string OncePrefix = "HG_Once_";
     private const string ConsentPrefix = "HG_Consent_";
     private const string LearnPrefix = "HG_Learn_";
     private const string BasePrefix = "HG_Base_";
+    private const string ChildPrefix = "HG_Child_";
 
     private readonly IFirewallEngine? _firewall;
     private readonly FirewallIdentity? _identity;
@@ -75,6 +79,12 @@ public sealed class ConsentBroker : IDisposable
     /// </summary>
     public Func<int, (string Key, string Display)?>? LookupSoleService { get; set; }
 
+    /// <summary>
+    /// PID→(parent PID, parent image path) resolution (NET-093 child auto-allow),
+    /// or null when the parent is dead/unreadable. Wired by the host.
+    /// </summary>
+    public Func<int, (int ParentPid, string ParentPath)?>? LookupParent { get; set; }
+
     public ConsentBroker(HostsDatabase db, EventBus bus, IFirewallEngine? firewall, FirewallIdentity? identity, string dataDir)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
@@ -100,6 +110,41 @@ public sealed class ConsentBroker : IDisposable
     }
 
     public bool DetectionArmed { get; private set; }
+
+    /// <summary>
+    /// Child-process auto-allow (NET-093): when on, a blocked connection whose
+    /// direct parent already has an HG allow rule is auto-allowed (bounded TTL)
+    /// instead of prompting. Off by default — deny-by-default is preserved.
+    /// </summary>
+    public bool ChildInherit
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _state.ChildInherit;
+            }
+        }
+    }
+
+    /// <summary>Toggle child-process auto-allow (NET-093).</summary>
+    public Ack SetChildInherit(bool enabled)
+    {
+        lock (_gate)
+        {
+            _state.ChildInherit = enabled;
+            SaveState();
+        }
+
+        _db.LogEvent("consent", "child_inherit", details: enabled ? "on" : "off", reason: "consent");
+        return new Ack
+        {
+            Ok = true,
+            Message = enabled
+                ? "child-process auto-allow ON — direct children of an allowed app inherit its allow for 1 hour"
+                : "child-process auto-allow OFF — every unruled child prompts",
+        };
+    }
 
     /// <summary>Re-arm on service start when the persisted mode wants detection (WFCP-000c).</summary>
     public void ResumeFromPersistedMode()
@@ -210,9 +255,11 @@ public sealed class ConsentBroker : IDisposable
         }
 
         string mode;
+        bool childInherit;
         lock (_gate)
         {
             mode = _state.Mode;
+            childInherit = _state.ChildInherit;
             if (mode == ModeNormal)
             {
                 return;
@@ -258,6 +305,14 @@ public sealed class ConsentBroker : IDisposable
         if (mode == ModeLearning)
         {
             AutoAllow(blocked);
+            return;
+        }
+
+        // Child-process auto-allow (NET-093, opt-in): if the direct parent already
+        // has an HG allow rule, inherit that verdict to this child for a bounded
+        // TTL instead of prompting. Only one level deep; only allow verdicts.
+        if (childInherit && TryInheritFromParent(blocked))
+        {
             return;
         }
 
@@ -316,7 +371,7 @@ public sealed class ConsentBroker : IDisposable
         }
     }
 
-    private bool HasCoveringRule(string application, string direction, string? serviceKey = null)
+    private bool HasCoveringRule(string application, string direction, string? serviceKey = null, string? requireAction = null)
     {
         if (_firewall is not { } fw)
         {
@@ -326,6 +381,11 @@ public sealed class ConsentBroker : IDisposable
         foreach (var r in fw.ListRules())
         {
             if (r.Source != "hostsguard" || !r.Enabled || r.Direction != direction || r.Program.Length == 0)
+            {
+                continue;
+            }
+
+            if (requireAction is not null && !r.Action.Equals(requireAction, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -369,6 +429,52 @@ public sealed class ConsentBroker : IDisposable
         }
 
         LogDecision(blocked.Application, blocked.Direction, blocked.RemoteAddress, blocked.Protocol, "learn", permanent: true);
+    }
+
+    /// <summary>
+    /// NET-093: if the connection's direct parent has an HG allow rule for this
+    /// direction, auto-allow the child with a TTL-bounded rule and return true.
+    /// </summary>
+    private bool TryInheritFromParent(BlockedConnection blocked)
+    {
+        var parent = SafeInvoke(() => LookupParent?.Invoke(blocked.ProcessId));
+        if (parent is not { } p || p.ParentPath.Length == 0 ||
+            p.ParentPath.Equals(blocked.Application, StringComparison.OrdinalIgnoreCase))
+        {
+            return false; // no readable parent, or self-parent — nothing to inherit
+        }
+
+        if (!HasCoveringRule(p.ParentPath, blocked.Direction, requireAction: "Allow"))
+        {
+            return false; // parent isn't trusted (no allow verdict) — prompt as usual
+        }
+
+        AutoAllowChild(blocked, p.ParentPath);
+        return true;
+    }
+
+    /// <summary>Write a bounded-TTL child allow rule and record it for reaping (NET-093).</summary>
+    private void AutoAllowChild(BlockedConnection blocked, string parentPath)
+    {
+        if (_firewall is not { } fw)
+        {
+            return;
+        }
+
+        var name = $"{ChildPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}_{Guid.NewGuid().ToString("N")[..8]}";
+        if (fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+        {
+            _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
+            _identity?.Remember(name, blocked.Application);
+            lock (_gate)
+            {
+                _onceRules.Add((name, DateTime.UtcNow + ChildRuleLifetime));
+                SaveState();
+            }
+        }
+
+        _db.LogEvent(blocked.Application, "consent_child_allow",
+            details: $"{blocked.Direction}|inherited from {Path.GetFileName(parentPath)}|1h", reason: "consent");
     }
 
     /// <summary>Silently allow a known-safe OS binary (NET-068 baseline).</summary>
@@ -579,10 +685,12 @@ public sealed class ConsentBroker : IDisposable
 
         if (startup)
         {
-            // Once-rules never outlive their window across restarts: anything
-            // persisted (or orphaned live with the prefix) from a prior run is
-            // overdue by definition.
-            foreach (var rule in fw.ListRules().Where(r => r.Name.StartsWith(OncePrefix, StringComparison.Ordinal)))
+            // Once-rules and child auto-allows never outlive their window across
+            // restarts: anything persisted (or orphaned live with the prefix)
+            // from a prior run is overdue by definition.
+            foreach (var rule in fw.ListRules().Where(r =>
+                r.Name.StartsWith(OncePrefix, StringComparison.Ordinal) ||
+                r.Name.StartsWith(ChildPrefix, StringComparison.Ordinal)))
             {
                 fw.DeleteRule(rule.Name);
                 _db.RemoveFwState(rule.Name);
@@ -770,6 +878,8 @@ public sealed class ConsentBroker : IDisposable
         public string Mode { get; set; } = ModeNormal;
 
         public Dictionary<string, bool>? PriorOutboundBlock { get; set; }
+
+        public bool ChildInherit { get; set; }
 
         public List<OnceRule> OnceRules { get; set; } = new();
     }

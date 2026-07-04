@@ -5,6 +5,16 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.10.0] — 2026-07-04
 
 ### Added
+- **NET-093 — Child-process auto-allow (opt-in).** A new *Inherit to children*
+  toggle on the Firewall Activity tab lets a direct child of an app that already
+  has an HG allow rule inherit that allow — bounded to a 1-hour TTL rule
+  (`HG_Child_*`, reaped on expiry and on restart) — instead of raising a fresh
+  consent prompt for every child an installer/updater spawns. One level deep,
+  allow verdicts only, and off by default so deny-by-default is preserved. The
+  service resolves a connection's parent PID + image path via
+  `ProcessTree.GetParent` (`NtQueryInformationProcess`); new `SetChildInherit`
+  RPC (schema-lock updated) and a `child_inherit` flag on `GetMode`.
+
 - **NET-107 — In-app AI-knowledge review & promote panel.** A new *AI knowledge
   review* card on the Tools tab lists what the AI has learned (all, or only what's
   new since your last review), with per-row **Promote** (into a persisted

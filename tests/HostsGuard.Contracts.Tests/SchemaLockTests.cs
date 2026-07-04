@@ -23,6 +23,7 @@ public class SchemaLockTests
           GetLearned(Empty) returns (LearnedList)
           GetMode(Empty) returns (FilteringMode)
           ReviewLearned(LearnedReviewRequest) returns (Ack)
+          SetChildInherit(ChildInheritRequest) returns (Ack)
           SetMode(FilteringMode) returns (Ack)
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics

@@ -100,6 +100,9 @@ db.LogEvent("bandwidth", "monitor_start", details: bandwidthStatus.ToString());
 var serviceAttribution = new ServiceAttribution();
 state.LookupService = serviceAttribution.DisplayFor;
 state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
+// Child-process auto-allow (NET-093): resolve a PID's parent so a trusted
+// parent's verdict can inherit to its direct children.
+state.Consent.LookupParent = ProcessTree.GetParent;
 
 // Automatic network-profile switching (NET-083): fingerprint the joined
 // network and apply its mapped profile on change.
