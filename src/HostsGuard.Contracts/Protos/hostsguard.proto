@@ -56,6 +56,10 @@ service HostsControl {
   rpc Allow(DomainRequest) returns (Ack);
   rpc Unblock(DomainRequest) returns (Ack);
   rpc BlockRoot(DomainRequest) returns (Ack);
+  // Bulk block/allow (NET-105): N domains → one DB update + ONE hosts-file write
+  // (via reconcile), instead of N per-domain rewrites that each risk an AV lock.
+  rpc BlockMany(BulkDomainsRequest) returns (BulkResult);
+  rpc AllowMany(BulkDomainsRequest) returns (BulkResult);
   rpc ListDomains(ListDomainsRequest) returns (DomainList);
   rpc Reconcile(ReconcileRequest) returns (Ack);
   rpc EmergencyReset(Empty) returns (Ack);
@@ -301,6 +305,20 @@ message TempAllowList {
 
 message HostsText {
   string text = 1;
+}
+
+message BulkDomainsRequest {
+  repeated string domains = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message BulkResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  int32 applied = 4;   // domains newly written to the hosts file
+  int32 total = 5;     // valid domains in the request
 }
 
 message BackupEntry {

@@ -420,19 +420,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var blocked = 0;
-        foreach (var domain in domains)
-        {
-            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
-            if (ack.Ok)
-            {
-                blocked++;
-            }
-        }
-
-        StatusText = blocked == domains.Count
-            ? $"blocked {Plural.Of(blocked, "domain")}"
-            : $"blocked {blocked} of {domains.Count} — retry the rest (the hosts file may be briefly locked)";
+        // NET-105: one RPC + one hosts-file write for the whole selection.
+        var request = new BulkDomainsRequest { Source = "feed" };
+        request.Domains.AddRange(domains);
+        var result = await _client.Hosts.BlockManyAsync(request);
+        StatusText = result.Ok
+            ? $"blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)"
+            : result.Message;
         await RefreshAsync();
     }
 
@@ -477,19 +471,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var allowed = 0;
-        foreach (var domain in domains)
-        {
-            var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "feed" });
-            if (ack.Ok)
-            {
-                allowed++;
-            }
-        }
-
-        StatusText = allowed == domains.Count
-            ? $"allowed {Plural.Of(allowed, "domain")}"
-            : $"allowed {allowed} of {domains.Count}";
+        // NET-105: one RPC + one hosts-file write for the whole selection.
+        var request = new BulkDomainsRequest { Source = "feed" };
+        request.Domains.AddRange(domains);
+        var result = await _client.Hosts.AllowManyAsync(request);
+        StatusText = result.Ok ? $"allowed {Plural.Of(result.Total, "domain")}" : result.Message;
         await RefreshAsync();
     }
 

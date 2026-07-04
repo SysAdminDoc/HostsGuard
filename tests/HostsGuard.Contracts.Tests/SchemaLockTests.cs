@@ -63,8 +63,10 @@ public class SchemaLockTests
         service HostsControl
           AddDefenderExclusion(Empty) returns (Ack)
           Allow(DomainRequest) returns (Ack)
+          AllowMany(BulkDomainsRequest) returns (BulkResult)
           BackupHosts(Empty) returns (Ack)
           Block(DomainRequest) returns (Ack)
+          BlockMany(BulkDomainsRequest) returns (BulkResult)
           BlockRoot(DomainRequest) returns (Ack)
           CategorizeDomains(CategorizeRequest) returns (CategorizeResult)
           EmergencyReset(Empty) returns (Ack)

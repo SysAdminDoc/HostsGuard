@@ -118,6 +118,87 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         });
     }
 
+    public override Task<BulkResult> BlockMany(BulkDomainsRequest request, ServerCallContext context)
+    {
+        var valid = request.Domains
+            .Select(d => (d ?? string.Empty).ToLowerInvariant().Trim())
+            .Where(Domains.LooksLikeDomain)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (valid.Count == 0)
+        {
+            return Task.FromResult(new BulkResult { Ok = true, Message = "no valid domains", Total = 0 });
+        }
+
+        var source = string.IsNullOrEmpty(request.Source) ? "manual" : request.Source;
+        _state.Db.AddDomainsBulk(valid.Select(d => (d, "blocked", source)));
+        foreach (var d in valid)
+        {
+            _state.Db.SetCategoryIfEmpty(d, DomainCategories.Lookup(d));
+        }
+
+        // ONE hosts-file write for the whole batch via reconcile to the DB set.
+        var blocked = _state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
+        return Task.FromResult(GuardBulkWrite(() =>
+        {
+            var (added, target) = _state.Hosts.Reconcile(blocked);
+            _state.Db.LogEvent("hosts", "block_many", details: $"{valid.Count} domains (+{added} to {target})", reason: request.Reason);
+            return new BulkResult { Ok = true, Applied = added, Total = valid.Count, Message = $"blocked {valid.Count} domains (+{added} new)" };
+        }));
+    }
+
+    public override Task<BulkResult> AllowMany(BulkDomainsRequest request, ServerCallContext context)
+    {
+        // Whitelisting weakens posture — gate behind the settings lock (NET-110).
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(new BulkResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
+        var valid = request.Domains
+            .Select(d => (d ?? string.Empty).ToLowerInvariant().Trim())
+            .Where(Domains.LooksLikeDomain)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (valid.Count == 0)
+        {
+            return Task.FromResult(new BulkResult { Ok = true, Message = "no valid domains", Total = 0 });
+        }
+
+        var source = string.IsNullOrEmpty(request.Source) ? "manual" : request.Source;
+        foreach (var d in valid)
+        {
+            _state.Db.AddDomain(d, "whitelisted", source, reason: request.Reason);
+        }
+
+        // Reconcile once: the now-whitelisted domains fall out of the blocked set.
+        var blocked = _state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
+        return Task.FromResult(GuardBulkWrite(() =>
+        {
+            _state.Hosts.Reconcile(blocked);
+            _state.Db.LogEvent("hosts", "allow_many", details: $"{valid.Count} domains", reason: request.Reason);
+            return new BulkResult { Ok = true, Applied = valid.Count, Total = valid.Count, Message = $"allowed {valid.Count} domains" };
+        }));
+    }
+
+    /// <summary>Run one bulk hosts-file write, mapping an AV lock to a typed hosts_locked result.</summary>
+    private static BulkResult GuardBulkWrite(Func<BulkResult> write)
+    {
+        try
+        {
+            return write();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new BulkResult
+            {
+                Ok = false,
+                ErrorCode = "hostsguard.error.v1/hosts_locked",
+                Message = "the hosts file is locked by another program (usually antivirus) — wait a few seconds and retry",
+            };
+        }
+    }
+
     public override Task<DomainList> ListDomains(ListDomainsRequest request, ServerCallContext context)
     {
         var rows = _state.Db.GetDomains(

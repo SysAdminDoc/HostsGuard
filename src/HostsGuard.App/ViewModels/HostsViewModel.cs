@@ -174,22 +174,33 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task BlockSelectedAsync(IList? selected)
     {
-        foreach (var domain in SelectedDomains(selected))
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
         {
-            await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
+            return;
         }
 
+        // NET-105: one RPC + one hosts-file write for the whole selection.
+        var request = new BulkDomainsRequest { Source = "manual" };
+        request.Domains.AddRange(domains);
+        var result = await _client.Hosts.BlockManyAsync(request);
+        StatusText = result.Ok ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)" : result.Message;
         await RefreshAsync();
     }
 
     [RelayCommand]
     public async Task AllowSelectedAsync(IList? selected)
     {
-        foreach (var domain in SelectedDomains(selected))
+        var domains = SelectedDomains(selected);
+        if (domains.Count == 0)
         {
-            await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
+            return;
         }
 
+        var request = new BulkDomainsRequest { Source = "manual" };
+        request.Domains.AddRange(domains);
+        var result = await _client.Hosts.AllowManyAsync(request);
+        StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
         await RefreshAsync();
     }
 

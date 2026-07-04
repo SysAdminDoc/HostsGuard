@@ -12,6 +12,12 @@ All notable changes to HostsGuard are documented in this file.
   against a11y regressions.
 
 ### Added
+- **NET-105 — Single-write bulk block/allow.** New `BlockMany`/`AllowMany` RPCs
+  apply a whole selection in one DB update + one hosts-file reconcile instead of N
+  per-domain rewrites (each of which was a separate AV-lock opportunity that could
+  leave "blocked X of Y"). The feed and Managed Domains bulk actions now issue one
+  RPC; `AllowMany` respects the settings lock.
+
 - **NET-115 — "Block/Allow this site" from a live connection.** The Firewall
   Activity connections view gains right-click *Block this site (domain)* / *Allow
   this site (domain)* that pivot a connection to a durable hosts-file rule on its
