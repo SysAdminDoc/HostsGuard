@@ -2,73 +2,158 @@ namespace HostsGuard.Core;
 
 /// <summary>
 /// Curated, offline hosts-file categories for well-known ad/tracking/telemetry
-/// domains — promoted from reviewed AI-researched field knowledge (2026-07-03).
-/// Fresh installs categorize these without any AI key; the AI only handles
-/// domains this table doesn't know. Suffix-matched, longest wins; unknown
-/// domains return blank. Category names follow the user-facing hosts-file
-/// section style ("Google Ads", "Microsoft Telemetry").
+/// domains — promoted from reviewed AI-researched field knowledge. Fresh installs
+/// categorize these without any AI key; the AI only handles domains this table
+/// doesn't know. Suffix-matched, longest wins; unknown domains return blank.
+///
+/// Categories use a small, consistent CANONICAL taxonomy (see <see cref="Canonical"/>)
+/// instead of the previous fragmented per-vendor sections ("Snapchat Tracking",
+/// "LinkedIn CDN", "Oracle Maxymiser", …). <see cref="Canonicalize"/> folds any
+/// legacy or AI-assigned granular category into that taxonomy, so the hosts file
+/// organizes into a dozen clean sections regardless of who assigned the label.
 /// </summary>
 public static class DomainCategories
 {
-    private static readonly IReadOnlyList<(string Suffix, string Category)> Map = new[]
+    /// <summary>The canonical top-level categories, in hosts-file section order.</summary>
+    public static readonly IReadOnlyList<string> Canonical = new[]
     {
-        // Google Ads
-        ("doubleclick.net", "Google Ads"),
-        ("googlesyndication.com", "Google Ads"),
-        ("googleadservices.com", "Google Ads"),
-        ("adservice.google.com", "Google Ads"),
-        ("adtrafficquality.google", "Google Ads"),
-        // Google Tracking
-        ("google-analytics.com", "Google Tracking"),
-        ("analytics.google.com", "Google Tracking"),
-        ("googletagmanager.com", "Google Tracking"),
-        ("app-measurement.com", "Google Tracking"),
-        // Facebook/Meta Tracking
-        ("pixel.facebook.com", "Facebook/Meta Tracking"),
-        ("an.facebook.com", "Facebook/Meta Tracking"),
-        ("pixel.instagram.com", "Facebook/Meta Tracking"),
-        ("connect.facebook.net", "Facebook/Meta Tracking"),
-        // Microsoft Telemetry
-        ("telemetry.microsoft.com", "Microsoft Telemetry"),
-        ("vortex.data.microsoft.com", "Microsoft Telemetry"),
-        ("events.data.microsoft.com", "Microsoft Telemetry"),
-        ("settings-win.data.microsoft.com", "Microsoft Telemetry"),
-        ("bat.bing.com", "Microsoft Telemetry"),
-        // Amazon Ads
-        ("amazon-adsystem.com", "Amazon Ads"),
-        // Adobe Telemetry
-        ("cc-api-data.adobe.io", "Adobe Telemetry"),
-        ("lcs-cops.adobe.io", "Adobe Telemetry"),
-        // Yandex Analytics
-        ("mc.yandex.ru", "Yandex Analytics"),
-        ("adfstat.yandex.ru", "Yandex Analytics"),
-        ("static-mon.yandex.net", "Yandex Analytics"),
-        // Major Ad Networks
-        ("adnxs.com", "Major Ad Networks"),
-        ("criteo.com", "Major Ad Networks"),
-        ("openx.net", "Major Ad Networks"),
-        ("serving-sys.com", "Major Ad Networks"),
-        ("ads.yahoo.com", "Major Ad Networks"),
-        ("magsrv.com", "Major Ad Networks"),
-        ("tsyndicate.com", "Major Ad Networks"),
-        ("twinrdengine.com", "Major Ad Networks"),
-        ("rlcdn.com", "Major Ad Networks"),
-        // Analytics
-        ("scorecardresearch.com", "Analytics"),
-        ("quantserve.com", "Analytics"),
-        ("cloudflareinsights.com", "Analytics"),
-        ("datadoghq.com", "Analytics"),
-        ("datadoghq-browser-agent.com", "Analytics"),
-        ("useinsider.com", "Analytics"),
-        ("stats.wp.com", "Analytics"),
-        ("pixel.wp.com", "Analytics"),
-        ("sentry.io", "Analytics"),
-        ("litix.io", "Analytics"),
-        ("branch.io", "Analytics"),
-        ("crashlytics.com", "Analytics"),
+        "Advertising",
+        "Tracking & Analytics",
+        "Telemetry",
+        "Social Media",
+        "CDN",
+        "Streaming",
+        "Gaming",
+        "Email & Marketing",
+        "Gambling",
+        "Adult",
+        "Malware",
+        "Other",
     };
 
-    /// <summary>Best (longest-suffix) category for a domain, or "" if unknown.</summary>
+    /// <summary>
+    /// Fold a free-form or per-vendor category (from a legacy hosts file or an AI
+    /// run) into the canonical taxonomy. Keyword-matched; unknown non-empty labels
+    /// fall through to "Other", blanks stay blank so callers can skip them.
+    /// </summary>
+    public static string Canonicalize(string? category)
+    {
+        var c = (category ?? string.Empty).Trim();
+        if (c.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var l = c.ToLowerInvariant();
+        if (Has(l, "malware", "phishing", "scam", "c2", "botnet")) return "Malware";
+        if (Has(l, "gambl", "casino", "betting", "poker")) return "Gambling";
+        if (Has(l, "adult", "porn", "nsfw", "xxx")) return "Adult";
+        if (Has(l, "telemetry", "crash", "error report", "diagnostic")) return "Telemetry";
+        if (Has(l, "ads", "advert", "ad network", "ad serving", "adserv", "dsp", "ssp")
+            || l == "ad" || l.EndsWith(" ad", StringComparison.Ordinal)) return "Advertising";
+        if (Has(l, "track", "analytic", "pixel", "beacon", "measurement", "attribution", "fingerprint")) return "Tracking & Analytics";
+        if (Has(l, "cdn", "content delivery", "edge cache")) return "CDN";
+        if (Has(l, "social")) return "Social Media";
+        if (Has(l, "stream", "video", "music", "media")) return "Streaming";
+        if (Has(l, "gaming", "game")) return "Gaming";
+        if (Has(l, "mail", "marketing", "crm", "newsletter", "email")) return "Email & Marketing";
+
+        // Already canonical? keep it; otherwise bucket as Other.
+        foreach (var canon in Canonical)
+        {
+            if (string.Equals(c, canon, StringComparison.OrdinalIgnoreCase))
+            {
+                return canon;
+            }
+        }
+
+        return "Other";
+    }
+
+    private static bool Has(string haystack, params string[] needles)
+    {
+        foreach (var n in needles)
+        {
+            if (haystack.Contains(n, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static readonly IReadOnlyList<(string Suffix, string Category)> Map = new[]
+    {
+        // Advertising
+        ("adnxs.com", "Advertising"),
+        ("ads.yahoo.com", "Advertising"),
+        ("adservice.google.com", "Advertising"),
+        ("adtrafficquality.google", "Advertising"),
+        ("amazon-adsystem.com", "Advertising"),
+        ("criteo.com", "Advertising"),
+        ("doubleclick.net", "Advertising"),
+        ("googleadservices.com", "Advertising"),
+        ("googlesyndication.com", "Advertising"),
+        ("magsrv.com", "Advertising"),
+        ("openx.net", "Advertising"),
+        ("rlcdn.com", "Advertising"),
+        ("serving-sys.com", "Advertising"),
+        ("tsyndicate.com", "Advertising"),
+        ("twinrdengine.com", "Advertising"),
+        ("unagi-na.amazon.com", "Advertising"),
+        ("googletagservices.com", "Advertising"),
+        // Tracking & Analytics
+        ("adfstat.yandex.ru", "Tracking & Analytics"),
+        ("an.facebook.com", "Tracking & Analytics"),
+        ("analytics.google.com", "Tracking & Analytics"),
+        ("app-measurement.com", "Tracking & Analytics"),
+        ("branch.io", "Tracking & Analytics"),
+        ("browser-intake-datadoghq.com", "Tracking & Analytics"),
+        ("cloudflareinsights.com", "Tracking & Analytics"),
+        ("connect.facebook.net", "Tracking & Analytics"),
+        ("crashlytics.com", "Tracking & Analytics"),
+        ("datadoghq-browser-agent.com", "Tracking & Analytics"),
+        ("datadoghq.com", "Tracking & Analytics"),
+        ("google-analytics.com", "Tracking & Analytics"),
+        ("googletagmanager.com", "Tracking & Analytics"),
+        ("litix.io", "Tracking & Analytics"),
+        ("mc.yandex.ru", "Tracking & Analytics"),
+        ("pixel.facebook.com", "Tracking & Analytics"),
+        ("pixel.instagram.com", "Tracking & Analytics"),
+        ("pixel.wp.com", "Tracking & Analytics"),
+        ("quantserve.com", "Tracking & Analytics"),
+        ("scorecardresearch.com", "Tracking & Analytics"),
+        ("sentry.io", "Tracking & Analytics"),
+        ("sentry.rumble.work", "Tracking & Analytics"),
+        ("static-mon.yandex.net", "Tracking & Analytics"),
+        ("stats.wp.com", "Tracking & Analytics"),
+        ("use1-turn.fpjs.io", "Tracking & Analytics"),
+        ("useinsider.com", "Tracking & Analytics"),
+        // Telemetry
+        ("bat.bing.com", "Telemetry"),
+        ("cc-api-data.adobe.io", "Telemetry"),
+        ("events.data.microsoft.com", "Telemetry"),
+        ("lcs-cops.adobe.io", "Telemetry"),
+        ("radstat.acmeaom.com", "Telemetry"),
+        ("settings-win.data.microsoft.com", "Telemetry"),
+        ("telemetry.microsoft.com", "Telemetry"),
+        ("vortex.data.microsoft.com", "Telemetry"),
+        // CDN
+        ("cdn.dropboxexperiment.com", "CDN"),
+        ("gator.volces.com", "CDN"),
+        ("openfpcdn.io", "CDN"),
+        // Streaming
+        ("stun.hitv.com", "Streaming"),
+        // Gambling
+        ("betamountwo.com", "Gambling"),
+        // Malware
+        ("cenoobi.run", "Malware"),
+        ("safebrowsdv.com", "Malware"),
+        ("z.cdn.debitcrebit669.com", "Malware"),
+    };
+
+    /// <summary>Best (longest-suffix) canonical category for a domain, or "" if unknown.</summary>
     public static string Lookup(string? domain)
     {
         var d = (domain ?? string.Empty).ToLowerInvariant().Trim().TrimEnd('.');

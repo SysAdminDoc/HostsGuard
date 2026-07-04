@@ -236,9 +236,12 @@ public sealed class AiCategorizer
             var reply = await _completer.CompleteAsync(settings, SystemPrompt, user, ct);
             foreach (var (domain, category) in ParseReply(reply, batch))
             {
-                _db.SetCategory(domain, category);
-                _db.UpsertAiKnowledge("category", domain, category, settings.Model);
-                results.Add((domain, category));
+                // Fold the AI's label into the canonical taxonomy so the hosts
+                // file stays a dozen clean sections, not a per-vendor sprawl.
+                var canonical = Core.DomainCategories.Canonicalize(category);
+                _db.SetCategory(domain, canonical);
+                _db.UpsertAiKnowledge("category", domain, canonical, settings.Model);
+                results.Add((domain, canonical));
             }
         }
 

@@ -76,10 +76,12 @@ public sealed class AiCategorizerTests : IDisposable
             new[] { "pagead2.googlesyndication.com", "telemetry.microsoft.com" }, CancellationToken.None);
 
         results.Should().HaveCount(2);
-        _db.GetDomains().Single(d => d.Domain == "pagead2.googlesyndication.com").Category.Should().Be("Google Ads");
+        // Both are curated, so they resolve offline to canonical categories
+        // (the AI reply is never consulted).
+        _db.GetDomains().Single(d => d.Domain == "pagead2.googlesyndication.com").Category.Should().Be("Advertising");
         var text = File.ReadAllText(_hostsPath);
-        text.Should().Contain("# Google Ads").And.Contain("# Microsoft Telemetry");
-        text.IndexOf("# Google Ads", StringComparison.Ordinal)
+        text.Should().Contain("# Advertising").And.Contain("# Telemetry");
+        text.IndexOf("# Advertising", StringComparison.Ordinal)
             .Should().BeLessThan(text.IndexOf("0.0.0.0 pagead2.googlesyndication.com", StringComparison.Ordinal));
     }
 
@@ -98,9 +100,9 @@ public sealed class AiCategorizerTests : IDisposable
 
         var results = await _ai.CategorizeAsync(new[] { "pixel.facebook.com" }, CancellationToken.None);
 
-        results.Should().ContainSingle().Which.Should().Be(("pixel.facebook.com", "Facebook/Meta Tracking"));
+        results.Should().ContainSingle().Which.Should().Be(("pixel.facebook.com", "Tracking & Analytics"));
         _completer.Prompts.Should().BeEmpty("the curated table answered — no AI call needed");
-        File.ReadAllText(_hostsPath).Should().Contain("# Facebook/Meta Tracking");
+        File.ReadAllText(_hostsPath).Should().Contain("# Tracking & Analytics");
     }
 
     [Fact]
@@ -171,13 +173,14 @@ public sealed class AiCategorizerTests : IDisposable
         // The prompt offered the file's existing section names as vocabulary,
         // and the curated hit (doubleclick) never went to the AI at all.
         _completer.Prompts.Single().Should().Contain("Google Ads").And.NotContain("doubleclick");
-        _db.GetDomains().Single(d => d.Domain == "ad.doubleclick.net").Category.Should().Be("Google Ads");
-        // The unmanaged entry now has a DB row carrying its category.
-        _db.GetDomains().Single(d => d.Domain == "orphan.example.com").Category.Should().Be("Major Trackers");
+        _db.GetDomains().Single(d => d.Domain == "ad.doubleclick.net").Category.Should().Be("Advertising");
+        // The unmanaged AI-categorized entry is folded into the canonical taxonomy
+        // ("Major Trackers" -> "Tracking & Analytics").
+        _db.GetDomains().Single(d => d.Domain == "orphan.example.com").Category.Should().Be("Tracking & Analytics");
         // Knowledge log captured only the AI-learned category for later review.
         _db.GetAiKnowledge("category", new[] { "ad.doubleclick.net", "orphan.example.com" })
             .Should().ContainSingle().Which.Key.Should().Be("orphan.example.com");
-        File.ReadAllText(_hostsPath).Should().Contain("# Major Trackers");
+        File.ReadAllText(_hostsPath).Should().Contain("# Tracking & Analytics");
     }
 
     [Fact]

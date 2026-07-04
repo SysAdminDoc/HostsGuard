@@ -36,6 +36,23 @@ var dns = new DnsConfig();
 using var listFetcher = new HttpListFetcher();
 var defender = new DefenderConfig();
 using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender);
+
+// One-time on start: consolidate any legacy per-vendor category sections
+// ("Snapchat Tracking", "LinkedIn CDN", …) into the canonical taxonomy.
+// Idempotent — writes nothing once the file is normalized. Best-effort: an
+// AV hold on the hosts file must never block the service from starting.
+try
+{
+    hosts.NormalizeCategorySections(
+        HostsGuard.Core.DomainCategories.Canonicalize,
+        HostsGuard.Core.DomainCategories.Lookup,
+        HostsGuard.Core.DomainCategories.Canonical);
+}
+catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+{
+    Console.WriteLine($"HostsGuard: category normalization skipped ({ex.Message}).");
+}
+
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 state.ConnectionMonitorActive = true;

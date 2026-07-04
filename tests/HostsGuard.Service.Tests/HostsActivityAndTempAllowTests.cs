@@ -97,7 +97,7 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
         var list = await Hosts(channel).ListDomainsAsync(new ListDomainsRequest());
 
         list.Domains.Single(d => d.Domain == "pagead2.googlesyndication.com")
-            .Category.Should().Be("Google Ads");
+            .Category.Should().Be("Advertising");
     }
 
     [Fact]

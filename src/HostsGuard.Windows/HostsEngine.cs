@@ -308,6 +308,122 @@ public sealed class HostsEngine
         }
     }
 
+    /// <summary>
+    /// Rewrite the managed sink block into a clean, consolidated set of category
+    /// sections. Every blocked domain is re-filed under its canonical category —
+    /// <paramref name="curated"/> wins when it knows the domain, otherwise the
+    /// domain's current section header is folded through <paramref name="canonicalize"/>.
+    /// This collapses the fragmented per-vendor sections ("Snapchat Tracking",
+    /// "LinkedIn CDN", …) into the dozen-section taxonomy. Idempotent: returns 0
+    /// and writes nothing when the file is already normalized. Any non-header,
+    /// non-sink line (a foreign comment or a localhost mapping) is preserved at
+    /// the top so a hand-edited file isn't clobbered.
+    /// </summary>
+    public int NormalizeCategorySections(
+        Func<string, string> canonicalize,
+        Func<string, string>? curated = null,
+        IReadOnlyList<string>? categoryOrder = null)
+    {
+        ArgumentNullException.ThrowIfNull(canonicalize);
+        lock (_gate)
+        {
+            var preamble = new List<string>();
+            var byCategory = new Dictionary<string, SortedSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var currentCat = string.Empty;
+
+            foreach (var raw in _lines)
+            {
+                var line = raw.Trim();
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                if (line.StartsWith('#'))
+                {
+                    currentCat = line.TrimStart('#', ' ', '\t').Trim();
+                    continue;
+                }
+
+                var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 && parts[0] is "0.0.0.0" or "127.0.0.1" or "::" or "::1")
+                {
+                    var domain = parts[1].ToLowerInvariant().TrimEnd('.');
+                    var cat = curated?.Invoke(domain) ?? string.Empty;
+                    if (cat.Length == 0)
+                    {
+                        cat = canonicalize(currentCat);
+                    }
+
+                    if (cat.Length == 0)
+                    {
+                        cat = "Other";
+                    }
+
+                    if (!byCategory.TryGetValue(cat, out var set))
+                    {
+                        byCategory[cat] = set = new SortedSet<string>(StringComparer.Ordinal);
+                    }
+
+                    set.Add(domain);
+                    continue;
+                }
+
+                preamble.Add(raw);
+            }
+
+            if (byCategory.Count == 0)
+            {
+                return 0;
+            }
+
+            var order = categoryOrder ?? Array.Empty<string>();
+            var cats = byCategory.Keys
+                .OrderBy(c =>
+                {
+                    for (var i = 0; i < order.Count; i++)
+                    {
+                        if (string.Equals(order[i], c, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return i;
+                        }
+                    }
+
+                    return int.MaxValue;
+                })
+                .ThenBy(c => c, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var rebuilt = new List<string>();
+            rebuilt.AddRange(preamble.Where(p => p.Trim().Length != 0));
+            var count = 0;
+            foreach (var cat in cats)
+            {
+                if (rebuilt.Count != 0)
+                {
+                    rebuilt.Add(string.Empty);
+                }
+
+                rebuilt.Add($"# {cat}");
+                foreach (var d in byCategory[cat])
+                {
+                    rebuilt.Add($"0.0.0.0 {d}");
+                    count++;
+                }
+            }
+
+            var updated = Join(rebuilt);
+            if (string.Equals(updated, Join(_lines), StringComparison.Ordinal))
+            {
+                return 0;
+            }
+
+            AtomicWrite(updated);
+            Read();
+            return count;
+        }
+    }
+
     /// <summary>Replace the hosts file with just the Windows sample header.</summary>
     public void EmergencyReset()
     {

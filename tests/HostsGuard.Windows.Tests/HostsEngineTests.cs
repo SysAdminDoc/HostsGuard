@@ -115,6 +115,42 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public void NormalizeCategorySections_folds_fragmented_sections_into_the_canonical_taxonomy()
+    {
+        File.WriteAllText(_hosts,
+            "# Snapchat Tracking\n0.0.0.0 sc.example.com\n\n" +
+            "# LinkedIn CDN\n0.0.0.0 cdn.linkedin.example\n\n" +
+            "# Google Ads\n0.0.0.0 ad.doubleclick.net\n0.0.0.0 pagead.example.com\n");
+        var e = New();
+
+        static string Canon(string c)
+        {
+            var l = c.ToLowerInvariant();
+            if (l.Contains("track")) return "Tracking & Analytics";
+            if (l.Contains("cdn")) return "CDN";
+            if (l.Contains("ad")) return "Advertising";
+            return "Other";
+        }
+
+        var count = e.NormalizeCategorySections(Canon, curated: null,
+            categoryOrder: new[] { "Advertising", "Tracking & Analytics", "CDN" });
+
+        count.Should().Be(4);
+        var lines = File.ReadAllLines(_hosts).Where(l => l.Length > 0).ToList();
+        // Fragmented per-vendor headers are gone; three canonical sections remain,
+        // in the given order, each domain filed under it.
+        lines.Where(l => l.StartsWith('#')).Should()
+            .Equal("# Advertising", "# Tracking & Analytics", "# CDN");
+        lines.IndexOf("0.0.0.0 sc.example.com").Should().BeGreaterThan(lines.IndexOf("# Tracking & Analytics"));
+        lines.IndexOf("0.0.0.0 cdn.linkedin.example").Should().BeGreaterThan(lines.IndexOf("# CDN"));
+        e.GetBlocked().Should().HaveCount(4);
+
+        // Idempotent: a second pass rewrites nothing.
+        e.NormalizeCategorySections(Canon, curated: null,
+            categoryOrder: new[] { "Advertising", "Tracking & Analytics", "CDN" }).Should().Be(0);
+    }
+
+    [Fact]
     public void OrganizeByCategory_leaves_unmapped_and_custom_lines_alone()
     {
         File.WriteAllText(_hosts, "# custom header\n127.0.0.1 myserver\n0.0.0.0 keep-where-it-is.com\n");

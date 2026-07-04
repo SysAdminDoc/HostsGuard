@@ -7,22 +7,34 @@ namespace HostsGuard.Core.Tests;
 public sealed class DomainCategoryTests
 {
     [Theory]
-    [InlineData("ad.doubleclick.net", "Google Ads")]
-    [InlineData("pagead2.googlesyndication.com", "Google Ads")]
-    [InlineData("www.googletagmanager.com", "Google Tracking")]
-    [InlineData("pixel.facebook.com", "Facebook/Meta Tracking")]
-    [InlineData("connect.facebook.net", "Facebook/Meta Tracking")]
-    [InlineData("settings-win.data.microsoft.com", "Microsoft Telemetry")]
-    [InlineData("v20.events.data.microsoft.com", "Microsoft Telemetry")]
-    [InlineData("bat.bing.com", "Microsoft Telemetry")]
-    [InlineData("c.amazon-adsystem.com", "Amazon Ads")]
-    [InlineData("secure.adnxs.com", "Major Ad Networks")]
-    [InlineData("id.rlcdn.com", "Major Ad Networks")]
-    [InlineData("b.scorecardresearch.com", "Analytics")]
-    [InlineData("o33249.ingest.us.sentry.io", "Analytics")]
-    [InlineData("mc.yandex.ru", "Yandex Analytics")]
+    [InlineData("ad.doubleclick.net", "Advertising")]
+    [InlineData("pagead2.googlesyndication.com", "Advertising")]
+    [InlineData("www.googletagmanager.com", "Tracking & Analytics")]
+    [InlineData("pixel.facebook.com", "Tracking & Analytics")]
+    [InlineData("connect.facebook.net", "Tracking & Analytics")]
+    [InlineData("settings-win.data.microsoft.com", "Telemetry")]
+    [InlineData("v20.events.data.microsoft.com", "Telemetry")]
+    [InlineData("bat.bing.com", "Telemetry")]
+    [InlineData("c.amazon-adsystem.com", "Advertising")]
+    [InlineData("secure.adnxs.com", "Advertising")]
+    [InlineData("id.rlcdn.com", "Advertising")]
+    [InlineData("b.scorecardresearch.com", "Tracking & Analytics")]
+    [InlineData("o33249.ingest.us.sentry.io", "Tracking & Analytics")]
+    [InlineData("mc.yandex.ru", "Tracking & Analytics")]
     [InlineData("unknown.example.com", "")]
     [InlineData("", "")]
     public void Lookup_suffix_matches_curated_categories(string domain, string expected)
         => DomainCategories.Lookup(domain).Should().Be(expected);
+
+    [Theory]
+    [InlineData("Snapchat Tracking", "Tracking & Analytics")]
+    [InlineData("LinkedIn CDN", "CDN")]
+    [InlineData("Oracle Maxymiser", "Other")]
+    [InlineData("Google Ads", "Advertising")]
+    [InlineData("Adobe Telemetry", "Telemetry")]
+    [InlineData("Mail.ru Ads", "Advertising")]
+    [InlineData("Advertising", "Advertising")]
+    [InlineData("", "")]
+    public void Canonicalize_folds_granular_labels_into_the_taxonomy(string input, string expected)
+        => DomainCategories.Canonicalize(input).Should().Be(expected);
 }

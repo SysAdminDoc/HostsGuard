@@ -2,7 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [0.9.10] — 2026-07-03
+## [0.9.11] — 2026-07-03
+
+### Changed
+- **Cleaner, consolidated hosts-file categories.** Categorization now uses a
+  small canonical taxonomy (Advertising, Tracking & Analytics, Telemetry, CDN,
+  Streaming, Gaming, Email & Marketing, Gambling, Adult, Malware, Social Media,
+  Other) instead of dozens of fragmented per-vendor sections ("Snapchat
+  Tracking", "LinkedIn CDN", "Oracle Maxymiser", …). A new `Canonicalize` step
+  folds any legacy or AI-assigned label into the taxonomy, and the service
+  re-files an existing hosts file into these sections once on start (idempotent).
+
+### Added
+- **Promoted the machine's AI-learned knowledge into the shipped curated tables.**
+  ~14 new domain→category mappings and 55 new domain→purpose annotations
+  reviewed from the AI knowledge log are now built in, so fresh installs
+  categorize and annotate them offline with no API key.
 
 ### Fixed
 - **Bulk block/allow now applies to every selected feed row.** The Hosts
