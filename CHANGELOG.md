@@ -12,6 +12,10 @@ All notable changes to HostsGuard are documented in this file.
   against a11y regressions.
 
 ### Added
+- **NET-124 — Group live connections by country.** The Firewall Activity view
+  gains a *Group by country* toggle (a triage axis alongside Group by app; combine
+  both to nest country → app), persisted like the other view toggles.
+
 - **NET-113 — Trust-by-publisher.** A consent prompt for a signed app now offers
   *Trust all software signed by "&lt;publisher&gt;"*; once trusted, any binary
   signed by that Authenticode publisher auto-allows without prompting (the

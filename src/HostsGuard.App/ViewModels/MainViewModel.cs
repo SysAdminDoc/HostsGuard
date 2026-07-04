@@ -566,6 +566,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             FwActivity.Filter = string.Empty;
             FwActivity.GroupByApp = true;
+            FwActivity.GroupByCountry = false;
             FwActivity.ResolveIps = false;
         }
 

@@ -222,6 +222,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             ObserveMode = _config.ObserveMode;
             SoundOnBlock = _config.SoundOnBlock;
             GroupByApp = _config.GetViewFlag("fw_group_by_app", true);
+            GroupByCountry = _config.GetViewFlag("fw_group_by_country");
             ResolveIps = _config.GetViewFlag("fw_resolve_ips");
             _suppressModeWrite = false;
         }
@@ -247,6 +248,10 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _groupByApp = true;
+
+    /// <summary>Group the live connections by remote country (NET-124), a triage axis.</summary>
+    [ObservableProperty]
+    private bool _groupByCountry;
 
     /// <summary>
     /// The live-connection view: filtered by the shared search DSL
@@ -433,9 +438,28 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnGroupByCountryChanged(bool value)
+    {
+        if (_view is not null)
+        {
+            ApplyGrouping(_view);
+        }
+
+        if (!_suppressModeWrite)
+        {
+            _config?.SaveViewFlag("fw_group_by_country", value);
+        }
+    }
+
     private void ApplyGrouping(ICollectionView view)
     {
         view.GroupDescriptions.Clear();
+        // Country first (outer), then app (inner) when both axes are on (NET-124).
+        if (GroupByCountry)
+        {
+            view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ConnectionRowViewModel.Country)));
+        }
+
         if (GroupByApp)
         {
             view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ConnectionRowViewModel.Process)));

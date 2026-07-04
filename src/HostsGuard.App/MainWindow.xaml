@@ -697,6 +697,10 @@
                                       IsChecked="{Binding GroupByApp}"
                                       AutomationProperties.Name="Group connections by app"
                                       ToolTip="Group the live connections under their owning process" />
+                            <CheckBox DockPanel.Dock="Right" Content="Group by country" Margin="10,0,0,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding GroupByCountry}"
+                                      AutomationProperties.Name="Group connections by country"
+                                      ToolTip="Group the live connections by remote country (triage axis); combine with Group by app to nest" />
                             <TextBox Margin="0,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
