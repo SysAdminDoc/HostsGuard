@@ -5,6 +5,13 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.0] — 2026-07-04
 
 ### Added
+- **NET-123 — Endpoint knowledge pack.** The curated offline domain-purpose table
+  gains a versioned pack (`DomainPurpose.EndpointPackVersion`) of ~45 common
+  Windows/vendor endpoints — DoH resolvers, browser/vendor updaters and telemetry
+  (Firefox, Apple, Edge/Bing, NVIDIA, Brave), SmartScreen/activation, and common
+  apps (Discord/Slack/Spotify/LinkedIn/VS Code) — so the feed explains them
+  deterministically with no AI call. User overrides (NET-107) still win.
+
 - **NET-121 — "Explain / look up connection".** The Firewall Activity connections
   view's research menu now pivots on the connection's *resolved domain* (the
   meaningful identity) rather than the raw IP — VirusTotal, who.is, and Google on

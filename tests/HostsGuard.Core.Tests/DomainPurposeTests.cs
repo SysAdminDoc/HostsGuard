@@ -50,4 +50,21 @@ public sealed class DomainPurposeTests
     [Fact]
     public void Specific_wp_entries_beat_the_generic_wp_suffix()
         => DomainPurpose.Lookup("stats.wp.com").Should().Be("WordPress.com analytics");
+
+    // NET-123: the bundled endpoint knowledge pack (common Windows/vendor endpoints).
+    [Theory]
+    [InlineData("dns.google", "Google DoH resolver")]
+    [InlineData("mozilla.cloudflare-dns.com", "Cloudflare DoH resolver (Firefox)")]
+    [InlineData("incoming.telemetry.mozilla.org", "Firefox telemetry intake")]
+    [InlineData("us.smartscreen.microsoft.com", "Windows SmartScreen reputation")]
+    [InlineData("13-courier.push.apple.com", "Apple Push Notifications (APNs)")]
+    [InlineData("gateway.discord.media", "Discord voice/video")]
+    [InlineData("wpad.marketplace.visualstudio.com", "VS Code extensions")]
+    [InlineData("gfe.nvidia.com", "NVIDIA GeForce Experience")]
+    public void Endpoint_pack_resolves(string domain, string expected)
+        => DomainPurpose.Lookup(domain).Should().Be(expected);
+
+    [Fact]
+    public void Endpoint_pack_is_versioned()
+        => DomainPurpose.EndpointPackVersion.Should().MatchRegex(@"^\d{4}-\d{2}-\d{2}$");
 }

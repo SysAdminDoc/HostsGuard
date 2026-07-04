@@ -9,6 +9,12 @@ namespace HostsGuard.Core;
 /// </summary>
 public static class DomainPurpose
 {
+    /// <summary>
+    /// Version of the bundled endpoint knowledge pack (NET-123) — bump on curation
+    /// so the offline vendor-endpoint set is reviewable and traceable.
+    /// </summary>
+    public const string EndpointPackVersion = "2026-07-04";
+
     // Ordered longest-suffix-first isn't required; lookup picks the longest match.
     private static readonly IReadOnlyList<(string Suffix, string Purpose)> Map = new[]
     {
@@ -253,6 +259,68 @@ public static class DomainPurpose
         ("www.google.com", "Google search homepage"),
         ("yandex-video.naydex.net", "Yandex video proxy"),
         ("z.cdn.debitcrebit669.com", "CDN for debitcrebit669"),
+
+        // ── Endpoint knowledge pack (NET-123, v2026-07-04) — high-frequency ──
+        // common Windows/vendor endpoints, explained deterministically offline.
+        // Windows / Microsoft
+        ("smartscreen.microsoft.com", "Windows SmartScreen reputation"),
+        ("checkappexec.microsoft.com", "SmartScreen app reputation"),
+        ("activation.sls.microsoft.com", "Windows activation"),
+        ("ctldl.windowsupdate.com", "Windows certificate-trust-list update"),
+        ("nexusrules.officeapps.live.com", "Office telemetry rules"),
+        ("nexus.officeapps.live.com", "Office telemetry"),
+        ("ecs.office.com", "Office experimentation config"),
+        ("self.events.data.microsoft.com", "Windows telemetry events"),
+        ("mobile.pipe.aria.microsoft.com", "Microsoft app telemetry (Aria)"),
+        ("browser.pipe.aria.microsoft.com", "Microsoft app telemetry (Aria)"),
+        ("edge.microsoft.com", "Microsoft Edge services"),
+        ("ntp.msn.com", "Edge/MSN new-tab feed"),
+        ("assets.msn.com", "MSN content assets"),
+        ("bing.com", "Bing search"),
+        ("clientconfig.passport.net", "Microsoft account config"),
+        // DoH / DNS resolvers
+        ("dns.google", "Google DoH resolver"),
+        ("one.one.one.one", "Cloudflare DoH resolver (1.1.1.1)"),
+        ("mozilla.cloudflare-dns.com", "Cloudflare DoH resolver (Firefox)"),
+        ("dns.quad9.net", "Quad9 DoH resolver"),
+        ("doh.opendns.com", "OpenDNS DoH resolver"),
+        // Mozilla / Firefox
+        ("telemetry.mozilla.org", "Firefox telemetry"),
+        ("incoming.telemetry.mozilla.org", "Firefox telemetry intake"),
+        ("aus5.mozilla.org", "Firefox update service"),
+        ("firefox.settings.services.mozilla.com", "Firefox remote settings"),
+        ("location.services.mozilla.com", "Firefox location service"),
+        ("push.services.mozilla.com", "Firefox push notifications"),
+        ("detectportal.firefox.com", "Firefox captive-portal check"),
+        // Apple
+        ("push.apple.com", "Apple Push Notifications (APNs)"),
+        ("gsp-ssl.ls.apple.com", "Apple location services"),
+        ("gs-loc.apple.com", "Apple location services"),
+        ("swscan.apple.com", "Apple software-update scan"),
+        ("swcdn.apple.com", "Apple software-update download"),
+        ("mesu.apple.com", "Apple software-update catalog"),
+        // Browsers (Brave / Chrome updater already partly covered)
+        ("brave.com", "Brave browser services"),
+        ("bravesoftware.com", "Brave update/services"),
+        // Common apps
+        ("discord.com", "Discord"),
+        ("discordapp.com", "Discord"),
+        ("discord.media", "Discord voice/video"),
+        ("slack.com", "Slack"),
+        ("slack-edge.com", "Slack CDN"),
+        ("spotify.com", "Spotify"),
+        ("scdn.co", "Spotify CDN"),
+        ("whatsapp.net", "WhatsApp"),
+        ("signal.org", "Signal messenger"),
+        ("linkedin.com", "LinkedIn"),
+        ("licdn.com", "LinkedIn CDN"),
+        // Dev / creator tools + GPU
+        ("update.code.visualstudio.com", "VS Code updates"),
+        ("marketplace.visualstudio.com", "VS Code extensions"),
+        ("epicgames.com", "Epic Games services"),
+        ("gfe.nvidia.com", "NVIDIA GeForce Experience"),
+        ("gfwsl.geforce.com", "NVIDIA GeForce services"),
+        ("nvidia.com", "NVIDIA services"),
     };
 
     /// <summary>Best (longest-suffix) purpose label for a domain, or "" if unknown.</summary>
