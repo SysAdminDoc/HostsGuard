@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.1] — 2026-07-05
+
+### Changed
+- Premium-polished the WPF shell and core controls with stronger hover, focus,
+  selected, disabled, command-bar, badge, empty, and service-recovery states
+  across dark and light themes.
+- Reduced startup lockout: the shell becomes usable after the service handshake
+  while tab data continues loading, then reports the fully loaded connected
+  state once background refreshes finish.
+- Refined confirmation, consent, and text-input dialogs with clearer guidance,
+  safer defaults, accessible labels/help text, and broader two-theme smoke
+  coverage.
+- Re-captured README screenshots in both themes after the UI pass.
+
 ## [0.12.0] — 2026-07-04
 
 ### Added
