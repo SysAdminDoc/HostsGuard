@@ -12,6 +12,7 @@ public partial class InputDialog : Window
         TitleText.Text = title;
         MessageText.Text = message;
         InputBox.Text = defaultValue ?? string.Empty;
+        System.Windows.Automation.AutomationProperties.SetHelpText(InputBox, message);
         Loaded += (_, _) =>
         {
             InputBox.SelectAll();

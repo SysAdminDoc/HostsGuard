@@ -18,6 +18,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <DockPanel Grid.Row="0">
@@ -44,9 +45,19 @@
             <TextBox Grid.Row="2"
                      x:Name="InputBox"
                      Margin="0,14,0,0"
+                     MinWidth="360"
+                     SpellCheck.IsEnabled="False"
                      AutomationProperties.Name="Input value" />
 
-            <Grid Grid.Row="3" Margin="0,18,0,0">
+            <Border Grid.Row="3"
+                    Style="{StaticResource Hg.StatusStrip}"
+                    Margin="0,12,0,0">
+                <TextBlock Text="Save applies the value immediately. Cancel keeps the current setting."
+                           Style="{StaticResource Hg.DimText}"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Grid Grid.Row="4" Margin="0,18,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

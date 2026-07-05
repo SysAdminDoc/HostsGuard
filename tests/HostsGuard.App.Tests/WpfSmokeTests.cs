@@ -251,6 +251,18 @@ public sealed class WpfSmokeTests
                 System.Windows.Automation.AutomationProperties.GetName(confirm)
                     .Should().Be("HostsGuard confirmation");
 
+                _stage = $"{theme}: constructing InputDialog";
+                var input = new InputDialog("Assign to rule group",
+                    "Group name for 2 rules (blank removes them from all groups):", "Browsers");
+                input.Measure(new Size(500, 260));
+                input.Arrange(new Rect(0, 0, 500, 260));
+                input.UpdateLayout();
+                System.Windows.Automation.AutomationProperties.GetName(input)
+                    .Should().Be("HostsGuard input");
+                var inputBox = (TextBox)input.FindName("InputBox");
+                System.Windows.Automation.AutomationProperties.GetHelpText(inputBox)
+                    .Should().Contain("blank removes");
+
                 vm.Dispose();
             }
 
