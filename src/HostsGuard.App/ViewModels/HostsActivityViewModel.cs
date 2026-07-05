@@ -425,7 +425,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         request.Domains.AddRange(domains);
         var result = await _client.Hosts.BlockManyAsync(request);
         StatusText = result.Ok
-            ? $"blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)"
+            ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)"
             : result.Message;
         await RefreshAsync();
     }
@@ -456,8 +456,8 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         }
 
         StatusText = removed == domains.Count
-            ? $"unblocked {Plural.Of(removed, "domain")} — removed from hosts"
-            : $"unblocked {removed} of {domains.Count}";
+            ? $"Unblocked {Plural.Of(removed, "domain")} — removed from hosts"
+            : $"Unblocked {removed} of {domains.Count}";
         await RefreshAsync();
     }
 
@@ -475,7 +475,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         var request = new BulkDomainsRequest { Source = "feed" };
         request.Domains.AddRange(domains);
         var result = await _client.Hosts.AllowManyAsync(request);
-        StatusText = result.Ok ? $"allowed {Plural.Of(result.Total, "domain")}" : result.Message;
+        StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
         await RefreshAsync();
     }
 

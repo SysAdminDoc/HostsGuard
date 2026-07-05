@@ -48,7 +48,7 @@
                     Background="{DynamicResource Hg.Mantle}"
                     BorderBrush="{DynamicResource Hg.S0}"
                     BorderThickness="1">
-                <TextBlock Text="This changes local hosts or firewall policy. Review the target before continuing."
+                <TextBlock Text="This action is applied immediately. Review the target before continuing."
                            Style="{StaticResource Hg.DimText}"
                            TextWrapping="Wrap" />
             </Border>

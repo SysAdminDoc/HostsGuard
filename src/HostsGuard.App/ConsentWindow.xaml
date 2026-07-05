@@ -3,20 +3,24 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="HostsGuard — connection blocked"
         Style="{StaticResource Hg.Window}"
-        Width="500" SizeToContent="Height"
+        Width="540" SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
         Topmost="True" ShowInTaskbar="True" ResizeMode="NoResize"
         AutomationProperties.Name="HostsGuard connection consent prompt"
         Background="{DynamicResource Hg.Base}"
         Foreground="{DynamicResource Hg.Text}">
-    <Border BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
+            Background="{DynamicResource Hg.Base}">
         <StackPanel Margin="20,16,20,16">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Left" Text="Connection blocked" FontSize="15" FontWeight="Bold"
+                <TextBlock DockPanel.Dock="Left" Text="Connection blocked" FontSize="17" FontWeight="SemiBold"
                            Foreground="{DynamicResource Hg.Red}" />
                 <TextBlock DockPanel.Dock="Right" x:Name="Countdown" HorizontalAlignment="Right"
-                           Foreground="{DynamicResource Hg.Dim}" />
+                           Foreground="{DynamicResource Hg.Dim}"
+                           AutomationProperties.LiveSetting="Polite" />
             </DockPanel>
+            <TextBlock Text="Review the process, destination, and rule scope before allowing it."
+                       Style="{StaticResource Hg.HelperText}" Margin="0,4,0,0" />
 
             <Border x:Name="ThreatBanner" Visibility="Collapsed" Margin="0,10,0,0" Padding="8,5"
                     Background="{DynamicResource Hg.Danger2}" CornerRadius="4"
@@ -36,7 +40,8 @@
             </DockPanel>
             <TextBlock x:Name="AppPath" TextWrapping="Wrap" Foreground="{DynamicResource Hg.Dim}" FontSize="11" />
 
-            <Grid Margin="0,12,0,0">
+            <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,12,0,0">
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -46,23 +51,24 @@
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
                     <RowDefinition />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Grid.Column="0" Text="Remote" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Remote" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Host" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Host" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="1" Grid.Column="1" x:Name="HostText" Foreground="{DynamicResource Hg.Dim}" Text="resolving…" />
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Location" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Location" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CountryText" />
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Direction" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Direction" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="3" Grid.Column="1" x:Name="DirectionText" />
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="Process" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,3" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Process" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="4" Grid.Column="1" x:Name="PidText" />
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="Signer" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,14,0" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Signer" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,0" />
                 <TextBlock Grid.Row="5" Grid.Column="1" x:Name="SignerText" TextWrapping="Wrap" />
                 <TextBlock Grid.Row="6" Grid.Column="0" x:Name="ServiceLabel" Text="Service" Visibility="Collapsed"
-                           Foreground="{DynamicResource Hg.Sub}" Margin="0,3,14,0" />
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,4,16,0" />
                 <TextBlock Grid.Row="6" Grid.Column="1" x:Name="ServiceText" Visibility="Collapsed"
-                           Margin="0,3,0,0" TextWrapping="Wrap" />
+                           Margin="0,4,0,0" TextWrapping="Wrap" />
             </Grid>
+            </Border>
 
             <TextBlock Text="Scope" Margin="0,14,0,4" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
             <WrapPanel>
@@ -132,8 +138,10 @@
                         Click="OnBlockAll" />
             </Grid>
 
-            <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="{DynamicResource Hg.Dim}" TextWrapping="Wrap"
-                       Text="If the timer expires, this connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically." />
+            <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0">
+                <TextBlock FontSize="11" Foreground="{DynamicResource Hg.Dim}" TextWrapping="Wrap"
+                           Text="If the timer expires, the connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically." />
+            </Border>
         </StackPanel>
     </Border>
 </Window>

@@ -288,8 +288,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
 
         StatusText = group.Trim().Length == 0
-            ? $"removed {assigned} rules from groups"
-            : $"assigned {assigned} rules to '{group.Trim()}'";
+            ? $"Removed {assigned} rules from groups"
+            : $"Assigned {assigned} rules to '{group.Trim()}'";
         await LoadRuleGroupsAsync();
     }
 

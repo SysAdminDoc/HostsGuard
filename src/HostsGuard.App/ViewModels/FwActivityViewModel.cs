@@ -394,7 +394,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var pending = Rows.Where(r => r.Info.Length == 0).ToList();
         if (pending.Count == 0)
         {
-            StatusText = "every connection is already identified";
+            StatusText = "Every connection is already identified";
             return;
         }
 
@@ -1110,7 +1110,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         if (HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
             var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
-            StatusText = ack.Ok ? $"blocked {host} (hosts)" : ack.Message;
+            StatusText = ack.Ok ? $"Blocked {host} in hosts" : ack.Message;
         }
         else if (!string.IsNullOrWhiteSpace(row.RemoteAddr))
         {
@@ -1134,7 +1134,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
-        StatusText = ack.Ok ? $"allowed {host} (hosts)" : ack.Message;
+        StatusText = ack.Ok ? $"Allowed {host} in hosts" : ack.Message;
     }
 
     /// <summary>Per-app scope block (NET-076): "internet" | "lan" | "localhost" | "inbound".</summary>
