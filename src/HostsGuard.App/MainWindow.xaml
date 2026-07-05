@@ -172,7 +172,9 @@
             </StatusBar>
 
             <!-- Main tabs -->
-            <TabControl x:Name="MainTabs" Margin="8">
+            <Grid Margin="8">
+            <TabControl x:Name="MainTabs" Margin="0"
+                        IsEnabled="{Binding IsConnected}">
                 <TabItem Header="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}">
                     <Grid Margin="4" DataContext="{Binding Activity}">
                         <Grid.RowDefinitions>
@@ -1849,6 +1851,32 @@
                     </ScrollViewer>
                 </TabItem>
             </TabControl>
+
+            <Grid Background="{DynamicResource Hg.Bg}"
+                  Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}">
+                <Border Style="{StaticResource Hg.Card}"
+                        MaxWidth="520"
+                        Padding="22,18"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="Service connection needed"
+                                   Style="{StaticResource Hg.SectionTitle}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,6" />
+                        <TextBlock Text="{Binding ConnectionText}"
+                                   Style="{StaticResource Hg.EmptyText}"
+                                   AutomationProperties.LiveSetting="Polite" />
+                        <Button Content="Reconnect"
+                                Command="{Binding ConnectCommand}"
+                                HorizontalAlignment="Center"
+                                Margin="0,14,0,0"
+                                MinWidth="120"
+                                ToolTip="Try the service connection again" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+            </Grid>
         </DockPanel>
     </Grid>
 </Window>
