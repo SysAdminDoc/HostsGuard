@@ -122,20 +122,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
             Hosts ??= new HostsViewModel(_client, _confirm);
-            await Hosts.RefreshAsync();
             Activity ??= new HostsActivityViewModel(_client, _config, _prompt);
+            RawHosts ??= new RawHostsViewModel(_client);
+            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config, _filePicker);
+            FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker, _prompt);
+            Tools ??= new ToolsViewModel(_client, _confirm);
+            Blocklists ??= new BlocklistsViewModel(_client, _confirm);
+            IsConnected = true;
+            ConnectionText = I18n.T("Status.ConnectedLoading", "Connected - loading views...");
+
+            await Hosts.RefreshAsync();
             await Activity.RefreshAsync();
             Activity.StartWatching();
-            RawHosts ??= new RawHostsViewModel(_client);
             await RawHosts.LoadAsync();
-            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config, _filePicker);
             FwActivity.StartWatching();
             await FwActivity.LoadPostureAsync();
             await FwActivity.LoadConsentHistoryAsync();
             await FwActivity.LoadLearnedAsync();
-            FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker, _prompt);
             await FwRules.RefreshAsync();
-            Tools ??= new ToolsViewModel(_client, _confirm);
             await Tools.LoadSchedulesAsync();
             await Tools.LoadServicesAsync();
             await Tools.LoadDohStatusAsync();
@@ -148,11 +152,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadTrustedPublishersAsync();
             await Tools.LoadTrustedFoldersAsync();
             await Tools.LoadKillSwitchAsync();
-            Blocklists ??= new BlocklistsViewModel(_client, _confirm);
             await Blocklists.RefreshAsync();
             await LoadFilteringModeAsync();
             StartDecisionWatch();
-            IsConnected = true;
             ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
                 + (status.Elevated ? " (elevated)" : string.Empty);
         }
