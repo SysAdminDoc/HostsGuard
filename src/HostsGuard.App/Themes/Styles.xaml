@@ -78,6 +78,22 @@
         <Setter Property="Padding" Value="8,6" />
     </Style>
 
+    <Style x:Key="Hg.CommandBar" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <Style x:Key="Hg.Badge" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,2" />
+    </Style>
+
     <Style TargetType="Button">
         <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
@@ -91,14 +107,23 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Chrome"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Margin="-2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
@@ -108,6 +133,7 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -160,19 +186,29 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="Chrome"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6">
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Margin="-2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -188,19 +224,28 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="Chrome"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6">
-                        <Grid>
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
-                            <TextBlock x:Name="Hint" Margin="8,0" VerticalAlignment="Center"
-                                       IsHitTestVisible="False" Visibility="Collapsed"
-                                       Foreground="{DynamicResource Hg.Dim}"
-                                       Text="{TemplateBinding Tag}" TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Margin="-2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                                <TextBlock x:Name="Hint" Margin="8,0" VerticalAlignment="Center"
+                                           IsHitTestVisible="False" Visibility="Collapsed"
+                                           Foreground="{DynamicResource Hg.Dim}"
+                                           Text="{TemplateBinding Tag}" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="Text" Value="">
                             <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
@@ -210,6 +255,7 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -232,19 +278,29 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="PasswordBox">
-                    <Border x:Name="Chrome"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="6">
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Margin="-2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -264,19 +320,26 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <StackPanel Orientation="Horizontal" Background="Transparent">
-                        <Border x:Name="Box" Width="16" Height="16" CornerRadius="4"
-                                Background="{DynamicResource Hg.Mantle}"
-                                BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
-                                VerticalAlignment="Center">
-                            <Path x:Name="Check" Stretch="Uniform" Margin="2.5"
-                                  Data="M 0 5 L 3.5 8.5 L 9 1"
-                                  Stroke="{DynamicResource Hg.OnSel}" StrokeThickness="1.6"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Visibility="Collapsed" />
-                        </Border>
-                        <ContentPresenter Margin="7,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
-                    </StackPanel>
+                    <Border x:Name="FocusRing"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="3,2"
+                            Background="Transparent">
+                        <StackPanel Orientation="Horizontal" Background="Transparent">
+                            <Border x:Name="Box" Width="17" Height="17" CornerRadius="4"
+                                    Background="{DynamicResource Hg.Mantle}"
+                                    BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                                <Path x:Name="Check" Stretch="Uniform" Margin="2.5"
+                                      Data="M 0 5 L 3.5 8.5 L 9 1"
+                                      Stroke="{DynamicResource Hg.OnSel}" StrokeThickness="1.6"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                      Visibility="Collapsed" />
+                            </Border>
+                            <ContentPresenter Margin="7,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </StackPanel>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Box" Property="Background" Value="{DynamicResource Hg.Blue}" />
@@ -288,6 +351,7 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
@@ -312,6 +376,13 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
                     <Grid Margin="0,0,2,0">
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8,8,0,0"
+                                Margin="-2,-2,-2,0"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
                         <Border x:Name="Chrome" Background="Transparent" CornerRadius="6,6,0,0"
                                 BorderBrush="Transparent" BorderThickness="1,1,1,0"
                                 Padding="14,8">
@@ -338,6 +409,7 @@
                         </MultiTrigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -360,6 +432,8 @@
         <Setter Property="SelectionUnit" Value="FullRow" />
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="RowHeaderWidth" Value="0" />
+        <Setter Property="SelectionMode" Value="Extended" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
     </Style>
 
     <!-- Invisible 6px-wide grab handles the DataGrid needs for column resizing. -->
@@ -423,12 +497,15 @@
 
     <Style TargetType="DataGridRow">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="MinHeight" Value="32" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
             </Trigger>
         </Style.Triggers>
@@ -441,12 +518,25 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter VerticalAlignment="Center" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

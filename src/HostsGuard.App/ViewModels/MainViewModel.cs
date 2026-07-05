@@ -580,6 +580,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Activity.Filter = string.Empty;
             Activity.ShowHidden = false;
             Activity.HideBlocked = false;
+            Activity.HideReverseDns = false;
+            Activity.BlockedOnly = false;
             Activity.GroupByRoot = false;
         }
 
@@ -604,6 +606,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         UiScalePct = 100;
+        ConnectionText = "View reset to defaults";
     }
 
     /// <summary>Re-query every tab from the service.</summary>
@@ -644,9 +647,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (Tools is not null)
         {
+            await Tools.LoadSchedulesAsync();
+            await Tools.LoadServicesAsync();
+            await Tools.LoadDohStatusAsync();
+            await Tools.LoadProfilesAsync();
+            await Tools.LoadDefenderStatusAsync();
+            await Tools.LoadBackupsAsync();
+            await Tools.LoadSecureRulesAsync();
             await Tools.LoadAiStatusAsync();
             await Tools.LoadIntelStatusAsync();
+            await Tools.LoadTrustedPublishersAsync();
+            await Tools.LoadTrustedFoldersAsync();
+            await Tools.LoadKillSwitchAsync();
         }
+
+        ConnectionText = "All visible surfaces refreshed";
     }
 
     [RelayCommand]

@@ -219,6 +219,7 @@
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
+                                  AutomationProperties.Name="DNS activity feed"
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
                                 <!-- Flat section headers: a styled band per root with the
@@ -461,6 +462,7 @@
                                 </DockPanel>
 
                                 <DataGrid Grid.Row="1" x:Name="DomainsGrid" ItemsSource="{Binding Domains}"
+                                          AutomationProperties.Name="Managed domains"
                                           IsVisibleChanged="OnGridVisible">
                                     <DataGrid.RowStyle>
                                         <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
@@ -503,7 +505,7 @@
                                         <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110" />
                                         <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="2*" />
                                         <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="70" />
-                                        <DataGridTemplateColumn Header="" Width="170">
+                                        <DataGridTemplateColumn Header="Actions" Width="170">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
@@ -547,7 +549,8 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}">
+                                <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}"
+                                          AutomationProperties.Name="Blocklist sources">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
                                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
@@ -562,7 +565,7 @@
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="" Width="190">
+                                        <DataGridTemplateColumn Header="Actions" Width="190">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
@@ -714,6 +717,7 @@
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" x:Name="ConnectionsGrid" ItemsSource="{Binding ConnectionsView}"
+                                  AutomationProperties.Name="Live firewall connections"
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
                                 <GroupStyle>
@@ -889,7 +893,8 @@
                                     <Button DockPanel.Dock="Right" Content="Refresh" Padding="10,2"
                                             Command="{Binding LoadLearnedCommand}" />
                                 </DockPanel>
-                                <DataGrid ItemsSource="{Binding Learned}" MaxHeight="130" Margin="0,6,0,0">
+                                <DataGrid ItemsSource="{Binding Learned}" MaxHeight="130" Margin="0,6,0,0"
+                                          AutomationProperties.Name="Learning-mode auto-allow decisions">
                                     <DataGrid.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Keep (permanent allow)"
@@ -927,13 +932,14 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{DynamicResource Hg.S1}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                            <Border Style="{StaticResource Hg.Badge}" Margin="0,0,6,0">
                                                 <TextBlock Text="{Binding}" Style="{StaticResource Hg.DimText}" />
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <DataGrid ItemsSource="{Binding ConsentHistory}" MaxHeight="150" Margin="0,6,0,0">
+                                <DataGrid ItemsSource="{Binding ConsentHistory}" MaxHeight="150" Margin="0,6,0,0"
+                                          AutomationProperties.Name="Recent connection decisions">
                                     <DataGrid.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="Allow permanently"
@@ -983,7 +989,8 @@
                                                  AutomationProperties.Name="Search connection history"
                                                  ToolTip="Substring match on process, remote address, or country" />
                                     </DockPanel>
-                                    <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0">
+                                    <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0"
+                                              AutomationProperties.Name="Connection history">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="When" Binding="{Binding TsText}" Width="120" />
                                             <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="150" />
@@ -1055,6 +1062,7 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <DockPanel Grid.Row="0" Margin="0,0,0,8">
@@ -1073,6 +1081,7 @@
                         </DockPanel>
 
                         <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}"
+                                  AutomationProperties.Name="Firewall rules"
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
@@ -1223,7 +1232,7 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock Grid.Row="3" Margin="2,6,0,0"
+                        <TextBlock Grid.Row="4" Margin="2,6,0,0"
                                    Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
                     </Grid>
                 </TabItem>
@@ -1548,7 +1557,7 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTemplateColumn Header="" Width="Auto">
+                                            <DataGridTemplateColumn Header="Actions" Width="Auto">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal">
@@ -1602,7 +1611,7 @@
                                             <DataGridTextColumn Header="Days" Binding="{Binding DaysText, UpdateSourceTrigger=PropertyChanged}" Width="2*" />
                                             <DataGridTextColumn Header="Start" Binding="{Binding Start, UpdateSourceTrigger=PropertyChanged}" Width="80" />
                                             <DataGridTextColumn Header="End" Binding="{Binding End, UpdateSourceTrigger=PropertyChanged}" Width="80" />
-                                            <DataGridTemplateColumn Header="" Width="90">
+                                            <DataGridTemplateColumn Header="Actions" Width="90">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
                                                         <Button Content="Remove" Padding="8,2"
