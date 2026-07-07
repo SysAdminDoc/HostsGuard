@@ -24,6 +24,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
+    "events" => await EventsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
@@ -54,6 +55,9 @@ static int Usage()
           HostsGuard.Cli export [path.json]
           HostsGuard.Cli export-policy [path.json]
           HostsGuard.Cli import-policy <path.json>
+          HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
+                               [--action name] [--reason name] [--domain text] [--process text]
+                               [--category name] [--export path.csv]
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
@@ -337,6 +341,198 @@ static async Task<int> ImportPolicyAsync(string[] args)
             PrintServiceUnavailable(ex.Status.Detail);
             return 3;
         }
+    }
+}
+
+static async Task<int> EventsAsync(string[] args)
+{
+    var request = new EventLogRequest { Limit = 200 };
+    string? exportPath = null;
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (!TryReadOptionValue(args, ref i, arg, "--limit", out var value) || !int.TryParse(value, out var limit))
+        {
+            if (arg.StartsWith("--limit", StringComparison.Ordinal))
+            {
+                Console.Error.WriteLine("Invalid --limit value.");
+                return 1;
+            }
+        }
+        else
+        {
+            request.Limit = limit;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--offset", out value))
+        {
+            if (!int.TryParse(value, out var offset))
+            {
+                Console.Error.WriteLine("Invalid --offset value.");
+                return 1;
+            }
+
+            request.Offset = offset;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--search", out value))
+        {
+            request.Search = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--since", out value))
+        {
+            request.Since = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--until", out value))
+        {
+            request.Until = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--action", out value))
+        {
+            request.Action = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--reason", out value))
+        {
+            request.Reason = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--domain", out value))
+        {
+            request.Domain = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            request.Process = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--category", out value))
+        {
+            request.Category = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--export", out value))
+        {
+            exportPath = value;
+            request.Redact = true;
+            continue;
+        }
+
+        if (string.Equals(arg, "--redact", StringComparison.Ordinal))
+        {
+            request.Redact = true;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown events option: {arg}");
+        return 1;
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var list = await new Monitoring.MonitoringClient(channel).ListEventsAsync(request);
+            if (!string.IsNullOrEmpty(exportPath))
+            {
+                try
+                {
+                    await File.WriteAllTextAsync(exportPath, BuildEventsCsv(list.Entries));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+                {
+                    Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+                    return 2;
+                }
+
+                Console.WriteLine($"exported {list.Entries.Count} of {list.Total} redacted events to {Path.GetFullPath(exportPath)}");
+                return 0;
+            }
+
+            Console.WriteLine($"events: {list.Entries.Count} of {list.Total} (offset {list.Offset}){(list.Redacted ? " redacted" : string.Empty)}");
+            Console.WriteLine("when\tcategory\taction\treason\tdomain\tprocess\tdetails");
+            foreach (var e in list.Entries)
+            {
+                Console.WriteLine($"{e.Ts}\t{e.Category}\t{e.Action}\t{e.Reason}\t{e.Domain}\t{e.Process}\t{e.Details}");
+            }
+
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static bool TryReadOptionValue(string[] args, ref int index, string arg, string name, out string value)
+{
+    value = string.Empty;
+    if (arg.StartsWith(name + "=", StringComparison.Ordinal))
+    {
+        value = arg[(name.Length + 1)..];
+        return value.Length != 0;
+    }
+
+    if (!string.Equals(arg, name, StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    if (index + 1 >= args.Length)
+    {
+        return false;
+    }
+
+    value = args[++index];
+    return value.Length != 0;
+}
+
+static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
+{
+    var sb = new System.Text.StringBuilder();
+    sb.Append("When,Category,Action,Reason,Domain,Process,Details\r\n");
+    foreach (var e in rows)
+    {
+        sb.Append(Csv(e.Ts)).Append(',')
+          .Append(Csv(e.Category)).Append(',')
+          .Append(Csv(e.Action)).Append(',')
+          .Append(Csv(e.Reason)).Append(',')
+          .Append(Csv(e.Domain)).Append(',')
+          .Append(Csv(e.Process)).Append(',')
+          .Append(Csv(e.Details)).Append("\r\n");
+    }
+
+    return sb.ToString();
+
+    static string Csv(string? value)
+    {
+        value ??= string.Empty;
+        return value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
+            ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
+            : value;
     }
 }
 

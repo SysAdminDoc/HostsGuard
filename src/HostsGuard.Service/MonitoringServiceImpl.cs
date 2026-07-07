@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Runtime.Versioning;
 using Grpc.Core;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
+using HostsGuard.Data;
 
 namespace HostsGuard.Service;
 
@@ -47,6 +49,47 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
                 RemotePort = (int)r.RemotePort,
                 Country = r.Country,
                 FwStatus = r.FwStatus,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<EventLogList> ListEvents(EventLogRequest request, ServerCallContext context)
+    {
+        var limit = Math.Clamp(request.Limit > 0 ? request.Limit : 200, 1, 2000);
+        var offset = Math.Max(0, request.Offset);
+        var page = _state.Db.GetEvents(new EventLogFilter(
+            Limit: limit,
+            Offset: offset,
+            Search: Clean(request.Search),
+            Since: Clean(request.Since),
+            Until: Clean(request.Until),
+            Action: Clean(request.Action),
+            Reason: Clean(request.Reason),
+            Domain: Clean(request.Domain),
+            Process: Clean(request.Process),
+            Category: Clean(request.Category)));
+
+        var list = new EventLogList
+        {
+            Limit = limit,
+            Offset = offset,
+            Total = page.Total,
+            Redacted = request.Redact,
+        };
+        foreach (var row in page.Rows)
+        {
+            list.Entries.Add(new EventLogEntry
+            {
+                Id = row.Id,
+                Ts = row.Ts,
+                Domain = request.Redact ? Redaction.RedactText(row.Domain) : row.Domain,
+                Action = row.Action,
+                Process = request.Redact ? Redaction.RedactScalar("program", row.Process) : row.Process,
+                Details = request.Redact ? Redaction.RedactText(row.Details) : row.Details,
+                Reason = row.Reason,
+                Category = row.Category,
             });
         }
 
@@ -138,4 +181,6 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
             // Client went away — normal stream termination.
         }
     }
+
+    private static string? Clean(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

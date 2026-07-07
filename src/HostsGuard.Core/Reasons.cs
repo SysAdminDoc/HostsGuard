@@ -18,6 +18,7 @@ public static class Reasons
         new("telemetry", "Telemetry"),
         new("doh", "Encrypted DNS"),
         new("firewall", "Firewall"),
+        new("consent", "Consent"),
         new("import", "Import"),
         new("hosts_file", "Hosts File"),
         new("cli", "CLI"),

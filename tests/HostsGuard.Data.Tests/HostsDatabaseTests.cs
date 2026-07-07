@@ -123,6 +123,37 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Event_ledger_filters_pages_and_derives_categories()
+    {
+        using var db = new HostsDatabase(DbPath("events.db"));
+        db.LogEvent("ads.example.com", "blocked", process: "chrome.exe", details: "hosts file", reason: "manual");
+        db.LogEvent("93.184.216.34", "fw_blocked", process: "app.exe", details: "remote 93.184.216.34 contacted", reason: "manual");
+        db.LogEvent("C:\\Tools\\demo.exe", "consent_allow", details: "Out|1.1.1.1|TCP|permanent", reason: "consent");
+
+        db.GetEvents(new EventLogFilter(Action: "blocked")).Rows.Should()
+            .ContainSingle(e => e.Domain == "ads.example.com");
+        db.GetEvents(new EventLogFilter(Reason: "consent")).Rows.Should()
+            .ContainSingle(e => e.Action == "consent_allow");
+        db.GetEvents(new EventLogFilter(Domain: "93.184")).Rows.Should()
+            .ContainSingle(e => e.Action == "fw_blocked");
+        db.GetEvents(new EventLogFilter(Process: "chrome")).Rows.Should()
+            .ContainSingle(e => e.Domain == "ads.example.com");
+        db.GetEvents(new EventLogFilter(Search: "remote")).Rows.Should()
+            .ContainSingle(e => e.Action == "fw_blocked");
+        db.GetEvents(new EventLogFilter(Category: "consent")).Rows.Should()
+            .ContainSingle(e => e.Action == "consent_allow");
+        db.GetEvents(new EventLogFilter(Category: "firewall")).Rows.Should()
+            .ContainSingle(e => e.Action == "fw_blocked");
+
+        var page = db.GetEvents(new EventLogFilter(Limit: 1, Offset: 1));
+        page.Rows.Should().ContainSingle();
+        page.Total.Should().Be(3);
+
+        db.GetEvents(new EventLogFilter(Since: DateTime.Now.AddMinutes(-1).ToString("o"))).Total.Should().Be(3);
+        db.GetEvents(new EventLogFilter(Until: DateTime.Now.AddMinutes(-1).ToString("o"))).Total.Should().Be(0);
+    }
+
+    [Fact]
     public void Migration_is_idempotent()
     {
         var path = DbPath("idem.db");

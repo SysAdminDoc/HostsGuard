@@ -678,6 +678,9 @@ service Monitoring {
   // server-side on first sighting of a connection tuple; nothing leaves the
   // machine.
   rpc GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList);
+  // Persistent event ledger: every structured block/allow/firewall/policy event
+  // the service recorded, with paging, filters, and optional redaction for export.
+  rpc ListEvents(EventLogRequest) returns (EventLogList);
   // Per-app bandwidth timeline (NET-070): ETW kernel network byte counters
   // aggregated per process per minute. Series are zero-filled and aligned,
   // oldest → newest, one bucket per minute.
@@ -706,6 +709,39 @@ message ConnectionHistoryRow {
 
 message ConnectionHistoryList {
   repeated ConnectionHistoryRow rows = 1;
+}
+
+message EventLogRequest {
+  int32 limit = 1;       // 0 = server default, max 2000
+  int32 offset = 2;      // zero-based page offset
+  string search = 3;     // substring match on action/domain/process/details/reason
+  string since = 4;      // ISO-8601 floor (optional)
+  string until = 5;      // ISO-8601 ceiling (optional)
+  string action = 6;     // exact action filter
+  string reason = 7;     // exact canonical reason filter
+  string domain = 8;     // substring match on domain/subject
+  string process = 9;    // substring match on process
+  string category = 10;  // taxonomy bucket: hosts/firewall/consent/dns/lists/policy/defender/support/other
+  bool redact = 11;      // true = redact domain/process/details for export/support use
+}
+
+message EventLogEntry {
+  int64 id = 1;
+  string ts = 2;
+  string domain = 3;
+  string action = 4;
+  string process = 5;
+  string details = 6;
+  string reason = 7;
+  string category = 8;
+}
+
+message EventLogList {
+  repeated EventLogEntry entries = 1;
+  int32 total = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  bool redacted = 5;
 }
 
 message BandwidthRequest {

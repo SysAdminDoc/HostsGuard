@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.8] - 2026-07-07
+
+### Added
+- Exposed the persisted structured event ledger through `Monitoring.ListEvents`,
+  the WPF Firewall Activity history panel, and `HostsGuard.Cli events`, with
+  paging plus time/action/reason/domain/process/category filters.
+- Added redacted CSV export for CLI event-ledger output and tests covering
+  event filters, taxonomy categories, and export-safe redaction.
+
 ## [0.12.7] - 2026-07-07
 
 ### Changed

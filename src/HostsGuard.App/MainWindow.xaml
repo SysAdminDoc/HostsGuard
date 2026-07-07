@@ -1515,6 +1515,80 @@
                                     </DataGrid>
                                     <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,0" />
 
+                                    <DockPanel LastChildFill="False" Margin="0,12,0,0">
+                                        <TextBlock DockPanel.Dock="Left" Text="Event ledger" FontWeight="SemiBold" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding EventStatus}"
+                                                   Style="{StaticResource Hg.DimText}" />
+                                    </DockPanel>
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Content="Load events" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding LoadEventsCommand}" />
+                                        <Button Content="Prev" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding PreviousEventsPageCommand}" />
+                                        <Button Content="Next" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding NextEventsPageCommand}" />
+                                        <TextBox Width="54" Margin="0,0,6,6"
+                                                 Text="{Binding EventLimit, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Event page size"
+                                                 ToolTip="Event page size, 1-2000" />
+                                        <TextBox Width="66" Margin="0,0,6,6"
+                                                 Text="{Binding EventOffset, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Event page offset"
+                                                 ToolTip="Zero-based event page offset" />
+                                        <TextBox Width="150" Margin="0,0,6,6"
+                                                 Text="{Binding EventSearch, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Search events"
+                                                 AutomationProperties.Name="Search event ledger" />
+                                        <ComboBox Width="112" Margin="0,0,6,6"
+                                                  ItemsSource="{x:Static vm:FwActivityViewModel.EventCategories}"
+                                                  SelectedItem="{Binding EventCategory, UpdateSourceTrigger=PropertyChanged}"
+                                                  AutomationProperties.Name="Event category filter"
+                                                  ToolTip="Event category" />
+                                        <TextBox Width="112" Margin="0,0,6,6"
+                                                 Text="{Binding EventAction, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Action"
+                                                 AutomationProperties.Name="Event action filter" />
+                                        <TextBox Width="100" Margin="0,0,6,6"
+                                                 Text="{Binding EventReason, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Reason"
+                                                 AutomationProperties.Name="Event reason filter" />
+                                        <TextBox Width="120" Margin="0,0,6,6"
+                                                 Text="{Binding EventDomain, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Domain"
+                                                 AutomationProperties.Name="Event domain filter" />
+                                        <TextBox Width="120" Margin="0,0,6,6"
+                                                 Text="{Binding EventProcess, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Process"
+                                                 AutomationProperties.Name="Event process filter" />
+                                        <TextBox Width="148" Margin="0,0,6,6"
+                                                 Text="{Binding EventSince, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Since ISO"
+                                                 AutomationProperties.Name="Event since filter" />
+                                        <TextBox Width="148" Margin="0,0,6,6"
+                                                 Text="{Binding EventUntil, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Until ISO"
+                                                 AutomationProperties.Name="Event until filter" />
+                                    </WrapPanel>
+                                    <DataGrid ItemsSource="{Binding EventRows}" MaxHeight="180" Margin="0,2,0,0"
+                                              AutomationProperties.Name="Persisted event ledger">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="When" Binding="{Binding TsText}" Width="118" />
+                                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="82" />
+                                            <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="130" />
+                                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="92" />
+                                            <DataGridTextColumn Header="Subject" Binding="{Binding Domain}" Width="1.2*" />
+                                            <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="1*" />
+                                            <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="1.6*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
                                     <DockPanel LastChildFill="False" Margin="0,10,0,0">
                                         <TextBlock DockPanel.Dock="Left" Text="Per-app bandwidth" FontWeight="SemiBold" />
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding BandwidthStatus}"

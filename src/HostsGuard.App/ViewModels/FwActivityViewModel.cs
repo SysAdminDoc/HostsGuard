@@ -163,6 +163,34 @@ public sealed partial class HistoryRowViewModel : ObservableObject
     private string _fwStatus = string.Empty;
 }
 
+/// <summary>Row VM for the persisted structured event ledger.</summary>
+public sealed partial class EventLogRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TsText))]
+    private string _ts = string.Empty;
+
+    public string TsText => TimeText.Compact(Ts);
+
+    [ObservableProperty]
+    private string _category = string.Empty;
+
+    [ObservableProperty]
+    private string _action = string.Empty;
+
+    [ObservableProperty]
+    private string _reason = string.Empty;
+
+    [ObservableProperty]
+    private string _domain = string.Empty;
+
+    [ObservableProperty]
+    private string _process = string.Empty;
+
+    [ObservableProperty]
+    private string _details = string.Empty;
+}
+
 /// <summary>
 /// FW Activity tab: live connections from the WatchConnections stream with
 /// quick-block (IP / program) actions that create visible HG_ COM rules, a
@@ -648,13 +676,62 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<HistoryRowViewModel> HistoryRows { get; } = new();
 
+    public ObservableCollection<EventLogRowViewModel> EventRows { get; } = new();
+
     public ObservableCollection<TimelineSeriesViewModel> Bandwidth { get; } = new();
+
+    public static IReadOnlyList<string> EventCategories { get; } = new[]
+    {
+        string.Empty,
+        "hosts",
+        "firewall",
+        "consent",
+        "dns",
+        "lists",
+        "policy",
+        "defender",
+        "support",
+        "other",
+    };
 
     [ObservableProperty]
     private string _historySearch = string.Empty;
 
     [ObservableProperty]
     private string _historyStatus = "Click Load to show recorded connections.";
+
+    [ObservableProperty]
+    private string _eventSearch = string.Empty;
+
+    [ObservableProperty]
+    private string _eventSince = string.Empty;
+
+    [ObservableProperty]
+    private string _eventUntil = string.Empty;
+
+    [ObservableProperty]
+    private string _eventAction = string.Empty;
+
+    [ObservableProperty]
+    private string _eventReason = string.Empty;
+
+    [ObservableProperty]
+    private string _eventDomain = string.Empty;
+
+    [ObservableProperty]
+    private string _eventProcess = string.Empty;
+
+    [ObservableProperty]
+    private string _eventCategory = string.Empty;
+
+    [ObservableProperty]
+    private string _eventStatus = "Click Load events to browse the persisted event ledger.";
+
+    [ObservableProperty]
+    private int _eventLimit = 200;
+
+    [ObservableProperty]
+    private int _eventOffset;
 
     [ObservableProperty]
     private string _bandwidthStatus = "Not loaded";
@@ -690,6 +767,57 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
         await LoadBandwidthAsync();
+    }
+
+    [RelayCommand]
+    public async Task LoadEventsAsync()
+    {
+        var limit = Math.Clamp(EventLimit <= 0 ? 200 : EventLimit, 1, 2000);
+        EventLimit = limit;
+        EventOffset = Math.Max(0, EventOffset);
+        var events = await _client.Monitoring.ListEventsAsync(new EventLogRequest
+        {
+            Limit = limit,
+            Offset = EventOffset,
+            Search = EventSearch ?? string.Empty,
+            Since = EventSince ?? string.Empty,
+            Until = EventUntil ?? string.Empty,
+            Action = EventAction ?? string.Empty,
+            Reason = EventReason ?? string.Empty,
+            Domain = EventDomain ?? string.Empty,
+            Process = EventProcess ?? string.Empty,
+            Category = EventCategory ?? string.Empty,
+        });
+        EventRows.Clear();
+        foreach (var row in events.Entries)
+        {
+            EventRows.Add(new EventLogRowViewModel
+            {
+                Ts = row.Ts,
+                Category = row.Category,
+                Action = row.Action,
+                Reason = row.Reason,
+                Domain = row.Domain,
+                Process = row.Process,
+                Details = row.Details,
+            });
+        }
+
+        EventStatus = $"{Plural.Of(EventRows.Count, "event")} shown of {Plural.Of(events.Total, "match")} · offset {events.Offset}";
+    }
+
+    [RelayCommand]
+    public async Task PreviousEventsPageAsync()
+    {
+        EventOffset = Math.Max(0, EventOffset - Math.Max(1, EventLimit));
+        await LoadEventsAsync();
+    }
+
+    [RelayCommand]
+    public async Task NextEventsPageAsync()
+    {
+        EventOffset += Math.Max(1, EventLimit);
+        await LoadEventsAsync();
     }
 
     [RelayCommand]

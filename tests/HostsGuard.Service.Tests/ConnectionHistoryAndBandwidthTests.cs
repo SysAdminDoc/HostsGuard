@@ -124,4 +124,38 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         (await impl.SetHistorySettings(new HistorySettings { RetentionDays = 14 }, null!)).Ok.Should().BeTrue();
         (await impl.GetHistorySettings(new Empty(), null!)).RetentionDays.Should().Be(14);
     }
+
+    [Fact]
+    public async Task List_events_filters_and_redacts_export_rows()
+    {
+        _db.LogEvent("repo.maven.apache.org", "blocked", process: @"C:\Users\me\app.exe",
+            details: "called https://api.example.com/key/abcdef0123456789abcdef0123456789 at 93.184.216.34",
+            reason: "manual");
+        _db.LogEvent("firewall", "lockdown_on", details: "Public=block", reason: "manual");
+        var impl = new MonitoringServiceImpl(_state);
+
+        var filtered = await impl.ListEvents(new EventLogRequest
+        {
+            Limit = 10,
+            Category = "hosts",
+            Domain = "maven",
+        }, null!);
+
+        filtered.Total.Should().Be(1);
+        filtered.Entries.Should().ContainSingle(e => e.Action == "blocked" && e.Category == "hosts");
+
+        var redacted = await impl.ListEvents(new EventLogRequest
+        {
+            Limit = 10,
+            Search = "api.example.com",
+            Redact = true,
+        }, null!);
+
+        var row = redacted.Entries.Should().ContainSingle().Subject;
+        redacted.Redacted.Should().BeTrue();
+        row.Domain.Should().Contain("<REDACTED_DOMAIN:");
+        row.Process.Should().Be("app.exe");
+        row.Details.Should().Contain("<REDACTED_URL:").And.Contain("<REDACTED_IP:");
+        row.Details.Should().NotContain("api.example.com");
+    }
 }

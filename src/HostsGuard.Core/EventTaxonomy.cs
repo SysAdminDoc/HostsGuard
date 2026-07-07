@@ -94,6 +94,12 @@ public static class EventTaxonomy
             return Categories.Lists;
         }
 
+        if (a.Contains("profile", StringComparison.Ordinal) || a.Contains("schedule", StringComparison.Ordinal)
+            || a.Contains("lock", StringComparison.Ordinal) || a is "imported")
+        {
+            return Categories.Policy;
+        }
+
         return Categories.Other;
     }
 }

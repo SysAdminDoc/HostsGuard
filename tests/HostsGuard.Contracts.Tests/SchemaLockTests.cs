@@ -120,6 +120,7 @@ public class SchemaLockTests
           GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
           GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)
           GetHistorySettings(Empty) returns (HistorySettings)
+          ListEvents(EventLogRequest) returns (EventLogList)
           SetHistorySettings(HistorySettings) returns (Ack)
           WatchConnections(Empty) returns (stream ConnectionEvent)
           WatchDns(Empty) returns (stream DnsEvent)

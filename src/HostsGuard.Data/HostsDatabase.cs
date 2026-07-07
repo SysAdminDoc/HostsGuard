@@ -29,6 +29,26 @@ public sealed record ConnHistoryRow(
 /// <summary>A per-process per-minute bandwidth bucket (NET-070).</summary>
 public sealed record BandwidthRow(string Process, string Minute, long Sent, long Recv);
 
+/// <summary>A persisted event-log row with its derived taxonomy category.</summary>
+public sealed record EventLogRow(
+    long Id, string Ts, string Domain, string Action, string Process, string Details, string Reason, string Category);
+
+/// <summary>Filter and paging shape for the persisted event ledger.</summary>
+public sealed record EventLogFilter(
+    int Limit = 200,
+    int Offset = 0,
+    string? Search = null,
+    string? Since = null,
+    string? Until = null,
+    string? Action = null,
+    string? Reason = null,
+    string? Domain = null,
+    string? Process = null,
+    string? Category = null);
+
+/// <summary>A page of filtered event-log rows plus the total matching count.</summary>
+public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -1457,6 +1477,111 @@ public sealed class HostsDatabase : IDisposable
     }
 
     // ─── Stats ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Paged/filterable persistent event ledger. Direct filters run in SQLite;
+    /// the category filter is applied after deriving the canonical taxonomy
+    /// bucket from the stored action.
+    /// </summary>
+    public EventLogPage GetEvents(EventLogFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        var limit = Math.Clamp(filter.Limit <= 0 ? 200 : filter.Limit, 1, 2000);
+        var offset = Math.Max(0, filter.Offset);
+        var (where, args) = BuildEventWhere(filter);
+
+        lock (_gate)
+        {
+            if (!string.IsNullOrWhiteSpace(filter.Category))
+            {
+                var all = _conn.Query<EventLogRowRaw>(
+                        $"SELECT id, ts, domain, action, process, details, reason FROM log{where} ORDER BY ts DESC, id DESC",
+                        args)
+                    .Select(ToEventLogRow)
+                    .Where(r => string.Equals(r.Category, filter.Category, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                return new EventLogPage(all.Skip(offset).Take(limit).ToList(), all.Count);
+            }
+
+            var total = _conn.ExecuteScalar<int>($"SELECT COUNT(*) FROM log{where}", args);
+            args.Add("limit", limit);
+            args.Add("offset", offset);
+            var rows = _conn.Query<EventLogRowRaw>(
+                    $"SELECT id, ts, domain, action, process, details, reason FROM log{where} ORDER BY ts DESC, id DESC LIMIT @limit OFFSET @offset",
+                    args)
+                .Select(ToEventLogRow)
+                .ToList();
+            return new EventLogPage(rows, total);
+        }
+    }
+
+    private static (string Where, DynamicParameters Args) BuildEventWhere(EventLogFilter filter)
+    {
+        var clauses = new List<string>();
+        var args = new DynamicParameters();
+
+        AddLike("search", filter.Search,
+            "(domain LIKE @search OR action LIKE @search OR process LIKE @search OR details LIKE @search OR reason LIKE @search)");
+        if (!string.IsNullOrWhiteSpace(filter.Since))
+        {
+            clauses.Add("ts >= @since");
+            args.Add("since", filter.Since.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Until))
+        {
+            clauses.Add("ts <= @until");
+            args.Add("until", filter.Until.Trim());
+        }
+
+        AddExact("action", filter.Action, "action");
+        AddExact("reason", filter.Reason, "reason");
+        AddLike("domain", filter.Domain, "domain LIKE @domain");
+        AddLike("process", filter.Process, "process LIKE @process");
+
+        return (clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses), args);
+
+        void AddLike(string name, string? value, string clause)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            clauses.Add(clause);
+            args.Add(name, "%" + EscapeLike(value.Trim()) + "%");
+        }
+
+        void AddExact(string name, string? value, string column)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            clauses.Add($"LOWER({column}) = LOWER(@{name})");
+            args.Add(name, value.Trim());
+        }
+    }
+
+    private static string EscapeLike(string value) => value
+        .Replace("[", "[[]", StringComparison.Ordinal)
+        .Replace("%", "[%]", StringComparison.Ordinal)
+        .Replace("_", "[_]", StringComparison.Ordinal);
+
+    private static EventLogRow ToEventLogRow(EventLogRowRaw row)
+        => new(
+            row.Id,
+            row.Ts ?? string.Empty,
+            row.Domain ?? string.Empty,
+            row.Action ?? string.Empty,
+            row.Process ?? string.Empty,
+            row.Details ?? string.Empty,
+            row.Reason ?? string.Empty,
+            EventTaxonomy.Category(row.Action));
+
+    private sealed record EventLogRowRaw(
+        long Id, string? Ts, string? Domain, string? Action, string? Process, string? Details, string? Reason);
 
     public DomainStats GetStats()
     {

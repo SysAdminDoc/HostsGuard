@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.7-blue)
+![Version](https://img.shields.io/badge/version-0.12.8-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -137,7 +137,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
-| Event taxonomy | Structured, filterable event log of every block, allow, firewall, and policy action |
+| Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 
 ### CLI
 
@@ -147,7 +147,10 @@ HostsGuard.Cli block <domain> [reason]
 HostsGuard.Cli allow <domain> [reason]
 HostsGuard.Cli unblock <domain>
 HostsGuard.Cli export [path.json]
+HostsGuard.Cli export-policy [path.json]
+HostsGuard.Cli import-policy <path.json>
 HostsGuard.Cli mode [normal|notify|learning]
+HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli release-smoke
 ```
 
@@ -166,11 +169,11 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 774 tests, no elevation needed
+dotnet test HostsGuard.sln           # 784 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.7-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.8-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
