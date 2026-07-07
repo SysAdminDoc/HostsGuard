@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.18-blue)
+![Version](https://img.shields.io/badge/version-0.12.19-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -172,14 +172,16 @@ git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
 dotnet test HostsGuard.sln           # 803 tests, no elevation needed
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
+                                      # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
                                       # offscreen rendered WPF dark/light smoke
 build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-arm64 -> dist\dotnet\<rid>\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.18-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.18-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.19-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.19-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
@@ -193,7 +195,10 @@ The .NET engine pins its runtime and dependency posture:
   (`TargetLatestRuntimePatch`), so self-contained artifacts bundle a current
   runtime.
 - **Dependency CVEs:** `dotnet list package --vulnerable --include-transitive`
-  is kept clean. The native SQLite bundle is pinned to `SQLitePCLRaw.bundle_e_sqlite3`
+  is kept clean. `tools\package-hygiene.ps1` is the local release ratchet: it
+  fails on vulnerable packages, outdated direct packages, or new undeferred
+  transitive drift while printing the current TraceEvent, SQLitePCLRaw,
+  xUnit-runner, and UI-support deferral reasons. The native SQLite bundle is pinned to `SQLitePCLRaw.bundle_e_sqlite3`
   3.0.3 to clear GHSA-2m69-gcr7-jv3q (CVE-2025-6965); Google.Protobuf ≥ 3.35
   carries the recursion-depth fix; the .NET 10 SDK prunes framework-provided
   transitives, retiring the old test-only 4.3.0 floors.

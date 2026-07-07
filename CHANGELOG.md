@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.19] - 2026-07-07
+
+### Added
+- Added a local dependency hygiene ratchet that fails on vulnerable packages,
+  outdated direct packages, or new undeferred transitive NuGet drift while
+  documenting the current TraceEvent, SQLitePCLRaw, xUnit-runner, and UI-support
+  deferrals.
+
+### Changed
+- Updated direct test/build package pins for xUnit, xUnit runner, coverlet, and
+  Grpc.Tools; the full suite remains at 803 tests.
+
 ## [0.12.18] - 2026-07-07
 
 ### Changed
