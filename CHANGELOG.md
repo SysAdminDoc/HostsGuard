@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.15] - 2026-07-07
+
+### Fixed
+- Firewall Activity live connection counts no longer overwrite operator action
+  results such as resolve, explain, block, allow, and scope-block statuses;
+  explicit feed transitions can reclaim the status line.
+
 ## [0.12.14] - 2026-07-07
 
 ### Added

@@ -244,6 +244,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private DateTime _lastTimelineCompute = DateTime.MinValue;
     private bool _suppressPostureWrite;
     private bool _suppressModeWrite;
+    private bool _liveStatusOwnsText = true;
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -407,7 +408,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        StatusText = $"Resolving {ips.Count} addresses…";
+        SetOperatorStatus($"Resolving {ips.Count} addresses…");
         try
         {
             var request = new ResolveHostsRequest();
@@ -419,11 +420,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             }
 
             var applied = ApplyResolvedHosts();
-            StatusText = $"Resolved {applied} of {ips.Count} addresses";
+            SetOperatorStatus($"Resolved {applied} of {ips.Count} addresses");
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
         {
-            StatusText = ServiceErrors.DescribeActionFailure("Resolve remote IPs", ex);
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Resolve remote IPs", ex));
         }
     }
 
@@ -459,11 +460,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             var pending = Rows.Where(r => r.Info.Length == 0).ToList();
             if (pending.Count == 0)
             {
-                StatusText = "Every connection is already identified";
+                SetOperatorStatus("Every connection is already identified");
                 return;
             }
 
-            StatusText = $"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…";
+            SetOperatorStatus($"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…");
             var request = new IdentifyRequest();
             foreach (var row in pending)
             {
@@ -477,7 +478,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             }
 
             var result = await _client.Hosts.IdentifyConnectionsAsync(request);
-            StatusText = result.Message;
+            SetOperatorStatus(result.Message);
             if (!result.Ok)
             {
                 return;
@@ -560,14 +561,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
             DecisionSummary = $"{result.Verdict}: {result.Summary}";
             DecisionNextAction = result.NextSafeAction;
-            StatusText = result.Summary;
+            SetOperatorStatus(result.Summary);
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
         {
             DecisionSummary = "Decision explanation failed - service unavailable";
             DecisionNextAction = "Reconnect from the status bar, then retry.";
             DecisionChain.Clear();
-            StatusText = DecisionSummary;
+            SetOperatorStatus(DecisionSummary);
         }
     }
 
@@ -635,7 +636,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is RpcException or OperationCanceledException or IOException)
         {
-            OnUi(() => StatusText = ct.IsCancellationRequested ? StatusText : "Live feed disconnected");
+            OnUi(() =>
+            {
+                if (!ct.IsCancellationRequested)
+                {
+                    SetLiveStatus("Live feed disconnected", force: true);
+                }
+            });
         }
     }
 
@@ -696,7 +703,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             _rowByKey.Remove(evicted.Key);
         }
 
-        StatusText = Plural.Of(Rows.Count, "connection");
+        SetLiveStatus(Plural.Of(Rows.Count, "connection"));
         RecordConnectionEvent(DateTime.Now, ev.Process);
     }
 
@@ -1155,7 +1162,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                 Verdict = verdict,
                 Permanent = true,
             });
-            StatusText = ack.Message;
+            SetOperatorStatus(ack.Message);
             await LoadConsentHistoryAsync();
         });
     }
@@ -1277,7 +1284,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         try
         {
             var ack = await _client.Firewall.SetDefaultOutboundAsync(new OutboundRequest { Block = enable });
-            StatusText = ack.Message;
+            SetOperatorStatus(ack.Message);
             if (!ack.Ok)
             {
                 // Don't pretend: revert the toggle when the policy change failed.
@@ -1290,7 +1297,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            StatusText = ServiceErrors.DescribeActionFailure("Apply lockdown posture", ex);
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Apply lockdown posture", ex));
             _suppressPostureWrite = true;
             Lockdown = !enable;
             _suppressPostureWrite = false;
@@ -1325,19 +1332,36 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void SetLiveStatus(string text, bool force = false)
+    {
+        if (!force && !_liveStatusOwnsText)
+        {
+            return;
+        }
+
+        StatusText = text;
+        _liveStatusOwnsText = true;
+    }
+
+    private void SetOperatorStatus(string text)
+    {
+        StatusText = text;
+        _liveStatusOwnsText = false;
+    }
+
     [RelayCommand]
     public async Task QuickBlockIpAsync(string remoteAddr)
     {
         if (string.IsNullOrWhiteSpace(remoteAddr))
         {
-            StatusText = "Select a row first";
+            SetOperatorStatus("Select a row first");
             return;
         }
 
         await RunServiceActionAsync("Block remote IP", async () =>
         {
             var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
-            StatusText = ack.Message;
+            SetOperatorStatus(ack.Message);
         });
     }
 
@@ -1346,13 +1370,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            StatusText = "Select a row first";
+            SetOperatorStatus("Select a row first");
             return;
         }
 
         if (row.Pid <= 0)
         {
-            StatusText = "No PID for this connection";
+            SetOperatorStatus("No PID for this connection");
             return;
         }
 
@@ -1363,20 +1387,20 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            StatusText = $"Cannot resolve program for PID {row.Pid}";
+            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
             return;
         }
 
         if (path.Length == 0)
         {
-            StatusText = $"Cannot resolve program for PID {row.Pid}";
+            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
             return;
         }
 
         await RunServiceActionAsync("Block process", async () =>
         {
             var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
-            StatusText = ack.Message;
+            SetOperatorStatus(ack.Message);
         });
     }
 
@@ -1408,7 +1432,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            StatusText = "Select a row first";
+            SetOperatorStatus("Select a row first");
             return;
         }
 
@@ -1418,7 +1442,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             await RunServiceActionAsync("Block site", async () =>
             {
                 var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
-                StatusText = ack.Ok ? $"Blocked {host} in hosts" : ack.Message;
+                SetOperatorStatus(ack.Ok ? $"Blocked {host} in hosts" : ack.Message);
             });
         }
         else if (!string.IsNullOrWhiteSpace(row.RemoteAddr))
@@ -1427,7 +1451,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         else
         {
-            StatusText = "No site or address to block for this row";
+            SetOperatorStatus("No site or address to block for this row");
         }
     }
 
@@ -1438,14 +1462,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var host = (row?.Host ?? string.Empty).Trim().ToLowerInvariant();
         if (!HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
-            StatusText = "This row has no resolved domain to allow";
+            SetOperatorStatus("This row has no resolved domain to allow");
             return;
         }
 
         await RunServiceActionAsync("Allow site", async () =>
         {
             var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
-            StatusText = ack.Ok ? $"Allowed {host} in hosts" : ack.Message;
+            SetOperatorStatus(ack.Ok ? $"Allowed {host} in hosts" : ack.Message);
         });
     }
 
@@ -1457,7 +1481,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var parts = (parameter ?? string.Empty).Split('|', 2);
         if (parts.Length != 2 || !int.TryParse(parts[1], out var pid) || pid <= 0)
         {
-            StatusText = "No PID for this connection";
+            SetOperatorStatus("No PID for this connection");
             return;
         }
 
@@ -1468,20 +1492,20 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            StatusText = $"Cannot resolve program for PID {pid}";
+            SetOperatorStatus($"Cannot resolve program for PID {pid}");
             return;
         }
 
         if (path.Length == 0)
         {
-            StatusText = $"Cannot resolve program for PID {pid}";
+            SetOperatorStatus($"Cannot resolve program for PID {pid}");
             return;
         }
 
         await RunServiceActionAsync("Block app scope", async () =>
         {
             var ack = await _client.Firewall.BlockAppScopeAsync(new AppScopeRequest { ProgramPath = path, Scope = parts[0] });
-            StatusText = ack.Message;
+            SetOperatorStatus(ack.Message);
         });
     }
 
@@ -1499,7 +1523,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public void ResearchAbuseIpdb(string remoteAddr) => Research.Open(Research.Sites[7].UrlTemplate, remoteAddr);
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
-        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
+        ServiceActionGuard.RunAsync(action, SetOperatorStatus, work);
 
     private static Task RunServiceActionAsync(string action, Action<string> setStatus, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, setStatus, work);
