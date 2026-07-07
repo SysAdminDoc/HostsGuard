@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.12] - 2026-07-07
+
+### Added
+- Added a checked rendered WPF visual smoke harness that launches the app
+  offscreen, captures all primary tabs in dark and light themes at 1600x1000,
+  verifies theme chrome, and fails on dense-grid horizontal scrollbar
+  regressions with PNG/JSON evidence.
+
 ## [0.12.11] - 2026-07-07
 
 ### Fixed

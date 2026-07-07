@@ -20,6 +20,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += OnUnhandledException;
+        var uiSmoke = UiSmokeOptions.FromArgs(e.Args);
 
         var services = new ServiceCollection();
         services.AddSingleton<AppConfigStore>();
@@ -42,13 +43,126 @@ public partial class App : Application
         // Fix the UI culture before any window is built — the Loc markup extension
         // resolves at load time, so a language change applies on next launch (NET-098).
         ApplyCulture(config.Language);
-        _provider.GetRequiredService<ThemeManager>().Apply(config.Theme);
-
-        var window = _provider.GetRequiredService<MainWindow>();
-        window.Show();
+        var theme = uiSmoke.ThemeOverride ?? config.Theme;
+        _provider.GetRequiredService<ThemeManager>().Apply(theme);
 
         var main = _provider.GetRequiredService<MainViewModel>();
+        if (uiSmoke.ThemeOverride is not null)
+        {
+            main.Theme = theme;
+        }
+
+        var window = _provider.GetRequiredService<MainWindow>();
+        if (uiSmoke.Background)
+        {
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -32000;
+            window.Top = -32000;
+            window.Width = uiSmoke.Width;
+            window.Height = uiSmoke.Height;
+            window.ShowActivated = false;
+            window.ShowInTaskbar = false;
+        }
+
+        window.Show();
+        if (uiSmoke.VisualSmokeOutputDir is not null)
+        {
+            _ = main.ConnectCommand.ExecuteAsync(null);
+            _ = RunVisualSmokeAsync(window, uiSmoke, theme);
+            return;
+        }
+
         _ = main.ConnectCommand.ExecuteAsync(null);
+    }
+
+    private async Task RunVisualSmokeAsync(MainWindow window, UiSmokeOptions uiSmoke, string theme)
+    {
+        try
+        {
+            var exitCode = await VisualSmokeRunner.RunAsync(
+                window,
+                uiSmoke.VisualSmokeOutputDir!,
+                theme,
+                uiSmoke.Width,
+                uiSmoke.Height,
+                uiSmoke.SettleMs,
+                CancellationToken.None);
+            Shutdown(exitCode);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            VisualSmokeRunner.WriteFailure(uiSmoke.VisualSmokeOutputDir!, ex);
+            Shutdown(2);
+        }
+    }
+
+    private sealed record UiSmokeOptions(
+        bool Background,
+        string? ThemeOverride,
+        int Width,
+        int Height,
+        int SettleMs,
+        string? VisualSmokeOutputDir)
+    {
+        public static UiSmokeOptions FromArgs(IReadOnlyList<string> args)
+        {
+            var background = false;
+            string? theme = null;
+            var width = 1600;
+            var height = 1000;
+            var settleMs = 1200;
+            string? visualSmokeOutputDir = null;
+
+            foreach (var arg in args)
+            {
+                if (string.Equals(arg, "--uia-background", StringComparison.OrdinalIgnoreCase))
+                {
+                    background = true;
+                    continue;
+                }
+
+                if (arg.StartsWith("--theme=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = arg["--theme=".Length..].Trim();
+                    theme = string.Equals(value, "light", StringComparison.OrdinalIgnoreCase) ? "light" : "dark";
+                    continue;
+                }
+
+                if (arg.StartsWith("--size=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = arg["--size=".Length..].Split('x', 2, StringSplitOptions.TrimEntries);
+                    if (parts.Length == 2
+                        && int.TryParse(parts[0], out var parsedWidth)
+                        && int.TryParse(parts[1], out var parsedHeight))
+                    {
+                        width = Math.Clamp(parsedWidth, 1080, 4096);
+                        height = Math.Clamp(parsedHeight, 680, 2160);
+                    }
+                    continue;
+                }
+
+                if (arg.StartsWith("--visual-smoke-settle-ms=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = arg["--visual-smoke-settle-ms=".Length..].Trim();
+                    if (int.TryParse(value, out var parsedSettleMs))
+                    {
+                        settleMs = Math.Clamp(parsedSettleMs, 50, 10000);
+                    }
+                    continue;
+                }
+
+                if (arg.StartsWith("--visual-smoke-output=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = arg["--visual-smoke-output=".Length..].Trim();
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        visualSmokeOutputDir = value;
+                    }
+                }
+            }
+
+            return new UiSmokeOptions(background, theme, width, height, settleMs, visualSmokeOutputDir);
+        }
     }
 
     /// <summary>Pin the UI culture from the persisted language tag ("" = system).</summary>
