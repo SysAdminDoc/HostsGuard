@@ -4,11 +4,23 @@
 ; and CLI. Uninstall stops the service, restores the firewall posture and
 ; removes HG_ rules via `HostsGuard.Cli uninstall-cleanup`, then deletes the
 ; service registration.
-; Build: build\publish.ps1 first, then `iscc installer-dotnet.iss`.
+; Build x64:   build\publish.ps1, then `iscc installer-dotnet.iss`.
+; Build ARM64: build\publish.ps1 -RuntimeIdentifier win-arm64, then
+;              `iscc /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss`.
+
+#ifndef TargetRid
+#define TargetRid "win-x64"
+#endif
+#ifndef TargetArchitecturesAllowed
+#define TargetArchitecturesAllowed "x64compatible"
+#endif
+#ifndef TargetInstallIn64BitMode
+#define TargetInstallIn64BitMode "x64compatible"
+#endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.16"
-#define MyAppVersionInfo "0.12.16.0"
+#define MyAppVersion "0.12.17"
+#define MyAppVersionInfo "0.12.17.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
@@ -22,13 +34,14 @@ DefaultDirName={autopf}\HostsGuard
 DefaultGroupName=HostsGuard
 UninstallDisplayIcon={app}\HostsGuard.App.exe
 OutputDir=installer_output
-OutputBaseFilename=HostsGuard-v{#MyAppVersion}-dotnet-Setup
+OutputBaseFilename=HostsGuard-v{#MyAppVersion}-{#TargetRid}-dotnet-Setup
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
 WizardStyle=modern
 SetupIconFile=icon.ico
-ArchitecturesInstallIn64BitMode=x64compatible
+ArchitecturesAllowed={#TargetArchitecturesAllowed}
+ArchitecturesInstallIn64BitMode={#TargetInstallIn64BitMode}
 LicenseFile=LICENSE
 MinVersion=10.0
 SetupLogging=yes
@@ -42,9 +55,9 @@ VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 
 [Files]
-Source: "dist\dotnet\service\*"; DestDir: "{app}\service"; Flags: ignoreversion recursesubdirs
-Source: "dist\dotnet\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "dist\dotnet\cli\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs
+Source: "dist\dotnet\{#TargetRid}\service\*"; DestDir: "{app}\service"; Flags: ignoreversion recursesubdirs
+Source: "dist\dotnet\{#TargetRid}\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "dist\dotnet\{#TargetRid}\cli\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\HostsGuard"; Filename: "{app}\HostsGuard.App.exe"

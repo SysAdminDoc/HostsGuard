@@ -18,6 +18,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 
 if ([string]::IsNullOrWhiteSpace($AppPath)) {
     $candidates = @(
+        (Join-Path $repoRoot "dist\dotnet\win-x64\app\HostsGuard.App.exe"),
         (Join-Path $repoRoot "dist\dotnet\app\HostsGuard.App.exe"),
         (Join-Path $repoRoot "src\HostsGuard.App\bin\Debug\net10.0-windows\HostsGuard.App.exe"),
         (Join-Path $repoRoot "src\HostsGuard.App\bin\Release\net10.0-windows\win-x64\HostsGuard.App.exe"),

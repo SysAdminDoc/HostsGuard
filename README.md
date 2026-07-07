@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.16-blue)
+![Version](https://img.shields.io/badge/version-0.12.17-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -37,11 +37,11 @@ The elevated logic lives in a LocalSystem service that starts with the OS, so th
 
 ## Install
 
-1. Download `HostsGuard-vX.Y.Z-dotnet-Setup.exe` from [Releases](https://github.com/SysAdminDoc/HostsGuard/releases).
+1. Download the `win-x64` or `win-arm64` `HostsGuard-vX.Y.Z-<rid>-dotnet-Setup.exe` from [Releases](https://github.com/SysAdminDoc/HostsGuard/releases).
 2. Run it (the installer elevates once to register the `HostsGuardSvc` service; the app itself runs unelevated).
 3. Launch **HostsGuard** from the Start menu or tray.
 
-**Requirements:** Windows 10/11, x64. The service depends on the Windows Firewall service (MpsSvc). Uninstall stops the service, restores your default firewall posture, and removes all `HG_` rules.
+**Requirements:** Windows 10/11, x64 or ARM64. The service depends on the Windows Firewall service (MpsSvc). Uninstall stops the service, restores your default firewall posture, and removes all `HG_` rules.
 
 ### Migrating from the Python build (v3.x)
 
@@ -174,10 +174,12 @@ dotnet build HostsGuard.sln          # requires .NET 10 SDK
 dotnet test HostsGuard.sln           # 800 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
                                       # offscreen rendered WPF dark/light smoke
-build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
+build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-arm64 -> dist\dotnet\<rid>\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.16-dotnet-Setup.exe
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
+# Produces installer_output/HostsGuard-v0.12.17-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.17-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

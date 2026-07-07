@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.17] - 2026-07-07
+
+### Added
+- Added `win-arm64` publish support alongside `win-x64`, with runtime-scoped
+  `dist\dotnet\<rid>` output, architecture-labeled Inno installers, winget
+  entries for both architectures, and x64-compatible release smoke while
+  ARM64 smoke is skipped on non-ARM64 hosts.
+
 ## [0.12.16] - 2026-07-07
 
 ### Changed
