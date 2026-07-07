@@ -5,8 +5,8 @@
         xmlns:vm="clr-namespace:HostsGuard.App.ViewModels"
         x:Name="Root"
         Style="{StaticResource Hg.Window}"
-        Title="HostsGuard" Height="720" Width="1180"
-        MinHeight="620" MinWidth="980"
+        Title="HostsGuard" Height="800" Width="1280"
+        MinHeight="680" MinWidth="1080"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -153,148 +153,187 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="232" />
+                    <ColumnDefinition Width="200" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0" Style="{StaticResource Hg.SideRail}">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" MinHeight="180" />
+                            <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0" Margin="0,0,0,16">
-                            <DockPanel>
-                                <Border DockPanel.Dock="Left"
-                                        Width="34"
-                                        Height="34"
-                                        CornerRadius="8"
-                                        Background="{DynamicResource Hg.Mauve}"
-                                        Margin="0,0,10,0">
-                                    <TextBlock Text="HG"
-                                               Foreground="{DynamicResource Hg.OnSel}"
-                                               FontWeight="Bold"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel>
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Hidden">
+                            <StackPanel>
+                                <StackPanel HorizontalAlignment="Center" Margin="0,6,0,10">
+                                    <Border Width="54"
+                                            Height="54"
+                                            CornerRadius="16"
+                                            Background="{DynamicResource Hg.Mauve}"
+                                            Padding="8"
+                                            HorizontalAlignment="Center">
+                                        <Image Source="pack://application:,,,/HostsGuard.App;component/Assets/icon.ico"
+                                               Stretch="Uniform" />
+                                    </Border>
                                     <TextBlock Text="HostsGuard"
                                                FontSize="18"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="Network privacy control"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,8,0,0" />
+                                    <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}"
                                                Style="{StaticResource Hg.DimText}"
-                                               Margin="0,1,0,0" />
+                                               HorizontalAlignment="Center"
+                                               Margin="0,2,0,0" />
                                 </StackPanel>
-                            </DockPanel>
-                        </StackPanel>
 
-                        <Border Grid.Row="1" Style="{StaticResource Hg.RailTile}">
-                            <StackPanel>
-                                <TextBlock Text="Service health" Style="{StaticResource Hg.Kicker}" />
-                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
-                                    <Ellipse Width="9" Height="9" Margin="0,0,7,0" VerticalAlignment="Center">
-                                        <Ellipse.Style>
-                                            <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="{DynamicResource Hg.Red}" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                                        <Setter Property="Fill" Value="{DynamicResource Hg.Green}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Ellipse.Style>
-                                    </Ellipse>
-                                    <TextBlock Text="{Binding ConnectionText}"
-                                               Style="{StaticResource Hg.HelperText}"
-                                               AutomationProperties.LiveSetting="Polite" />
-                                </StackPanel>
-                                <Button Content="Reconnect"
-                                        Command="{Binding ConnectCommand}"
-                                        Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
-                                        Margin="0,10,0,0"
-                                        HorizontalAlignment="Stretch"
-                                        ToolTip="Try the service connection again" />
+                                <Border Style="{StaticResource Hg.RailDivider}" />
+
+                                <Border Style="{StaticResource Hg.RailTile}">
+                                    <StackPanel>
+                                        <TextBlock Text="Service health" Style="{StaticResource Hg.Kicker}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Ellipse Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{DynamicResource Hg.Red}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                <Setter Property="Fill" Value="{DynamicResource Hg.Green}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding ConnectionStateTitle}"
+                                                       Style="{StaticResource Hg.RailValue}"
+                                                       Foreground="{DynamicResource Hg.Green}" />
+                                        </StackPanel>
+                                        <TextBlock Text="HostsGuardSvc" Style="{StaticResource Hg.DimText}" Margin="0,8,0,0" />
+                                        <TextBlock Text="Running"
+                                                   Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
+                                                   Style="{StaticResource Hg.RailActionText}"
+                                                   Foreground="{DynamicResource Hg.Green}" />
+                                        <TextBlock Text="{Binding ServiceVersion, StringFormat='v{0}', TargetNullValue='service offline'}"
+                                                   Style="{StaticResource Hg.DimText}" />
+                                        <Button Content="Reconnect"
+                                                Command="{Binding ConnectCommand}"
+                                                Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
+                                                Margin="0,10,0,0"
+                                                HorizontalAlignment="Stretch" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Hg.RailTile}">
+                                    <StackPanel>
+                                        <TextBlock Text="Filtering mode" Style="{StaticResource Hg.Kicker}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <TextBlock Text="◆"
+                                                       Foreground="{DynamicResource Hg.Mauve}"
+                                                       FontSize="16"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding FilteringModeTitle}"
+                                                       Style="{StaticResource Hg.RailValue}"
+                                                       Foreground="{DynamicResource Hg.Mauve}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding FilteringModeText}"
+                                                   Style="{StaticResource Hg.HelperText}"
+                                                   Margin="0,6,0,10" />
+                                        <Button Content="Change mode"
+                                                Command="{Binding SetFilteringModeCommand}"
+                                                CommandParameter="notify"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="7,3"
+                                                ToolTip="Switch to Notify mode" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Hg.RailTile}">
+                                    <StackPanel>
+                                        <TextBlock Text="Global posture" Style="{StaticResource Hg.Kicker}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <TextBlock Text="◆"
+                                                       Foreground="{DynamicResource Hg.Teal}"
+                                                       FontSize="16"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="Default allow"
+                                                       Style="{StaticResource Hg.RailValue}"
+                                                       Foreground="{DynamicResource Hg.Teal}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Outbound" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <Button Content="Block all outbound"
+                                                Command="{Binding SetGlobalModeCommand}"
+                                                CommandParameter="block-all"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="7,3"
+                                                ToolTip="Block new outbound traffic unless an allow rule covers it" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Hg.RailTile}">
+                                    <StackPanel>
+                                        <TextBlock Text="Quick actions" Style="{StaticResource Hg.Kicker}" Margin="0,0,0,8" />
+                                        <Button Style="{StaticResource Hg.RailLinkButton}"
+                                                Command="{Binding Tools.FlushDnsCommand}"
+                                                HorizontalContentAlignment="Left"
+                                                Margin="0,0,0,4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="↻" Margin="0,0,8,0" />
+                                                <TextBlock Text="Flush DNS" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource Hg.RailLinkButton}"
+                                                Command="{Binding RunDiagnosticsCommand}"
+                                                HorizontalContentAlignment="Left"
+                                                Margin="0,0,0,4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="◎" Margin="0,0,8,0" />
+                                                <TextBlock Text="Run diagnostics" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Style="{StaticResource Hg.RailLinkButton}"
+                                                Command="{Binding Tools.ExportBundleCommand}"
+                                                HorizontalContentAlignment="Left"
+                                                Margin="0,0,0,4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="⇧" Margin="0,0,8,0" />
+                                                <TextBlock Text="Export support bundle" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                        </Border>
+                        </ScrollViewer>
 
-                        <Border Grid.Row="2" Style="{StaticResource Hg.RailTile}">
-                            <StackPanel>
-                                <TextBlock Text="Filtering mode" Style="{StaticResource Hg.Kicker}" />
-                                <TextBlock Text="{Binding FilteringModeText}"
-                                           Style="{StaticResource Hg.InspectorValue}"
-                                           Margin="0,6,0,0"
-                                           ToolTip="Switch filtering mode from the tray menu" />
-                            </StackPanel>
-                        </Border>
-
-                        <StackPanel Grid.Row="3">
-                            <UniformGrid Columns="2">
-                                <Border Style="{StaticResource Hg.MetricTile}">
-                                    <StackPanel>
-                                        <TextBlock Text="HOSTS FILE" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding HostsBlocked}" Style="{StaticResource Hg.MetricValue}" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Hg.MetricTile}" Margin="0,0,0,8">
-                                    <StackPanel>
-                                        <TextBlock Text="BLOCKED" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding DbBlocked}" Style="{StaticResource Hg.MetricValue}" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Hg.MetricTile}">
-                                    <StackPanel>
-                                        <TextBlock Text="ALLOWED" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding DbAllowed}" Style="{StaticResource Hg.MetricValue}" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Style="{StaticResource Hg.MetricTile}" Margin="0,0,0,8">
-                                    <StackPanel>
-                                        <TextBlock Text="SERVICE" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding ServiceVersion, TargetNullValue='-'}"
-                                                   Style="{StaticResource Hg.InspectorValue}"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </Border>
+                        <StackPanel Grid.Row="1">
+                            <Border Style="{StaticResource Hg.RailDivider}" Margin="0,8,0,10" />
+                            <UniformGrid Columns="3">
+                                <Button Content="⟳"
+                                        Width="38"
+                                        Height="34"
+                                        MinHeight="34"
+                                        Padding="0"
+                                        Command="{Binding RefreshAllCommand}"
+                                        ToolTip="Refresh all" />
+                                <Button Content="☾"
+                                        Width="38"
+                                        Height="34"
+                                        MinHeight="34"
+                                        Padding="0"
+                                        Command="{Binding ToggleThemeCommand}"
+                                        Margin="6,0,0,0"
+                                        ToolTip="Switch theme" />
+                                <Button Content="≡"
+                                        Width="38"
+                                        Height="34"
+                                        MinHeight="34"
+                                        Padding="0"
+                                        Command="{Binding ResetViewCommand}"
+                                        Margin="6,0,0,0"
+                                        ToolTip="Reset view" />
                             </UniformGrid>
-                        </StackPanel>
-
-                        <StackPanel Grid.Row="4">
-                            <Button Content="Refresh all"
-                                    Command="{Binding RefreshAllCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,8"
-                                    ToolTip="Refresh every loaded surface from the service" />
-                            <Button Content="Reset view"
-                                    Command="{Binding ResetViewCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,8"
-                                    ToolTip="Clear filters, restore default grouping, and set scale to 100%" />
-                            <DockPanel Margin="0,0,0,8">
-                                <TextBlock Text="Scale"
-                                           DockPanel.Dock="Left"
-                                           Style="{StaticResource Hg.DimText}"
-                                           VerticalAlignment="Center" />
-                                <ComboBox ItemsSource="{x:Static vm:MainViewModel.UiScaleChoices}"
-                                          SelectedItem="{Binding UiScalePct}"
-                                          AutomationProperties.Name="UI scale percent"
-                                          ToolTip="Scale the whole interface"
-                                          Width="74"
-                                          HorizontalAlignment="Right">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding StringFormat={}{0}%}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                            </DockPanel>
-                            <Button Content="{Binding ThemeToggleText}"
-                                    Command="{Binding ToggleThemeCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Switch between dark and light themes" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -303,7 +342,13 @@
                     <Grid>
             <TabControl x:Name="MainTabs" Margin="0"
                         IsEnabled="{Binding IsConnected}">
-                <TabItem Header="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="◎" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}" />
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="4" DataContext="{Binding Activity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -312,52 +357,68 @@
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Content="Refresh"
-                                    Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="AI purposes"
-                                    Command="{Binding ResearchPurposesCommand}" Margin="8,0,0,0"
+                        <WrapPanel VerticalAlignment="Center">
+                            <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource Hg.HintBox}"
+                                     Width="160"
+                                     Tag="Search domains"
+                                     AutomationProperties.Name="Search DNS activity"
+                                     ToolTip="Filters as you type - supports field:value, !term, and field!=value" />
+                            <Button Content="AI purposes"
+                                    Command="{Binding ResearchPurposesCommand}"
+                                    Padding="10,5"
+                                    Margin="6,0,0,0"
                                     ToolTip="Have DeepSeek research what each domain without a Purpose is for (results are saved to the AI knowledge log)" />
-                            <CheckBox DockPanel.Dock="Right" Content="Show hidden" Margin="8,0,0,0"
-                                      VerticalAlignment="Center"
-                                      IsChecked="{Binding ShowHidden}"
-                                      ToolTip="Include domains you hid with 'Hide root'" />
-                            <CheckBox DockPanel.Dock="Right" Content="Hide blocked" Margin="8,0,0,0"
-                                      VerticalAlignment="Center"
-                                      IsChecked="{Binding HideBlocked}"
-                                      AutomationProperties.Name="Hide already-blocked domains"
-                                      ToolTip="Hide domains that are already blocked, so the feed shows only traffic that still needs a decision" />
-                            <CheckBox DockPanel.Dock="Right" Content="Blocked only" Margin="8,0,0,0"
-                                      VerticalAlignment="Center"
-                                      IsChecked="{Binding BlockedOnly}"
-                                      AutomationProperties.Name="Show only blocked domains"
-                                      ToolTip="Troubleshoot: show ONLY blocked domains. Refresh a page, see what got blocked, then right-click to Unblock." />
-                            <CheckBox DockPanel.Dock="Right" Content="Group by root" Margin="8,0,0,0"
-                                      VerticalAlignment="Center"
-                                      IsChecked="{Binding GroupByRoot}"
-                                      AutomationProperties.Name="Group feed rows by root domain"
-                                      ToolTip="Collapse subdomains under their root (30 CDN hostnames become one live-video.net section)" />
-                            <CheckBox DockPanel.Dock="Right" Content="Hide reverse DNS" Margin="8,0,0,0"
+                            <Button Content="Block"
+                                    Style="{StaticResource Hg.DangerButton}"
+                                    Padding="10,5"
+                                    Command="{Binding BlockSelectedCommand}"
+                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}"
+                                    Margin="6,0,0,0" />
+                            <Button Content="Allow"
+                                    Style="{StaticResource Hg.SuccessButton}"
+                                    Padding="10,5"
+                                    Command="{Binding AllowSelectedCommand}"
+                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}"
+                                    Margin="6,0,8,0" />
+                            <CheckBox Content="Reverse DNS" Margin="6,0,0,0"
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding HideReverseDns}"
                                       AutomationProperties.Name="Hide reverse DNS PTR lookups"
-                                      ToolTip="Hide reverse-DNS PTR lookups (*.in-addr.arpa) — background noise, not real destinations" />
-                            <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
-                                     Style="{StaticResource Hg.HintBox}"
-                                     MinWidth="280"
-                                     Tag="Search domains — try field:value, !term, or field!=value"
-                                     AutomationProperties.Name="Search DNS activity"
-                                     ToolTip="Filters as you type — supports field:value, !term, and field!=value" />
-                        </DockPanel>
+                                      ToolTip="Hide reverse-DNS PTR lookups (*.in-addr.arpa) - background noise, not real destinations" />
+                            <CheckBox Content="Group root" Margin="6,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding GroupByRoot}"
+                                      AutomationProperties.Name="Group feed rows by root domain"
+                                      ToolTip="Collapse subdomains under their root" />
+                            <CheckBox Content="Blocked" Margin="6,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding BlockedOnly}"
+                                      AutomationProperties.Name="Show only blocked domains" />
+                            <CheckBox Content="Hide blocked" Margin="6,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding HideBlocked}"
+                                      AutomationProperties.Name="Hide already-blocked domains" />
+                            <CheckBox Content="Hidden" Margin="6,0,0,0"
+                                      VerticalAlignment="Center"
+                                      IsChecked="{Binding ShowHidden}" />
+                            <Button Content="Refresh"
+                                    Command="{Binding RefreshCommand}"
+                                    Padding="10,5"
+                                    Margin="6,0,0,0" />
+                        </WrapPanel>
                         </Border>
 
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="250" />
                             </Grid.ColumnDefinitions>
 
                         <DataGrid Grid.Column="0" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
+                                  SelectedIndex="0"
                                   AutomationProperties.Name="DNS activity feed"
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
@@ -491,31 +552,22 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="List" Binding="{Binding BlocklistsText}" Width="40">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Yellow}" />
-                                            <Setter Property="ToolTip" Value="{Binding BlocklistsTip}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding BlocklistsText}" Value="">
-                                                    <Setter Property="ToolTip" Value="{x:Null}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}" Width="90">
+                                <DataGridTextColumn Header="Purpose" Binding="{Binding Purpose}" Width="135">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="58">
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Style.Triggers>
                                                 <!-- Blocked stands out red so an over-block is easy to spot when troubleshooting. -->
+                                                <DataTrigger Binding="{Binding Status}" Value="allowed">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                </DataTrigger>
                                                 <DataTrigger Binding="{Binding Status}" Value="blocked">
                                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
                                                     <Setter Property="FontWeight" Value="SemiBold" />
@@ -524,13 +576,13 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="64" />
-                                <DataGridTextColumn Header="#" Binding="{Binding Hits}" Width="42" />
-                                <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="44" IsReadOnly="True" />
-                                <DataGridTemplateColumn Header="24h" Width="56">
+                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="100" />
+                                <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="45" />
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="55" IsReadOnly="True" />
+                                <DataGridTemplateColumn Header="24h" Width="100">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Viewbox Width="48" Height="18" Stretch="Fill" HorizontalAlignment="Left"
+                                            <Viewbox Width="84" Height="18" Stretch="Fill" HorizontalAlignment="Left"
                                                      ToolTip="{Binding SparklineTip}">
                                                 <Canvas Width="120" Height="20">
                                                     <Polyline Points="{Binding SparklinePoints, Converter={StaticResource PointsConverter}}"
@@ -541,7 +593,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Time" Binding="{Binding LastSeenText}" Width="80" />
+                                <DataGridTextColumn Header="Last seen" Binding="{Binding LastSeenText}" Width="75" />
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -574,15 +626,21 @@
                                                 </Style.Triggers>
                                             </Style>
                                         </StackPanel.Style>
-                                        <TextBlock Text="Selected domain" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding Domain, TargetNullValue='Select a DNS row'}"
-                                                   FontSize="16"
-                                                   FontWeight="SemiBold"
-                                                   TextWrapping="Wrap"
-                                                   Margin="0,4,0,0" />
+                                        <DockPanel LastChildFill="True">
+                                            <TextBlock DockPanel.Dock="Left"
+                                                       Text="◎"
+                                                       Foreground="{DynamicResource Hg.Teal}"
+                                                       FontSize="18"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Domain, TargetNullValue='Select a DNS row'}"
+                                                       FontSize="16"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap" />
+                                        </DockPanel>
                                         <TextBlock Text="{Binding Root, StringFormat='Root: {0}', TargetNullValue='Right-click rows for full action menu'}"
                                                    Style="{StaticResource Hg.DimText}"
-                                                   Margin="0,3,0,0"
+                                                   Margin="0,5,0,0"
                                                    TextWrapping="Wrap" />
 
                                         <Grid Margin="0,12,0,0">
@@ -600,14 +658,16 @@
                                             </Border>
                                         </Grid>
 
-                                        <TextBlock Text="Purpose" Style="{StaticResource Hg.InspectorLabel}" />
+                                        <DockPanel Margin="0,10,0,3" LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Content="AI analyze"
+                                                    Command="{Binding DataContext.ResearchPurposesCommand, ElementName=ActivityGrid}"
+                                                    Padding="8,2"
+                                                    MinHeight="24" />
+                                            <TextBlock Text="Purpose" Style="{StaticResource Hg.InspectorLabel}" Margin="0" />
+                                        </DockPanel>
                                         <TextBlock Text="{Binding Purpose, TargetNullValue='Not classified yet'}"
                                                    Style="{StaticResource Hg.InspectorValue}" />
-
-                                        <TextBlock Text="Reason" Style="{StaticResource Hg.InspectorLabel}" />
-                                        <TextBlock Text="{Binding Reason, TargetNullValue='No rule reason on this row'}"
-                                                   Style="{StaticResource Hg.InspectorValue}"
-                                                   MaxHeight="72" />
 
                                         <UniformGrid Columns="2" Margin="0,12,0,0">
                                             <Border Style="{StaticResource Hg.MetricTile}">
@@ -623,50 +683,42 @@
                                                                Style="{StaticResource Hg.InspectorValue}" />
                                                 </StackPanel>
                                             </Border>
-                                            <Border Style="{StaticResource Hg.MetricTile}">
-                                                <StackPanel>
-                                                    <TextBlock Text="DATA" Style="{StaticResource Hg.Kicker}" />
-                                                    <TextBlock Text="{Binding DataText, TargetNullValue='-'}"
-                                                               Style="{StaticResource Hg.InspectorValue}" />
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Style="{StaticResource Hg.MetricTile}" Margin="0,0,0,8">
-                                                <StackPanel>
-                                                    <TextBlock Text="PROCESS" Style="{StaticResource Hg.Kicker}" />
-                                                    <TextBlock Text="{Binding Process, TargetNullValue='-'}"
-                                                               Style="{StaticResource Hg.InspectorValue}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
-                                            </Border>
                                         </UniformGrid>
 
                                         <TextBlock Text="Actions" Style="{StaticResource Hg.InspectorLabel}" />
-                                        <WrapPanel>
-                                            <Button Content="Block"
-                                                    Style="{StaticResource Hg.ActionChip}"
-                                                    Margin="0,0,6,6"
-                                                    Command="{Binding DataContext.BlockSelectedCommand, ElementName=ActivityGrid}"
-                                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
-                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="Allow"
-                                                    Style="{StaticResource Hg.ActionChip}"
-                                                    Margin="0,0,6,6"
+                                        <StackPanel>
+                                            <Button Content="Allow domain"
+                                                    Style="{StaticResource Hg.SuccessButton}"
+                                                    Margin="0,0,0,6"
+                                                    HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.AllowSelectedCommand, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
                                                     IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="Block root"
-                                                    Style="{StaticResource Hg.ActionChip}"
-                                                    Margin="0,0,6,6"
-                                                    Command="{Binding DataContext.BlockRootCommand, ElementName=ActivityGrid}"
+                                            <Button Content="Block domain"
+                                                    Style="{StaticResource Hg.DangerButton}"
+                                                    Margin="0,0,0,6"
+                                                    HorizontalAlignment="Stretch"
+                                                    Command="{Binding DataContext.BlockSelectedCommand, ElementName=ActivityGrid}"
+                                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
+                                            <Button Content="Temp allow..."
+                                                    Margin="0,0,0,6"
+                                                    HorizontalAlignment="Stretch"
+                                                    Command="{Binding DataContext.TempAllow60Command, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding Domain}"
                                                     IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="Hide"
-                                                    Style="{StaticResource Hg.ActionChip}"
-                                                    Margin="0,0,6,6"
+                                            <Button Content="Hide domain"
+                                                    Margin="0,0,0,6"
+                                                    HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.HideSelectedCommand, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
                                                     IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                        </WrapPanel>
+                                            <Button Content="Research"
+                                                    HorizontalAlignment="Stretch"
+                                                    Command="{Binding DataContext.ResearchGoogleCommand, ElementName=ActivityGrid}"
+                                                    CommandParameter="{Binding Domain}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
+                                        </StackPanel>
                                     </StackPanel>
 
                                     <Border Style="{StaticResource Hg.EmptyState}"
@@ -689,7 +741,13 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="▤" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}" />
+                        </StackPanel>
+                    </TabItem.Header>
                     <TabControl Margin="0,4,0,0">
                         <TabItem Header="{svc:Loc Key=Tab_ManagedDomains, Default=Managed Domains}">
                             <Grid Margin="4" DataContext="{Binding Hosts}">
@@ -930,7 +988,13 @@
                     </TabControl>
                 </TabItem>
 
-                <TabItem Header="{svc:Loc Key=Tab_FirewallActivity, Default=Firewall Activity}">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="◈" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_FirewallActivity, Default=Firewall Activity}" />
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="4" DataContext="{Binding FwActivity}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1461,7 +1525,13 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="{svc:Loc Key=Tab_FirewallRules, Default=Firewall Rules}">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="☷" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_FirewallRules, Default=Firewall Rules}" />
+                        </StackPanel>
+                    </TabItem.Header>
                     <Grid Margin="4" DataContext="{Binding FwRules}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -1645,7 +1715,13 @@
                     </Grid>
                 </TabItem>
 
-                <TabItem Header="{svc:Loc Key=Tab_Tools, Default=Tools}">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚙" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_Tools, Default=Tools}" />
+                        </StackPanel>
+                    </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="8" DataContext="{Binding Tools}">
 

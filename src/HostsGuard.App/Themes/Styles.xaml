@@ -105,19 +105,22 @@
         <Setter Property="Background" Value="{DynamicResource Hg.Crust}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="0,0,1,0" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="Padding" Value="10" />
     </Style>
 
     <Style x:Key="Hg.RailTile" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="10" />
-        <Setter Property="Margin" Value="0,0,0,10" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="0,7,0,7" />
+        <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style x:Key="Hg.MetricTile" TargetType="Border" BasedOn="{StaticResource Hg.RailTile}">
+        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
         <Setter Property="Padding" Value="9,8" />
         <Setter Property="Margin" Value="0,0,8,8" />
     </Style>
@@ -156,6 +159,52 @@
         <Setter Property="Padding" Value="6,4" />
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style x:Key="Hg.RailDivider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="Margin" Value="0,8,0,8" />
+    </Style>
+
+    <Style x:Key="Hg.RailLinkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Padding" Value="3,2" />
+        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Hg.RailValue" TargetType="TextBlock" BasedOn="{StaticResource Hg.InspectorValue}">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Hg.RailActionText" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="Hg.IconTileButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Width" Value="38" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <Style x:Key="Hg.MainTabIcon" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style TargetType="Button">
@@ -226,14 +275,26 @@
         </Style.Triggers>
     </Style>
 
-    <Style x:Key="Hg.DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
-        <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.Danger2}" />
+    <Style x:Key="Hg.SuccessButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource Hg.SuccessSoft}" />
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.SuccessBorder}" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Hg.DangerHover}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource Hg.DangerHover}" />
+                <Setter Property="Background" Value="{DynamicResource Hg.SuccessHover}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.Green}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Hg.DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.DangerBorder}" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource Hg.DangerSoftHover}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Hg.Red}" />
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -430,7 +491,7 @@
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="0,8,0,0" />
+        <Setter Property="Padding" Value="0" />
     </Style>
 
     <Style TargetType="TabItem">
@@ -439,7 +500,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
-                    <Grid Margin="0,0,2,0">
+                    <Grid Margin="0,0,8,0">
                         <Border x:Name="FocusRing"
                                 BorderBrush="{DynamicResource Hg.Focus}"
                                 BorderThickness="2"
@@ -449,17 +510,17 @@
                                 IsHitTestVisible="False" />
                         <Border x:Name="Chrome" Background="Transparent" CornerRadius="6,6,0,0"
                                 BorderBrush="Transparent" BorderThickness="1,1,1,0"
-                                Padding="14,8">
+                                Padding="18,10">
                             <ContentPresenter ContentSource="Header" />
                         </Border>
                         <!-- Accent bar marks the active tab beyond the surface change alone. -->
-                        <Rectangle x:Name="ActiveIndicator" Height="2" Margin="10,1,10,0"
-                                   VerticalAlignment="Top" RadiusX="1" RadiusY="1"
-                                   Fill="{DynamicResource Hg.Blue}" Visibility="Collapsed" />
+                        <Rectangle x:Name="ActiveIndicator" Height="3" Margin="8,0"
+                                   VerticalAlignment="Bottom" RadiusX="1.5" RadiusY="1.5"
+                                   Fill="{DynamicResource Hg.Mauve}" Visibility="Collapsed" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Base}" />
+                            <Setter TargetName="Chrome" Property="Background" Value="Transparent" />
                             <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible" />
                             <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
                         </Trigger>

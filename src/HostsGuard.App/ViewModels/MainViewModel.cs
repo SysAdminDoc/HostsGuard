@@ -27,6 +27,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _decisionCts;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectionStateTitle))]
     private bool _isConnected;
 
     [ObservableProperty]
@@ -73,6 +74,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private int _uiScalePct;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteringModeTitle))]
     private string _filteringMode = "normal";
 
     [ObservableProperty]
@@ -106,9 +108,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>LayoutTransform scale factor derived from the persisted percent.</summary>
     public double UiScale => UiScalePct / 100.0;
 
+    public string AppVersion { get; } = typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
+
+    public string ConnectionStateTitle => IsConnected ? "Connected" : "Disconnected";
+
     public string ThemeToggleText => Theme == "dark" ? "Light theme" : "Dark theme";
 
     public static IReadOnlyList<int> UiScaleChoices => AppConfigStore.UiScaleChoices;
+
+    public string FilteringModeTitle => FilteringMode switch
+    {
+        "notify" => "Notify",
+        "learning" => "Learning",
+        _ => "Normal",
+    };
 
     [RelayCommand]
     public async Task ConnectAsync()
@@ -664,6 +677,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         ConnectionText = "All visible surfaces refreshed";
+    }
+
+    [RelayCommand]
+    public async Task RunDiagnosticsAsync()
+    {
+        if (_client is null)
+        {
+            ConnectionText = "Diagnostics unavailable - service is not connected";
+            return;
+        }
+
+        var status = await _client.Diagnostics.GetStatusAsync(new Empty());
+        ServiceVersion = status.Version;
+        HostsBlocked = status.HostsBlocked;
+        DbBlocked = status.DbBlocked;
+        DbAllowed = status.DbAllowed;
+        ConnectionText =
+            $"Diagnostics OK - service v{status.Version}, uptime {status.UptimeSeconds / 60} min, " +
+            $"DNS {(status.DnsMonitorActive ? "on" : "off")}, connections {(status.ConnectionMonitorActive ? "on" : "off")}";
     }
 
     [RelayCommand]

@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.3] - 2026-07-07
+
+### Changed
+- Tightened the WPF shell against the generated design reference with a
+  concept-scale 1280x800 default window, icon-led main navigation, and a
+  denser operational left rail.
+- Reworked Hosts Activity controls into a single-line command bar with
+  search, AI purpose lookup, block/allow decisions, activity toggles, and
+  refresh in the same order as the reference.
+- Refitted the DNS activity table and selected-domain inspector so the grid
+  avoids horizontal scrolling while the inspector keeps the action stack
+  visible.
+- Re-captured README screenshots in both dark and light themes after the
+  parity pass.
+
 ## [0.12.2] - 2026-07-07
 
 ### Changed
