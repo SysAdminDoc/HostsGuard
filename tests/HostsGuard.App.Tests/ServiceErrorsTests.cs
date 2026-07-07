@@ -43,4 +43,14 @@ public sealed class ServiceErrorsTests
         ServiceErrors.Describe(Rpc(StatusCode.Unknown, "Exception was thrown by handler."))
             .Should().Contain("still running").And.NotContain("thrown by handler");
     }
+
+    [Fact]
+    public void DescribeActionFailure_keeps_the_failed_action_in_the_status_line()
+    {
+        ServiceErrors.DescribeActionFailure("Block domain", Rpc(StatusCode.Unavailable))
+            .Should().Be("Block domain failed — service unavailable; reconnect from the status bar");
+
+        ServiceErrors.DescribeActionFailure("Import policy", Rpc(StatusCode.Unknown, "bad JSON"))
+            .Should().Contain("Import policy failed").And.Contain("bad JSON");
+    }
 }

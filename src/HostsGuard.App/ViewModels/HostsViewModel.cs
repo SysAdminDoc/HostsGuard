@@ -68,20 +68,23 @@ public sealed partial class HostsViewModel : ObservableObject
                 await Task.Delay(FilterDebounce, ct);
             }
 
-            await RefreshAsync();
+            await RunServiceActionAsync("Refresh domains", RefreshCoreAsync);
         }
         catch (OperationCanceledException)
         {
             // Superseded by a newer keystroke.
         }
-        catch (Exception ex) when (ex is RpcException or IOException)
+        catch (Exception ex) when (IsServiceFailure(ex))
         {
-            StatusText = "Service unavailable — reconnect from the status bar";
+            StatusText = ServiceFailureStatus("Refresh domains", ex);
         }
     }
 
     [RelayCommand]
-    public async Task RefreshAsync()
+    public Task RefreshAsync()
+        => RunServiceActionAsync("Refresh domains", RefreshCoreAsync);
+
+    private async Task RefreshCoreAsync()
     {
         var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest
         {
@@ -100,14 +103,17 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanBlock))]
     public async Task BlockAsync()
     {
-        var domain = NewDomain.Trim();
-        var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
-        StatusText = ack.Ok ? $"Blocked {domain}" : ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Block domain", async () =>
         {
-            NewDomain = string.Empty;
-            await RefreshAsync();
-        }
+            var domain = NewDomain.Trim();
+            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
+            StatusText = ack.Ok ? $"Blocked {domain}" : ack.Message;
+            if (ack.Ok)
+            {
+                NewDomain = string.Empty;
+                await RefreshCoreAsync();
+            }
+        });
     }
 
     private bool CanBlock() => !string.IsNullOrWhiteSpace(NewDomain);
@@ -132,9 +138,12 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
-        StatusText = ack.Ok ? $"Allowed {domain}" : ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Allow domain", async () =>
+        {
+            var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
+            StatusText = ack.Ok ? $"Allowed {domain}" : ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -151,9 +160,12 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
-        StatusText = $"Removed {domain}";
-        await RefreshAsync();
+        await RunServiceActionAsync("Remove domain", async () =>
+        {
+            await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
+            StatusText = $"Removed {domain}";
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -164,9 +176,12 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "manual" });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Block root domain", async () =>
+        {
+            var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "manual" });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     // ─── Bulk actions (parameter: DataGrid.SelectedItems) ────────────────────
@@ -181,11 +196,14 @@ public sealed partial class HostsViewModel : ObservableObject
         }
 
         // NET-105: one RPC + one hosts-file write for the whole selection.
-        var request = new BulkDomainsRequest { Source = "manual" };
-        request.Domains.AddRange(domains);
-        var result = await _client.Hosts.BlockManyAsync(request);
-        StatusText = result.Ok ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)" : result.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Block selected domains", async () =>
+        {
+            var request = new BulkDomainsRequest { Source = "manual" };
+            request.Domains.AddRange(domains);
+            var result = await _client.Hosts.BlockManyAsync(request);
+            StatusText = result.Ok ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)" : result.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -197,11 +215,14 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        var request = new BulkDomainsRequest { Source = "manual" };
-        request.Domains.AddRange(domains);
-        var result = await _client.Hosts.AllowManyAsync(request);
-        StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Allow selected domains", async () =>
+        {
+            var request = new BulkDomainsRequest { Source = "manual" };
+            request.Domains.AddRange(domains);
+            var result = await _client.Hosts.AllowManyAsync(request);
+            StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -214,12 +235,15 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        foreach (var domain in domains)
+        await RunServiceActionAsync("Remove selected domains", async () =>
         {
-            await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
-        }
+            foreach (var domain in domains)
+            {
+                await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
+            }
 
-        await RefreshAsync();
+            await RefreshCoreAsync();
+        });
     }
 
     private static List<string> SelectedDomains(IList? selected)
@@ -229,14 +253,34 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task AiCategorizeAsync()
     {
-        StatusText = "Asking DeepSeek to categorize hosts-file entries…";
-        var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
-        StatusText = result.Message;
-        if (result.Ok && result.Categorized > 0)
+        await RunServiceActionAsync("Categorize hosts entries", async () =>
         {
-            await RefreshAsync();
+            StatusText = "Asking DeepSeek to categorize hosts-file entries…";
+            var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
+            StatusText = result.Message;
+            if (result.Ok && result.Categorized > 0)
+            {
+                await RefreshCoreAsync();
+            }
+        });
+    }
+
+    private async Task RunServiceActionAsync(string action, Func<Task> work)
+    {
+        try
+        {
+            await work();
+        }
+        catch (Exception ex) when (IsServiceFailure(ex))
+        {
+            StatusText = ServiceFailureStatus(action, ex);
         }
     }
+
+    private static bool IsServiceFailure(Exception ex) => ex is RpcException || ServiceErrors.IsConnectivity(ex);
+
+    private static string ServiceFailureStatus(string action, Exception ex)
+        => ServiceErrors.DescribeActionFailure(action, ex);
 
     [RelayCommand]
     public void ResearchGoogle(string domain) => Research.Open(Research.Sites[0].UrlTemplate, domain);

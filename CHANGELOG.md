@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.5] - 2026-07-07
+
+### Changed
+- Added the 2026-07-07 improvement backlog to the actionable roadmap and moved
+  signing/toast/elevated/interactive gates into the blocked roadmap.
+- Modernized the roadmap target language from .NET 8 to the shipped .NET 10
+  architecture.
+
+### Fixed
+- Started NET-126 by giving the Hosts tab per-command service-failure feedback:
+  block/allow/remove/bulk/categorize/refresh commands now catch service/RPC
+  failures and write action-specific `StatusText` instead of bubbling a generic
+  failure path.
+
 ## [0.12.4] - 2026-07-07
 
 ### Changed

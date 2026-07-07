@@ -46,4 +46,10 @@ public static class ServiceErrors
 
         return ex.Message;
     }
+
+    /// <summary>Action-specific status line for a command that failed against the service.</summary>
+    public static string DescribeActionFailure(string action, Exception ex)
+        => IsConnectivity(ex)
+            ? $"{action} failed — service unavailable; reconnect from the status bar"
+            : $"{action} failed — {Describe(ex)}";
 }
