@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.11] - 2026-07-07
+
+### Fixed
+- Finished per-command WPF service-failure feedback across Hosts Activity,
+  Firewall Activity, Firewall Rules, Raw Hosts, Blocklists, Tools, and shell
+  menu commands so stopped-service/RPC failures update the relevant status line
+  with action-specific recovery text instead of falling through to a generic
+  modal path.
+
 ## [0.12.10] - 2026-07-07
 
 ### Added

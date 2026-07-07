@@ -186,59 +186,62 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
                 await Task.Delay(FilterDebounce, ct);
             }
 
-            await RefreshAsync();
+            await RunServiceActionAsync("Refresh hosts activity", RefreshAsync);
         }
         catch (OperationCanceledException)
         {
             // Superseded by a newer keystroke.
         }
-        catch (Exception ex) when (ex is RpcException or IOException)
+        catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            StatusText = "Service unavailable — reconnect from the status bar";
+            StatusText = ServiceErrors.DescribeActionFailure("Refresh hosts activity", ex);
         }
     }
 
     [RelayCommand]
     public async Task RefreshAsync()
     {
-        var list = await _client.Hosts.GetActivityAsync(new ActivityRequest
+        await RunServiceActionAsync("Refresh hosts activity", async () =>
         {
-            Search = Filter,
-            IncludeHidden = ShowHidden,
-        });
-        Rows.Clear();
-        var hidden = 0;
-        foreach (var row in list.Rows)
-        {
-            var isBlocked = row.Status == "blocked";
-            // "Blocked only" is a troubleshooting override: show blocked, drop the
-            // rest, and ignore "Hide blocked" while it's on.
-            if (BlockedOnly)
+            var list = await _client.Hosts.GetActivityAsync(new ActivityRequest
             {
-                if (!isBlocked)
+                Search = Filter,
+                IncludeHidden = ShowHidden,
+            });
+            Rows.Clear();
+            var hidden = 0;
+            foreach (var row in list.Rows)
+            {
+                var isBlocked = row.Status == "blocked";
+                // "Blocked only" is a troubleshooting override: show blocked, drop the
+                // rest, and ignore "Hide blocked" while it's on.
+                if (BlockedOnly)
                 {
+                    if (!isBlocked)
+                    {
+                        continue;
+                    }
+                }
+                else if (HideBlocked && isBlocked)
+                {
+                    hidden++;
                     continue;
                 }
-            }
-            else if (HideBlocked && isBlocked)
-            {
-                hidden++;
-                continue;
-            }
 
-            if (HideReverseDns && IsReverseDns(row.Domain))
-            {
-                hidden++;
-                continue;
+                if (HideReverseDns && IsReverseDns(row.Domain))
+                {
+                    hidden++;
+                    continue;
+                }
+
+                Rows.Add(ActivityRowViewModel.From(row));
             }
 
-            Rows.Add(ActivityRowViewModel.From(row));
-        }
-
-        StatusText = hidden > 0
-            ? $"{Plural.Of(Rows.Count, "domain")} in feed · {hidden} hidden"
-            : $"{Plural.Of(Rows.Count, "domain")} in feed";
-        await LoadSparklinesAsync();
+            StatusText = hidden > 0
+                ? $"{Plural.Of(Rows.Count, "domain")} in feed · {hidden} hidden"
+                : $"{Plural.Of(Rows.Count, "domain")} in feed";
+            await LoadSparklinesAsync();
+        });
     }
 
     /// <summary>
@@ -387,9 +390,12 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Block domain", async () =>
+        {
+            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     [RelayCommand]
@@ -400,9 +406,12 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "feed" });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Allow domain", async () =>
+        {
+            var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "feed" });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>
@@ -420,14 +429,17 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        // NET-105: one RPC + one hosts-file write for the whole selection.
-        var request = new BulkDomainsRequest { Source = "feed" };
-        request.Domains.AddRange(domains);
-        var result = await _client.Hosts.BlockManyAsync(request);
-        StatusText = result.Ok
-            ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)"
-            : result.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Block selected domains", async () =>
+        {
+            // NET-105: one RPC + one hosts-file write for the whole selection.
+            var request = new BulkDomainsRequest { Source = "feed" };
+            request.Domains.AddRange(domains);
+            var result = await _client.Hosts.BlockManyAsync(request);
+            StatusText = result.Ok
+                ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)"
+                : result.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>
@@ -445,20 +457,23 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var removed = 0;
-        foreach (var domain in domains)
+        await RunServiceActionAsync("Unblock selected domains", async () =>
         {
-            var ack = await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
-            if (ack.Ok)
+            var removed = 0;
+            foreach (var domain in domains)
             {
-                removed++;
+                var ack = await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
+                if (ack.Ok)
+                {
+                    removed++;
+                }
             }
-        }
 
-        StatusText = removed == domains.Count
-            ? $"Unblocked {Plural.Of(removed, "domain")} — removed from hosts"
-            : $"Unblocked {removed} of {domains.Count}";
-        await RefreshAsync();
+            StatusText = removed == domains.Count
+                ? $"Unblocked {Plural.Of(removed, "domain")} - removed from hosts"
+                : $"Unblocked {removed} of {domains.Count}";
+            await RefreshAsync();
+        });
     }
 
     /// <summary>Allow every selected feed row (bulk counterpart to <see cref="AllowAsync"/>).</summary>
@@ -471,12 +486,15 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        // NET-105: one RPC + one hosts-file write for the whole selection.
-        var request = new BulkDomainsRequest { Source = "feed" };
-        request.Domains.AddRange(domains);
-        var result = await _client.Hosts.AllowManyAsync(request);
-        StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Allow selected domains", async () =>
+        {
+            // NET-105: one RPC + one hosts-file write for the whole selection.
+            var request = new BulkDomainsRequest { Source = "feed" };
+            request.Domains.AddRange(domains);
+            var result = await _client.Hosts.AllowManyAsync(request);
+            StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>
@@ -507,17 +525,20 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+        await RunServiceActionAsync($"Fix domain {kind}", async () =>
         {
-            Kind = kind,
-            Key = row.Domain,
-            Value = value,
+            var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+            {
+                Kind = kind,
+                Key = row.Domain,
+                Value = value,
+            });
+            StatusText = ack.Message;
+            if (kind == "purpose")
+            {
+                await RefreshAsync();
+            }
         });
-        StatusText = ack.Message;
-        if (kind == "purpose")
-        {
-            await RefreshAsync();
-        }
     }
 
     [RelayCommand]
@@ -528,9 +549,12 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "feed" });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Block root domain", async () =>
+        {
+            var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "feed" });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     [RelayCommand]
@@ -549,9 +573,12 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.TempAllowAsync(new TempAllowRequest { Domain = domain, Minutes = minutes });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Temporarily allow domain", async () =>
+        {
+            var ack = await _client.Hosts.TempAllowAsync(new TempAllowRequest { Domain = domain, Minutes = minutes });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     [RelayCommand]
@@ -562,9 +589,12 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.HideRootAsync(new DomainRequest { Domain = domain });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Hide root domain", async () =>
+        {
+            var ack = await _client.Hosts.HideRootAsync(new DomainRequest { Domain = domain });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>Hide one exact domain from the feed (leaves the rest of the root).</summary>
@@ -576,11 +606,14 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var request = new HideDomainsRequest();
-        request.Domains.Add(domain);
-        var ack = await _client.Hosts.HideDomainsAsync(request);
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Hide domain", async () =>
+        {
+            var request = new HideDomainsRequest();
+            request.Domains.Add(domain);
+            var ack = await _client.Hosts.HideDomainsAsync(request);
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>
@@ -597,11 +630,14 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var request = new HideDomainsRequest();
-        request.Domains.AddRange(domains);
-        var ack = await _client.Hosts.HideDomainsAsync(request);
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Hide selected domains", async () =>
+        {
+            var request = new HideDomainsRequest();
+            request.Domains.AddRange(domains);
+            var ack = await _client.Hosts.HideDomainsAsync(request);
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>Distinct, non-empty domains from a grid multi-selection.</summary>
@@ -635,11 +671,14 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var request = new HideDomainsRequest();
-        request.Domains.AddRange(domains);
-        var ack = await _client.Hosts.HideDomainsAsync(request);
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Hide group domains", async () =>
+        {
+            var request = new HideDomainsRequest();
+            request.Domains.AddRange(domains);
+            var ack = await _client.Hosts.HideDomainsAsync(request);
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     [RelayCommand]
@@ -650,22 +689,28 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        var ack = await _client.Hosts.UnhideRootAsync(new DomainRequest { Domain = domain });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Unhide root domain", async () =>
+        {
+            var ack = await _client.Hosts.UnhideRootAsync(new DomainRequest { Domain = domain });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
     }
 
     /// <summary>AI-research purpose descriptions for feed domains that have none.</summary>
     [RelayCommand]
     public async Task ResearchPurposesAsync()
     {
-        StatusText = "Asking DeepSeek to research domain purposes…";
-        var result = await _client.Hosts.ResearchPurposesAsync(new Empty());
-        StatusText = result.Message;
-        if (result.Ok && result.Categorized > 0)
+        await RunServiceActionAsync("Research domain purposes", async () =>
         {
-            await RefreshAsync();
-        }
+            StatusText = "Asking DeepSeek to research domain purposes...";
+            var result = await _client.Hosts.ResearchPurposesAsync(new Empty());
+            StatusText = result.Message;
+            if (result.Ok && result.Categorized > 0)
+            {
+                await RefreshAsync();
+            }
+        });
     }
 
     [RelayCommand]
@@ -676,6 +721,9 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     [RelayCommand]
     public void ResearchWhois(string domain) => Research.Open(Research.Sites[2].UrlTemplate, domain);
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
 
     public void Dispose()
     {

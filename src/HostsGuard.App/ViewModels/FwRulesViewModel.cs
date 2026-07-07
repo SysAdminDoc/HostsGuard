@@ -203,20 +203,23 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 await Task.Delay(FilterDebounce, ct);
             }
 
-            await RefreshAsync();
+            await RunServiceActionAsync("Refresh firewall rules", RefreshCoreAsync);
         }
         catch (OperationCanceledException)
         {
             // Superseded by a newer keystroke.
         }
-        catch (Exception ex) when (ex is RpcException or IOException)
+        catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            StatusText = "Service unavailable — reconnect from the status bar";
+            StatusText = ServiceErrors.DescribeActionFailure("Refresh firewall rules", ex);
         }
     }
 
     [RelayCommand]
-    public async Task RefreshAsync()
+    public Task RefreshAsync()
+        => RunServiceActionAsync("Refresh firewall rules", RefreshCoreAsync);
+
+    private async Task RefreshCoreAsync()
     {
         var list = await _client.Firewall.ListRulesAsync(new Empty());
         var filter = Filter.Trim();
@@ -241,13 +244,16 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
 
         StatusText = Plural.Of(Rules.Count, "rule");
-        await LoadRuleGroupsAsync();
+        await LoadRuleGroupsCoreAsync();
     }
 
     // ─── Rule groups (NET-103) ───────────────────────────────────────────────
 
     [RelayCommand]
-    public async Task LoadRuleGroupsAsync()
+    public Task LoadRuleGroupsAsync()
+        => RunServiceActionAsync("Load rule groups", LoadRuleGroupsCoreAsync);
+
+    private async Task LoadRuleGroupsCoreAsync()
     {
         var list = await _client.Firewall.ListRuleGroupsAsync(new Empty());
         RuleGroups.Clear();
@@ -277,20 +283,23 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        var assigned = 0;
-        foreach (var name in names)
+        await RunServiceActionAsync("Assign firewall rule group", async () =>
         {
-            var ack = await _client.Firewall.AssignRuleGroupAsync(new RuleGroupAssignment { RuleName = name, Group = group });
-            if (ack.Ok)
+            var assigned = 0;
+            foreach (var name in names)
             {
-                assigned++;
+                var ack = await _client.Firewall.AssignRuleGroupAsync(new RuleGroupAssignment { RuleName = name, Group = group });
+                if (ack.Ok)
+                {
+                    assigned++;
+                }
             }
-        }
 
-        StatusText = group.Trim().Length == 0
-            ? $"Removed {assigned} rules from groups"
-            : $"Assigned {assigned} rules to '{group.Trim()}'";
-        await LoadRuleGroupsAsync();
+            StatusText = group.Trim().Length == 0
+                ? $"Removed {assigned} rules from groups"
+                : $"Assigned {assigned} rules to '{group.Trim()}'";
+            await LoadRuleGroupsCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -306,17 +315,29 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Firewall.ToggleRuleGroupAsync(new RuleGroupToggle { Group = group.Name, Enabled = enabled });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync($"{(enabled ? "Enable" : "Disable")} rule group", async () =>
+        {
+            var ack = await _client.Firewall.ToggleRuleGroupAsync(new RuleGroupToggle { Group = group.Name, Enabled = enabled });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
     public async Task ToggleRuleAsync(FwRuleViewModel rule)
     {
-        var ack = await _client.Firewall.SetRuleEnabledAsync(new RuleEnabledRequest { Name = rule.Name, Enabled = !rule.Enabled });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        if (rule is null)
+        {
+            StatusText = "Select a firewall rule first";
+            return;
+        }
+
+        await RunServiceActionAsync("Toggle firewall rule", async () =>
+        {
+            var ack = await _client.Firewall.SetRuleEnabledAsync(new RuleEnabledRequest { Name = rule.Name, Enabled = !rule.Enabled });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -328,9 +349,12 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        await RunServiceActionAsync("Delete firewall rule", async () =>
+        {
+            var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
@@ -343,18 +367,21 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        var deleted = 0;
-        foreach (var name in names)
+        await RunServiceActionAsync("Delete selected firewall rules", async () =>
         {
-            var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
-            if (ack.Ok)
+            var deleted = 0;
+            foreach (var name in names)
             {
-                deleted++;
+                var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
+                if (ack.Ok)
+                {
+                    deleted++;
+                }
             }
-        }
 
-        StatusText = $"Deleted {deleted} of {Plural.Of(names.Count, "rule")}";
-        await RefreshAsync();
+            StatusText = $"Deleted {deleted} of {Plural.Of(names.Count, "rule")}";
+            await RefreshCoreAsync();
+        });
     }
 
     /// <summary>
@@ -372,40 +399,43 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
 
         StatusText = "Scanning for replacement binaries…";
-        var suggestions = await _client.Firewall.SuggestRebindAsync(new RuleNameRequest { Name = rule.Name });
-
-        string? target = null;
-        if (suggestions.Candidates.Count != 0 && !suggestions.Ambiguous)
+        await RunServiceActionAsync("Rebind firewall rule", async () =>
         {
-            var best = suggestions.Candidates[0];
-            if (_confirm.Confirm("Rebind firewall rule",
-                $"Re-target {rule.Name}\nfrom: {suggestions.OldPath}\nto: {best.Path}\n" +
-                $"Confidence {best.Score}/100 ({best.Reasons}). The old executable path will no longer be covered."))
+            var suggestions = await _client.Firewall.SuggestRebindAsync(new RuleNameRequest { Name = rule.Name });
+
+            string? target = null;
+            if (suggestions.Candidates.Count != 0 && !suggestions.Ambiguous)
             {
-                target = best.Path;
+                var best = suggestions.Candidates[0];
+                if (_confirm.Confirm("Rebind firewall rule",
+                    $"Re-target {rule.Name}\nfrom: {suggestions.OldPath}\nto: {best.Path}\n" +
+                    $"Confidence {best.Score}/100 ({best.Reasons}). The old executable path will no longer be covered."))
+                {
+                    target = best.Path;
+                }
             }
-        }
-        else
-        {
-            target = _filePicker?.PickFile(
-                suggestions.Candidates.Count == 0
-                    ? $"No confident match found — select the replacement for {rule.Name}"
-                    : $"Multiple candidates — select the replacement for {rule.Name}",
-                suggestions.Candidates.FirstOrDefault()?.Path ?? suggestions.OldPath);
-        }
+            else
+            {
+                target = _filePicker?.PickFile(
+                    suggestions.Candidates.Count == 0
+                        ? $"No confident match found — select the replacement for {rule.Name}"
+                        : $"Multiple candidates — select the replacement for {rule.Name}",
+                    suggestions.Candidates.FirstOrDefault()?.Path ?? suggestions.OldPath);
+            }
 
-        if (target is null)
-        {
-            StatusText = "Rebind cancelled";
-            return;
-        }
+            if (target is null)
+            {
+                StatusText = "Rebind cancelled";
+                return;
+            }
 
-        var ack = await _client.Firewall.RebindRuleAsync(new RebindRequest { Name = rule.Name, NewProgram = target });
-        StatusText = ack.Message;
-        if (ack.Ok)
-        {
-            await RefreshAsync();
-        }
+            var ack = await _client.Firewall.RebindRuleAsync(new RebindRequest { Name = rule.Name, NewProgram = target });
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                await RefreshCoreAsync();
+            }
+        });
     }
 
     /// <summary>
@@ -423,37 +453,46 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        var result = await _client.Firewall.AdoptFirewallRulesAsync(new Empty());
-        StatusText = result.Message;
-        if (result.Ok)
+        await RunServiceActionAsync("Import existing firewall rules", async () =>
         {
-            HostsGuardOnly = false; // reveal the adopted (non-HG_) rules
-            await RefreshAsync();
-        }
+            var result = await _client.Firewall.AdoptFirewallRulesAsync(new Empty());
+            StatusText = result.Message;
+            if (result.Ok)
+            {
+                HostsGuardOnly = false; // reveal the adopted (non-HG_) rules
+                await RefreshCoreAsync();
+            }
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanCreateRule))]
     public async Task CreateRuleAsync()
     {
-        var ack = await _client.Firewall.CreateRuleAsync(new FirewallRule
+        await RunServiceActionAsync("Create firewall rule", async () =>
         {
-            Name = NewRuleName.Trim(),
-            Direction = NewRuleDirection,
-            Action = NewRuleAction,
-            Protocol = NewRuleProtocol,
-            RemoteAddr = NewRuleRemoteAddr.Trim(),
-            Program = NewRuleProgram.Trim(),
-            Enabled = true,
+            var ack = await _client.Firewall.CreateRuleAsync(new FirewallRule
+            {
+                Name = NewRuleName.Trim(),
+                Direction = NewRuleDirection,
+                Action = NewRuleAction,
+                Protocol = NewRuleProtocol,
+                RemoteAddr = NewRuleRemoteAddr.Trim(),
+                Program = NewRuleProgram.Trim(),
+                Enabled = true,
+            });
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                NewRuleName = string.Empty;
+                NewRuleRemoteAddr = string.Empty;
+                NewRuleProgram = string.Empty;
+                await RefreshCoreAsync();
+            }
         });
-        StatusText = ack.Message;
-        if (ack.Ok)
-        {
-            NewRuleName = string.Empty;
-            NewRuleRemoteAddr = string.Empty;
-            NewRuleProgram = string.Empty;
-            await RefreshAsync();
-        }
     }
 
     private bool CanCreateRule() => !string.IsNullOrWhiteSpace(NewRuleName);
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
 }

@@ -188,8 +188,11 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task FlushDnsAsync()
     {
-        var ack = await _client.Dns.FlushCacheAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Flush DNS cache", async () =>
+        {
+            var ack = await _client.Dns.FlushCacheAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     // ─── Settings lock (NET-079) ─────────────────────────────────────────────
@@ -197,63 +200,84 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadLockStateAsync()
     {
-        var state = await _client.Policy.GetLockStateAsync(new Empty());
-        LockEnabled = state.Enabled;
-        LockStatus = state.Enabled
-            ? state.Unlocked ? "Locked (temporarily unlocked)" : "Locked"
-            : "Not locked";
+        await RunServiceActionAsync("Load settings lock state", s => LockStatus = s, async () =>
+        {
+            var state = await _client.Policy.GetLockStateAsync(new Empty());
+            LockEnabled = state.Enabled;
+            LockStatus = state.Enabled
+                ? state.Unlocked ? "Locked (temporarily unlocked)" : "Locked"
+                : "Not locked";
+        });
     }
 
     [RelayCommand]
     public async Task EnableLockAsync()
     {
-        var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "enable", Password = LockPassword });
-        LockStatus = ack.Message;
-        LockPassword = string.Empty;
-        await LoadLockStateAsync();
+        await RunServiceActionAsync("Enable settings lock", s => LockStatus = s, async () =>
+        {
+            var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "enable", Password = LockPassword });
+            LockStatus = ack.Message;
+            LockPassword = string.Empty;
+            await LoadLockStateAsync();
+        });
     }
 
     [RelayCommand]
     public async Task DisableLockAsync()
     {
-        var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "disable", Password = LockPassword });
-        LockStatus = ack.Message;
-        LockPassword = string.Empty;
-        await LoadLockStateAsync();
+        await RunServiceActionAsync("Disable settings lock", s => LockStatus = s, async () =>
+        {
+            var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "disable", Password = LockPassword });
+            LockStatus = ack.Message;
+            LockPassword = string.Empty;
+            await LoadLockStateAsync();
+        });
     }
 
     [RelayCommand]
     public async Task UnlockAsync()
     {
-        var ack = await _client.Policy.UnlockAsync(new LockRequest { Password = LockPassword, Minutes = UnlockMinutes });
-        LockStatus = ack.Message;
-        LockPassword = string.Empty;
-        await LoadLockStateAsync();
+        await RunServiceActionAsync("Unlock settings", s => LockStatus = s, async () =>
+        {
+            var ack = await _client.Policy.UnlockAsync(new LockRequest { Password = LockPassword, Minutes = UnlockMinutes });
+            LockStatus = ack.Message;
+            LockPassword = string.Empty;
+            await LoadLockStateAsync();
+        });
     }
 
     [RelayCommand]
     public async Task ProtectHostsAsync()
     {
-        var ack = await _client.Policy.SetHostsProtectionAsync(new HostsProtectionRequest { Enabled = true });
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Protect hosts file", async () =>
+        {
+            var ack = await _client.Policy.SetHostsProtectionAsync(new HostsProtectionRequest { Enabled = true });
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
     public async Task ApplyResolverAsync()
     {
-        var preset = ResolverPresets.FirstOrDefault(p => p.Name == SelectedResolver);
-        var request = new ResolverRequest();
-        request.Servers.AddRange(preset.Servers ?? Array.Empty<string>());
-        var ack = await _client.Dns.SetResolverAsync(request);
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Apply DNS resolver", async () =>
+        {
+            var preset = ResolverPresets.FirstOrDefault(p => p.Name == SelectedResolver);
+            var request = new ResolverRequest();
+            request.Servers.AddRange(preset.Servers ?? Array.Empty<string>());
+            var ack = await _client.Dns.SetResolverAsync(request);
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
     public async Task BackupHostsAsync()
     {
-        var ack = await _client.Hosts.BackupHostsAsync(new Empty());
-        StatusText = ack.Ok ? $"Backup written: {ack.Message}" : ack.Message;
-        await LoadBackupsAsync();
+        await RunServiceActionAsync("Back up hosts file", async () =>
+        {
+            var ack = await _client.Hosts.BackupHostsAsync(new Empty());
+            StatusText = ack.Ok ? $"Backup written: {ack.Message}" : ack.Message;
+            await LoadBackupsAsync();
+        });
     }
 
     // ─── Backup restore ───────────────────────────────────────────────────────
@@ -267,19 +291,22 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadBackupsAsync()
     {
-        var list = await _client.Hosts.ListBackupsAsync(new Empty());
-        Backups.Clear();
-        foreach (var entry in list.Entries)
+        await RunServiceActionAsync("Load hosts backups", async () =>
         {
-            Backups.Add(new BackupRowViewModel
+            var list = await _client.Hosts.ListBackupsAsync(new Empty());
+            Backups.Clear();
+            foreach (var entry in list.Entries)
             {
-                FileName = entry.FileName,
-                Created = entry.Created,
-                SizeBytes = entry.SizeBytes,
-            });
-        }
+                Backups.Add(new BackupRowViewModel
+                {
+                    FileName = entry.FileName,
+                    Created = entry.Created,
+                    SizeBytes = entry.SizeBytes,
+                });
+            }
 
-        SelectedBackup = Backups.FirstOrDefault();
+            SelectedBackup = Backups.FirstOrDefault();
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanRestoreBackup))]
@@ -297,12 +324,15 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Hosts.RestoreBackupAsync(new BackupRequest { FileName = SelectedBackup.FileName });
-        StatusText = ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Restore hosts backup", async () =>
         {
-            await LoadBackupsAsync();
-        }
+            var ack = await _client.Hosts.RestoreBackupAsync(new BackupRequest { FileName = SelectedBackup.FileName });
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                await LoadBackupsAsync();
+            }
+        });
     }
 
     private bool CanRestoreBackup() => SelectedBackup is not null;
@@ -310,25 +340,34 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task HardenAclAsync()
     {
-        var ack = await _client.Hosts.HardenAclAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Harden hosts ACL", async () =>
+        {
+            var ack = await _client.Hosts.HardenAclAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
     public async Task ExportBundleAsync()
     {
-        var ack = await _client.Diagnostics.ExportSupportBundleAsync(new Empty());
-        StatusText = ack.Ok ? $"Support bundle: {ack.Message}" : ack.Message;
+        await RunServiceActionAsync("Export support bundle", async () =>
+        {
+            var ack = await _client.Diagnostics.ExportSupportBundleAsync(new Empty());
+            StatusText = ack.Ok ? $"Support bundle: {ack.Message}" : ack.Message;
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanInspect))]
     public async Task InspectAsync()
     {
-        var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain.Trim() });
-        var records = result.Records.Count == 0
-            ? "no records"
-            : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
-        InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
+        await RunServiceActionAsync("Inspect domain", s => InspectResult = s, async () =>
+        {
+            var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain.Trim() });
+            var records = result.Records.Count == 0
+                ? "no records"
+                : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
+            InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
+        });
     }
 
     private bool CanInspect() => !string.IsNullOrWhiteSpace(InspectDomain);
@@ -339,38 +378,50 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDefenderStatusAsync()
     {
-        var status = await _client.Diagnostics.GetDefenderStatusAsync(new Empty());
-        DefenderStatusText = !status.Available
-            ? "Defender: not accessible"
-            : status.HostsExcluded
-                ? "Defender: hosts file is excluded"
-                : status.PossibleRevert
-                    ? "Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)"
-                    : "Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)";
+        await RunServiceActionAsync("Load Defender status", s => DefenderStatusText = s, async () =>
+        {
+            var status = await _client.Diagnostics.GetDefenderStatusAsync(new Empty());
+            DefenderStatusText = !status.Available
+                ? "Defender: not accessible"
+                : status.HostsExcluded
+                    ? "Defender: hosts file is excluded"
+                    : status.PossibleRevert
+                        ? "Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)"
+                        : "Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)";
+        });
     }
 
     [RelayCommand]
     public async Task AddDefenderExclusionAsync()
     {
-        var ack = await _client.Hosts.AddDefenderExclusionAsync(new Empty());
-        StatusText = ack.Message;
-        await LoadDefenderStatusAsync();
+        await RunServiceActionAsync("Add Defender exclusion", async () =>
+        {
+            var ack = await _client.Hosts.AddDefenderExclusionAsync(new Empty());
+            StatusText = ack.Message;
+            await LoadDefenderStatusAsync();
+        });
     }
 
     [RelayCommand]
     public async Task RefreshThreatIntelAsync()
     {
-        StatusText = "Refreshing threat intel…";
-        var ack = await _client.Lists.RefreshThreatIntelAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Refresh threat intelligence", async () =>
+        {
+            StatusText = "Refreshing threat intel...";
+            var ack = await _client.Lists.RefreshThreatIntelAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
     public async Task RefreshGeoIpAsync()
     {
-        StatusText = "Downloading GeoIP database…";
-        var ack = await _client.Lists.RefreshGeoIpAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Refresh GeoIP database", async () =>
+        {
+            StatusText = "Downloading GeoIP database...";
+            var ack = await _client.Lists.RefreshGeoIpAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
@@ -382,8 +433,11 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Hosts.EmergencyResetAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Emergency reset hosts file", async () =>
+        {
+            var ack = await _client.Hosts.EmergencyResetAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     // ─── Network profiles ─────────────────────────────────────────────────────
@@ -405,27 +459,33 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadProfilesAsync()
     {
-        var list = await _client.Policy.ListProfilesAsync(new Empty());
-        Profiles.Clear();
-        foreach (var name in list.Names)
+        await RunServiceActionAsync("Load network profiles", async () =>
         {
-            Profiles.Add(name);
-        }
+            var list = await _client.Policy.ListProfilesAsync(new Empty());
+            Profiles.Clear();
+            foreach (var name in list.Names)
+            {
+                Profiles.Add(name);
+            }
 
-        ActiveProfile = list.Active.Length != 0 ? $"Active: {list.Active}" : "No active profile";
-        SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
+            ActiveProfile = list.Active.Length != 0 ? $"Active: {list.Active}" : "No active profile";
+            SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveProfile))]
     public async Task SaveProfileAsync()
     {
-        var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName.Trim() });
-        StatusText = ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Save network profile", async () =>
         {
-            NewProfileName = string.Empty;
-            await LoadProfilesAsync();
-        }
+            var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName.Trim() });
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                NewProfileName = string.Empty;
+                await LoadProfilesAsync();
+            }
+        });
     }
 
     private bool CanSaveProfile() => !string.IsNullOrWhiteSpace(NewProfileName);
@@ -440,9 +500,12 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });
-        StatusText = ack.Message;
-        await LoadProfilesAsync();
+        await RunServiceActionAsync("Switch network profile", async () =>
+        {
+            var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });
+            StatusText = ack.Message;
+            await LoadProfilesAsync();
+        });
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelectedProfile))]
@@ -455,9 +518,12 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Policy.DeleteProfileAsync(new ProfileRequest { Name = SelectedProfile });
-        StatusText = ack.Message;
-        await LoadProfilesAsync();
+        await RunServiceActionAsync("Delete network profile", async () =>
+        {
+            var ack = await _client.Policy.DeleteProfileAsync(new ProfileRequest { Name = SelectedProfile });
+            StatusText = ack.Message;
+            await LoadProfilesAsync();
+        });
     }
 
     // ─── Encrypted DNS (DoH/DoT) ──────────────────────────────────────────────
@@ -500,15 +566,18 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDohStatusAsync()
     {
-        var status = await _client.Dns.GetDohStatusAsync(new Empty());
-        DohBlockingActive = status.BlockingActive;
-        QuicBlockingActive = status.QuicBlocked;
-        CnameCloakActive = status.CnameCloak;
-        SniCaptureActive = status.SniCapture;
-        DnsEncryptedOnly = status.DnsEncryptedOnly;
-        DohStatusText = status.Updated.Length != 0
-            ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
-            : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+        await RunServiceActionAsync("Load encrypted DNS status", s => DohStatusText = s, async () =>
+        {
+            var status = await _client.Dns.GetDohStatusAsync(new Empty());
+            DohBlockingActive = status.BlockingActive;
+            QuicBlockingActive = status.QuicBlocked;
+            CnameCloakActive = status.CnameCloak;
+            SniCaptureActive = status.SniCapture;
+            DnsEncryptedOnly = status.DnsEncryptedOnly;
+            DohStatusText = status.Updated.Length != 0
+                ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
+                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+        });
     }
 
     /// <summary>
@@ -536,70 +605,85 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        if (SeeEverythingActive)
+        await RunServiceActionAsync("Toggle see-everything mode", async () =>
         {
-            if (QuicBlockingActive)
+            if (SeeEverythingActive)
             {
-                await _client.Firewall.UnblockQuicAsync(new Empty());
+                if (QuicBlockingActive)
+                {
+                    await _client.Firewall.UnblockQuicAsync(new Empty());
+                }
+
+                if (DohBlockingActive)
+                {
+                    await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
+                }
+
+                StatusText = "See-everything OFF — QUIC + DoH blocking removed";
+            }
+            else
+            {
+                if (!QuicBlockingActive)
+                {
+                    await _client.Firewall.BlockQuicAsync(new Empty());
+                }
+
+                if (!DohBlockingActive)
+                {
+                    await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
+                }
+
+                StatusText = "See-everything ON — browser DNS forced onto the OS resolver so the feed can see it";
             }
 
-            if (DohBlockingActive)
-            {
-                await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
-            }
-
-            StatusText = "See-everything OFF — QUIC + DoH blocking removed";
-        }
-        else
-        {
-            if (!QuicBlockingActive)
-            {
-                await _client.Firewall.BlockQuicAsync(new Empty());
-            }
-
-            if (!DohBlockingActive)
-            {
-                await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
-            }
-
-            StatusText = "See-everything ON — browser DNS forced onto the OS resolver so the feed can see it";
-        }
-
-        await LoadDohStatusAsync();
+            await LoadDohStatusAsync();
+        });
     }
 
     [RelayCommand]
     public async Task ToggleQuicAsync()
     {
-        var ack = QuicBlockingActive
-            ? await _client.Firewall.UnblockQuicAsync(new Empty())
-            : await _client.Firewall.BlockQuicAsync(new Empty());
-        StatusText = ack.Message;
-        await LoadDohStatusAsync();
+        await RunServiceActionAsync("Toggle QUIC blocking", async () =>
+        {
+            var ack = QuicBlockingActive
+                ? await _client.Firewall.UnblockQuicAsync(new Empty())
+                : await _client.Firewall.BlockQuicAsync(new Empty());
+            StatusText = ack.Message;
+            await LoadDohStatusAsync();
+        });
     }
 
     [RelayCommand]
     public async Task ToggleCnameCloakAsync()
     {
-        var ack = await _client.Dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = !CnameCloakActive });
-        StatusText = ack.Message;
-        await LoadDohStatusAsync();
+        await RunServiceActionAsync("Toggle CNAME cloak detection", async () =>
+        {
+            var ack = await _client.Dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = !CnameCloakActive });
+            StatusText = ack.Message;
+            await LoadDohStatusAsync();
+        });
     }
 
     /// <summary>Toggle driver-free TLS SNI capture (NET-109).</summary>
     [RelayCommand]
     public async Task ToggleSniCaptureAsync()
     {
-        var ack = await _client.Dns.SetSniCaptureAsync(new SniCaptureRequest { Enabled = !SniCaptureActive });
-        StatusText = ack.Message;
-        await LoadDohStatusAsync();
+        await RunServiceActionAsync("Toggle SNI capture", async () =>
+        {
+            var ack = await _client.Dns.SetSniCaptureAsync(new SniCaptureRequest { Enabled = !SniCaptureActive });
+            StatusText = ack.Message;
+            await LoadDohStatusAsync();
+        });
     }
 
     [RelayCommand]
     public async Task ApplyBaselineAsync()
     {
-        var ack = await _client.Consent.ApplyBaselineAsync(new Empty());
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Apply baseline rules", async () =>
+        {
+            var ack = await _client.Consent.ApplyBaselineAsync(new Empty());
+            StatusText = ack.Message;
+        });
     }
 
     // ─── Trusted publishers (NET-113) ────────────────────────────────────────
@@ -609,12 +693,15 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadTrustedPublishersAsync()
     {
-        var list = await _client.Consent.GetTrustedPublishersAsync(new Empty());
-        TrustedPublishers.Clear();
-        foreach (var p in list.Publishers)
+        await RunServiceActionAsync("Load trusted publishers", async () =>
         {
-            TrustedPublishers.Add(p);
-        }
+            var list = await _client.Consent.GetTrustedPublishersAsync(new Empty());
+            TrustedPublishers.Clear();
+            foreach (var p in list.Publishers)
+            {
+                TrustedPublishers.Add(p);
+            }
+        });
     }
 
     [RelayCommand]
@@ -627,11 +714,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var remaining = new PublisherList();
-        remaining.Publishers.AddRange(TrustedPublishers.Where(p => p != publisher));
-        var ack = await _client.Consent.SetTrustedPublishersAsync(remaining);
-        StatusText = ack.Message;
-        await LoadTrustedPublishersAsync();
+        await RunServiceActionAsync("Remove trusted publisher", async () =>
+        {
+            var remaining = new PublisherList();
+            remaining.Publishers.AddRange(TrustedPublishers.Where(p => p != publisher));
+            var ack = await _client.Consent.SetTrustedPublishersAsync(remaining);
+            StatusText = ack.Message;
+            await LoadTrustedPublishersAsync();
+        });
     }
 
     // ─── Trusted folders (NET-117) ───────────────────────────────────────────
@@ -641,12 +731,15 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadTrustedFoldersAsync()
     {
-        var list = await _client.Consent.GetTrustedFoldersAsync(new Empty());
-        TrustedFolders.Clear();
-        foreach (var f in list.Folders)
+        await RunServiceActionAsync("Load trusted folders", async () =>
         {
-            TrustedFolders.Add(f);
-        }
+            var list = await _client.Consent.GetTrustedFoldersAsync(new Empty());
+            TrustedFolders.Clear();
+            foreach (var f in list.Folders)
+            {
+                TrustedFolders.Add(f);
+            }
+        });
     }
 
     [RelayCommand]
@@ -659,11 +752,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var remaining = new FolderList();
-        remaining.Folders.AddRange(TrustedFolders.Where(f => f != folder));
-        var ack = await _client.Consent.SetTrustedFoldersAsync(remaining);
-        StatusText = ack.Message;
-        await LoadTrustedFoldersAsync();
+        await RunServiceActionAsync("Remove trusted folder", async () =>
+        {
+            var remaining = new FolderList();
+            remaining.Folders.AddRange(TrustedFolders.Where(f => f != folder));
+            var ack = await _client.Consent.SetTrustedFoldersAsync(remaining);
+            StatusText = ack.Message;
+            await LoadTrustedFoldersAsync();
+        });
     }
 
     // ─── VPN-presence kill-switch (NET-119) ──────────────────────────────────
@@ -682,26 +778,29 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadKillSwitchAsync()
     {
-        var status = await _client.Firewall.GetKillSwitchAsync(new Empty());
-        Adapters.Clear();
-        foreach (var a in status.Adapters)
+        await RunServiceActionAsync("Load VPN kill-switch", s => KillSwitchStatusText = s, async () =>
         {
-            Adapters.Add(new AdapterRowViewModel
+            var status = await _client.Firewall.GetKillSwitchAsync(new Empty());
+            Adapters.Clear();
+            foreach (var a in status.Adapters)
             {
-                Match = a.Name,
-                Label = $"{a.Name} — {a.Description} ({(a.IsUp ? "up" : "down")}{(a.IsVpnLikely ? ", VPN" : string.Empty)})",
-            });
-        }
+                Adapters.Add(new AdapterRowViewModel
+                {
+                    Match = a.Name,
+                    Label = $"{a.Name} — {a.Description} ({(a.IsUp ? "up" : "down")}{(a.IsVpnLikely ? ", VPN" : string.Empty)})",
+                });
+            }
 
-        KillSwitchEnabled = status.Enabled;
-        SelectedAdapter = Adapters.FirstOrDefault(a => a.Match == status.Adapter)
-            ?? Adapters.FirstOrDefault(a => a.Label.Contains(", VPN", StringComparison.Ordinal))
-            ?? Adapters.FirstOrDefault();
-        KillSwitchStatusText = status.Enabled
-            ? status.Engaged
-                ? $"ENGAGED — all outbound blocked while '{status.Adapter}' is down"
-                : $"On — watching '{status.Adapter}'"
-            : "VPN kill-switch off.";
+            KillSwitchEnabled = status.Enabled;
+            SelectedAdapter = Adapters.FirstOrDefault(a => a.Match == status.Adapter)
+                ?? Adapters.FirstOrDefault(a => a.Label.Contains(", VPN", StringComparison.Ordinal))
+                ?? Adapters.FirstOrDefault();
+            KillSwitchStatusText = status.Enabled
+                ? status.Engaged
+                    ? $"ENGAGED — all outbound blocked while '{status.Adapter}' is down"
+                    : $"On — watching '{status.Adapter}'"
+                : "VPN kill-switch off.";
+        });
     }
 
     [RelayCommand]
@@ -724,13 +823,16 @@ public sealed partial class ToolsViewModel : ObservableObject
             }
         }
 
-        var ack = await _client.Firewall.SetKillSwitchAsync(new KillSwitchRequest
+        await RunServiceActionAsync("Toggle VPN kill-switch", s => KillSwitchStatusText = s, async () =>
         {
-            Enabled = !KillSwitchEnabled,
-            Adapter = adapter,
+            var ack = await _client.Firewall.SetKillSwitchAsync(new KillSwitchRequest
+            {
+                Enabled = !KillSwitchEnabled,
+                Adapter = adapter,
+            });
+            StatusText = ack.Message;
+            await LoadKillSwitchAsync();
         });
-        StatusText = ack.Message;
-        await LoadKillSwitchAsync();
     }
 
     [ObservableProperty]
@@ -742,19 +844,25 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadSecureRulesAsync()
     {
-        var status = await _client.Firewall.GetSecureRulesAsync(new Empty());
-        SecureRulesActive = status.Enabled;
-        SecureRulesText = status.Enabled
-            ? $"Secure Rules ON — {status.Tracked} HostsGuard rules protected"
-            : "Secure Rules OFF — HostsGuard rules are not tamper-guarded";
+        await RunServiceActionAsync("Load Secure Rules status", s => SecureRulesText = s, async () =>
+        {
+            var status = await _client.Firewall.GetSecureRulesAsync(new Empty());
+            SecureRulesActive = status.Enabled;
+            SecureRulesText = status.Enabled
+                ? $"Secure Rules ON — {status.Tracked} HostsGuard rules protected"
+                : "Secure Rules OFF — HostsGuard rules are not tamper-guarded";
+        });
     }
 
     [RelayCommand]
     public async Task ToggleSecureRulesAsync()
     {
-        var ack = await _client.Firewall.SetSecureRulesAsync(new SecureRulesRequest { Enabled = !SecureRulesActive });
-        StatusText = ack.Message;
-        await LoadSecureRulesAsync();
+        await RunServiceActionAsync("Toggle Secure Rules", s => SecureRulesText = s, async () =>
+        {
+            var ack = await _client.Firewall.SetSecureRulesAsync(new SecureRulesRequest { Enabled = !SecureRulesActive });
+            StatusText = ack.Message;
+            await LoadSecureRulesAsync();
+        });
     }
 
     [RelayCommand]
@@ -765,30 +873,36 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        Ack ack;
-        if (DohBlockingActive)
+        await RunServiceActionAsync("Toggle encrypted DNS blocking", s => DohStatusText = s, async () =>
         {
-            ack = await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
-        }
-        else
-        {
-            ack = await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
-        }
+            Ack ack;
+            if (DohBlockingActive)
+            {
+                ack = await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
+            }
+            else
+            {
+                ack = await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
+            }
 
-        StatusText = ack.Message;
-        await LoadDohStatusAsync();
+            StatusText = ack.Message;
+            await LoadDohStatusAsync();
+        });
     }
 
     [RelayCommand]
     public async Task RefreshDohAsync()
     {
-        var ack = await _client.Dns.RefreshDohIntelligenceAsync(new DohRefreshRequest
+        await RunServiceActionAsync("Refresh encrypted DNS intelligence", s => DohStatusText = s, async () =>
         {
-            Url = DohUrl,
-            Sha256 = DohSha256,
+            var ack = await _client.Dns.RefreshDohIntelligenceAsync(new DohRefreshRequest
+            {
+                Url = DohUrl,
+                Sha256 = DohSha256,
+            });
+            StatusText = ack.Message;
+            await LoadDohStatusAsync();
         });
-        StatusText = ack.Message;
-        await LoadDohStatusAsync();
     }
 
     // ─── Blocked services ─────────────────────────────────────────────────────
@@ -796,18 +910,21 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadServicesAsync()
     {
-        var list = await _client.Policy.ListServicesAsync(new Empty());
-        Services.Clear();
-        foreach (var s in list.Services)
+        await RunServiceActionAsync("Load blockable services", async () =>
         {
-            Services.Add(new BlockableServiceViewModel
+            var list = await _client.Policy.ListServicesAsync(new Empty());
+            Services.Clear();
+            foreach (var s in list.Services)
             {
-                Name = s.Name,
-                Blocked = s.Blocked,
-                DomainCount = s.DomainCount,
-                Note = s.Note,
-            });
-        }
+                Services.Add(new BlockableServiceViewModel
+                {
+                    Name = s.Name,
+                    Blocked = s.Blocked,
+                    DomainCount = s.DomainCount,
+                    Note = s.Note,
+                });
+            }
+        });
     }
 
     [RelayCommand]
@@ -819,13 +936,16 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Policy.ToggleServiceAsync(new ServiceToggleRequest
+        await RunServiceActionAsync("Toggle blockable service", async () =>
         {
-            Service = service.Name,
-            Block = !service.Blocked,
+            var ack = await _client.Policy.ToggleServiceAsync(new ServiceToggleRequest
+            {
+                Service = service.Name,
+                Block = !service.Blocked,
+            });
+            StatusText = ack.Message;
+            await LoadServicesAsync();
         });
-        StatusText = ack.Message;
-        await LoadServicesAsync();
     }
 
     // ─── Scheduled blocking ───────────────────────────────────────────────────
@@ -833,14 +953,17 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadSchedulesAsync()
     {
-        var list = await _client.Policy.GetSchedulesAsync(new Empty());
-        Schedules.Clear();
-        foreach (var s in list.Schedules)
+        await RunServiceActionAsync("Load schedules", async () =>
         {
-            Schedules.Add(ScheduleRowViewModel.From(s));
-        }
+            var list = await _client.Policy.GetSchedulesAsync(new Empty());
+            Schedules.Clear();
+            foreach (var s in list.Schedules)
+            {
+                Schedules.Add(ScheduleRowViewModel.From(s));
+            }
 
-        StatusText = Plural.Of(Schedules.Count, "schedule");
+            StatusText = Plural.Of(Schedules.Count, "schedule");
+        });
     }
 
     [RelayCommand]
@@ -860,12 +983,15 @@ public sealed partial class ToolsViewModel : ObservableObject
             list.Schedules.Add(schedule);
         }
 
-        var ack = await _client.Policy.SetSchedulesAsync(list);
-        StatusText = ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Save schedules", async () =>
         {
-            await LoadSchedulesAsync();
-        }
+            var ack = await _client.Policy.SetSchedulesAsync(list);
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                await LoadSchedulesAsync();
+            }
+        });
     }
 
     // ─── AI categorization (DeepSeek) ─────────────────────────────────────────
@@ -884,42 +1010,51 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public async Task LoadAiStatusAsync()
     {
-        var status = await _client.Hosts.GetAiStatusAsync(new Empty());
-        AiEnabled = status.Enabled;
-        if (status.Model.Length != 0)
+        await RunServiceActionAsync("Load AI status", s => AiStatusText = s, async () =>
         {
-            AiModel = status.Model;
-        }
+            var status = await _client.Hosts.GetAiStatusAsync(new Empty());
+            AiEnabled = status.Enabled;
+            if (status.Model.Length != 0)
+            {
+                AiModel = status.Model;
+            }
 
-        AiStatusText = !status.Configured
-            ? "No DeepSeek API key stored — add one to categorize domains with AI."
-            : $"DeepSeek key stored · {status.Model} · auto-categorize {(status.Enabled ? "on" : "off")}"
-              + (status.LastRun.Length != 0 ? $" · last run {TimeText.Compact(status.LastRun)} ({status.LastResult})" : string.Empty);
+            AiStatusText = !status.Configured
+                ? "No DeepSeek API key stored — add one to categorize domains with AI."
+                : $"DeepSeek key stored · {status.Model} · auto-categorize {(status.Enabled ? "on" : "off")}"
+                  + (status.LastRun.Length != 0 ? $" · last run {TimeText.Compact(status.LastRun)} ({status.LastResult})" : string.Empty);
+        });
     }
 
     [RelayCommand]
     public async Task SaveAiConfigAsync()
     {
-        var ack = await _client.Hosts.SetAiConfigAsync(new AiConfig
+        await RunServiceActionAsync("Save AI configuration", s => AiStatusText = s, async () =>
         {
-            ApiKey = AiApiKey,
-            Model = AiModel.Trim(),
-            Endpoint = string.Empty, // keep the default endpoint
-            Enabled = AiEnabled,
+            var ack = await _client.Hosts.SetAiConfigAsync(new AiConfig
+            {
+                ApiKey = AiApiKey,
+                Model = AiModel.Trim(),
+                Endpoint = string.Empty, // keep the default endpoint
+                Enabled = AiEnabled,
+            });
+            AiApiKey = string.Empty;
+            StatusText = ack.Message;
+            await LoadAiStatusAsync();
         });
-        AiApiKey = string.Empty;
-        StatusText = ack.Message;
-        await LoadAiStatusAsync();
     }
 
     [RelayCommand]
     public async Task CategorizeAllAsync()
     {
-        AiStatusText = "Asking DeepSeek to categorize uncategorized blocked domains…";
-        var result = await _client.Hosts.CategorizeDomainsAsync(
-            new CategorizeRequest { AllUncategorized = true });
-        StatusText = result.Message;
-        await LoadAiStatusAsync();
+        await RunServiceActionAsync("Categorize domains with AI", s => AiStatusText = s, async () =>
+        {
+            AiStatusText = "Asking DeepSeek to categorize uncategorized blocked domains...";
+            var result = await _client.Hosts.CategorizeDomainsAsync(
+                new CategorizeRequest { AllUncategorized = true });
+            StatusText = result.Message;
+            await LoadAiStatusAsync();
+        });
     }
 
     /// <summary>
@@ -930,25 +1065,28 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ExportAiKnowledgeAsync()
     {
-        var payload = await _client.Hosts.ExportAiKnowledgeAsync(new Empty());
-        var dir = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HostsGuard");
-        var path = System.IO.Path.Combine(dir, "ai_knowledge.json");
-        try
+        await RunServiceActionAsync("Export AI knowledge", s => AiStatusText = s, async () =>
         {
-            System.IO.Directory.CreateDirectory(dir);
-            await System.IO.File.WriteAllTextAsync(path, payload.Text);
-        }
-        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
-        {
-            // A file error must not reach the global handler, which would
-            // misreport it as a lost service connection.
-            StatusText = $"Couldn't write the knowledge log: {ex.Message}";
-            return;
-        }
+            var payload = await _client.Hosts.ExportAiKnowledgeAsync(new Empty());
+            var dir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HostsGuard");
+            var path = System.IO.Path.Combine(dir, "ai_knowledge.json");
+            try
+            {
+                System.IO.Directory.CreateDirectory(dir);
+                await System.IO.File.WriteAllTextAsync(path, payload.Text);
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+            {
+                // A file error must not reach the global handler, which would
+                // misreport it as a lost service connection.
+                StatusText = $"Couldn't write the knowledge log: {ex.Message}";
+                return;
+            }
 
-        StatusText = $"AI knowledge exported to {path}";
-        AiStatusText = $"Knowledge log saved: {path}";
+            StatusText = $"AI knowledge exported to {path}";
+            AiStatusText = $"Knowledge log saved: {path}";
+        });
     }
 
     // ─── AI-knowledge review & promote (NET-107) ─────────────────────────────
@@ -976,26 +1114,29 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadKnowledgeAsync()
     {
-        var list = await _client.Hosts.ListAiKnowledgeAsync(new AiKnowledgeRequest { SinceLastReview = KnowledgeOnlyNew });
-        Knowledge.Clear();
-        foreach (var e in list.Entries.OrderByDescending(e => e.Created))
+        await RunServiceActionAsync("Load AI knowledge", s => KnowledgeStatusText = s, async () =>
         {
-            Knowledge.Add(new KnowledgeEntryViewModel
+            var list = await _client.Hosts.ListAiKnowledgeAsync(new AiKnowledgeRequest { SinceLastReview = KnowledgeOnlyNew });
+            Knowledge.Clear();
+            foreach (var e in list.Entries.OrderByDescending(e => e.Created))
             {
-                Kind = e.Kind,
-                Key = e.Key,
-                Value = e.Value,
-                EditValue = e.UserOverride.Length != 0 ? e.UserOverride : e.Value,
-                UserOverride = e.UserOverride,
-                Created = e.Created,
-                IsNew = e.IsNew,
-            });
-        }
+                Knowledge.Add(new KnowledgeEntryViewModel
+                {
+                    Kind = e.Kind,
+                    Key = e.Key,
+                    Value = e.Value,
+                    EditValue = e.UserOverride.Length != 0 ? e.UserOverride : e.Value,
+                    UserOverride = e.UserOverride,
+                    Created = e.Created,
+                    IsNew = e.IsNew,
+                });
+            }
 
-        KnowledgeStatusText = Knowledge.Count == 0
-            ? (KnowledgeOnlyNew ? "Nothing new learned since your last review." : "The AI hasn't learned anything yet.")
-            : $"{Plural.Of(Knowledge.Count, "learned entry", "learned entries")}"
-              + (list.LastReviewed.Length != 0 ? $" · last review {TimeText.Compact(list.LastReviewed)}" : " · never reviewed");
+            KnowledgeStatusText = Knowledge.Count == 0
+                ? (KnowledgeOnlyNew ? "Nothing new learned since your last review." : "The AI hasn't learned anything yet.")
+                : $"{Plural.Of(Knowledge.Count, "learned entry", "learned entries")}"
+                  + (list.LastReviewed.Length != 0 ? $" · last review {TimeText.Compact(list.LastReviewed)}" : " · never reviewed");
+        });
     }
 
     [RelayCommand]
@@ -1006,11 +1147,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var request = new KnowledgeReviewRequest();
-        request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "promote", Value = row.EditValue });
-        var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
-        StatusText = ack.Message;
-        await LoadKnowledgeAsync();
+        await RunServiceActionAsync("Promote AI knowledge", s => KnowledgeStatusText = s, async () =>
+        {
+            var request = new KnowledgeReviewRequest();
+            request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "promote", Value = row.EditValue });
+            var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
+            StatusText = ack.Message;
+            await LoadKnowledgeAsync();
+        });
     }
 
     [RelayCommand]
@@ -1021,19 +1165,25 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var request = new KnowledgeReviewRequest();
-        request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "discard" });
-        var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
-        StatusText = ack.Message;
-        await LoadKnowledgeAsync();
+        await RunServiceActionAsync("Discard AI knowledge", s => KnowledgeStatusText = s, async () =>
+        {
+            var request = new KnowledgeReviewRequest();
+            request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "discard" });
+            var ack = await _client.Hosts.PromoteKnowledgeAsync(request);
+            StatusText = ack.Message;
+            await LoadKnowledgeAsync();
+        });
     }
 
     [RelayCommand]
     public async Task MarkKnowledgeReviewedAsync()
     {
-        var ack = await _client.Hosts.PromoteKnowledgeAsync(new KnowledgeReviewRequest { MarkReviewed = true });
-        StatusText = ack.Message;
-        await LoadKnowledgeAsync();
+        await RunServiceActionAsync("Mark AI knowledge reviewed", s => KnowledgeStatusText = s, async () =>
+        {
+            var ack = await _client.Hosts.PromoteKnowledgeAsync(new KnowledgeReviewRequest { MarkReviewed = true });
+            StatusText = ack.Message;
+            await LoadKnowledgeAsync();
+        });
     }
 
     [RelayCommand]
@@ -1046,15 +1196,18 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+        await RunServiceActionAsync("Correct domain knowledge", s => KnowledgeStatusText = s, async () =>
         {
-            Kind = CorrectKind,
-            Key = domain,
-            Value = CorrectValue.Trim(),
+            var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
+            {
+                Kind = CorrectKind,
+                Key = domain,
+                Value = CorrectValue.Trim(),
+            });
+            StatusText = ack.Message;
+            CorrectValue = string.Empty;
+            await LoadKnowledgeAsync();
         });
-        StatusText = ack.Message;
-        CorrectValue = string.Empty;
-        await LoadKnowledgeAsync();
     }
 
     // ─── Blocklist intelligence ───────────────────────────────────────────────
@@ -1064,21 +1217,33 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public async Task LoadIntelStatusAsync()
     {
-        var status = await _client.Lists.GetBlocklistIntelligenceAsync(new Empty());
-        IntelStatusText = status.Refreshing
-            ? "Downloading reference blocklists in the background…"
-            : status.Lists == 0
-                ? "No reference lists downloaded yet — refresh to build the block-candidate index."
-                : $"{Plural.Of(status.Lists, "reference list")} · {status.Domains:N0} domains indexed"
-                  + (status.Refreshed.Length != 0 ? $" · refreshed {TimeText.Compact(status.Refreshed)}" : string.Empty);
+        await RunServiceActionAsync("Load blocklist intelligence", s => IntelStatusText = s, async () =>
+        {
+            var status = await _client.Lists.GetBlocklistIntelligenceAsync(new Empty());
+            IntelStatusText = status.Refreshing
+                ? "Downloading reference blocklists in the background…"
+                : status.Lists == 0
+                    ? "No reference lists downloaded yet — refresh to build the block-candidate index."
+                    : $"{Plural.Of(status.Lists, "reference list")} · {status.Domains:N0} domains indexed"
+                      + (status.Refreshed.Length != 0 ? $" · refreshed {TimeText.Compact(status.Refreshed)}" : string.Empty);
+        });
     }
 
     [RelayCommand]
     public async Task RefreshIntelAsync()
     {
-        IntelStatusText = "Downloading reference blocklists — this can take a few minutes…";
-        var ack = await _client.Lists.RefreshBlocklistIntelligenceAsync(new Empty());
-        StatusText = ack.Message;
-        await LoadIntelStatusAsync();
+        await RunServiceActionAsync("Refresh blocklist intelligence", s => IntelStatusText = s, async () =>
+        {
+            IntelStatusText = "Downloading reference blocklists — this can take a few minutes…";
+            var ack = await _client.Lists.RefreshBlocklistIntelligenceAsync(new Empty());
+            StatusText = ack.Message;
+            await LoadIntelStatusAsync();
+        });
     }
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
+
+    private static Task RunServiceActionAsync(string action, Action<string> setStatus, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, setStatus, work);
 }

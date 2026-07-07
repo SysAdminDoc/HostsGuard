@@ -190,15 +190,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var mode = await _client.Consent.GetModeAsync(new Empty());
-        FilteringMode = mode.Mode;
-        FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed, mode.LearnMinutes);
-        _suppressChildInherit = true;
-        ChildInherit = mode.ChildInherit;
-        _suppressChildInherit = false;
-        _suppressInboundConsent = true;
-        InboundConsent = mode.InboundConsent;
-        _suppressInboundConsent = false;
+        await RunServiceActionAsync("Load filtering mode", async () =>
+        {
+            var mode = await _client.Consent.GetModeAsync(new Empty());
+            FilteringMode = mode.Mode;
+            FilteringModeText = DescribeFilteringMode(mode.Mode, mode.DetectionArmed, mode.LearnMinutes);
+            _suppressChildInherit = true;
+            ChildInherit = mode.ChildInherit;
+            _suppressChildInherit = false;
+            _suppressInboundConsent = true;
+            InboundConsent = mode.InboundConsent;
+            _suppressInboundConsent = false;
+        });
     }
 
     private bool _suppressChildInherit;
@@ -217,8 +220,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SetChildInheritAsync(bool enabled)
     {
-        var ack = await _client!.Consent.SetChildInheritAsync(new ChildInheritRequest { Enabled = enabled });
-        ConnectionText = ack.Message;
+        await RunServiceActionAsync("Set child-process inheritance", async () =>
+        {
+            var ack = await _client!.Consent.SetChildInheritAsync(new ChildInheritRequest { Enabled = enabled });
+            ConnectionText = ack.Message;
+        });
     }
 
     /// <summary>Two-way bound from the inbound-consent UI toggle; pushes to the service.</summary>
@@ -234,8 +240,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SetInboundConsentAsync(bool enabled)
     {
-        var ack = await _client!.Consent.SetInboundConsentAsync(new InboundConsentRequest { Enabled = enabled });
-        ConnectionText = ack.Message;
+        await RunServiceActionAsync("Set inbound consent", async () =>
+        {
+            var ack = await _client!.Consent.SetInboundConsentAsync(new InboundConsentRequest { Enabled = enabled });
+            ConnectionText = ack.Message;
+        });
     }
 
     [RelayCommand]
@@ -260,13 +269,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode, LearnMinutes = learnMinutes });
-        ConnectionText = ack.Message;
-        await LoadFilteringModeAsync();
-        if (FwActivity is not null)
+        await RunServiceActionAsync("Set filtering mode", async () =>
         {
-            await FwActivity.LoadPostureAsync();
-        }
+            var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode, LearnMinutes = learnMinutes });
+            ConnectionText = ack.Message;
+            await LoadFilteringModeAsync();
+            if (FwActivity is not null)
+            {
+                await FwActivity.LoadPostureAsync();
+            }
+        });
     }
 
     /// <summary>Apply a global outbound posture (NET-076): "block-all" | "allow-all".</summary>
@@ -285,12 +297,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Firewall.SetGlobalModeAsync(new GlobalModeRequest { Mode = mode });
-        ConnectionText = ack.Message;
-        if (FwActivity is not null)
+        await RunServiceActionAsync("Set global outbound mode", async () =>
         {
-            await FwActivity.LoadPostureAsync();
-        }
+            var ack = await _client.Firewall.SetGlobalModeAsync(new GlobalModeRequest { Mode = mode });
+            ConnectionText = ack.Message;
+            if (FwActivity is not null)
+            {
+                await FwActivity.LoadPostureAsync();
+            }
+        });
     }
 
     private void StartDecisionWatch()
@@ -350,12 +365,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Consent.DecideAsync(decision);
-        ConnectionText = ack.Message;
-        if (FwActivity is not null)
+        await RunServiceActionAsync("Send connection decision", async () =>
         {
-            await FwActivity.LoadConsentHistoryAsync();
-        }
+            var ack = await _client.Consent.DecideAsync(decision);
+            ConnectionText = ack.Message;
+            if (FwActivity is not null)
+            {
+                await FwActivity.LoadConsentHistoryAsync();
+            }
+        });
     }
 
     [RelayCommand]
@@ -411,21 +429,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await _client.Hosts.BackupHostsAsync(new Empty());
-        var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = text });
-        ConnectionText = ack.Ok ? $"Imported {Path.GetFileName(path)} into the hosts file" : ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Import hosts file", async () =>
         {
-            if (RawHosts is not null)
+            await _client.Hosts.BackupHostsAsync(new Empty());
+            var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = text });
+            ConnectionText = ack.Ok ? $"Imported {Path.GetFileName(path)} into the hosts file" : ack.Message;
+            if (ack.Ok)
             {
-                await RawHosts.LoadAsync();
-            }
+                if (RawHosts is not null)
+                {
+                    await RawHosts.LoadAsync();
+                }
 
-            if (Hosts is not null)
-            {
-                await Hosts.RefreshAsync();
+                if (Hosts is not null)
+                {
+                    await Hosts.RefreshAsync();
+                }
             }
-        }
+        });
     }
 
     /// <summary>Write the live hosts file to a picked destination.</summary>
@@ -443,11 +464,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var text = await _client.Hosts.GetHostsTextAsync(new Empty());
-        if (await TryWriteFileAsync(path, text.Text))
+        await RunServiceActionAsync("Export hosts file", async () =>
         {
-            ConnectionText = $"Hosts file exported to {path}";
-        }
+            var text = await _client.Hosts.GetHostsTextAsync(new Empty());
+            if (await TryWriteFileAsync(path, text.Text))
+            {
+                ConnectionText = $"Hosts file exported to {path}";
+            }
+        });
     }
 
     /// <summary>
@@ -484,22 +508,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest());
-        var rows = list.Domains.Select(d => new
+        await RunServiceActionAsync("Export managed domains", async () =>
         {
-            domain = d.Domain,
-            status = d.Status,
-            category = d.Category,
-            source = d.Source,
-            reason = d.Reason,
-            hits = d.Hits,
+            var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest());
+            var rows = list.Domains.Select(d => new
+            {
+                domain = d.Domain,
+                status = d.Status,
+                category = d.Category,
+                source = d.Source,
+                reason = d.Reason,
+                hits = d.Hits,
+            });
+            var json = System.Text.Json.JsonSerializer.Serialize(
+                rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            if (await TryWriteFileAsync(path, json))
+            {
+                ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
+            }
         });
-        var json = System.Text.Json.JsonSerializer.Serialize(
-            rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        if (await TryWriteFileAsync(path, json))
-        {
-            ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
-        }
     }
 
     /// <summary>Export the whole machine policy as one versioned JSON document (NET-089).</summary>
@@ -517,11 +544,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var doc = await _client.Policy.ExportPolicyAsync(new Empty());
-        if (await TryWriteFileAsync(path, doc.Json))
+        await RunServiceActionAsync("Export policy", async () =>
         {
-            ConnectionText = $"Policy exported to {path}";
-        }
+            var doc = await _client.Policy.ExportPolicyAsync(new Empty());
+            if (await TryWriteFileAsync(path, doc.Json))
+            {
+                ConnectionText = $"Policy exported to {path}";
+            }
+        });
     }
 
     /// <summary>Reconstruct the machine policy from an exported JSON document (NET-089).</summary>
@@ -563,16 +593,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
-        ConnectionText = result.Ok ? $"Policy imported — {string.Join("; ", result.Summary)}" : result.Message;
-        if (result.Ok)
+        await RunServiceActionAsync("Import policy", async () =>
         {
-            await RefreshAllAsync();
-            if (RawHosts is not null)
+            var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
+            ConnectionText = result.Ok ? $"Policy imported - {string.Join("; ", result.Summary)}" : result.Message;
+            if (result.Ok)
             {
-                await RawHosts.LoadAsync();
+                await RefreshAllAsync();
+                if (RawHosts is not null)
+                {
+                    await RawHosts.LoadAsync();
+                }
             }
-        }
+        });
     }
 
     // ─── View menu ────────────────────────────────────────────────────────────
@@ -688,21 +721,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var status = await _client.Diagnostics.GetStatusAsync(new Empty());
-        ServiceVersion = status.Version;
-        HostsBlocked = status.HostsBlocked;
-        DbBlocked = status.DbBlocked;
-        DbAllowed = status.DbAllowed;
-        ConnectionText =
-            $"Diagnostics OK - service v{status.Version}, uptime {status.UptimeSeconds / 60} min, " +
-            $"DNS {(status.DnsMonitorActive ? "on" : "off")}, connections {(status.ConnectionMonitorActive ? "on" : "off")}";
+        await RunServiceActionAsync("Run diagnostics", async () =>
+        {
+            var status = await _client.Diagnostics.GetStatusAsync(new Empty());
+            ServiceVersion = status.Version;
+            HostsBlocked = status.HostsBlocked;
+            DbBlocked = status.DbBlocked;
+            DbAllowed = status.DbAllowed;
+            ConnectionText =
+                $"Diagnostics OK - service v{status.Version}, uptime {status.UptimeSeconds / 60} min, " +
+                $"DNS {(status.DnsMonitorActive ? "on" : "off")}, connections {(status.ConnectionMonitorActive ? "on" : "off")}";
+        });
     }
 
     [RelayCommand]
     public void CheckForUpdates()
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            "https://github.com/SysAdminDoc/HostsGuard/releases") { UseShellExecute = true });
+            "https://github.com/SysAdminDoc/HostsGuard/releases")
+        { UseShellExecute = true });
         ConnectionText = "Opened HostsGuard releases for update check";
     }
 
@@ -737,6 +774,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(UiScale));
         _config.Save(Theme, value);
     }
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => ConnectionText = s, work);
 
     public void Dispose()
     {

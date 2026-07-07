@@ -89,41 +89,48 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     public ObservableCollection<BlocklistSourceViewModel> Sources { get; } = new();
 
     [RelayCommand]
-    public async Task RefreshAsync()
-    {
-        var list = await _client.Lists.ListBlocklistSourcesAsync(new Empty());
-        Sources.Clear();
-        foreach (var s in list.Sources)
-        {
-            Sources.Add(BlocklistSourceViewModel.From(s));
-        }
-
-        var allow = await _client.Lists.GetAllowlistsAsync(new Empty());
-        AllowlistUrlsText = string.Join(Environment.NewLine, allow.Urls);
-        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed";
-    }
+    public Task RefreshAsync()
+        => RunServiceActionAsync("Refresh blocklists", RefreshCoreAsync);
 
     [RelayCommand]
-    public async Task ImportAsync(BlocklistSourceViewModel source)
+    public async Task ImportAsync(BlocklistSourceViewModel? source)
     {
+        if (source is null)
+        {
+            StatusText = "Select a blocklist source first";
+            return;
+        }
+
         if (source.LargeListWarning && !_confirm.Confirm("Import large blocklist",
             $"{source.Name} can make the hosts file very large and increase Windows DNS Client CPU. Import it now?"))
         {
             return;
         }
 
-        StatusText = $"Importing {source.Name}…";
-        var result = await _client.Lists.ImportBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
-        StatusText = FormatResult(result);
-        await RefreshAsync();
+        await RunServiceActionAsync($"Import {source.Name}", async () =>
+        {
+            StatusText = $"Importing {source.Name}...";
+            var result = await _client.Lists.ImportBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
+            StatusText = FormatResult(result);
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
-    public async Task PreviewAsync(BlocklistSourceViewModel source)
+    public async Task PreviewAsync(BlocklistSourceViewModel? source)
     {
-        StatusText = $"Previewing {source.Name}...";
-        var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
-        StatusText = FormatResult(result);
+        if (source is null)
+        {
+            StatusText = "Select a blocklist source first";
+            return;
+        }
+
+        await RunServiceActionAsync($"Preview {source.Name}", async () =>
+        {
+            StatusText = $"Previewing {source.Name}...";
+            var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
+            StatusText = FormatResult(result);
+        });
     }
 
     /// <summary>Compose the NET-077 health report into a one-line status.</summary>
@@ -148,48 +155,89 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task UnsubscribeAsync(BlocklistSourceViewModel source)
+    public async Task UnsubscribeAsync(BlocklistSourceViewModel? source)
     {
-        var ack = await _client.Lists.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = source.Name });
-        StatusText = ack.Message;
-        await RefreshAsync();
+        if (source is null)
+        {
+            StatusText = "Select a blocklist source first";
+            return;
+        }
+
+        await RunServiceActionAsync($"Remove {source.Name}", async () =>
+        {
+            var ack = await _client.Lists.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = source.Name });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
-    public async Task ToggleEnabledAsync(BlocklistSourceViewModel source)
+    public async Task ToggleEnabledAsync(BlocklistSourceViewModel? source)
     {
-        var enable = !source.Enabled;
-        var ack = await _client.Lists.SetBlocklistEnabledAsync(new BlocklistToggleRequest
+        if (source is null)
         {
-            Name = source.Name,
-            Enabled = enable,
+            StatusText = "Select a blocklist source first";
+            return;
+        }
+
+        await RunServiceActionAsync($"{(source.Enabled ? "Disable" : "Enable")} {source.Name}", async () =>
+        {
+            var enable = !source.Enabled;
+            var ack = await _client.Lists.SetBlocklistEnabledAsync(new BlocklistToggleRequest
+            {
+                Name = source.Name,
+                Enabled = enable,
+            });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
         });
-        StatusText = ack.Message;
-        await RefreshAsync();
     }
 
     [RelayCommand]
     public async Task RefreshAllListsAsync()
     {
-        StatusText = "Refreshing all subscriptions…";
-        var result = await _client.Lists.RefreshBlocklistsAsync(new Empty());
-        StatusText = FormatResult(result);
-        await RefreshAsync();
+        await RunServiceActionAsync("Refresh subscriptions", async () =>
+        {
+            StatusText = "Refreshing all subscriptions...";
+            var result = await _client.Lists.RefreshBlocklistsAsync(new Empty());
+            StatusText = FormatResult(result);
+            await RefreshCoreAsync();
+        });
     }
 
     [RelayCommand]
     public async Task SaveAllowlistsAsync()
     {
-        var urls = new AllowlistUrls();
-        urls.Urls.AddRange(AllowlistUrlsText
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(u => u.Length != 0));
-        var ack = await _client.Lists.SetAllowlistsAsync(urls);
-        StatusText = ack.Message;
-        if (ack.Ok)
+        await RunServiceActionAsync("Save allowlists", async () =>
         {
-            var refresh = await _client.Lists.RefreshAllowlistsAsync(new Empty());
-            StatusText = refresh.Message;
-        }
+            var urls = new AllowlistUrls();
+            urls.Urls.AddRange(AllowlistUrlsText
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(u => u.Length != 0));
+            var ack = await _client.Lists.SetAllowlistsAsync(urls);
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                var refresh = await _client.Lists.RefreshAllowlistsAsync(new Empty());
+                StatusText = refresh.Message;
+            }
+        });
     }
+
+    private async Task RefreshCoreAsync()
+    {
+        var list = await _client.Lists.ListBlocklistSourcesAsync(new Empty());
+        Sources.Clear();
+        foreach (var s in list.Sources)
+        {
+            Sources.Add(BlocklistSourceViewModel.From(s));
+        }
+
+        var allow = await _client.Lists.GetAllowlistsAsync(new Empty());
+        AllowlistUrlsText = string.Join(Environment.NewLine, allow.Urls);
+        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed";
+    }
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
 }

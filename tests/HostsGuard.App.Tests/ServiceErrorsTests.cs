@@ -53,4 +53,29 @@ public sealed class ServiceErrorsTests
         ServiceErrors.DescribeActionFailure("Import policy", Rpc(StatusCode.Unknown, "bad JSON"))
             .Should().Contain("Import policy failed").And.Contain("bad JSON");
     }
+
+    [Fact]
+    public async Task ServiceActionGuard_turns_service_failures_into_status_text()
+    {
+        var status = string.Empty;
+
+        await ServiceActionGuard.RunAsync(
+            "Refresh blocklists",
+            value => status = value,
+            () => Task.FromException(new IOException("pipe broken")));
+
+        status.Should().Be("Refresh blocklists failed — service unavailable; reconnect from the status bar");
+    }
+
+    [Fact]
+    public async Task ServiceActionGuard_does_not_hide_non_service_failures()
+    {
+        var act = () => ServiceActionGuard.RunAsync(
+            "Refresh blocklists",
+            _ => { },
+            () => Task.FromException(new InvalidOperationException("bad view state")));
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("bad view state");
+    }
 }

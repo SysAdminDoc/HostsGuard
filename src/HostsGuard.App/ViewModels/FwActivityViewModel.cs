@@ -423,7 +423,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
         {
-            StatusText = "Service unavailable — reconnect from the status bar";
+            StatusText = ServiceErrors.DescribeActionFailure("Resolve remote IPs", ex);
         }
     }
 
@@ -454,45 +454,48 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task IdentifyConnectionsAsync()
     {
-        var pending = Rows.Where(r => r.Info.Length == 0).ToList();
-        if (pending.Count == 0)
+        await RunServiceActionAsync("Identify connections", async () =>
         {
-            StatusText = "Every connection is already identified";
-            return;
-        }
-
-        StatusText = $"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…";
-        var request = new IdentifyRequest();
-        foreach (var row in pending)
-        {
-            request.Items.Add(new IdentifyItem
+            var pending = Rows.Where(r => r.Info.Length == 0).ToList();
+            if (pending.Count == 0)
             {
-                RemoteAddr = row.RemoteAddr,
-                Host = row.Host,
-                Process = row.Process,
-                RemotePort = row.RemotePort,
-            });
-        }
-
-        var result = await _client.Hosts.IdentifyConnectionsAsync(request);
-        StatusText = result.Message;
-        if (!result.Ok)
-        {
-            return;
-        }
-
-        foreach (var item in result.Items)
-        {
-            _connectionInfo[item.Key] = item.Info;
-        }
-
-        foreach (var row in Rows)
-        {
-            if (row.Info.Length == 0 && _connectionInfo.TryGetValue(InfoKey(row), out var info))
-            {
-                row.Info = info;
+                StatusText = "Every connection is already identified";
+                return;
             }
-        }
+
+            StatusText = $"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…";
+            var request = new IdentifyRequest();
+            foreach (var row in pending)
+            {
+                request.Items.Add(new IdentifyItem
+                {
+                    RemoteAddr = row.RemoteAddr,
+                    Host = row.Host,
+                    Process = row.Process,
+                    RemotePort = row.RemotePort,
+                });
+            }
+
+            var result = await _client.Hosts.IdentifyConnectionsAsync(request);
+            StatusText = result.Message;
+            if (!result.Ok)
+            {
+                return;
+            }
+
+            foreach (var item in result.Items)
+            {
+                _connectionInfo[item.Key] = item.Info;
+            }
+
+            foreach (var row in Rows)
+            {
+                if (row.Info.Length == 0 && _connectionInfo.TryGetValue(InfoKey(row), out var info))
+                {
+                    row.Info = info;
+                }
+            }
+        });
     }
 
     [RelayCommand]
@@ -850,68 +853,74 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task LoadHistoryAsync()
     {
-        var settings = await _client.Monitoring.GetHistorySettingsAsync(new Empty());
-        RetentionDays = settings.RetentionDays;
-        var history = await _client.Monitoring.GetConnectionHistoryAsync(new ConnectionHistoryRequest
+        await RunServiceActionAsync("Load connection history", s => HistoryStatus = s, async () =>
         {
-            Limit = 500,
-            Search = HistorySearch ?? string.Empty,
-        });
-        HistoryRows.Clear();
-        foreach (var row in history.Rows)
-        {
-            HistoryRows.Add(new HistoryRowViewModel
+            var settings = await _client.Monitoring.GetHistorySettingsAsync(new Empty());
+            RetentionDays = settings.RetentionDays;
+            var history = await _client.Monitoring.GetConnectionHistoryAsync(new ConnectionHistoryRequest
             {
-                Ts = row.Ts,
-                Process = row.Process,
-                Pid = row.Pid,
-                Protocol = row.Protocol,
-                RemoteAddr = row.RemoteAddr,
-                RemotePort = row.RemotePort,
-                Country = row.Country,
-                FwStatus = row.FwStatus,
+                Limit = 500,
+                Search = HistorySearch ?? string.Empty,
             });
-        }
+            HistoryRows.Clear();
+            foreach (var row in history.Rows)
+            {
+                HistoryRows.Add(new HistoryRowViewModel
+                {
+                    Ts = row.Ts,
+                    Process = row.Process,
+                    Pid = row.Pid,
+                    Protocol = row.Protocol,
+                    RemoteAddr = row.RemoteAddr,
+                    RemotePort = row.RemotePort,
+                    Country = row.Country,
+                    FwStatus = row.FwStatus,
+                });
+            }
 
-        HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
-        await LoadBandwidthAsync();
+            HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
+            await LoadBandwidthAsync();
+        });
     }
 
     [RelayCommand]
     public async Task LoadEventsAsync()
     {
-        var limit = Math.Clamp(EventLimit <= 0 ? 200 : EventLimit, 1, 2000);
-        EventLimit = limit;
-        EventOffset = Math.Max(0, EventOffset);
-        var events = await _client.Monitoring.ListEventsAsync(new EventLogRequest
+        await RunServiceActionAsync("Load event log", s => EventStatus = s, async () =>
         {
-            Limit = limit,
-            Offset = EventOffset,
-            Search = EventSearch ?? string.Empty,
-            Since = EventSince ?? string.Empty,
-            Until = EventUntil ?? string.Empty,
-            Action = EventAction ?? string.Empty,
-            Reason = EventReason ?? string.Empty,
-            Domain = EventDomain ?? string.Empty,
-            Process = EventProcess ?? string.Empty,
-            Category = EventCategory ?? string.Empty,
-        });
-        EventRows.Clear();
-        foreach (var row in events.Entries)
-        {
-            EventRows.Add(new EventLogRowViewModel
+            var limit = Math.Clamp(EventLimit <= 0 ? 200 : EventLimit, 1, 2000);
+            EventLimit = limit;
+            EventOffset = Math.Max(0, EventOffset);
+            var events = await _client.Monitoring.ListEventsAsync(new EventLogRequest
             {
-                Ts = row.Ts,
-                Category = row.Category,
-                Action = row.Action,
-                Reason = row.Reason,
-                Domain = row.Domain,
-                Process = row.Process,
-                Details = row.Details,
+                Limit = limit,
+                Offset = EventOffset,
+                Search = EventSearch ?? string.Empty,
+                Since = EventSince ?? string.Empty,
+                Until = EventUntil ?? string.Empty,
+                Action = EventAction ?? string.Empty,
+                Reason = EventReason ?? string.Empty,
+                Domain = EventDomain ?? string.Empty,
+                Process = EventProcess ?? string.Empty,
+                Category = EventCategory ?? string.Empty,
             });
-        }
+            EventRows.Clear();
+            foreach (var row in events.Entries)
+            {
+                EventRows.Add(new EventLogRowViewModel
+                {
+                    Ts = row.Ts,
+                    Category = row.Category,
+                    Action = row.Action,
+                    Reason = row.Reason,
+                    Domain = row.Domain,
+                    Process = row.Process,
+                    Details = row.Details,
+                });
+            }
 
-        EventStatus = $"{Plural.Of(EventRows.Count, "event")} shown of {Plural.Of(events.Total, "match")} · offset {events.Offset}";
+            EventStatus = $"{Plural.Of(EventRows.Count, "event")} shown of {Plural.Of(events.Total, "match")} · offset {events.Offset}";
+        });
     }
 
     [RelayCommand]
@@ -931,8 +940,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task SaveRetentionAsync()
     {
-        var ack = await _client.Monitoring.SetHistorySettingsAsync(new HistorySettings { RetentionDays = RetentionDays });
-        HistoryStatus = ack.Message;
+        await RunServiceActionAsync("Save history retention", s => HistoryStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.SetHistorySettingsAsync(new HistorySettings { RetentionDays = RetentionDays });
+            HistoryStatus = ack.Message;
+        });
     }
 
     /// <summary>Export the loaded connection history to a CSV file (NET-091).</summary>
@@ -998,8 +1010,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public async Task LoadBandwidthAsync()
     {
-        var list = await _client.Monitoring.GetAppBandwidthAsync(new BandwidthRequest { Minutes = 60, Top = TimelineMaxSeries });
-        BuildBandwidthSeries(list);
+        await RunServiceActionAsync("Load bandwidth timeline", s => BandwidthStatus = s, async () =>
+        {
+            var list = await _client.Monitoring.GetAppBandwidthAsync(new BandwidthRequest { Minutes = 60, Top = TimelineMaxSeries });
+            BuildBandwidthSeries(list);
+        });
     }
 
     /// <summary>Rebuild the bandwidth polylines from a fetched series list (pure; testable).</summary>
@@ -1075,34 +1090,37 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task LoadConsentHistoryAsync()
     {
-        var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 200 });
-        ConsentHistory.Clear();
-        foreach (var entry in history.Entries.Take(50))
+        await RunServiceActionAsync("Load consent history", async () =>
         {
-            ConsentHistory.Add(new DecisionRowViewModel
+            var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 200 });
+            ConsentHistory.Clear();
+            foreach (var entry in history.Entries.Take(50))
             {
-                DecidedAt = entry.DecidedAt,
-                Application = entry.Application,
-                Direction = entry.Direction,
-                RemoteAddress = entry.RemoteAddress,
-                Protocol = entry.Protocol,
-                Verdict = entry.Verdict,
-                Permanent = entry.Permanent,
-            });
-        }
+                ConsentHistory.Add(new DecisionRowViewModel
+                {
+                    DecidedAt = entry.DecidedAt,
+                    Application = entry.Application,
+                    Direction = entry.Direction,
+                    RemoteAddress = entry.RemoteAddress,
+                    Protocol = entry.Protocol,
+                    Verdict = entry.Verdict,
+                    Permanent = entry.Permanent,
+                });
+            }
 
-        // Rank the apps that trigger the most decisions (NET-085).
-        TopTriggered.Clear();
-        foreach (var group in history.Entries
-                     .Where(e => e.Application.Length != 0)
-                     .GroupBy(e => System.IO.Path.GetFileName(e.Application), StringComparer.OrdinalIgnoreCase)
-                     .Select(g => (App: g.Key, Count: g.Count()))
-                     .OrderByDescending(g => g.Count)
-                     .ThenBy(g => g.App, StringComparer.OrdinalIgnoreCase)
-                     .Take(5))
-        {
-            TopTriggered.Add($"{group.App} — {group.Count}");
-        }
+            // Rank the apps that trigger the most decisions (NET-085).
+            TopTriggered.Clear();
+            foreach (var group in history.Entries
+                         .Where(e => e.Application.Length != 0)
+                         .GroupBy(e => System.IO.Path.GetFileName(e.Application), StringComparer.OrdinalIgnoreCase)
+                         .Select(g => (App: g.Key, Count: g.Count()))
+                         .OrderByDescending(g => g.Count)
+                         .ThenBy(g => g.App, StringComparer.OrdinalIgnoreCase)
+                         .Take(5))
+            {
+                TopTriggered.Add($"{group.App} — {group.Count}");
+            }
+        });
     }
 
     partial void OnSoundOnBlockChanged(bool value)
@@ -1126,17 +1144,20 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Consent.DecideAsync(new ConnectionDecision
+        await RunServiceActionAsync($"{verdict} connection decision", async () =>
         {
-            Application = row.Application,
-            Direction = row.Direction,
-            RemoteAddress = row.RemoteAddress,
-            Protocol = row.Protocol,
-            Verdict = verdict,
-            Permanent = true,
+            var ack = await _client.Consent.DecideAsync(new ConnectionDecision
+            {
+                Application = row.Application,
+                Direction = row.Direction,
+                RemoteAddress = row.RemoteAddress,
+                Protocol = row.Protocol,
+                Verdict = verdict,
+                Permanent = true,
+            });
+            StatusText = ack.Message;
+            await LoadConsentHistoryAsync();
         });
-        StatusText = ack.Message;
-        await LoadConsentHistoryAsync();
     }
 
     // ─── "Decide later" review of Learning-mode auto-decisions (NET-074) ─────
@@ -1149,22 +1170,25 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task LoadLearnedAsync()
     {
-        var list = await _client.Consent.GetLearnedAsync(new Empty());
-        Learned.Clear();
-        foreach (var e in list.Entries)
+        await RunServiceActionAsync("Load learned decisions", s => LearnedStatus = s, async () =>
         {
-            Learned.Add(new LearnedRowViewModel
+            var list = await _client.Consent.GetLearnedAsync(new Empty());
+            Learned.Clear();
+            foreach (var e in list.Entries)
             {
-                RuleName = e.RuleName,
-                Application = e.Application,
-                Direction = e.Direction,
-                ServiceName = e.ServiceName,
-            });
-        }
+                Learned.Add(new LearnedRowViewModel
+                {
+                    RuleName = e.RuleName,
+                    Application = e.Application,
+                    Direction = e.Direction,
+                    ServiceName = e.ServiceName,
+                });
+            }
 
-        LearnedStatus = Learned.Count == 0
-            ? "No learning-mode decisions awaiting review"
-            : $"{Plural.Of(Learned.Count, "auto-allowed app")} awaiting review";
+            LearnedStatus = Learned.Count == 0
+                ? "No learning-mode decisions awaiting review"
+                : $"{Plural.Of(Learned.Count, "auto-allowed app")} awaiting review";
+        });
     }
 
     [RelayCommand]
@@ -1189,16 +1213,19 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var request = new LearnedReviewRequest();
-        foreach (var row in rows.Where(r => r is not null))
+        await RunServiceActionAsync($"{action} learned decision", s => LearnedStatus = s, async () =>
         {
-            request.Actions.Add(new LearnedReviewAction { RuleName = row.RuleName, Action = action });
-        }
+            var request = new LearnedReviewRequest();
+            foreach (var row in rows.Where(r => r is not null))
+            {
+                request.Actions.Add(new LearnedReviewAction { RuleName = row.RuleName, Action = action });
+            }
 
-        var ack = await _client.Consent.ReviewLearnedAsync(request);
-        LearnedStatus = ack.Message;
-        await LoadLearnedAsync();
-        await LoadConsentHistoryAsync();
+            var ack = await _client.Consent.ReviewLearnedAsync(request);
+            LearnedStatus = ack.Message;
+            await LoadLearnedAsync();
+            await LoadConsentHistoryAsync();
+        });
     }
 
     // ─── Modes: lockdown (service posture) + learning/observe (config) ───────
@@ -1206,14 +1233,24 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     /// <summary>Pull the current default-outbound posture from the service.</summary>
     public async Task LoadPostureAsync()
     {
-        var posture = await _client.Firewall.GetPostureAsync(new Empty());
-        _suppressPostureWrite = true;
-        Lockdown = posture.Available && posture.Lockdown;
-        _suppressPostureWrite = false;
-        PostureText = !posture.Available
-            ? "Firewall posture unavailable"
-            : string.Join("  ", posture.Profiles.Select(p =>
-                $"{p.Name}: {(p.Enabled ? "on" : "OFF")}/{(p.OutboundBlock ? "block" : "allow")}"));
+        await RunServiceActionAsync("Load firewall posture", s => PostureText = s, async () =>
+        {
+            var posture = await _client.Firewall.GetPostureAsync(new Empty());
+            _suppressPostureWrite = true;
+            try
+            {
+                Lockdown = posture.Available && posture.Lockdown;
+            }
+            finally
+            {
+                _suppressPostureWrite = false;
+            }
+
+            PostureText = !posture.Available
+                ? "Firewall posture unavailable"
+                : string.Join("  ", posture.Profiles.Select(p =>
+                    $"{p.Name}: {(p.Enabled ? "on" : "OFF")}/{(p.OutboundBlock ? "block" : "allow")}"));
+        });
     }
 
     partial void OnLockdownChanged(bool value)
@@ -1237,17 +1274,27 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Firewall.SetDefaultOutboundAsync(new OutboundRequest { Block = enable });
-        StatusText = ack.Message;
-        if (!ack.Ok)
+        try
         {
-            // Don't pretend: revert the toggle when the policy change failed.
+            var ack = await _client.Firewall.SetDefaultOutboundAsync(new OutboundRequest { Block = enable });
+            StatusText = ack.Message;
+            if (!ack.Ok)
+            {
+                // Don't pretend: revert the toggle when the policy change failed.
+                _suppressPostureWrite = true;
+                Lockdown = !enable;
+                _suppressPostureWrite = false;
+            }
+
+            await LoadPostureAsync();
+        }
+        catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
+        {
+            StatusText = ServiceErrors.DescribeActionFailure("Apply lockdown posture", ex);
             _suppressPostureWrite = true;
             Lockdown = !enable;
             _suppressPostureWrite = false;
         }
-
-        await LoadPostureAsync();
     }
 
     partial void OnLearningModeChanged(bool value)
@@ -1287,8 +1334,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Block remote IP", async () =>
+        {
+            var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
@@ -1323,8 +1373,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Block process", async () =>
+        {
+            var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
+            StatusText = ack.Message;
+        });
     }
 
     private static string ResolveProgramPath(int pid)
@@ -1362,8 +1415,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var host = row.Host.Trim().ToLowerInvariant();
         if (HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
-            var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
-            StatusText = ack.Ok ? $"Blocked {host} in hosts" : ack.Message;
+            await RunServiceActionAsync("Block site", async () =>
+            {
+                var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
+                StatusText = ack.Ok ? $"Blocked {host} in hosts" : ack.Message;
+            });
         }
         else if (!string.IsNullOrWhiteSpace(row.RemoteAddr))
         {
@@ -1386,8 +1442,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
-        StatusText = ack.Ok ? $"Allowed {host} in hosts" : ack.Message;
+        await RunServiceActionAsync("Allow site", async () =>
+        {
+            var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
+            StatusText = ack.Ok ? $"Allowed {host} in hosts" : ack.Message;
+        });
     }
 
     /// <summary>Per-app scope block (NET-076): "internet" | "lan" | "localhost" | "inbound".</summary>
@@ -1419,8 +1478,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var ack = await _client.Firewall.BlockAppScopeAsync(new AppScopeRequest { ProgramPath = path, Scope = parts[0] });
-        StatusText = ack.Message;
+        await RunServiceActionAsync("Block app scope", async () =>
+        {
+            var ack = await _client.Firewall.BlockAppScopeAsync(new AppScopeRequest { ProgramPath = path, Scope = parts[0] });
+            StatusText = ack.Message;
+        });
     }
 
     [RelayCommand]
@@ -1435,6 +1497,12 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     public void ResearchAbuseIpdb(string remoteAddr) => Research.Open(Research.Sites[7].UrlTemplate, remoteAddr);
+
+    private Task RunServiceActionAsync(string action, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
+
+    private static Task RunServiceActionAsync(string action, Action<string> setStatus, Func<Task> work) =>
+        ServiceActionGuard.RunAsync(action, setStatus, work);
 
     public void Dispose()
     {
