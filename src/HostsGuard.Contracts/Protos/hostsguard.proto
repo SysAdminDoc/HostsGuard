@@ -221,9 +221,13 @@ message CategorizeResult {
 service ListControl {
   // Curated catalog + subscription state.
   rpc ListBlocklistSources(Empty) returns (BlocklistSources);
+  // Fetch + parse without mutating hosts/DB; reports the same health counters.
+  rpc PreviewBlocklist(BlocklistRequest) returns (BlocklistResult);
   // Fetch + parse + bulk-import one source; records a subscription for refresh.
   rpc ImportBlocklist(BlocklistRequest) returns (BlocklistResult);
-  // Stop refreshing a source (imported domains stay).
+  // Enable/disable refresh for one subscribed source (imported domains stay).
+  rpc SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack);
+  // Remove a source and roll back domains owned only by that source.
   rpc RemoveBlocklistSubscription(BlocklistRequest) returns (Ack);
   // Re-import every subscribed source now.
   rpc RefreshBlocklists(Empty) returns (BlocklistResult);
@@ -253,6 +257,11 @@ message BlocklistRequest {
   string url = 2;
 }
 
+message BlocklistToggleRequest {
+  string name = 1;
+  bool enabled = 2;
+}
+
 message BlocklistSource {
   string category = 1;
   string name = 2;
@@ -262,6 +271,8 @@ message BlocklistSource {
   int64 domain_count = 6;
   bool large_list_warning = 7; // known to bloat the hosts file (DNS Client CPU)
   string mirror = 8;           // fallback URL (NET-077); "" when none
+  bool enabled = 9;            // subscribed source participates in refresh
+  int64 owned_domain_count = 10; // source-owned rows that rollback can inspect
 }
 
 message BlocklistSources {
@@ -282,6 +293,9 @@ message BlocklistResult {
   int64 hijack_flagged = 10;   // domains pointed at a non-sink routable IP (excluded)
   int64 allowlist_overrides = 11; // imported domains an allowlist kept unblocked
   bool mirror_used = 12;       // the primary URL failed and the mirror served the list
+  int64 removed = 13;          // source rollback: domains deleted
+  int64 preserved = 14;        // source rollback: rows kept (manual/allowlist/other-source)
+  bool preview = 15;           // true when this is a no-mutation preview result
 }
 
 message AllowlistUrls {

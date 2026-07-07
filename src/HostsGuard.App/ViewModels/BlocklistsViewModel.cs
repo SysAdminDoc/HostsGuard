@@ -23,10 +23,17 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     private bool _subscribed;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToggleLabel))]
+    private bool _enabled;
+
+    [ObservableProperty]
     private string _lastRefresh = string.Empty;
 
     [ObservableProperty]
     private long _domainCount;
+
+    [ObservableProperty]
+    private long _ownedDomainCount;
 
     [ObservableProperty]
     private bool _largeListWarning;
@@ -35,7 +42,11 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     private string _mirror = string.Empty;
 
     public string Flags =>
-        (LargeListWarning ? "⚠ large " : string.Empty) + (Mirror.Length != 0 ? "↔ mirror" : string.Empty);
+        (!Enabled && Subscribed ? "disabled " : string.Empty)
+        + (LargeListWarning ? "large " : string.Empty)
+        + (Mirror.Length != 0 ? "mirror" : string.Empty);
+
+    public string ToggleLabel => Enabled ? "Disable" : "Enable";
 
     public static BlocklistSourceViewModel From(BlocklistSource s) => new()
     {
@@ -43,8 +54,10 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         Name = s.Name,
         Url = s.Url,
         Subscribed = s.Subscribed,
+        Enabled = s.Enabled,
         LastRefresh = s.LastRefresh,
         DomainCount = s.DomainCount,
+        OwnedDomainCount = s.OwnedDomainCount,
         LargeListWarning = s.LargeListWarning,
         Mirror = s.Mirror,
     };
@@ -105,6 +118,14 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         await RefreshAsync();
     }
 
+    [RelayCommand]
+    public async Task PreviewAsync(BlocklistSourceViewModel source)
+    {
+        StatusText = $"Previewing {source.Name}...";
+        var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
+        StatusText = FormatResult(result);
+    }
+
     /// <summary>Compose the NET-077 health report into a one-line status.</summary>
     public static string FormatResult(BlocklistResult r)
     {
@@ -118,15 +139,31 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         if (r.Invalid > 0) report.Add($"{r.Invalid} invalid");
         if (r.HijackFlagged > 0) report.Add($"{r.HijackFlagged} hijack-flagged");
         if (r.AllowlistOverrides > 0) report.Add($"{r.AllowlistOverrides} allowlist-kept");
+        if (r.Removed > 0) report.Add($"{r.Removed} removed");
+        if (r.Preserved > 0) report.Add($"{r.Preserved} preserved");
         var health = report.Count != 0 ? $" [{string.Join(", ", report)}]" : string.Empty;
-        var warn = r.Warning.Length != 0 ? $" — {r.Warning}" : string.Empty;
-        return $"{r.Message}{health}{warn}";
+        var prefix = r.Preview ? "Preview: " : string.Empty;
+        var warn = r.Warning.Length != 0 ? $" - {r.Warning}" : string.Empty;
+        return $"{prefix}{r.Message}{health}{warn}";
     }
 
     [RelayCommand]
     public async Task UnsubscribeAsync(BlocklistSourceViewModel source)
     {
         var ack = await _client.Lists.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = source.Name });
+        StatusText = ack.Message;
+        await RefreshAsync();
+    }
+
+    [RelayCommand]
+    public async Task ToggleEnabledAsync(BlocklistSourceViewModel source)
+    {
+        var enable = !source.Enabled;
+        var ack = await _client.Lists.SetBlocklistEnabledAsync(new BlocklistToggleRequest
+        {
+            Name = source.Name,
+            Enabled = enable,
+        });
         StatusText = ack.Message;
         await RefreshAsync();
     }

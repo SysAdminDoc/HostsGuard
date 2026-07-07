@@ -109,6 +109,7 @@ public class SchemaLockTests
           GetBlocklistIntelligence(Empty) returns (BlocklistIntelStatus)
           ImportBlocklist(BlocklistRequest) returns (BlocklistResult)
           ListBlocklistSources(Empty) returns (BlocklistSources)
+          PreviewBlocklist(BlocklistRequest) returns (BlocklistResult)
           RefreshAllowlists(Empty) returns (Ack)
           RefreshBlocklistIntelligence(Empty) returns (Ack)
           RefreshBlocklists(Empty) returns (BlocklistResult)
@@ -116,6 +117,7 @@ public class SchemaLockTests
           RefreshThreatIntel(Empty) returns (Ack)
           RemoveBlocklistSubscription(BlocklistRequest) returns (Ack)
           SetAllowlists(AllowlistUrls) returns (Ack)
+          SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack)
         service Monitoring
           GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
           GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)

@@ -180,19 +180,58 @@ public sealed class ListControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Unsubscribe_stops_refresh_but_keeps_domains()
+    public async Task Disable_stops_refresh_but_keeps_domains()
     {
         _fetcher.Responses["https://lists.test/c.txt"] = "0.0.0.0 c1.example.com\n";
         using var channel = NamedPipeChannel.Create(_token, _pipe);
         var client = Client(channel);
         await client.ImportBlocklistAsync(new BlocklistRequest { Name = "C", Url = "https://lists.test/c.txt" });
 
-        (await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = "C" })).Ok.Should().BeTrue();
+        (await client.SetBlocklistEnabledAsync(new BlocklistToggleRequest { Name = "C", Enabled = false })).Ok.Should().BeTrue();
 
         _fetcher.Fetched.Clear();
         await client.RefreshBlocklistsAsync(new Empty());
         _fetcher.Fetched.Should().BeEmpty();
         _state.Hosts.GetBlocked().Should().Contain("c1.example.com");
+    }
+
+    [Fact]
+    public async Task Preview_does_not_mutate_and_remove_rolls_back_only_source_owned_domains()
+    {
+        _fetcher.Responses["https://lists.test/a.txt"] = """
+            0.0.0.0 only-a.example.com
+            0.0.0.0 shared.example.com
+            0.0.0.0 manual.example.com
+            bad line !!!
+            """;
+        _fetcher.Responses["https://lists.test/b.txt"] = """
+            0.0.0.0 shared.example.com
+            0.0.0.0 only-b.example.com
+            """;
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        var hosts = new HostsControl.HostsControlClient(channel);
+        await hosts.BlockAsync(new DomainRequest { Domain = "manual.example.com", Source = "manual" });
+
+        var preview = await client.PreviewBlocklistAsync(new BlocklistRequest { Name = "A", Url = "https://lists.test/a.txt" });
+        preview.Ok.Should().BeTrue();
+        preview.Preview.Should().BeTrue();
+        preview.Total.Should().Be(3);
+        preview.Added.Should().Be(2);
+        preview.Invalid.Should().Be(1);
+        _state.Hosts.GetBlocked().Should().NotContain("only-a.example.com");
+
+        await client.ImportBlocklistAsync(new BlocklistRequest { Name = "A", Url = "https://lists.test/a.txt" });
+        await client.ImportBlocklistAsync(new BlocklistRequest { Name = "B", Url = "https://lists.test/b.txt" });
+
+        var ack = await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = "A" });
+
+        ack.Ok.Should().BeTrue();
+        ack.Message.Should().Contain("deleted 1").And.Contain("preserved 2");
+        _state.Hosts.GetBlocked().Should().NotContain("only-a.example.com");
+        _state.Hosts.GetBlocked().Should().Contain(new[] { "shared.example.com", "only-b.example.com", "manual.example.com" });
+        _state.Db.GetDomainSource("manual.example.com").Should().Be("manual");
+        _state.Db.GetBlocklistSubs().Should().NotContain(s => s.Name == "A");
     }
 
     [Fact]

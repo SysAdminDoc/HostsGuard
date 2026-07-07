@@ -25,6 +25,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
+    "blocklists" => await BlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
@@ -58,6 +59,10 @@ static int Usage()
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
+          HostsGuard.Cli blocklists [list|refresh]
+          HostsGuard.Cli blocklists preview <name> <https-url>
+          HostsGuard.Cli blocklists import <name> <https-url>
+          HostsGuard.Cli blocklists disable|enable|remove <name>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
@@ -534,6 +539,107 @@ static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
             ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
             : value;
     }
+}
+
+static async Task<int> BlocklistsAsync(string[] args)
+{
+    var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var client = new ListControl.ListControlClient(channel);
+            switch (subcommand)
+            {
+                case "list":
+                    var sources = await client.ListBlocklistSourcesAsync(new Empty());
+                    Console.WriteLine("name\tsubscribed\tenabled\tdomains\towned\turl");
+                    foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.Url}");
+                    }
+
+                    return 0;
+                case "refresh":
+                    return PrintBlocklistResult(await client.RefreshBlocklistsAsync(new Empty()));
+                case "preview":
+                case "import":
+                    if (args.Length < 4)
+                    {
+                        Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <https-url>");
+                        return 1;
+                    }
+
+                    var request = new BlocklistRequest { Name = args[2], Url = args[3] };
+                    return PrintBlocklistResult(subcommand == "preview"
+                        ? await client.PreviewBlocklistAsync(request)
+                        : await client.ImportBlocklistAsync(request));
+                case "disable":
+                case "enable":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine($"Usage: blocklists {subcommand} <name>");
+                        return 1;
+                    }
+
+                    var toggle = await client.SetBlocklistEnabledAsync(new BlocklistToggleRequest
+                    {
+                        Name = args[2],
+                        Enabled = subcommand == "enable",
+                    });
+                    Console.WriteLine(toggle.Message);
+                    return toggle.Ok ? 0 : 2;
+                case "remove":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine("Usage: blocklists remove <name>");
+                        return 1;
+                    }
+
+                    var ack = await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = args[2] });
+                    Console.WriteLine(ack.Message);
+                    return ack.Ok ? 0 : 2;
+                default:
+                    Console.Error.WriteLine($"Unknown blocklists command: {subcommand}");
+                    return 1;
+            }
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static int PrintBlocklistResult(BlocklistResult result)
+{
+    Console.WriteLine(result.Message);
+    Console.WriteLine($"  total:       {result.Total}");
+    Console.WriteLine($"  added:       {result.Added}");
+    Console.WriteLine($"  duplicates:  {result.Duplicates}");
+    Console.WriteLine($"  invalid:     {result.Invalid}");
+    Console.WriteLine($"  hijack:      {result.HijackFlagged}");
+    Console.WriteLine($"  allowlisted: {result.AllowlistOverrides}");
+    if (result.Removed != 0 || result.Preserved != 0)
+    {
+        Console.WriteLine($"  removed:     {result.Removed}");
+        Console.WriteLine($"  preserved:   {result.Preserved}");
+    }
+
+    if (result.Warning.Length != 0)
+    {
+        Console.WriteLine($"  warning:     {result.Warning}");
+    }
+
+    return result.Ok ? 0 : 2;
 }
 
 static async Task<int> ModeAsync(string? requested)

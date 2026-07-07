@@ -21,16 +21,22 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         foreach (var src in BlocklistCatalog.Sources)
         {
             var subscribed = subs.TryGetValue(src.Name, out var sub);
+            var lastRefresh = subscribed && sub is not null ? sub.LastRefresh : string.Empty;
+            var domainCount = subscribed && sub is not null ? sub.DomainCount : 0;
+            var enabled = !subscribed || sub is null || sub.Enabled;
+            var owned = subscribed && sub is not null ? sub.OwnedDomainCount : 0;
             list.Sources.Add(new BlocklistSource
             {
                 Category = src.Category,
                 Name = src.Name,
                 Url = src.Url,
                 Subscribed = subscribed,
-                LastRefresh = subscribed ? sub.LastRefresh : string.Empty,
-                DomainCount = subscribed ? sub.DomainCount : 0,
+                LastRefresh = lastRefresh,
+                DomainCount = domainCount,
                 LargeListWarning = BlocklistCatalog.LargeLists.Contains(src.Name),
                 Mirror = src.Mirror,
+                Enabled = enabled,
+                OwnedDomainCount = owned,
             });
         }
 
@@ -45,10 +51,41 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Subscribed = true,
                 LastRefresh = sub.LastRefresh,
                 DomainCount = sub.DomainCount,
+                Enabled = sub.Enabled,
+                OwnedDomainCount = sub.OwnedDomainCount,
             });
         }
 
         return Task.FromResult(list);
+    }
+
+    public override async Task<BlocklistResult> PreviewBlocklist(BlocklistRequest request, ServerCallContext context)
+    {
+        if (_state.Lists is not { } lists)
+        {
+            return ListsUnavailable();
+        }
+
+        var validation = ValidateBlocklistRequest(request);
+        if (validation is not null)
+        {
+            return validation;
+        }
+
+        try
+        {
+            var outcome = await lists.PreviewBlocklistAsync(request.Name.Trim(), request.Url.Trim(), context.CancellationToken);
+            return ToResult(outcome, $"previewed {request.Name}: {outcome.Added} would be new of {outcome.Total} domains");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            return new BlocklistResult
+            {
+                Ok = false,
+                Message = $"preview failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/import_failed",
+            };
+        }
     }
 
     public override async Task<BlocklistResult> ImportBlocklist(BlocklistRequest request, ServerCallContext context)
@@ -58,36 +95,19 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             return ListsUnavailable();
         }
 
-        var name = (request.Name ?? string.Empty).Trim();
-        var url = (request.Url ?? string.Empty).Trim();
-        if (name.Length == 0 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        var validation = ValidateBlocklistRequest(request);
+        if (validation is not null)
         {
-            return new BlocklistResult
-            {
-                Ok = false,
-                Message = "a name and an https:// URL are required",
-                ErrorCode = "hostsguard.error.v1/invalid_source",
-            };
+            return validation;
         }
 
         try
         {
+            var name = request.Name.Trim();
+            var url = request.Url.Trim();
             var outcome = await lists.ImportBlocklistAsync(name, url, context.CancellationToken);
-            return new BlocklistResult
-            {
-                Ok = true,
-                Message = $"imported {name}: {outcome.Added} new of {outcome.Total} domains" +
-                          (outcome.MirrorUsed ? " (via mirror)" : string.Empty),
-                Added = outcome.Added,
-                Total = outcome.Total,
-                HostsEntries = outcome.HostsEntries,
-                Warning = outcome.Warning,
-                Duplicates = outcome.Duplicates,
-                Invalid = outcome.Invalid,
-                HijackFlagged = outcome.HijackFlagged,
-                AllowlistOverrides = outcome.AllowlistOverrides,
-                MirrorUsed = outcome.MirrorUsed,
-            };
+            return ToResult(outcome, $"imported {name}: {outcome.Added} new of {outcome.Total} domains" +
+                                     (outcome.MirrorUsed ? " (via mirror)" : string.Empty));
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {
@@ -100,10 +120,53 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         }
     }
 
+    public override Task<Ack> SetBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "blocklist name is required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        _state.Db.SetBlocklistSubEnabled(name, request.Enabled);
+        _state.Db.LogEvent($"list:{name}", request.Enabled ? "blocklist_enabled" : "blocklist_disabled", reason: "blocklist");
+        return Task.FromResult(new Ack { Ok = true, Message = $"{(request.Enabled ? "enabled" : "disabled")} {name}" });
+    }
+
     public override Task<Ack> RemoveBlocklistSubscription(BlocklistRequest request, ServerCallContext context)
     {
-        _state.Db.RemoveBlocklistSub((request.Name ?? string.Empty).Trim());
-        return Task.FromResult(new Ack { Ok = true, Message = $"unsubscribed {request.Name}" });
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "blocklist name is required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        if (_state.Lists is not { } lists)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "list engine unavailable",
+                ErrorCode = "hostsguard.error.v1/lists_unavailable",
+            });
+        }
+
+        var outcome = lists.RemoveSource(name);
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = $"removed {name}: deleted {outcome.Removed} source-owned domains, preserved {outcome.Preserved}",
+        });
     }
 
     public override async Task<BlocklistResult> RefreshBlocklists(Empty request, ServerCallContext context)
@@ -116,15 +179,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         try
         {
             var outcome = await lists.RefreshAllAsync(context.CancellationToken);
-            return new BlocklistResult
-            {
-                Ok = true,
-                Message = $"refreshed subscriptions: {outcome.Added} new of {outcome.Total} domains",
-                Added = outcome.Added,
-                Total = outcome.Total,
-                HostsEntries = outcome.HostsEntries,
-                Warning = outcome.Warning,
-            };
+            return ToResult(outcome, $"refreshed subscriptions: {outcome.Added} new of {outcome.Total} domains");
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {
@@ -260,5 +315,40 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         Ok = false,
         Message = "list engine unavailable",
         ErrorCode = "hostsguard.error.v1/lists_unavailable",
+    };
+
+    private static BlocklistResult? ValidateBlocklistRequest(BlocklistRequest request)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        var url = (request.Url ?? string.Empty).Trim();
+        if (name.Length == 0 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return new BlocklistResult
+            {
+                Ok = false,
+                Message = "a name and an https:// URL are required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            };
+        }
+
+        return null;
+    }
+
+    private static BlocklistResult ToResult(ImportOutcome outcome, string message) => new()
+    {
+        Ok = true,
+        Message = message,
+        Added = outcome.Added,
+        Total = outcome.Total,
+        HostsEntries = outcome.HostsEntries,
+        Warning = outcome.Warning,
+        Duplicates = outcome.Duplicates,
+        Invalid = outcome.Invalid,
+        HijackFlagged = outcome.HijackFlagged,
+        AllowlistOverrides = outcome.AllowlistOverrides,
+        MirrorUsed = outcome.MirrorUsed,
+        Removed = outcome.Removed,
+        Preserved = outcome.Preserved,
+        Preview = outcome.Preview,
     };
 }

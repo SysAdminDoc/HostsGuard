@@ -921,9 +921,11 @@
                                         <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
                                         <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
                                         <DataGridCheckBoxColumn Header="Subscribed" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
+                                        <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding Enabled}" Width="72" IsReadOnly="True" />
                                         <DataGridTextColumn Header="Domains" Binding="{Binding DomainCount}" Width="90" />
+                                        <DataGridTextColumn Header="Owned" Binding="{Binding OwnedDomainCount}" Width="70" />
                                         <DataGridTextColumn Header="Last refresh" Binding="{Binding LastRefresh}" Width="160" />
-                                        <DataGridTextColumn Header="Health" Binding="{Binding Flags}" Width="90">
+                                        <DataGridTextColumn Header="Health" Binding="{Binding Flags}" Width="100">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
@@ -931,15 +933,22 @@
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="Actions" Width="190">
+                                        <DataGridTemplateColumn Header="Actions" Width="330">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Preview" Padding="8,2" Margin="0,0,6,0"
+                                                                Command="{Binding DataContext.PreviewCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
                                                         <Button Content="Import" Padding="8,2" Margin="0,0,6,0"
                                                                 Style="{StaticResource Hg.AccentButton}"
                                                                 Command="{Binding DataContext.ImportCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}" />
-                                                        <Button Content="Unsubscribe" Padding="8,2"
+                                                        <Button Content="{Binding ToggleLabel}" Padding="8,2" Margin="0,0,6,0"
+                                                                Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="Remove" Padding="8,2"
                                                                 Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
                                                                 Command="{Binding DataContext.UnsubscribeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}" />

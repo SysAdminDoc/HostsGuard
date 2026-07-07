@@ -49,6 +49,13 @@ public sealed record EventLogFilter(
 /// <summary>A page of filtered event-log rows plus the total matching count.</summary>
 public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
 
+/// <summary>A subscribed blocklist source plus source-owned domain count.</summary>
+public sealed record BlocklistSubRow(
+    string Name, string Url, string LastRefresh, long DomainCount, bool Enabled, long OwnedDomainCount);
+
+/// <summary>Rollback result for removing one blocklist source.</summary>
+public sealed record BlocklistRemoval(long Removed, long Preserved);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -58,7 +65,7 @@ public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 13;
+    public const int SchemaVersion = 14;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -124,7 +131,12 @@ public sealed class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS schedules(
                 id INTEGER PRIMARY KEY, target TEXT, days TEXT, start TEXT, end TEXT);
             CREATE TABLE IF NOT EXISTS blocklist_subs(
-                name TEXT PRIMARY KEY, url TEXT, last_refresh TEXT, domain_count INTEGER DEFAULT 0);
+                name TEXT PRIMARY KEY, url TEXT, last_refresh TEXT, domain_count INTEGER DEFAULT 0,
+                enabled INTEGER DEFAULT 1);
+            CREATE TABLE IF NOT EXISTS blocklist_domain_sources(
+                source TEXT NOT NULL, domain TEXT NOT NULL,
+                PRIMARY KEY(source, domain)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_blocklist_domain_sources_domain ON blocklist_domain_sources(domain);
             CREATE TABLE IF NOT EXISTS allowlist_subs(url TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS feed_hourly(
                 root TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(root, hour));
@@ -169,6 +181,13 @@ public sealed class HostsDatabase : IDisposable
         AddColumnIfMissing("domains", "reason", "TEXT");
         AddColumnIfMissing("feed", "reason", "TEXT");
         AddColumnIfMissing("log", "reason", "TEXT");
+        AddColumnIfMissing("blocklist_subs", "enabled", "INTEGER DEFAULT 1");
+        _conn.Execute(
+            """
+            INSERT OR IGNORE INTO blocklist_domain_sources(source, domain)
+            SELECT substr(source, 6), domain FROM domains
+            WHERE source LIKE 'list:%' AND length(source) > 5
+            """);
 
         _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',@v)", new { v = SchemaVersion.ToString() });
     }
@@ -592,7 +611,11 @@ public sealed class HostsDatabase : IDisposable
                     ON CONFLICT(domain) DO UPDATE SET
                         status=CASE WHEN domains.status='whitelisted' AND excluded.status='blocked' THEN 'whitelisted' ELSE excluded.status END,
                         modified=excluded.modified,
-                        source=CASE WHEN excluded.source!='' THEN excluded.source ELSE domains.source END
+                        source=CASE
+                            WHEN excluded.source='' THEN domains.source
+                            WHEN domains.source IS NULL OR domains.source='' OR domains.source LIKE 'list:%' THEN excluded.source
+                            ELSE domains.source
+                        END
                     """,
                     new { domain = domain.ToLowerInvariant(), status, source, now, reason = Reasons.Canonical(null, source, status) },
                     tx);
@@ -1218,25 +1241,105 @@ public sealed class HostsDatabase : IDisposable
         lock (_gate)
         {
             _conn.Execute(
-                "INSERT OR REPLACE INTO blocklist_subs(name,url,last_refresh,domain_count) VALUES(@name,@url,@now,@domainCount)",
+                """
+                INSERT INTO blocklist_subs(name,url,last_refresh,domain_count,enabled)
+                VALUES(@name,@url,@now,@domainCount,1)
+                ON CONFLICT(name) DO UPDATE SET
+                    url=excluded.url,
+                    last_refresh=excluded.last_refresh,
+                    domain_count=excluded.domain_count,
+                    enabled=1
+                """,
                 new { name, url, now, domainCount });
         }
     }
 
-    public void RemoveBlocklistSub(string name)
+    public void SetBlocklistSubEnabled(string name, bool enabled)
     {
         lock (_gate)
         {
-            _conn.Execute("DELETE FROM blocklist_subs WHERE name=@name", new { name });
+            _conn.Execute("UPDATE blocklist_subs SET enabled=@enabled WHERE name=@name", new { name, enabled = enabled ? 1 : 0 });
         }
     }
 
-    public IReadOnlyList<(string Name, string Url, string LastRefresh, long DomainCount)> GetBlocklistSubs()
+    public BlocklistRemoval RemoveBlocklistSub(string name)
     {
         lock (_gate)
         {
-            return _conn.Query<(string, string, string, long)>(
-                "SELECT name, url, last_refresh, domain_count FROM blocklist_subs ORDER BY name").ToList();
+            using var tx = _conn.BeginTransaction();
+            var src = $"list:{name}";
+            var owned = _conn.Query<string>(
+                """
+                SELECT b.domain FROM blocklist_domain_sources b
+                JOIN domains d ON d.domain=b.domain
+                WHERE b.source=@name
+                  AND d.status='blocked'
+                  AND (d.source IS NULL OR d.source='' OR d.source=@src)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM blocklist_domain_sources other
+                      WHERE other.domain=b.domain AND other.source<>@name)
+                """,
+                new { name, src }, tx).ToList();
+            var tracked = _conn.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM blocklist_domain_sources WHERE source=@name",
+                new { name }, tx);
+            foreach (var chunk in owned.Chunk(500))
+            {
+                _conn.Execute("DELETE FROM domains WHERE domain IN @chunk AND status='blocked'", new { chunk }, tx);
+            }
+
+            _conn.Execute("DELETE FROM blocklist_domain_sources WHERE source=@name", new { name }, tx);
+            _conn.Execute("DELETE FROM blocklist_subs WHERE name=@name", new { name }, tx);
+            tx.Commit();
+            return new BlocklistRemoval(owned.Count, Math.Max(0, tracked - owned.Count));
+        }
+    }
+
+    public void ReplaceBlocklistSourceDomains(string name, IEnumerable<string> domains)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(domains);
+        var cleaned = domains.Select(d => d.ToLowerInvariant()).Distinct(StringComparer.Ordinal).ToList();
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            _conn.Execute("DELETE FROM blocklist_domain_sources WHERE source=@name", new { name }, tx);
+            foreach (var chunk in cleaned.Chunk(500))
+            {
+                foreach (var domain in chunk)
+                {
+                    _conn.Execute(
+                        "INSERT OR IGNORE INTO blocklist_domain_sources(source,domain) VALUES(@name,@domain)",
+                        new { name, domain }, tx);
+                }
+            }
+
+            tx.Commit();
+        }
+    }
+
+    public IReadOnlyList<BlocklistSubRow> GetBlocklistSubs()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<(string Name, string Url, string LastRefresh, long DomainCount, long Enabled, long OwnedDomainCount)>(
+                """
+                SELECT s.name AS Name, s.url AS Url, COALESCE(s.last_refresh,'') AS LastRefresh,
+                       COALESCE(s.domain_count,0) AS DomainCount, COALESCE(s.enabled,1) AS Enabled,
+                       COUNT(b.domain) AS OwnedDomainCount
+                FROM blocklist_subs s
+                LEFT JOIN blocklist_domain_sources b ON b.source=s.name
+                GROUP BY s.name, s.url, s.last_refresh, s.domain_count, s.enabled
+                ORDER BY s.name
+                """)
+                .Select(r => new BlocklistSubRow(
+                    r.Name,
+                    r.Url,
+                    r.LastRefresh,
+                    r.DomainCount,
+                    r.Enabled != 0,
+                    r.OwnedDomainCount))
+                .ToList();
         }
     }
 

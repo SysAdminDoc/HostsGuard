@@ -87,9 +87,9 @@ public static class PolicyPortability
             policy.RuleGroups.Add(new PolicyRuleGroup { Name = byGroup.Key, Rules = byGroup.Select(g => g.RuleName).ToList() });
         }
 
-        foreach (var (name, url, _, _) in state.Db.GetBlocklistSubs())
+        foreach (var sub in state.Db.GetBlocklistSubs())
         {
-            policy.BlocklistSubs.Add(new PolicyBlocklistSub { Name = name, Url = url });
+            policy.BlocklistSubs.Add(new PolicyBlocklistSub { Name = sub.Name, Url = sub.Url });
         }
 
         policy.AllowlistSubs.AddRange(state.Db.GetAllowlistSubs());

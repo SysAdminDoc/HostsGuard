@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.9] - 2026-07-07
+
+### Added
+- Added source-scoped blocklist preview, enable/disable, and rollback across the
+  ListControl API, WPF Blocklists view, and CLI `blocklists` subcommands.
+- Blocklist imports now track per-source domain ownership so removing a source
+  deletes only domains owned solely by that source while preserving manual,
+  allowlisted, and overlapping-source rows.
+
 ## [0.12.8] - 2026-07-07
 
 ### Added

@@ -10,7 +10,8 @@ namespace HostsGuard.Service;
 public sealed record ImportOutcome(
     long Added, long Total, long HostsEntries, string Warning,
     long Duplicates = 0, long Invalid = 0, long HijackFlagged = 0,
-    long AllowlistOverrides = 0, bool MirrorUsed = false);
+    long AllowlistOverrides = 0, bool MirrorUsed = false,
+    long Removed = 0, long Preserved = 0, bool Preview = false);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -46,6 +47,7 @@ public sealed class ListImporter : IDisposable
 
         var added = _hosts.BlockBulk(domains);
         _db.AddDomainsBulk(domains.Select(d => (d, "blocked", $"list:{name}")));
+        _db.ReplaceBlocklistSourceDomains(name, domains);
         _db.UpsertBlocklistSub(name, url, domains.Count);
 
         // Whitelisted domains always win: re-apply allowlists after an import,
@@ -65,6 +67,32 @@ public sealed class ListImporter : IDisposable
 
         return new ImportOutcome(added, domains.Count, entries, warning,
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed);
+    }
+
+    public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
+    {
+        var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        var scan = BlocklistCatalog.Scan(text);
+        var blocked = _db.GetDomains(status: "blocked").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
+        var whitelisted = _db.GetDomains(status: "whitelisted").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
+        var wouldAdd = scan.Domains.Count(d => !blocked.Contains(d) && !whitelisted.Contains(d));
+        var overrides = scan.Domains.Count(whitelisted.Contains);
+        var entries = _hosts.GetBlocked().Count + wouldAdd;
+        var warning = entries > BlocklistCatalog.LargeHostsWarn
+            ? $"Hosts file would reach {entries:N0} entries - watch DNS Client CPU"
+            : string.Empty;
+        return new ImportOutcome(wouldAdd, scan.Domains.Count, entries, warning,
+            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed, Preview: true);
+    }
+
+    public ImportOutcome RemoveSource(string name)
+    {
+        var removal = _db.RemoveBlocklistSub(name);
+        _hosts.Reconcile(_db.GetDomains(status: "blocked").Select(d => d.Domain));
+        _db.LogEvent($"list:{name}", "blocklist_removed",
+            details: $"removed {removal.Removed} domains; preserved {removal.Preserved}", reason: "blocklist");
+        return new ImportOutcome(0, 0, _hosts.GetBlocked().Count, string.Empty,
+            Removed: removal.Removed, Preserved: removal.Preserved);
     }
 
     /// <summary>Fetch a list, falling back to the catalog mirror on failure.</summary>
@@ -93,9 +121,9 @@ public sealed class ListImporter : IDisposable
         long added = 0, total = 0;
         var warning = string.Empty;
         long duplicates = 0, invalid = 0, hijack = 0, overrides = 0;
-        foreach (var (name, url, _, _) in _db.GetBlocklistSubs())
+        foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled))
         {
-            var outcome = await ImportBlocklistAsync(name, url, ct);
+            var outcome = await ImportBlocklistAsync(sub.Name, sub.Url, ct);
             added += outcome.Added;
             total += outcome.Total;
             duplicates += outcome.Duplicates;
