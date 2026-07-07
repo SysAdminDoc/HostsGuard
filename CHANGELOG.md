@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.13] - 2026-07-07
+
+### Fixed
+- Added a public fallback path for the WPF DataGrid width repair so grouped
+  dense grids can recover if WPF's private column-width invalidation hook
+  changes, plus a regression test that forces the fallback path.
+
 ## [0.12.12] - 2026-07-07
 
 ### Added

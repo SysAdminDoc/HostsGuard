@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
 
 namespace HostsGuard.App;
@@ -128,58 +129,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _ = RepairColumnWidthsAsync(grid);
-
-        static async Task RepairColumnWidthsAsync(System.Windows.Controls.DataGrid grid)
-        {
-            for (var attempt = 0; attempt < 8; attempt++)
-            {
-                await Task.Delay(150);
-                try
-                {
-                    if (!grid.IsVisible || grid.Columns.All(c => c.ActualWidth > c.MinWidth))
-                    {
-                        return;
-                    }
-
-                    // Step 1: revive the internal scroll host. Until the rows
-                    // presenter re-registers, GetViewportWidthForColumns()
-                    // reports 0 and every recompute clamps to MinWidth again.
-                    (grid.Template?.FindName("DG_ScrollViewer", grid) as System.Windows.Controls.ScrollViewer)
-                        ?.InvalidateScrollInfo();
-                    InvalidateSubtree(grid);
-                    grid.UpdateLayout();
-
-                    // Step 2: rerun the width computation against the revived
-                    // viewport. No public API triggers it, hence reflection.
-                    grid.Columns.GetType()
-                        .GetMethod("InvalidateColumnWidthsComputation",
-                            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                        ?.Invoke(grid.Columns, null);
-                    grid.UpdateLayout();
-                }
-                catch (Exception ex) when (ex is System.Reflection.TargetInvocationException or InvalidOperationException)
-                {
-                    // Best-effort repair — a failed attempt must never take the
-                    // shell down; the next attempt (or a manual resize) retries.
-                }
-            }
-        }
-
-        static void InvalidateSubtree(DependencyObject node)
-        {
-            for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(node); i++)
-            {
-                var child = System.Windows.Media.VisualTreeHelper.GetChild(node, i);
-                if (child is UIElement el)
-                {
-                    el.InvalidateMeasure();
-                    el.InvalidateArrange();
-                }
-
-                InvalidateSubtree(child);
-            }
-        }
+        _ = DataGridWidthRepair.RepairAsync(grid);
     }
 
     /// <summary>Reflect the current filtering mode as a checkmark when the tray menu opens.</summary>
@@ -265,8 +215,10 @@ public partial class MainWindow : Window
     }
 
     private void OnOpenGitHub(object sender, RoutedEventArgs e)
-        => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            "https://github.com/SysAdminDoc/HostsGuard") { UseShellExecute = true });
+        => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/SysAdminDoc/HostsGuard")
+        {
+            UseShellExecute = true,
+        });
 
     private void OnClearActivitySelection(object sender, RoutedEventArgs e)
     {
