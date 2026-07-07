@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using HostsGuard.App.ViewModels;
 
 namespace HostsGuard.App;
@@ -11,6 +13,8 @@ namespace HostsGuard.App;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private const int DwmwaUseImmersiveDarkMode = 20;
+    private const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
     private bool _exiting;
 
     public MainWindow(MainViewModel viewModel)
@@ -18,6 +22,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.DecisionRequested += OnDecisionRequested;
+        viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         // WPF DataGrids don't select a row on right-click, so every context menu
         // bound to SelectedItem/SelectedItems would act on the previously
@@ -28,6 +33,46 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseRightButtonDownEvent,
             new System.Windows.Input.MouseButtonEventHandler(OnRightButtonSelectRow),
             handledEventsToo: true);
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr hwnd,
+        int dwAttribute,
+        ref int pvAttribute,
+        int cbAttribute);
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ApplyNativeTitleBarTheme();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.Theme))
+        {
+            ApplyNativeTitleBarTheme();
+        }
+    }
+
+    private void ApplyNativeTitleBarTheme()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
+        {
+            return;
+        }
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var dark = DataContext is MainViewModel { Theme: "dark" };
+        var value = dark ? 1 : 0;
+        _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref value, sizeof(int));
+        _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkModeBefore20H1, ref value, sizeof(int));
     }
 
     private static void OnRightButtonSelectRow(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -200,6 +245,11 @@ public partial class MainWindow : Window
         }
 
         Tray.Dispose();
+        if (DataContext is MainViewModel vm)
+        {
+            vm.PropertyChanged -= OnViewModelPropertyChanged;
+        }
+
         base.OnClosing(e);
     }
 
@@ -217,6 +267,12 @@ public partial class MainWindow : Window
     private void OnOpenGitHub(object sender, RoutedEventArgs e)
         => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
             "https://github.com/SysAdminDoc/HostsGuard") { UseShellExecute = true });
+
+    private void OnClearActivitySelection(object sender, RoutedEventArgs e)
+    {
+        ActivityGrid.SelectedItem = null;
+        ActivityGrid.UnselectAll();
+    }
 
     private void OnTrayOpen(object sender, RoutedEventArgs e)
     {

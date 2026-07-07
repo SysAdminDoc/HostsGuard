@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.4] - 2026-07-07
+
+### Changed
+- Closed more of the generated-reference UX gap with native dark title-bar
+  theming, a top-level Tools menu, a left-rail update check action, and refreshed
+  dark/light Hosts Activity screenshots.
+- Made the DNS activity grid read more like the reference by showing `Observed`
+  for undecided rows, preserving fitted columns without horizontal scrolling,
+  and tinting blocked rows with the danger surface.
+- Added the inspector header close affordance so the selected DNS detail panel
+  matches the mock's dismissible right rail.
+
 ## [0.12.3] - 2026-07-07
 
 ### Changed

@@ -15,7 +15,10 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.3: image-reference parity pass - concept-scale 1280x800 shell,
+    <!-- 0.12.4: parity follow-up - native dark title bar, Tools/update
+         affordances, observed status labels, DNS-grid blocked-row cue, and
+         closable inspector header.
+         0.12.3: image-reference parity pass - concept-scale 1280x800 shell,
          icon-led main tabs, operational left rail, one-line activity toolbar,
          fitted DNS table, and stacked inspector actions.
          0.12.2: WPF workbench revamp - left status rail, denser command bars,
@@ -54,7 +57,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.3</Version>
+    <Version>0.12.4</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

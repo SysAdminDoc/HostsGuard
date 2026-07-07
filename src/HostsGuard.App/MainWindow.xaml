@@ -100,7 +100,15 @@
                               ToolTip="Clear every filter and toggle, back to defaults at 100% scale" />
                     <MenuItem Header="Refresh all" Command="{Binding RefreshAllCommand}" />
                 </MenuItem>
+                <MenuItem Header="_Tools">
+                    <MenuItem Header="Run diagnostics" Command="{Binding RunDiagnosticsCommand}" />
+                    <MenuItem Header="Flush DNS" Command="{Binding Tools.FlushDnsCommand}" />
+                    <MenuItem Header="Export support bundle" Command="{Binding Tools.ExportBundleCommand}" />
+                    <Separator />
+                    <MenuItem Header="Check for updates" Command="{Binding CheckForUpdatesCommand}" />
+                </MenuItem>
                 <MenuItem Header="{svc:Loc Key=Menu_Help, Default=_Help}">
+                    <MenuItem Header="Check for updates" Command="{Binding CheckForUpdatesCommand}" />
                     <MenuItem Header="Open GitHub repository" Click="OnOpenGitHub" />
                     <MenuItem Header="About HostsGuard" Click="OnAbout" />
                 </MenuItem>
@@ -302,6 +310,14 @@
                                                 <TextBlock Text="Export support bundle" />
                                             </StackPanel>
                                         </Button>
+                                        <Button Style="{StaticResource Hg.RailLinkButton}"
+                                                Command="{Binding CheckForUpdatesCommand}"
+                                                HorizontalContentAlignment="Left">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="⟳" Margin="0,0,8,0" />
+                                                <TextBlock Text="Check for updates" />
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -463,8 +479,24 @@
                                 </GroupStyle>
                             </DataGrid.GroupStyle>
                             <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                                    <Setter Property="MinHeight" Value="32" />
                                     <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Status}" Value="blocked">
+                                            <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
+                                        </DataTrigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                        </Trigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.ContextMenu>
@@ -559,9 +591,10 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80">
+                                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="80">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
                                             <Style.Triggers>
                                                 <!-- Blocked stands out red so an over-block is easy to spot when troubleshooting. -->
                                                 <DataTrigger Binding="{Binding Status}" Value="allowed">
@@ -572,14 +605,17 @@
                                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
                                                     <Setter Property="FontWeight" Value="SemiBold" />
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+                                                </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="100" />
+                                <DataGridTextColumn Header="Process" Binding="{Binding Process}" Width="95" />
                                 <DataGridTextColumn Header="Hits" Binding="{Binding Hits}" Width="45" />
-                                <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="55" IsReadOnly="True" />
-                                <DataGridTemplateColumn Header="24h" Width="100">
+                                <DataGridTextColumn Header="Data" Binding="{Binding DataText}" Width="64" IsReadOnly="True" />
+                                <DataGridTemplateColumn Header="24h" Width="96">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Viewbox Width="84" Height="18" Stretch="Fill" HorizontalAlignment="Left"
@@ -627,6 +663,11 @@
                                             </Style>
                                         </StackPanel.Style>
                                         <DockPanel LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Content="×"
+                                                    Style="{StaticResource Hg.CloseIconButton}"
+                                                    ToolTip="Clear selection"
+                                                    Click="OnClearActivitySelection" />
                                             <TextBlock DockPanel.Dock="Left"
                                                        Text="◎"
                                                        Foreground="{DynamicResource Hg.Teal}"

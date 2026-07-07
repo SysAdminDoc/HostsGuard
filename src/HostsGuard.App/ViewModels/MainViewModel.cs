@@ -699,6 +699,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    public void CheckForUpdates()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+            "https://github.com/SysAdminDoc/HostsGuard/releases") { UseShellExecute = true });
+        ConnectionText = "Opened HostsGuard releases for update check";
+    }
+
+    [RelayCommand]
     public void SetScale(object? pct)
     {
         if (pct is int value)

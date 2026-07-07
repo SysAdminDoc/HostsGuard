@@ -14,6 +14,7 @@ public sealed partial class ActivityRowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBlockCandidate))]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
     private string _status = string.Empty;
 
     [ObservableProperty]
@@ -91,6 +92,15 @@ public sealed partial class ActivityRowViewModel : ObservableObject
 
     /// <summary>Undecided domain the reference lists would block — a candidate.</summary>
     public bool IsBlockCandidate => Blocklists.Count > 0 && Status.Length == 0;
+
+    /// <summary>Human status label for the dense activity grid.</summary>
+    public string StatusText => Status.ToLowerInvariant() switch
+    {
+        "allowed" => "Allowed",
+        "blocked" => "Blocked",
+        "" => "Observed",
+        var s => char.ToUpperInvariant(s[0]) + s[1..],
+    };
 
     public static ActivityRowViewModel From(ActivityRow r) => new()
     {
