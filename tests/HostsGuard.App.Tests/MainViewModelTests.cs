@@ -109,4 +109,39 @@ public sealed class MainViewModelTests : IAsyncLifetime
         reread.Load();
         reread.UiScalePct.Should().Be(125);
     }
+
+    [Fact]
+    public async Task Check_for_updates_reports_latest_release_without_opening_a_browser()
+    {
+        var checker = new FakeReleaseUpdateChecker(
+            new ReleaseUpdateResult(
+                ReleaseUpdateState.UpdateAvailable,
+                "0.12.15",
+                "v0.12.16",
+                new DateTimeOffset(2026, 7, 7, 12, 0, 0, TimeSpan.Zero),
+                [new ReleaseAssetInfo("HostsGuard-v0.12.16-dotnet-Setup.exe", 10, "sha256:abc", null)],
+                "Update available: v0.12.16 (published 2026-07-07). HostsGuard-v0.12.16-dotnet-Setup.exe (10 B, sha256:abc; 1 asset listed). No auto-install performed."));
+        var vm = new MainViewModel(
+            () => _client, _config, new ThemeManager(), new FakeConfirm(true), releaseUpdateChecker: checker);
+
+        await vm.CheckForUpdatesCommand.ExecuteAsync(null);
+
+        checker.InstalledVersion.Should().Be(vm.AppVersion);
+        vm.ConnectionText.Should().Contain("Update available")
+            .And.Contain("v0.12.16")
+            .And.Contain("sha256:abc")
+            .And.Contain("No auto-install");
+    }
+
+    private sealed class FakeReleaseUpdateChecker(ReleaseUpdateResult result) : IReleaseUpdateChecker
+    {
+        public string? InstalledVersion { get; private set; }
+
+        public Task<ReleaseUpdateResult> CheckAsync(
+            string installedVersion, CancellationToken cancellationToken = default)
+        {
+            InstalledVersion = installedVersion;
+            return Task.FromResult(result);
+        }
+    }
 }

@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.16] - 2026-07-07
+
+### Changed
+- Replaced the browser-opening "Check for updates" command with a read-only
+  GitHub latest-release metadata check that compares SemVer, reports release
+  date, asset, and hash status, handles offline/API failures in the status bar,
+  and never auto-installs.
+
 ## [0.12.15] - 2026-07-07
 
 ### Fixed

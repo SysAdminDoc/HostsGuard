@@ -28,13 +28,15 @@ public partial class App : Application
         services.AddSingleton<IConfirm, MessageBoxConfirm>();
         services.AddSingleton<IFilePicker, DialogFilePicker>();
         services.AddSingleton<IPrompt, InputDialogPrompt>();
+        services.AddSingleton<IReleaseUpdateChecker>(_ => ReleaseUpdateChecker.CreateDefault());
         services.AddSingleton(sp => new MainViewModel(
             HostsServiceClient.Connect,
             sp.GetRequiredService<AppConfigStore>(),
             sp.GetRequiredService<ThemeManager>(),
             sp.GetRequiredService<IConfirm>(),
             sp.GetRequiredService<IFilePicker>(),
-            sp.GetRequiredService<IPrompt>()));
+            sp.GetRequiredService<IPrompt>(),
+            sp.GetRequiredService<IReleaseUpdateChecker>()));
         services.AddSingleton<MainWindow>();
         _provider = services.BuildServiceProvider();
 

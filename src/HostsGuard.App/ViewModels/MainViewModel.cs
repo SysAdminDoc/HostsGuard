@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IConfirm _confirm;
     private readonly IFilePicker? _filePicker;
     private readonly IPrompt? _prompt;
+    private readonly IReleaseUpdateChecker _releaseUpdateChecker;
     private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
     private HostsServiceClient? _client;
     private CancellationTokenSource? _decisionCts;
@@ -93,7 +94,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel(
         Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes,
-        IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null)
+        IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null,
+        IReleaseUpdateChecker? releaseUpdateChecker = null)
     {
         _connectFactory = connectFactory ?? throw new ArgumentNullException(nameof(connectFactory));
         _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -101,6 +103,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _filePicker = filePicker;
         _prompt = prompt;
+        _releaseUpdateChecker = releaseUpdateChecker ?? ReleaseUpdateChecker.CreateDefault();
         _theme = config.Theme;
         _uiScalePct = config.UiScalePct;
     }
@@ -735,12 +738,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public void CheckForUpdates()
+    public async Task CheckForUpdatesAsync()
     {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
-            "https://github.com/SysAdminDoc/HostsGuard/releases")
-        { UseShellExecute = true });
-        ConnectionText = "Opened HostsGuard releases for update check";
+        ConnectionText = "Checking GitHub releases...";
+        try
+        {
+            var result = await _releaseUpdateChecker.CheckAsync(AppVersion);
+            ConnectionText = result.Message;
+        }
+        catch (Exception ex)
+        {
+            ConnectionText = $"Update check failed: {ex.Message}";
+        }
     }
 
     [RelayCommand]
