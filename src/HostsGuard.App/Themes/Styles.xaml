@@ -75,7 +75,7 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Padding" Value="6,5" />
     </Style>
 
     <Style x:Key="Hg.CommandBar" TargetType="Border">
@@ -92,6 +92,70 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="4" />
         <Setter Property="Padding" Value="6,2" />
+    </Style>
+
+    <Style x:Key="Hg.ShellSurface" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+        <Setter Property="Padding" Value="10" />
+    </Style>
+
+    <Style x:Key="Hg.SideRail" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Crust}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+        <Setter Property="Padding" Value="14" />
+    </Style>
+
+    <Style x:Key="Hg.RailTile" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+
+    <Style x:Key="Hg.MetricTile" TargetType="Border" BasedOn="{StaticResource Hg.RailTile}">
+        <Setter Property="Padding" Value="9,8" />
+        <Setter Property="Margin" Value="0,0,8,8" />
+    </Style>
+
+    <Style x:Key="Hg.Inspector" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Base}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+
+    <Style x:Key="Hg.Kicker" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+    </Style>
+
+    <Style x:Key="Hg.MetricValue" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Hg.InspectorLabel" TargetType="TextBlock" BasedOn="{StaticResource Hg.Kicker}">
+        <Setter Property="Margin" Value="0,10,0,3" />
+    </Style>
+
+    <Style x:Key="Hg.InspectorValue" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="LineHeight" Value="18" />
+    </Style>
+
+    <Style x:Key="Hg.ActionChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="FontSize" Value="12" />
     </Style>
 
     <Style TargetType="Button">

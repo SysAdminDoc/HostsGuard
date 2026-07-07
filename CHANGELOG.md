@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.2] - 2026-07-07
+
+### Changed
+- Re-imagined the WPF shell around a persistent status rail with service health,
+  filtering posture, key counters, refresh/reset actions, scale, and theme
+  controls visible across the app.
+- Modernized the activity workbench with denser command bars, tighter table
+  chrome, selected-row inspectors for DNS and firewall triage, and action chips
+  that keep common block/allow decisions adjacent to the selected item.
+- Rebalanced high-density Hosts Activity and Firewall Activity layouts so the
+  live grids remain visible in the first viewport at 125% DPI.
+- Re-captured README screenshots in both dark and light themes after the
+  redesign.
+
 ## [0.12.1] — 2026-07-05
 
 ### Changed

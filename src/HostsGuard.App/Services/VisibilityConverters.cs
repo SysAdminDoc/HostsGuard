@@ -35,3 +35,13 @@ public sealed class InverseBooleanToVisibilityConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>True when a selected item exists; useful for XAML-only inspectors.</summary>
+public sealed class ObjectPresentBooleanConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is not null && !ReferenceEquals(value, DependencyProperty.UnsetValue);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

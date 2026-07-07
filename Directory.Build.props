@@ -15,7 +15,10 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.1: premium WPF UX pass - stronger shell/component states,
+    <!-- 0.12.2: WPF workbench revamp - left status rail, denser command bars,
+         activity inspectors, tighter tables, refreshed screenshots, and
+         theme-parity rendered QA.
+         0.12.1: premium WPF UX pass - stronger shell/component states,
          clearer service recovery, faster usable startup, refined dialogs,
          theme-parity screenshots, and broader smoke coverage. -->
     <!-- Shared product version — single source of truth for every assembly.
@@ -48,7 +51,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.1</Version>
+    <Version>0.12.2</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
