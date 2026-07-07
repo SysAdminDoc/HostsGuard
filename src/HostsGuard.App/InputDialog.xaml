@@ -1,14 +1,15 @@
 <Window x:Class="HostsGuard.App.InputDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:HostsGuard.App.Services"
         Style="{StaticResource Hg.Window}"
-        Title="Enter a value"
+        Title="{svc:Loc Key=Xaml_Enter_a_value_cd8763c9}"
         Width="460"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        AutomationProperties.Name="HostsGuard input">
+        AutomationProperties.Name="{svc:Loc Key=Xaml_HostsGuard_input_cfced166}">
     <Border BorderBrush="{DynamicResource Hg.S1}"
             BorderThickness="1"
             Background="{DynamicResource Hg.Base}">
@@ -47,12 +48,12 @@
                      Margin="0,14,0,0"
                      MinWidth="360"
                      SpellCheck.IsEnabled="False"
-                     AutomationProperties.Name="Input value" />
+                     AutomationProperties.Name="{svc:Loc Key=Xaml_Input_value_a9e020d6}" />
 
             <Border Grid.Row="3"
                     Style="{StaticResource Hg.StatusStrip}"
                     Margin="0,12,0,0">
-                <TextBlock Text="Save applies the value immediately. Cancel keeps the current setting."
+                <TextBlock Text="{svc:Loc Key=Xaml_Save_applies_the_value_immediately_Cancel_bb5061bb}"
                            Style="{StaticResource Hg.DimText}"
                            TextWrapping="Wrap" />
             </Border>
@@ -65,14 +66,14 @@
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="1"
                         x:Name="CancelButton"
-                        Content="Cancel"
+                        Content="{svc:Loc Key=Xaml_Cancel_77dfd213}"
                         MinWidth="92"
                         Margin="0,0,8,0"
                         IsCancel="True"
                         Click="OnCancel" />
                 <Button Grid.Column="2"
                         x:Name="OkButton"
-                        Content="Save"
+                        Content="{svc:Loc Key=Xaml_Save_efc007a3}"
                         MinWidth="104"
                         Style="{StaticResource Hg.AccentButton}"
                         IsDefault="True"

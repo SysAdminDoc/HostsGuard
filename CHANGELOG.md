@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.18] - 2026-07-07
+
+### Changed
+- Routed the main WPF shell, dialogs, consent prompt labels, menus, inspectors,
+  tooltips, and accessibility names through the neutral resource pipeline.
+- Added pseudo-locale support and a XAML localization gate that fails on new
+  hard-coded English literals or missing neutral resource keys.
+
 ## [0.12.17] - 2026-07-07
 
 ### Added

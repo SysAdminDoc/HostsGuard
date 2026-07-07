@@ -13,10 +13,10 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="Status.Connecting" xml:space="preserve">
-    <value>Connecting to service…</value>
+    <value>Connecting to serviceâ€¦</value>
   </data>
   <data name="Status.Connected" xml:space="preserve">
-    <value>Connected — service v{0}</value>
+    <value>Connected â€” service v{0}</value>
   </data>
   <data name="Status.Unavailable" xml:space="preserve">
     <value>Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}</value>
@@ -36,4 +36,521 @@
   <data name="Menu_View" xml:space="preserve"><value>_View</value></data>
   <data name="Menu_Help" xml:space="preserve"><value>_Help</value></data>
   <data name="Menu_Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Xaml_HostsGuard_bf992a7e" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="Xaml_Open_HostsGuard_0cf1d264" xml:space="preserve"><value>Open HostsGuard</value></data>
+  <data name="Xaml_Filtering_mode_10d184c2" xml:space="preserve"><value>Filtering mode</value></data>
+  <data name="Xaml_Normal_â_enforce_silently_6f006f4f" xml:space="preserve"><value>Normal â€” enforce silently</value></data>
+  <data name="Xaml_Notify_â_prompt_on_new_connections_1dd99427" xml:space="preserve"><value>Notify â€” prompt on new connections</value></data>
+  <data name="Xaml_Learning_â_auto_allow_and_record_6c277dd9" xml:space="preserve"><value>Learning â€” auto-allow and record</value></data>
+  <data name="Xaml_Learning_â_15_min_then_lock_66553a49" xml:space="preserve"><value>Learning â€” 15 min, then lock</value></data>
+  <data name="Xaml_Learning_â_1_hour_then_lock_468ea740" xml:space="preserve"><value>Learning â€” 1 hour, then lock</value></data>
+  <data name="Xaml_Global_outbound_90a53e2a" xml:space="preserve"><value>Global outbound</value></data>
+  <data name="Xaml_Block_all_outbound_b110b88e" xml:space="preserve"><value>Block all outbound</value></data>
+  <data name="Xaml_Allow_all_outbound_4a4d0c05" xml:space="preserve"><value>Allow all outbound</value></data>
+  <data name="Xaml_Exit_f83b6fe3" xml:space="preserve"><value>Exit</value></data>
+  <data name="Xaml_Import_hosts_fileâ_fcc431cd" xml:space="preserve"><value>Import hosts fileâ€¦</value></data>
+  <data name="Xaml_Replace_the_live_hosts_file_with_b6081ef3" xml:space="preserve"><value>Replace the live hosts file with a picked file (backs up the current one first)</value></data>
+  <data name="Xaml_Export_hosts_fileâ_cb20a33b" xml:space="preserve"><value>Export hosts fileâ€¦</value></data>
+  <data name="Xaml_Export_managed_domains_JSON_â_f2f0acf7" xml:space="preserve"><value>Export managed domains (JSON)â€¦</value></data>
+  <data name="Xaml_Export_AI_knowledge_c58d27a3" xml:space="preserve"><value>Export AI knowledge</value></data>
+  <data name="Xaml_Export_policy_JSON_â_2b2d496c" xml:space="preserve"><value>Export policy (JSON)â€¦</value></data>
+  <data name="Xaml_Save_the_whole_policy_â_domains_f8586b5d" xml:space="preserve"><value>Save the whole policy â€” domains, firewall rules, schedules, profiles, locks, subscriptions â€” as one portable JSON file</value></data>
+  <data name="Xaml_Import_policy_JSON_â_f74619f8" xml:space="preserve"><value>Import policy (JSON)â€¦</value></data>
+  <data name="Xaml_Reconstruct_the_policy_from_an_exported_d0d84c0e" xml:space="preserve"><value>Reconstruct the policy from an exported JSON file (merges into the current machine)</value></data>
+  <data name="Xaml_Save_hosts_file_d57ecafc" xml:space="preserve"><value>Save hosts file</value></data>
+  <data name="Xaml_Write_unsaved_Raw_Editor_changes_to_bdb2f9f1" xml:space="preserve"><value>Write unsaved Raw Editor changes to the hosts file</value></data>
+  <data name="Xaml_Backup_hosts_file_b631b0d3" xml:space="preserve"><value>Backup hosts file</value></data>
+  <data name="Xaml_Group_by_root_activity_db0a88c0" xml:space="preserve"><value>Group by root (activity)</value></data>
+  <data name="Xaml_Hide_blocked_activity_c4c8a89e" xml:space="preserve"><value>Hide blocked (activity)</value></data>
+  <data name="Xaml_Show_hidden_activity_28f65185" xml:space="preserve"><value>Show hidden (activity)</value></data>
+  <data name="Xaml_Group_by_app_connections_731338df" xml:space="preserve"><value>Group by app (connections)</value></data>
+  <data name="Xaml_Resolve_IPs_connections_79845b86" xml:space="preserve"><value>Resolve IPs (connections)</value></data>
+  <data name="Xaml_UI_scale_b24ae33d" xml:space="preserve"><value>UI scale</value></data>
+  <data name="Xaml_Toggle_theme_9b0eaf14" xml:space="preserve"><value>Toggle theme</value></data>
+  <data name="Xaml_System_default_9d8d3808" xml:space="preserve"><value>System default</value></data>
+  <data name="Xaml_English_649df08a" xml:space="preserve"><value>English</value></data>
+  <data name="Xaml_EspaÃ_ol_b6b9e8ef" xml:space="preserve"><value>EspaÃ±ol</value></data>
+  <data name="Xaml_Reset_view_80d8db7a" xml:space="preserve"><value>Reset view</value></data>
+  <data name="Xaml_Clear_every_filter_and_toggle_back_ef9c2076" xml:space="preserve"><value>Clear every filter and toggle, back to defaults at 100% scale</value></data>
+  <data name="Xaml_Refresh_all_bc959b88" xml:space="preserve"><value>Refresh all</value></data>
+  <data name="Xaml_Tools_c32e69db" xml:space="preserve"><value>_Tools</value></data>
+  <data name="Xaml_Run_diagnostics_2d1e4905" xml:space="preserve"><value>Run diagnostics</value></data>
+  <data name="Xaml_Flush_DNS_15214212" xml:space="preserve"><value>Flush DNS</value></data>
+  <data name="Xaml_Export_support_bundle_5b5b35e2" xml:space="preserve"><value>Export support bundle</value></data>
+  <data name="Xaml_Check_for_updates_736b9062" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="Xaml_Open_GitHub_repository_76131fab" xml:space="preserve"><value>Open GitHub repository</value></data>
+  <data name="Xaml_About_HostsGuard_5f701f9a" xml:space="preserve"><value>About HostsGuard</value></data>
+  <data name="Xaml_Blocked_entries_currently_written_to_the_13a1cafc" xml:space="preserve"><value>Blocked entries currently written to the Windows hosts file</value></data>
+  <data name="Xaml_Managed_domains_set_to_blocked_ce919f47" xml:space="preserve"><value>Managed domains set to blocked</value></data>
+  <data name="Xaml_Managed_domains_set_to_allowed_â_2b3fb277" xml:space="preserve"><value>Managed domains set to allowed â€” these always win over blocklists</value></data>
+  <data name="Xaml_Filtering_mode_â_switch_from_the_340a5c61" xml:space="preserve"><value>Filtering mode â€” switch from the tray menu</value></data>
+  <data name="Xaml_Service_health_49b31512" xml:space="preserve"><value>Service health</value></data>
+  <data name="Xaml_HostsGuardSvc_cfea64c8" xml:space="preserve"><value>HostsGuardSvc</value></data>
+  <data name="Xaml_Running_73989d9c" xml:space="preserve"><value>Running</value></data>
+  <data name="Xaml_Reconnect_6988b16a" xml:space="preserve"><value>Reconnect</value></data>
+  <data name="Xaml_â_967a8976" xml:space="preserve"><value>â—†</value></data>
+  <data name="Xaml_Change_mode_2266c567" xml:space="preserve"><value>Change mode</value></data>
+  <data name="Xaml_Switch_to_Notify_mode_143de68d" xml:space="preserve"><value>Switch to Notify mode</value></data>
+  <data name="Xaml_Global_posture_3b00dca1" xml:space="preserve"><value>Global posture</value></data>
+  <data name="Xaml_Default_allow_85ced65f" xml:space="preserve"><value>Default allow</value></data>
+  <data name="Xaml_Outbound_2c7807c0" xml:space="preserve"><value>Outbound</value></data>
+  <data name="Xaml_Block_new_outbound_traffic_unless_an_9797ef1d" xml:space="preserve"><value>Block new outbound traffic unless an allow rule covers it</value></data>
+  <data name="Xaml_Quick_actions_e47e8042" xml:space="preserve"><value>Quick actions</value></data>
+  <data name="Xaml_â_91c4509a" xml:space="preserve"><value>â†»</value></data>
+  <data name="Xaml_â_Ž_231c88db" xml:space="preserve"><value>â—Ž</value></data>
+  <data name="Xaml_â_07394d92" xml:space="preserve"><value>â‡§</value></data>
+  <data name="Xaml_âŸ_1865e00f" xml:space="preserve"><value>âŸ³</value></data>
+  <data name="Xaml_â_b90c3aa8" xml:space="preserve"><value>â˜¾</value></data>
+  <data name="Xaml_Switch_theme_9a9a20fa" xml:space="preserve"><value>Switch theme</value></data>
+  <data name="Xaml_â_77f3d765" xml:space="preserve"><value>â‰¡</value></data>
+  <data name="Xaml_Search_DNS_activity_c131610b" xml:space="preserve"><value>Search DNS activity</value></data>
+  <data name="Xaml_Filters_as_you_type_supports_field_900279c6" xml:space="preserve"><value>Filters as you type - supports field:value, !term, and field!=value</value></data>
+  <data name="Xaml_AI_purposes_9aa2d27e" xml:space="preserve"><value>AI purposes</value></data>
+  <data name="Xaml_Have_DeepSeek_research_what_each_domain_68c1899f" xml:space="preserve"><value>Have DeepSeek research what each domain without a Purpose is for (results are saved to the AI knowledge log)</value></data>
+  <data name="Xaml_Block_82dd2cdf" xml:space="preserve"><value>Block</value></data>
+  <data name="Xaml_Allow_3ad0e369" xml:space="preserve"><value>Allow</value></data>
+  <data name="Xaml_Reverse_DNS_9fc5dae3" xml:space="preserve"><value>Reverse DNS</value></data>
+  <data name="Xaml_Hide_reverse_DNS_PTR_lookups_c24359ac" xml:space="preserve"><value>Hide reverse DNS PTR lookups</value></data>
+  <data name="Xaml_Hide_reverse_DNS_PTR_lookups_in_667e1814" xml:space="preserve"><value>Hide reverse-DNS PTR lookups (*.in-addr.arpa) - background noise, not real destinations</value></data>
+  <data name="Xaml_Group_root_b54b32ae" xml:space="preserve"><value>Group root</value></data>
+  <data name="Xaml_Group_feed_rows_by_root_domain_5a130da0" xml:space="preserve"><value>Group feed rows by root domain</value></data>
+  <data name="Xaml_Collapse_subdomains_under_their_root_ca66b5fb" xml:space="preserve"><value>Collapse subdomains under their root</value></data>
+  <data name="Xaml_Blocked_99613c74" xml:space="preserve"><value>Blocked</value></data>
+  <data name="Xaml_Show_only_blocked_domains_0ccd7e40" xml:space="preserve"><value>Show only blocked domains</value></data>
+  <data name="Xaml_Hide_blocked_3a8dacc1" xml:space="preserve"><value>Hide blocked</value></data>
+  <data name="Xaml_Hide_already_blocked_domains_c28c44e2" xml:space="preserve"><value>Hide already-blocked domains</value></data>
+  <data name="Xaml_Hidden_d4c2792a" xml:space="preserve"><value>Hidden</value></data>
+  <data name="Xaml_Refresh_56e3badc" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Xaml_DNS_activity_feed_3e3cfef1" xml:space="preserve"><value>DNS activity feed</value></data>
+  <data name="Xaml_Right_click_to_hide_this_group_8b651c7a" xml:space="preserve"><value>Right-click to hide this group</value></data>
+  <data name="Xaml_Hide_this_group_cc5d662f" xml:space="preserve"><value>Hide this group</value></data>
+  <data name="Xaml_Hide_every_domain_currently_listed_under_28de8cef" xml:space="preserve"><value>Hide every domain currently listed under this root (remembered)</value></data>
+  <data name="Xaml_Block_every_selected_domain_multi_select_01215dea" xml:space="preserve"><value>Block every selected domain (multi-select with Ctrl/Shift)</value></data>
+  <data name="Xaml_Block_root_6c8978ac" xml:space="preserve"><value>Block root</value></data>
+  <data name="Xaml_Allow_every_selected_domain_â_remove_85f98590" xml:space="preserve"><value>Allow every selected domain â€” remove from hosts AND whitelist against future blocklists (multi-select with Ctrl/Shift)</value></data>
+  <data name="Xaml_Unblock_remove_from_hosts_da345a55" xml:space="preserve"><value>Unblock (remove from hosts)</value></data>
+  <data name="Xaml_Remove_the_selected_domains_0_0_f3c604ab" xml:space="preserve"><value>Remove the selected domains&apos; 0.0.0.0 entries from the hosts file so they resolve again â€” for troubleshooting a page you may have over-blocked</value></data>
+  <data name="Xaml_Temp_allow_dcb5b93d" xml:space="preserve"><value>Temp allow</value></data>
+  <data name="Xaml_15_minutes_899761ff" xml:space="preserve"><value>15 minutes</value></data>
+  <data name="Xaml_1_hour_f030c3d6" xml:space="preserve"><value>1 hour</value></data>
+  <data name="Xaml_8_hours_191800b7" xml:space="preserve"><value>8 hours</value></data>
+  <data name="Xaml_Hide_domain_s_5312c84d" xml:space="preserve"><value>Hide domain(s)</value></data>
+  <data name="Xaml_Hide_every_selected_domain_from_the_c9919958" xml:space="preserve"><value>Hide every selected domain from the feed (remembered) â€” multi-select with Ctrl/Shift</value></data>
+  <data name="Xaml_Hide_root_768c2f5a" xml:space="preserve"><value>Hide root</value></data>
+  <data name="Xaml_Hide_the_whole_root_including_future_f3fb6200" xml:space="preserve"><value>Hide the whole root, including future subdomains (remembered)</value></data>
+  <data name="Xaml_Hide_every_domain_currently_listed_under_bd945a60" xml:space="preserve"><value>Hide every domain currently listed under this row&apos;s root (keyboard-accessible group hide)</value></data>
+  <data name="Xaml_Unhide_root_ffc85337" xml:space="preserve"><value>Unhide root</value></data>
+  <data name="Xaml_Fix_purposeâ_226cec91" xml:space="preserve"><value>Fix purposeâ€¦</value></data>
+  <data name="Xaml_Correct_this_domain_s_purpose_â_0a507959" xml:space="preserve"><value>Correct this domain&apos;s purpose â€” remembered as a user override that beats the AI</value></data>
+  <data name="Xaml_Fix_categoryâ_2b0ad390" xml:space="preserve"><value>Fix categoryâ€¦</value></data>
+  <data name="Xaml_Correct_this_domain_s_category_â_c06fdadd" xml:space="preserve"><value>Correct this domain&apos;s category â€” remembered as a user override that beats the AI</value></data>
+  <data name="Xaml_Research_online_0fdb1e04" xml:space="preserve"><value>Research online</value></data>
+  <data name="Xaml_Google_2b681c0a" xml:space="preserve"><value>Google</value></data>
+  <data name="Xaml_VirusTotal_d38e68d0" xml:space="preserve"><value>VirusTotal</value></data>
+  <data name="Xaml_who_is_42562da6" xml:space="preserve"><value>who.is</value></data>
+  <data name="Xaml_Domain_9b10914d" xml:space="preserve"><value>Domain</value></data>
+  <data name="Xaml_Purpose_a0fb821b" xml:space="preserve"><value>Purpose</value></data>
+  <data name="Xaml_Status_bae7d5be" xml:space="preserve"><value>Status</value></data>
+  <data name="Xaml_Process_12f4c13a" xml:space="preserve"><value>Process</value></data>
+  <data name="Xaml_Hits_a6179b4c" xml:space="preserve"><value>Hits</value></data>
+  <data name="Xaml_Data_e5e429bc" xml:space="preserve"><value>Data</value></data>
+  <data name="Xaml_24h_02779596" xml:space="preserve"><value>24h</value></data>
+  <data name="Xaml_Last_seen_56462f81" xml:space="preserve"><value>Last seen</value></data>
+  <data name="Xaml_No_DNS_activity_yet_edff6649" xml:space="preserve"><value>No DNS activity yet</value></data>
+  <data name="Xaml_HostsGuard_will_fill_this_feed_as_6cba4cd0" xml:space="preserve"><value>HostsGuard will fill this feed as DNS events arrive. Check the service connection, then refresh if activity should already be available.</value></data>
+  <data name="Xaml_Ã_ee75f098" xml:space="preserve"><value>Ã—</value></data>
+  <data name="Xaml_Clear_selection_247fd631" xml:space="preserve"><value>Clear selection</value></data>
+  <data name="Xaml_AI_analyze_b541cf78" xml:space="preserve"><value>AI analyze</value></data>
+  <data name="Xaml_Actions_c3cd636a" xml:space="preserve"><value>Actions</value></data>
+  <data name="Xaml_Allow_domain_2c91d71a" xml:space="preserve"><value>Allow domain</value></data>
+  <data name="Xaml_Block_domain_9fcd1d15" xml:space="preserve"><value>Block domain</value></data>
+  <data name="Xaml_Temp_allow_69178873" xml:space="preserve"><value>Temp allow...</value></data>
+  <data name="Xaml_Hide_domain_5dfed914" xml:space="preserve"><value>Hide domain</value></data>
+  <data name="Xaml_Research_be601df2" xml:space="preserve"><value>Research</value></data>
+  <data name="Xaml_Select_a_domain_ecec97fc" xml:space="preserve"><value>Select a domain</value></data>
+  <data name="Xaml_The_inspector_keeps_row_details_and_19beece8" xml:space="preserve"><value>The inspector keeps row details and frequent actions visible while the feed keeps updating.</value></data>
+  <data name="Xaml_â_8408cc8d" xml:space="preserve"><value>â–¤</value></data>
+  <data name="Xaml_AI_Categorize_27b3527f" xml:space="preserve"><value>AI Categorize</value></data>
+  <data name="Xaml_Have_DeepSeek_categorize_every_hosts_file_3b37a22a" xml:space="preserve"><value>Have DeepSeek categorize every hosts-file entry and organize the file under &apos;# Category&apos; sections (existing sections are reused)</value></data>
+  <data name="Xaml_Enter_a_domain_then_add_it_67b6f1e2" xml:space="preserve"><value>Enter a domain, then add it to managed blocks</value></data>
+  <data name="Xaml_Domain_to_block_31b7bab9" xml:space="preserve"><value>Domain to block</value></data>
+  <data name="Xaml_Managed_domain_status_filter_c1837b19" xml:space="preserve"><value>Managed-domain status filter</value></data>
+  <data name="Xaml_Search_managed_domains_f5421c94" xml:space="preserve"><value>Search managed domains</value></data>
+  <data name="Xaml_Filters_as_you_type_â_supports_a2c98d15" xml:space="preserve"><value>Filters as you type â€” supports field:value, !term, and field!=value</value></data>
+  <data name="Xaml_Managed_domains_a7b9edcb" xml:space="preserve"><value>Managed domains</value></data>
+  <data name="Xaml_Block_selected_d487fbba" xml:space="preserve"><value>Block selected</value></data>
+  <data name="Xaml_Allow_selected_7bc4fcf5" xml:space="preserve"><value>Allow selected</value></data>
+  <data name="Xaml_Remove_selected_f38b8091" xml:space="preserve"><value>Remove selected</value></data>
+  <data name="Xaml_Category_a3c686e7" xml:space="preserve"><value>Category</value></data>
+  <data name="Xaml_Source_6da13add" xml:space="preserve"><value>Source</value></data>
+  <data name="Xaml_Reason_f219cc06" xml:space="preserve"><value>Reason</value></data>
+  <data name="Xaml_Remove_e963907d" xml:space="preserve"><value>Remove</value></data>
+  <data name="Xaml_No_managed_domains_90d3bbe6" xml:space="preserve"><value>No managed domains</value></data>
+  <data name="Xaml_Add_a_domain_above_or_import_5ac9415e" xml:space="preserve"><value>Add a domain above or import a blocklist. If you are filtering, clear the filter and refresh.</value></data>
+  <data name="Xaml_Blocklist_sources_47c4f37d" xml:space="preserve"><value>Blocklist sources</value></data>
+  <data name="Xaml_Name_709a2322" xml:space="preserve"><value>Name</value></data>
+  <data name="Xaml_Subscribed_dd1242a8" xml:space="preserve"><value>Subscribed</value></data>
+  <data name="Xaml_Enabled_df174a3f" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Xaml_Domains_a0d641b3" xml:space="preserve"><value>Domains</value></data>
+  <data name="Xaml_Owned_b62ff5cc" xml:space="preserve"><value>Owned</value></data>
+  <data name="Xaml_Last_refresh_53cadc51" xml:space="preserve"><value>Last refresh</value></data>
+  <data name="Xaml_Health_3703cd21" xml:space="preserve"><value>Health</value></data>
+  <data name="Xaml_Preview_f1fbb2b4" xml:space="preserve"><value>Preview</value></data>
+  <data name="Xaml_Import_d6fbc9d2" xml:space="preserve"><value>Import</value></data>
+  <data name="Xaml_No_blocklist_sources_2d426058" xml:space="preserve"><value>No blocklist sources</value></data>
+  <data name="Xaml_The_service_did_not_return_the_e87954a3" xml:space="preserve"><value>The service did not return the curated catalog. Reconnect to the service, then refresh subscriptions.</value></data>
+  <data name="Xaml_Save_apply_allowlists_c3ce8fa2" xml:space="preserve"><value>Save + apply allowlists</value></data>
+  <data name="Xaml_Refresh_all_subscriptions_2a8a52db" xml:space="preserve"><value>Refresh all subscriptions</value></data>
+  <data name="Xaml_Allowlist_URLs_one_per_line_â_67b8a98c" xml:space="preserve"><value>Allowlist URLs (one per line â€” whitelisted domains always win over blocklists)</value></data>
+  <data name="Xaml_Allowlist_subscription_URLs_ef7fa97d" xml:space="preserve"><value>Allowlist subscription URLs</value></data>
+  <data name="Xaml_Save_efc007a3" xml:space="preserve"><value>Save</value></data>
+  <data name="Xaml_Write_the_edited_text_back_to_11af2855" xml:space="preserve"><value>Write the edited text back to the hosts file (enabled once the text changes)</value></data>
+  <data name="Xaml_Reload_cce71553" xml:space="preserve"><value>Reload</value></data>
+  <data name="Xaml_Discard_edits_and_reload_the_hosts_7d7d2853" xml:space="preserve"><value>Discard edits and reload the hosts file from disk</value></data>
+  <data name="Xaml_â_Unsaved_changes_617137b6" xml:space="preserve"><value>â— Unsaved changes</value></data>
+  <data name="Xaml_Raw_hosts_file_editor_131f9bad" xml:space="preserve"><value>Raw hosts file editor</value></data>
+  <data name="Xaml_â_ˆ_279a02f7" xml:space="preserve"><value>â—ˆ</value></data>
+  <data name="Xaml_Lockdown_8ba04349" xml:space="preserve"><value>Lockdown</value></data>
+  <data name="Xaml_Set_the_default_outbound_action_to_26ed8581" xml:space="preserve"><value>Set the default outbound action to Block on all firewall profiles</value></data>
+  <data name="Xaml_Learning_1016fcb2" xml:space="preserve"><value>Learning</value></data>
+  <data name="Xaml_Surface_trust_prompts_for_processes_making_2f0de78c" xml:space="preserve"><value>Surface trust prompts for processes making new connections</value></data>
+  <data name="Xaml_Observe_c99a2bcf" xml:space="preserve"><value>Observe</value></data>
+  <data name="Xaml_Record_new_processes_silently_instead_of_e83fd128" xml:space="preserve"><value>Record new processes silently instead of prompting</value></data>
+  <data name="Xaml_Inherit_to_children_86cbf611" xml:space="preserve"><value>Inherit to children</value></data>
+  <data name="Xaml_Child_process_auto_allow_b6f484ea" xml:space="preserve"><value>Child-process auto-allow</value></data>
+  <data name="Xaml_Child_process_auto_allow_a_direct_f67d601b" xml:space="preserve"><value>Child-process auto-allow: a direct child of an app that already has an allow rule inherits its allow for 1 hour instead of prompting (opt-in; deny-by-default when off)</value></data>
+  <data name="Xaml_Inbound_prompts_a42a5e5c" xml:space="preserve"><value>Inbound prompts</value></data>
+  <data name="Xaml_Inbound_connection_consent_d2906bf6" xml:space="preserve"><value>Inbound-connection consent</value></data>
+  <data name="Xaml_Inbound_connection_consent_also_prompt_on_2905613f" xml:space="preserve"><value>Inbound-connection consent: also prompt on unruled inbound connections and let you create inbound rules (opt-in; off by default because unsolicited inbound is noisy)</value></data>
+  <data name="Xaml_AI_identify_f32080d7" xml:space="preserve"><value>AI identify</value></data>
+  <data name="Xaml_Have_DeepSeek_explain_what_each_connection_bf26cd35" xml:space="preserve"><value>Have DeepSeek explain what each connection is likely for (fills the Info column; results are saved to the AI knowledge log)</value></data>
+  <data name="Xaml_Resolve_IPs_263bfa86" xml:space="preserve"><value>Resolve IPs</value></data>
+  <data name="Xaml_Resolve_remote_IPs_with_reverse_DNS_037e338f" xml:space="preserve"><value>Resolve remote IPs with reverse DNS</value></data>
+  <data name="Xaml_Reverse_DNS_remote_IPs_the_live_91aea662" xml:space="preserve"><value>Reverse-DNS remote IPs the live DNS cache didn&apos;t cover, filling the Site column</value></data>
+  <data name="Xaml_Group_by_app_8d9fabe2" xml:space="preserve"><value>Group by app</value></data>
+  <data name="Xaml_Group_connections_by_app_8a45d006" xml:space="preserve"><value>Group connections by app</value></data>
+  <data name="Xaml_Group_the_live_connections_under_their_5f76fe48" xml:space="preserve"><value>Group the live connections under their owning process</value></data>
+  <data name="Xaml_Group_by_country_20629707" xml:space="preserve"><value>Group by country</value></data>
+  <data name="Xaml_Group_connections_by_country_faf82ca8" xml:space="preserve"><value>Group connections by country</value></data>
+  <data name="Xaml_Group_the_live_connections_by_remote_925f45c1" xml:space="preserve"><value>Group the live connections by remote country (triage axis); combine with Group by app to nest</value></data>
+  <data name="Xaml_Search_live_connections_0c00b205" xml:space="preserve"><value>Search live connections</value></data>
+  <data name="Xaml_Search_process_chrome_port_443_country_7a34001a" xml:space="preserve"><value>Search: process:chrome  port:443  country!=US  !svchost</value></data>
+  <data name="Xaml_Decision_explainer_target_bb8fba97" xml:space="preserve"><value>Decision explainer target</value></data>
+  <data name="Xaml_Explain_the_current_rule_decision_for_04e02131" xml:space="preserve"><value>Explain the current rule decision for a domain, IP, process name, or executable path</value></data>
+  <data name="Xaml_Explain_55cbfd1b" xml:space="preserve"><value>Explain</value></data>
+  <data name="Xaml_Show_the_ordered_hosts_firewall_trust_7b7cc959" xml:space="preserve"><value>Show the ordered hosts/firewall/trust/posture decision chain for the entered target</value></data>
+  <data name="Xaml_Live_firewall_connections_9f7d7451" xml:space="preserve"><value>Live firewall connections</value></data>
+  <data name="Xaml_Block_this_site_domain_99db658c" xml:space="preserve"><value>Block this site (domain)</value></data>
+  <data name="Xaml_Block_the_resolved_domain_via_the_9b0f5c9b" xml:space="preserve"><value>Block the resolved domain via the hosts file (durable â€” survives IP rotation); falls back to the IP when unresolved</value></data>
+  <data name="Xaml_Allow_this_site_domain_7a372753" xml:space="preserve"><value>Allow this site (domain)</value></data>
+  <data name="Xaml_Whitelist_the_resolved_domain_via_the_8decb985" xml:space="preserve"><value>Whitelist the resolved domain via the hosts file</value></data>
+  <data name="Xaml_Block_remote_IP_5e8f9ae4" xml:space="preserve"><value>Block remote IP</value></data>
+  <data name="Xaml_Block_program_accc5df3" xml:space="preserve"><value>Block program</value></data>
+  <data name="Xaml_Block_app_scope_5000247e" xml:space="preserve"><value>Block app scope</value></data>
+  <data name="Xaml_Internet_public_IPs_6e6ca14f" xml:space="preserve"><value>Internet (public IPs)</value></data>
+  <data name="Xaml_LAN_private_ranges_03642d23" xml:space="preserve"><value>LAN (private ranges)</value></data>
+  <data name="Xaml_Localhost_loopback_60eafa07" xml:space="preserve"><value>Localhost (loopback)</value></data>
+  <data name="Xaml_Inbound_6b6e7903" xml:space="preserve"><value>Inbound</value></data>
+  <data name="Xaml_Explain_decision_3c236b8e" xml:space="preserve"><value>Explain decision</value></data>
+  <data name="Xaml_Show_the_ordered_hosts_firewall_trust_1ac7557b" xml:space="preserve"><value>Show the ordered hosts/firewall/trust/posture decision chain for this connection</value></data>
+  <data name="Xaml_Explain_look_up_connection_30154a2f" xml:space="preserve"><value>Explain / look up connection</value></data>
+  <data name="Xaml_Look_up_the_connection_s_resolved_247f9d9a" xml:space="preserve"><value>Look up the connection&apos;s resolved domain (or IP) on threat-intel sites</value></data>
+  <data name="Xaml_VirusTotal_site_298ecc2b" xml:space="preserve"><value>VirusTotal (site)</value></data>
+  <data name="Xaml_who_is_site_09ff0b33" xml:space="preserve"><value>who.is (site)</value></data>
+  <data name="Xaml_AbuseIPDB_IP_4666004f" xml:space="preserve"><value>AbuseIPDB (IP)</value></data>
+  <data name="Xaml_Service_329cb8b6" xml:space="preserve"><value>Service</value></data>
+  <data name="Xaml_PID_dde57e82" xml:space="preserve"><value>PID</value></data>
+  <data name="Xaml_Proto_24131f3e" xml:space="preserve"><value>Proto</value></data>
+  <data name="Xaml_Remote_c93f6536" xml:space="preserve"><value>Remote</value></data>
+  <data name="Xaml_Site_5b6825d3" xml:space="preserve"><value>Site</value></data>
+  <data name="Xaml_Info_4b631f69" xml:space="preserve"><value>Info</value></data>
+  <data name="Xaml_Port_fe035157" xml:space="preserve"><value>Port</value></data>
+  <data name="Xaml_State_a7250206" xml:space="preserve"><value>State</value></data>
+  <data name="Xaml_Country_d523ebbd" xml:space="preserve"><value>Country</value></data>
+  <data name="Xaml_FW_913a8d78" xml:space="preserve"><value>FW</value></data>
+  <data name="Xaml_No_live_connections_ecd1ff86" xml:space="preserve"><value>No live connections</value></data>
+  <data name="Xaml_Connections_appear_here_when_the_monitor_79a98f2a" xml:space="preserve"><value>Connections appear here when the monitor is running and applications open network sessions. The status bar shows whether the service is connected.</value></data>
+  <data name="Xaml_Selected_connection_c9d01f2f" xml:space="preserve"><value>Selected connection</value></data>
+  <data name="Xaml_Resolved_site_ec0dc722" xml:space="preserve"><value>Resolved site</value></data>
+  <data name="Xaml_Service_location_bd11579c" xml:space="preserve"><value>Service / location</value></data>
+  <data name="Xaml_Decision_7f59a1f1" xml:space="preserve"><value>Decision</value></data>
+  <data name="Xaml_LOCAL_9be34046" xml:space="preserve"><value>LOCAL</value></data>
+  <data name="Xaml_Block_site_4721aec9" xml:space="preserve"><value>Block site</value></data>
+  <data name="Xaml_Allow_site_6217275e" xml:space="preserve"><value>Allow site</value></data>
+  <data name="Xaml_Block_IP_907a3ec9" xml:space="preserve"><value>Block IP</value></data>
+  <data name="Xaml_Block_app_5cb3c2de" xml:space="preserve"><value>Block app</value></data>
+  <data name="Xaml_Select_a_connection_29e8cc33" xml:space="preserve"><value>Select a connection</value></data>
+  <data name="Xaml_The_inspector_keeps_endpoint_identity_service_59af2ece" xml:space="preserve"><value>The inspector keeps endpoint identity, service attribution, and block actions visible during live triage.</value></data>
+  <data name="Xaml_Per_app_activity_217dcab5" xml:space="preserve"><value>Per-app activity</value></data>
+  <data name="Xaml_Learning_review_e304e7cd" xml:space="preserve"><value>Learning review</value></data>
+  <data name="Xaml_Discard_all_5b034df8" xml:space="preserve"><value>Discard all</value></data>
+  <data name="Xaml_Remove_every_auto_allow_â_apps_163401e7" xml:space="preserve"><value>Remove every auto-allow â€” apps prompt again next time</value></data>
+  <data name="Xaml_Keep_all_cbfb83ff" xml:space="preserve"><value>Keep all</value></data>
+  <data name="Xaml_Promote_every_auto_allow_to_a_d9f8f8a6" xml:space="preserve"><value>Promote every auto-allow to a permanent allow rule</value></data>
+  <data name="Xaml_Learning_mode_auto_allow_decisions_f7003411" xml:space="preserve"><value>Learning-mode auto-allow decisions</value></data>
+  <data name="Xaml_Keep_permanent_allow_2b3d33a6" xml:space="preserve"><value>Keep (permanent allow)</value></data>
+  <data name="Xaml_Reverse_permanent_block_1a84420b" xml:space="preserve"><value>Reverse (permanent block)</value></data>
+  <data name="Xaml_Discard_prompt_again_638eb4d7" xml:space="preserve"><value>Discard (prompt again)</value></data>
+  <data name="Xaml_Application_b291beb8" xml:space="preserve"><value>Application</value></data>
+  <data name="Xaml_Dir_84c6b9ac" xml:space="preserve"><value>Dir</value></data>
+  <data name="Xaml_Rule_78e1790e" xml:space="preserve"><value>Rule</value></data>
+  <data name="Xaml_Recent_connection_decisions_29dbabdf" xml:space="preserve"><value>Recent connection decisions</value></data>
+  <data name="Xaml_Sound_on_block_08d731f1" xml:space="preserve"><value>Sound on block</value></data>
+  <data name="Xaml_Play_a_sound_when_a_connection_2bc200d4" xml:space="preserve"><value>Play a sound when a connection is blocked</value></data>
+  <data name="Xaml_Play_a_system_sound_when_a_1ab7ad53" xml:space="preserve"><value>Play a system sound when a new connection is blocked or prompts</value></data>
+  <data name="Xaml_Allow_permanently_26badf25" xml:space="preserve"><value>Allow permanently</value></data>
+  <data name="Xaml_Block_permanently_723b38dc" xml:space="preserve"><value>Block permanently</value></data>
+  <data name="Xaml_When_769bb19e" xml:space="preserve"><value>When</value></data>
+  <data name="Xaml_Verdict_7f6e5a6e" xml:space="preserve"><value>Verdict</value></data>
+  <data name="Xaml_Scope_4651a34e" xml:space="preserve"><value>Scope</value></data>
+  <data name="Xaml_No_decisions_yet_â_switch_to_da4e0810" xml:space="preserve"><value>No decisions yet â€” switch to Notify mode to get consent prompts for new connections.</value></data>
+  <data name="Xaml_History_bandwidth_fb9e4b19" xml:space="preserve"><value>History &amp; bandwidth</value></data>
+  <data name="Xaml_Connection_history_and_bandwidth_90795564" xml:space="preserve"><value>Connection history and bandwidth</value></data>
+  <data name="Xaml_Load_ddcb77ff" xml:space="preserve"><value>Load</value></data>
+  <data name="Xaml_Export_CSV_5755f9ac" xml:space="preserve"><value>Export CSV</value></data>
+  <data name="Xaml_Save_the_loaded_connection_history_to_91aec34f" xml:space="preserve"><value>Save the loaded connection history to a CSV file (opens in Excel)</value></data>
+  <data name="Xaml_Set_retention_ab73848f" xml:space="preserve"><value>Set retention</value></data>
+  <data name="Xaml_History_retention_days_5a7034c6" xml:space="preserve"><value>History retention days</value></data>
+  <data name="Xaml_History_retention_in_days_1_365_5b9947ca" xml:space="preserve"><value>History retention in days (1-365)</value></data>
+  <data name="Xaml_Search_connection_history_7c35164f" xml:space="preserve"><value>Search connection history</value></data>
+  <data name="Xaml_Substring_match_on_process_remote_address_ed5726b7" xml:space="preserve"><value>Substring match on process, remote address, or country</value></data>
+  <data name="Xaml_Connection_history_f48a01d3" xml:space="preserve"><value>Connection history</value></data>
+  <data name="Xaml_Remote_address_209fa9f4" xml:space="preserve"><value>Remote address</value></data>
+  <data name="Xaml_Event_ledger_fe4c6b16" xml:space="preserve"><value>Event ledger</value></data>
+  <data name="Xaml_Load_events_6b8e35ba" xml:space="preserve"><value>Load events</value></data>
+  <data name="Xaml_Prev_e96fea52" xml:space="preserve"><value>Prev</value></data>
+  <data name="Xaml_Next_bc981983" xml:space="preserve"><value>Next</value></data>
+  <data name="Xaml_Event_page_size_168440bd" xml:space="preserve"><value>Event page size</value></data>
+  <data name="Xaml_Event_page_size_1_2000_2f55649d" xml:space="preserve"><value>Event page size, 1-2000</value></data>
+  <data name="Xaml_Event_page_offset_5b573d88" xml:space="preserve"><value>Event page offset</value></data>
+  <data name="Xaml_Zero_based_event_page_offset_ec48ffd4" xml:space="preserve"><value>Zero-based event page offset</value></data>
+  <data name="Xaml_Search_event_ledger_3c9d9d9d" xml:space="preserve"><value>Search event ledger</value></data>
+  <data name="Xaml_Event_category_filter_0686527b" xml:space="preserve"><value>Event category filter</value></data>
+  <data name="Xaml_Event_category_fcd26e04" xml:space="preserve"><value>Event category</value></data>
+  <data name="Xaml_Event_action_filter_a44d0147" xml:space="preserve"><value>Event action filter</value></data>
+  <data name="Xaml_Event_reason_filter_b375e7c7" xml:space="preserve"><value>Event reason filter</value></data>
+  <data name="Xaml_Event_domain_filter_338ec470" xml:space="preserve"><value>Event domain filter</value></data>
+  <data name="Xaml_Event_process_filter_75ccb70d" xml:space="preserve"><value>Event process filter</value></data>
+  <data name="Xaml_Event_since_filter_833b82e2" xml:space="preserve"><value>Event since filter</value></data>
+  <data name="Xaml_Event_until_filter_9d11b765" xml:space="preserve"><value>Event until filter</value></data>
+  <data name="Xaml_Persisted_event_ledger_0238df0e" xml:space="preserve"><value>Persisted event ledger</value></data>
+  <data name="Xaml_Action_97c89a4d" xml:space="preserve"><value>Action</value></data>
+  <data name="Xaml_Subject_8d183dbd" xml:space="preserve"><value>Subject</value></data>
+  <data name="Xaml_Details_dc3decbb" xml:space="preserve"><value>Details</value></data>
+  <data name="Xaml_Per_app_bandwidth_cbf1f3bd" xml:space="preserve"><value>Per-app bandwidth</value></data>
+  <data name="Xaml_â_06a1e29b" xml:space="preserve"><value>â˜·</value></data>
+  <data name="Xaml_Import_existing_rules_6cc9e389" xml:space="preserve"><value>Import existing rules</value></data>
+  <data name="Xaml_Read_the_machine_s_current_Windows_7e27ca24" xml:space="preserve"><value>Read the machine&apos;s current Windows Firewall rules into HostsGuard&apos;s view (read-only; adopted rules are marked â˜…)</value></data>
+  <data name="Xaml_HostsGuard_rules_only_a5afd2dd" xml:space="preserve"><value>HostsGuard rules only</value></data>
+  <data name="Xaml_Search_firewall_rules_bbf5460e" xml:space="preserve"><value>Search firewall rules</value></data>
+  <data name="Xaml_Filters_as_you_type_â_matches_4dd5c1e7" xml:space="preserve"><value>Filters as you type â€” matches rule name, remote address, service, or program</value></data>
+  <data name="Xaml_Firewall_rules_1e019fbf" xml:space="preserve"><value>Firewall rules</value></data>
+  <data name="Xaml_Enable_disable_37f81b0c" xml:space="preserve"><value>Enable / disable</value></data>
+  <data name="Xaml_Delete_f6fdbe48" xml:space="preserve"><value>Delete</value></data>
+  <data name="Xaml_Delete_selected_8516a714" xml:space="preserve"><value>Delete selected</value></data>
+  <data name="Xaml_Assign_to_groupâ_0952229e" xml:space="preserve"><value>Assign to groupâ€¦</value></data>
+  <data name="Xaml_Assign_the_selected_HG_rules_to_490e2bd6" xml:space="preserve"><value>Assign the selected HG_ rules to a named group you can enable/disable as a unit (blank name removes them)</value></data>
+  <data name="Xaml_Suggest_rebind_programâ_00cd0094" xml:space="preserve"><value>Suggest / rebind programâ€¦</value></data>
+  <data name="Xaml_Origin_44ab85a2" xml:space="preserve"><value>Origin</value></data>
+  <data name="Xaml_On_e0049a66" xml:space="preserve"><value>On</value></data>
+  <data name="Xaml_Program_9d68007b" xml:space="preserve"><value>Program</value></data>
+  <data name="Xaml_Flags_5d728758" xml:space="preserve"><value>Flags</value></data>
+  <data name="Xaml_No_firewall_rules_match_6d4b1891" xml:space="preserve"><value>No firewall rules match</value></data>
+  <data name="Xaml_Clear_the_filter_turn_off_HostsGuard_811239c1" xml:space="preserve"><value>Clear the filter, turn off HostsGuard-only, or refresh to load current Windows Firewall rules.</value></data>
+  <data name="Xaml_Off_e3de5ab0" xml:space="preserve"><value>Off</value></data>
+  <data name="Xaml_Create_rule_69c3acdb" xml:space="preserve"><value>Create rule</value></data>
+  <data name="Xaml_Enter_a_rule_name_before_creating_5207092e" xml:space="preserve"><value>Enter a rule name before creating a firewall rule</value></data>
+  <data name="Xaml_Create_HostsGuard_rule_0516d184" xml:space="preserve"><value>Create HostsGuard rule</value></data>
+  <data name="Xaml_Rules_created_here_use_the_HG_b7f8e3c1" xml:space="preserve"><value>Rules created here use the HG_ prefix, are owned by HostsGuard, and can be protected by Secure Rules.</value></data>
+  <data name="Xaml_Protocol_1ed77c3f" xml:space="preserve"><value>Protocol</value></data>
+  <data name="Xaml_Program_path_223d2c44" xml:space="preserve"><value>Program path</value></data>
+  <data name="Xaml_New_firewall_rule_name_025d122b" xml:space="preserve"><value>New firewall rule name</value></data>
+  <data name="Xaml_Rule_name_HG_prefix_added_automatically_80fd16a4" xml:space="preserve"><value>Rule name (HG_ prefix added automatically)</value></data>
+  <data name="Xaml_New_firewall_rule_direction_d8bbd16c" xml:space="preserve"><value>New firewall rule direction</value></data>
+  <data name="Xaml_New_firewall_rule_action_86b8dc92" xml:space="preserve"><value>New firewall rule action</value></data>
+  <data name="Xaml_New_firewall_rule_protocol_ffde13a2" xml:space="preserve"><value>New firewall rule protocol</value></data>
+  <data name="Xaml_New_firewall_rule_remote_address_80867949" xml:space="preserve"><value>New firewall rule remote address</value></data>
+  <data name="Xaml_Remote_address_IP_CIDR_or_range_3aeffde3" xml:space="preserve"><value>Remote address: IP, CIDR, or range (empty = Any)</value></data>
+  <data name="Xaml_New_firewall_rule_program_path_1032f360" xml:space="preserve"><value>New firewall rule program path</value></data>
+  <data name="Xaml_Program_path_optional_c4107d4a" xml:space="preserve"><value>Program path (optional)</value></data>
+  <data name="Xaml_âš_e38dfb24" xml:space="preserve"><value>âš™</value></data>
+  <data name="Xaml_Settings_lock_424ef42a" xml:space="preserve"><value>Settings lock</value></data>
+  <data name="Xaml_When_locked_changing_filtering_mode_firewall_234ed002" xml:space="preserve"><value>When locked, changing filtering mode, firewall posture, or HG_ rules requires the password.</value></data>
+  <data name="Xaml_Lock_password_4cd91ac2" xml:space="preserve"><value>Lock password</value></data>
+  <data name="Xaml_Protect_hosts_file_41db1809" xml:space="preserve"><value>Protect hosts file</value></data>
+  <data name="Xaml_Enforce_a_SYSTEM_Admins_only_DACL_680f041b" xml:space="preserve"><value>Enforce a SYSTEM+Admins-only DACL on the hosts file</value></data>
+  <data name="Xaml_Settings_lock_password_c745c4ae" xml:space="preserve"><value>Settings lock password</value></data>
+  <data name="Xaml_Arm_lock_82cc9364" xml:space="preserve"><value>Arm lock</value></data>
+  <data name="Xaml_Set_the_password_that_protects_filtering_1de59e66" xml:space="preserve"><value>Set the password that protects filtering, posture, and HG_ rule changes</value></data>
+  <data name="Xaml_Disarm_f26d27b0" xml:space="preserve"><value>Disarm</value></data>
+  <data name="Xaml_Remove_the_settings_lock_after_entering_3792232c" xml:space="preserve"><value>Remove the settings lock after entering the password</value></data>
+  <data name="Xaml_Unlock_1526a17e" xml:space="preserve"><value>Unlock</value></data>
+  <data name="Xaml_Temporarily_unlock_protected_actions_for_the_5440dfe8" xml:space="preserve"><value>Temporarily unlock protected actions for the configured number of minutes</value></data>
+  <data name="Xaml_Unlock_minutes_12cfd14d" xml:space="preserve"><value>Unlock minutes</value></data>
+  <data name="Xaml_Timed_unlock_window_in_minutes_0caa0a13" xml:space="preserve"><value>Timed-unlock window in minutes</value></data>
+  <data name="Xaml_min_b6c935d4" xml:space="preserve"><value>min</value></data>
+  <data name="Xaml_DNS_3ddc21b1" xml:space="preserve"><value>DNS</value></data>
+  <data name="Xaml_Flush_resolver_state_switch_Windows_DNS_dbece2f0" xml:space="preserve"><value>Flush resolver state, switch Windows DNS presets, and verify whether a domain is reachable or blocked.</value></data>
+  <data name="Xaml_Flush_DNS_cache_58856a23" xml:space="preserve"><value>Flush DNS cache</value></data>
+  <data name="Xaml_DNS_resolver_preset_df5e62bd" xml:space="preserve"><value>DNS resolver preset</value></data>
+  <data name="Xaml_Apply_resolver_2382d7f6" xml:space="preserve"><value>Apply resolver</value></data>
+  <data name="Xaml_Inspect_18ca87af" xml:space="preserve"><value>Inspect</value></data>
+  <data name="Xaml_Enter_a_domain_to_resolve_and_bdf20a48" xml:space="preserve"><value>Enter a domain to resolve and check</value></data>
+  <data name="Xaml_Domain_to_inspect_ea69d8b4" xml:space="preserve"><value>Domain to inspect</value></data>
+  <data name="Xaml_Domain_to_resolve_and_check_block_be2f0bc0" xml:space="preserve"><value>Domain to resolve and check block state</value></data>
+  <data name="Xaml_Close_DNS_bypass_b36af939" xml:space="preserve"><value>Close DNS bypass</value></data>
+  <data name="Xaml_Browsers_using_their_own_Secure_DNS_97632c3b" xml:space="preserve"><value>Browsers using their own Secure DNS (DoH) resolve ad/tracker domains past the OS resolver, so they never appear in the feed and the hosts file can&apos;t block them. Turn this on to force browser DNS back onto the OS resolver â€” then everything shows up and is blockable.</value></data>
+  <data name="Xaml_See_everything_â_force_browser_DNS_11a79a3d" xml:space="preserve"><value>See everything â€” force browser DNS to the OS resolver</value></data>
+  <data name="Xaml_One_click_block_QUIC_UDP_443_edd53016" xml:space="preserve"><value>One click: block QUIC/UDP-443 and the DoH bootstrap together so browser DNS falls back to the OS resolver and the activity feed can see (and block) what loads.</value></data>
+  <data name="Xaml_Firewall_block_known_DoH_resolver_IPs_d179fd3d" xml:space="preserve"><value>Firewall-block known DoH resolver IPs + DoT/DoQ port 853 so apps and browsers can&apos;t tunnel DNS past hosts blocking. Your own resolvers stay exempt.</value></data>
+  <data name="Xaml_DoH_intelligence_URL_04daa00f" xml:space="preserve"><value>DoH intelligence URL</value></data>
+  <data name="Xaml_Optional_remote_resolver_list_URL_https_0024c563" xml:space="preserve"><value>Optional remote resolver-list URL (https)</value></data>
+  <data name="Xaml_DoH_intelligence_SHA_256_24601ac7" xml:space="preserve"><value>DoH intelligence SHA-256</value></data>
+  <data name="Xaml_Expected_SHA_256_of_the_remote_5d820f42" xml:space="preserve"><value>Expected SHA-256 of the remote list (required with a URL)</value></data>
+  <data name="Xaml_Refresh_DoH_intelligence_b3df1a97" xml:space="preserve"><value>Refresh DoH intelligence</value></data>
+  <data name="Xaml_Block_outbound_QUIC_HTTP3_UDP_port_6ce0d298" xml:space="preserve"><value>Block outbound QUIC/HTTP3 (UDP port 443). Forces clients to fall back to TCP so DoH3 and QUIC can&apos;t bypass hosts/SNI blocking. Clean fallback â€” browsing keeps working.</value></data>
+  <data name="Xaml_Forces_TCP_fallback_so_DoH3_QUIC_1377802e" xml:space="preserve"><value>Forces TCP fallback so DoH3/QUIC can&apos;t bypass blocking</value></data>
+  <data name="Xaml_CNAME_cloak_defense_when_a_first_6bce35c8" xml:space="preserve"><value>CNAME-cloak defense: when a first-party host resolves via CNAME to a blocked tracker, block the fronting host too. Uses the live DNS resolution chain; requires the elevated DNS monitor.</value></data>
+  <data name="Xaml_Blocks_first_party_hosts_that_alias_700a14d5" xml:space="preserve"><value>Blocks first-party hosts that alias to blocked trackers</value></data>
+  <data name="Xaml_TLS_SNI_capture_NET_109_recover_f333e6fd" xml:space="preserve"><value>TLS SNI capture (NET-109): recover the hostname of HTTPS connections even when DNS was resolved over DoH, by reading the ClientHello SNI. Driver-free raw-socket capture; ECH-encrypted SNI stays unavailable.</value></data>
+  <data name="Xaml_Names_HTTPS_dials_the_OS_resolver_79149379" xml:space="preserve"><value>Names HTTPS dials the OS resolver never saw (DoH), ECH excepted</value></data>
+  <data name="Xaml_Blocked_services_dea80c2c" xml:space="preserve"><value>Blocked services</value></data>
+  <data name="Xaml_One_click_hosts_blocking_of_a_d41913d9" xml:space="preserve"><value>One-click hosts blocking of a service&apos;s primary domains. Best-effort: exact hostnames only; DoH can bypass it.</value></data>
+  <data name="Xaml_Blocklist_intelligence_d54b451c" xml:space="preserve"><value>Blocklist intelligence</value></data>
+  <data name="Xaml_Every_catalog_blocklist_is_downloaded_into_875a299b" xml:space="preserve"><value>Every catalog blocklist is downloaded into a local reference index (never imported as blocks). Feed domains found on these lists show yellow as block candidates.</value></data>
+  <data name="Xaml_Refresh_reference_lists_49c91c6d" xml:space="preserve"><value>Refresh reference lists</value></data>
+  <data name="Xaml_Re_download_every_catalog_list_into_7d99cc69" xml:space="preserve"><value>Re-download every catalog list into the index (runs for a few minutes)</value></data>
+  <data name="Xaml_AI_categorization_DeepSeek_f61d8c50" xml:space="preserve"><value>AI categorization (DeepSeek)</value></data>
+  <data name="Xaml_Uses_the_DeepSeek_API_to_bucket_45490066" xml:space="preserve"><value>Uses the DeepSeek API to bucket blocked domains into hosts-file categories (Google Ads, Microsoft Telemetry, â€¦) and re-homes the entries under matching &apos;# Category&apos; sections. With auto-categorize on, every new manual block is filed automatically.</value></data>
+  <data name="Xaml_DeepSeek_API_key_aef39533" xml:space="preserve"><value>DeepSeek API key</value></data>
+  <data name="Xaml_Save_AI_settings_6ce9c264" xml:space="preserve"><value>Save AI settings</value></data>
+  <data name="Xaml_Store_the_key_in_the_service_1493e7be" xml:space="preserve"><value>Store the key in the service&apos;s protected data folder (leave blank to keep the current key)</value></data>
+  <data name="Xaml_AI_model_6572e8b8" xml:space="preserve"><value>AI model</value></data>
+  <data name="Xaml_DeepSeek_model_deepseek_chat_is_the_ca4c0112" xml:space="preserve"><value>DeepSeek model (deepseek-chat is the default)</value></data>
+  <data name="Xaml_Auto_categorize_new_blocks_909f7f79" xml:space="preserve"><value>Auto-categorize new blocks</value></data>
+  <data name="Xaml_File_every_new_manual_block_under_47dee3d1" xml:space="preserve"><value>File every new manual block under its AI-assigned category (save settings to apply)</value></data>
+  <data name="Xaml_Categorize_uncategorized_domains_2705b2d4" xml:space="preserve"><value>Categorize uncategorized domains</value></data>
+  <data name="Xaml_Send_every_uncategorized_blocked_domain_to_72e7027a" xml:space="preserve"><value>Send every uncategorized blocked domain to DeepSeek and organize the hosts file by category</value></data>
+  <data name="Xaml_Save_everything_the_AI_has_learned_ed995f2f" xml:space="preserve"><value>Save everything the AI has learned (purposes, categories, connection info) to a reviewable JSON file</value></data>
+  <data name="Xaml_AI_knowledge_review_c036069a" xml:space="preserve"><value>AI knowledge review</value></data>
+  <data name="Xaml_Review_what_the_AI_has_learned_c10f330b" xml:space="preserve"><value>Review what the AI has learned and promote good labels into a user-curated store that beats the AI and survives restart. Discard wrong guesses. Every promotion/correction is remembered.</value></data>
+  <data name="Xaml_Load_learned_40f26ad2" xml:space="preserve"><value>Load learned</value></data>
+  <data name="Xaml_List_what_the_AI_has_learned_3e46adb3" xml:space="preserve"><value>List what the AI has learned</value></data>
+  <data name="Xaml_Mark_all_reviewed_40153e6d" xml:space="preserve"><value>Mark all reviewed</value></data>
+  <data name="Xaml_Advance_the_new_since_last_review_fbe3d1a0" xml:space="preserve"><value>Advance the &apos;new since last review&apos; marker to now</value></data>
+  <data name="Xaml_Only_new_since_last_review_a443fd1e" xml:space="preserve"><value>Only new since last review</value></data>
+  <data name="Xaml_Show_only_entries_the_AI_learned_ecfbe106" xml:space="preserve"><value>Show only entries the AI learned since your last review</value></data>
+  <data name="Xaml_Learned_AI_knowledge_22d7f148" xml:space="preserve"><value>Learned AI knowledge</value></data>
+  <data name="Xaml_Kind_e00ac23f" xml:space="preserve"><value>Kind</value></data>
+  <data name="Xaml_Domain_key_60671553" xml:space="preserve"><value>Domain / key</value></data>
+  <data name="Xaml_AI_label_a2ea7244" xml:space="preserve"><value>AI label</value></data>
+  <data name="Xaml_Promote_as_433a4f10" xml:space="preserve"><value>Promote as</value></data>
+  <data name="Xaml_Override_84219262" xml:space="preserve"><value>Override</value></data>
+  <data name="Xaml_Promote_61c57736" xml:space="preserve"><value>Promote</value></data>
+  <data name="Xaml_Discard_36fff63c" xml:space="preserve"><value>Discard</value></data>
+  <data name="Xaml_Correct_a_domain_directly_remembered_override_3f0323e4" xml:space="preserve"><value>Correct a domain directly (remembered override):</value></data>
+  <data name="Xaml_Correction_kind_688a781b" xml:space="preserve"><value>Correction kind</value></data>
+  <data name="Xaml_Correction_domain_1067f9bb" xml:space="preserve"><value>Correction domain</value></data>
+  <data name="Xaml_Correction_value_3225de74" xml:space="preserve"><value>Correction value</value></data>
+  <data name="Xaml_Apply_cfea419c" xml:space="preserve"><value>Apply</value></data>
+  <data name="Xaml_Scheduled_blocking_5a4effa0" xml:space="preserve"><value>Scheduled blocking</value></data>
+  <data name="Xaml_Use_a_domain_service_target_or_59499d73" xml:space="preserve"><value>Use a domain, service target, or fw:HG_RuleName. Days accept Mon,Tue or 0-6; 24-hour windows can cross midnight.</value></data>
+  <data name="Xaml_Scheduled_blocking_windows_06fcbe8c" xml:space="preserve"><value>Scheduled blocking windows</value></data>
+  <data name="Xaml_Domain_target_a5cc1a02" xml:space="preserve"><value>Domain / target</value></data>
+  <data name="Xaml_Days_f6bb0f46" xml:space="preserve"><value>Days</value></data>
+  <data name="Xaml_Start_952f3754" xml:space="preserve"><value>Start</value></data>
+  <data name="Xaml_End_a2bb9d34" xml:space="preserve"><value>End</value></data>
+  <data name="Xaml_No_schedules_yet_Add_a_blocking_346560fe" xml:space="preserve"><value>No schedules yet. Add a blocking window, then save schedules.</value></data>
+  <data name="Xaml_Add_window_840e8f46" xml:space="preserve"><value>Add window</value></data>
+  <data name="Xaml_Save_schedules_cb3a4a50" xml:space="preserve"><value>Save schedules</value></data>
+  <data name="Xaml_Network_profiles_04269420" xml:space="preserve"><value>Network profiles</value></data>
+  <data name="Xaml_Save_named_snapshots_of_the_current_305311f0" xml:space="preserve"><value>Save named snapshots of the current policy, then switch them manually or let HostsGuard switch by network fingerprint.</value></data>
+  <data name="Xaml_Saved_network_profiles_8671dcb5" xml:space="preserve"><value>Saved network profiles</value></data>
+  <data name="Xaml_Switch_3e44c920" xml:space="preserve"><value>Switch</value></data>
+  <data name="Xaml_Choose_a_saved_profile_first_8f0db999" xml:space="preserve"><value>Choose a saved profile first</value></data>
+  <data name="Xaml_New_profile_name_393313b6" xml:space="preserve"><value>New profile name</value></data>
+  <data name="Xaml_Name_for_a_snapshot_of_the_196c42ae" xml:space="preserve"><value>Name for a snapshot of the current rule set</value></data>
+  <data name="Xaml_Save_current_as_profile_8e02fa9c" xml:space="preserve"><value>Save current as profile</value></data>
+  <data name="Xaml_Enter_a_profile_name_before_saving_a706bf49" xml:space="preserve"><value>Enter a profile name before saving</value></data>
+  <data name="Xaml_Maintenance_94de303b" xml:space="preserve"><value>Maintenance</value></data>
+  <data name="Xaml_Back_up_harden_export_diagnostics_refresh_5026f167" xml:space="preserve"><value>Back up, harden, export diagnostics, refresh local intelligence, or recover the hosts file from a known-good state.</value></data>
+  <data name="Xaml_Harden_hosts_ACL_c68950b7" xml:space="preserve"><value>Harden hosts ACL</value></data>
+  <data name="Xaml_Export_support_bundle_redacted_9362a115" xml:space="preserve"><value>Export support bundle (redacted)</value></data>
+  <data name="Xaml_Apply_known_safe_baseline_e67182c9" xml:space="preserve"><value>Apply known-safe baseline</value></data>
+  <data name="Xaml_Pre_allow_essential_Windows_binaries_Update_22ed5300" xml:space="preserve"><value>Pre-allow essential Windows binaries (Update, Defender, kernel) so ask-to-connect targets interesting traffic instead of prompting for OS infrastructure.</value></data>
+  <data name="Xaml_Secure_Rules_the_service_recreates_or_894b4569" xml:space="preserve"><value>Secure Rules: the service recreates or re-enables any HostsGuard rule deleted or disabled behind its back. Only touches HG_ rules.</value></data>
+  <data name="Xaml_Refresh_threat_intel_a6f40d99" xml:space="preserve"><value>Refresh threat intel</value></data>
+  <data name="Xaml_Refresh_GeoIP_0f5c8fef" xml:space="preserve"><value>Refresh GeoIP</value></data>
+  <data name="Xaml_Exclude_hosts_in_Defender_9cf62a6e" xml:space="preserve"><value>Exclude hosts in Defender</value></data>
+  <data name="Xaml_Emergency_reset_hosts_87f24c13" xml:space="preserve"><value>Emergency reset hosts</value></data>
+  <data name="Xaml_Restore_backup_581b7174" xml:space="preserve"><value>Restore backup:</value></data>
+  <data name="Xaml_Hosts_backup_to_restore_5e191a1c" xml:space="preserve"><value>Hosts backup to restore</value></data>
+  <data name="Xaml_Hosts_file_backups_in_the_service_4d6477de" xml:space="preserve"><value>Hosts-file backups in the service data directory</value></data>
+  <data name="Xaml_Restore_3cbe6d6b" xml:space="preserve"><value>Restore</value></data>
+  <data name="Xaml_Choose_a_backup_before_restoring_4c45efa5" xml:space="preserve"><value>Choose a backup before restoring</value></data>
+  <data name="Xaml_Refresh_list_7fe6bbe7" xml:space="preserve"><value>Refresh list</value></data>
+  <data name="Xaml_Trusted_publishers_cb37fb9f" xml:space="preserve"><value>Trusted publishers</value></data>
+  <data name="Xaml_Software_signed_by_these_Authenticode_publishers_6fac87af" xml:space="preserve"><value>Software signed by these Authenticode publishers is auto-allowed without a prompt. Add one from a consent prompt&apos;s &apos;Trust all software signed byâ€¦&apos; checkbox.</value></data>
+  <data name="Xaml_No_trusted_publishers_yet_826f2f55" xml:space="preserve"><value>No trusted publishers yet.</value></data>
+  <data name="Xaml_Trusted_folders_7c2bb9d8" xml:space="preserve"><value>Trusted folders</value></data>
+  <data name="Xaml_Any_binary_under_these_folders_is_79c0059a" xml:space="preserve"><value>Any binary under these folders is auto-allowed without a prompt â€” the driver-free &apos;trust this whole install directory&apos;. Add one from a consent prompt&apos;s &apos;Trust all software inâ€¦&apos; checkbox.</value></data>
+  <data name="Xaml_No_trusted_folders_yet_b90572cc" xml:space="preserve"><value>No trusted folders yet.</value></data>
+  <data name="Xaml_VPN_kill_switch_435ed722" xml:space="preserve"><value>VPN kill-switch</value></data>
+  <data name="Xaml_Block_ALL_outbound_whenever_the_chosen_031f3f4c" xml:space="preserve"><value>Block ALL outbound whenever the chosen VPN adapter is down, so nothing leaks outside the tunnel; the prior posture is restored on reconnect. Existing allow rules still apply â€” keep one for your VPN client so the tunnel can reconnect. Opt-in, off by default.</value></data>
+  <data name="Xaml_VPN_adapter_7234153f" xml:space="preserve"><value>VPN adapter:</value></data>
+  <data name="Xaml_VPN_adapter_to_watch_af20301c" xml:space="preserve"><value>VPN adapter to watch</value></data>
+  <data name="Xaml_Pick_the_network_adapter_your_VPN_771cf729" xml:space="preserve"><value>Pick the network adapter your VPN creates; when it drops the kill-switch engages</value></data>
+  <data name="Xaml_Turn_the_VPN_kill_switch_on_2e253649" xml:space="preserve"><value>Turn the VPN kill-switch on or off</value></data>
+  <data name="Xaml_Service_connection_needed_35041312" xml:space="preserve"><value>Service connection needed</value></data>
+  <data name="Xaml_Try_the_service_connection_again_0ea5fded" xml:space="preserve"><value>Try the service connection again</value></data>
+  <data name="Xaml_Confirm_action_50649c5c" xml:space="preserve"><value>Confirm action</value></data>
+  <data name="Xaml_HostsGuard_confirmation_07e67cb7" xml:space="preserve"><value>HostsGuard confirmation</value></data>
+  <data name="Xaml_This_action_is_applied_immediately_Review_690963d1" xml:space="preserve"><value>This action is applied immediately. Review the target before continuing.</value></data>
+  <data name="Xaml_Cancel_77dfd213" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Xaml_Continue_2e026239" xml:space="preserve"><value>Continue</value></data>
+  <data name="Xaml_Enter_a_value_cd8763c9" xml:space="preserve"><value>Enter a value</value></data>
+  <data name="Xaml_HostsGuard_input_cfced166" xml:space="preserve"><value>HostsGuard input</value></data>
+  <data name="Xaml_Input_value_a9e020d6" xml:space="preserve"><value>Input value</value></data>
+  <data name="Xaml_Save_applies_the_value_immediately_Cancel_bb5061bb" xml:space="preserve"><value>Save applies the value immediately. Cancel keeps the current setting.</value></data>
+  <data name="Xaml_HostsGuard_â_connection_blocked_c1908917" xml:space="preserve"><value>HostsGuard â€” connection blocked</value></data>
+  <data name="Xaml_HostsGuard_connection_consent_prompt_370e8956" xml:space="preserve"><value>HostsGuard connection consent prompt</value></data>
+  <data name="Xaml_Connection_blocked_c2c1ee6c" xml:space="preserve"><value>Connection blocked</value></data>
+  <data name="Xaml_Review_the_process_destination_and_rule_625c4e34" xml:space="preserve"><value>Review the process, destination, and rule scope before allowing it.</value></data>
+  <data name="Xaml_âš_This_remote_address_is_on_7025ed5c" xml:space="preserve"><value>âš  This remote address is on the threat-intelligence list</value></data>
+  <data name="Xaml_Warning_this_remote_address_is_on_2674dcd5" xml:space="preserve"><value>Warning: this remote address is on the threat-intelligence list</value></data>
+  <data name="Xaml_Look_up_this_process_reputation_online_e5312c55" xml:space="preserve"><value>Look up this process reputation online</value></data>
+  <data name="Xaml_Host_3960ec4c" xml:space="preserve"><value>Host</value></data>
+  <data name="Xaml_resolvingâ_3d64d28b" xml:space="preserve"><value>resolvingâ€¦</value></data>
+  <data name="Xaml_Location_d219c681" xml:space="preserve"><value>Location</value></data>
+  <data name="Xaml_Direction_fd8e45ba" xml:space="preserve"><value>Direction</value></data>
+  <data name="Xaml_Signer_362166e4" xml:space="preserve"><value>Signer</value></data>
+  <data name="Xaml_This_IP_bf8b4db9" xml:space="preserve"><value>This IP</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_remote_81fecf80" xml:space="preserve"><value>Restrict the rule to this remote IP address</value></data>
+  <data name="Xaml_This_port_04911fa9" xml:space="preserve"><value>This port</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_remote_00c2199f" xml:space="preserve"><value>Restrict the rule to this remote port</value></data>
+  <data name="Xaml_This_protocol_4b170216" xml:space="preserve"><value>This protocol</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_protocol_6e4b38f9" xml:space="preserve"><value>Restrict the rule to this protocol</value></data>
+  <data name="Xaml_This_service_only_faf667a0" xml:space="preserve"><value>This service only</value></data>
+  <data name="Xaml_Restrict_the_rule_to_the_owning_21045308" xml:space="preserve"><value>Restrict the rule to the owning Windows service</value></data>
+  <data name="Xaml_Blocks_only_this_service_not_everything_1b90c1c7" xml:space="preserve"><value>Blocks only this service, not everything hosted by the same process (svchost)</value></data>
+  <data name="Xaml_Trust_all_software_signed_by_this_f4f554f6" xml:space="preserve"><value>Trust all software signed by this publisher</value></data>
+  <data name="Xaml_On_Allow_auto_allow_any_future_9dd11626" xml:space="preserve"><value>On Allow, auto-allow any future binary signed by the same publisher without prompting</value></data>
+  <data name="Xaml_Trust_all_software_in_this_folder_e1cab6fe" xml:space="preserve"><value>Trust all software in this folder</value></data>
+  <data name="Xaml_On_Allow_auto_allow_any_future_155d44e6" xml:space="preserve"><value>On Allow, auto-allow any future binary under this program&apos;s folder without prompting</value></data>
+  <data name="Xaml_Duration_1370004d" xml:space="preserve"><value>Duration</value></data>
+  <data name="Xaml_Rule_duration_5c7aecf7" xml:space="preserve"><value>Rule duration</value></data>
+  <data name="Xaml_Once_15_min_2aef53b4" xml:space="preserve"><value>Once (15 min)</value></data>
+  <data name="Xaml_This_session_48c2a13d" xml:space="preserve"><value>This session</value></data>
+  <data name="Xaml_Always_a91bcce8" xml:space="preserve"><value>Always</value></data>
+  <data name="Xaml_Allow_connection_8a284745" xml:space="preserve"><value>Allow connection</value></data>
+  <data name="Xaml_Allow_this_connection_07a37a38" xml:space="preserve"><value>Allow this connection</value></data>
+  <data name="Xaml_Keep_blocked_74d09533" xml:space="preserve"><value>Keep blocked</value></data>
+  <data name="Xaml_Keep_this_connection_blocked_14498f92" xml:space="preserve"><value>Keep this connection blocked</value></data>
+  <data name="Xaml_Allow_all_from_this_app_b32b8fb7" xml:space="preserve"><value>Allow all from this app</value></data>
+  <data name="Xaml_Allow_all_pending_connections_from_this_f6b8a4c1" xml:space="preserve"><value>Allow all pending connections from this app</value></data>
+  <data name="Xaml_Write_one_whole_app_allow_rule_46ffd33f" xml:space="preserve"><value>Write one whole-app allow rule and answer every pending prompt from this program</value></data>
+  <data name="Xaml_Block_all_from_this_app_afff7d44" xml:space="preserve"><value>Block all from this app</value></data>
+  <data name="Xaml_Block_all_pending_connections_from_this_e8cbceda" xml:space="preserve"><value>Block all pending connections from this app</value></data>
+  <data name="Xaml_Write_one_whole_app_block_rule_3cc8f54a" xml:space="preserve"><value>Write one whole-app block rule and answer every pending prompt from this program</value></data>
+  <data name="Xaml_If_the_timer_expires_the_connection_53901c4b" xml:space="preserve"><value>If the timer expires, the connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically.</value></data>
 </root>

@@ -1,14 +1,15 @@
 <Window x:Class="HostsGuard.App.ConfirmDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:HostsGuard.App.Services"
         Style="{StaticResource Hg.Window}"
-        Title="Confirm action"
+        Title="{svc:Loc Key=Xaml_Confirm_action_50649c5c}"
         Width="460"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        AutomationProperties.Name="HostsGuard confirmation">
+        AutomationProperties.Name="{svc:Loc Key=Xaml_HostsGuard_confirmation_07e67cb7}">
     <Border BorderBrush="{DynamicResource Hg.S1}"
             BorderThickness="1"
             Background="{DynamicResource Hg.Base}">
@@ -48,7 +49,7 @@
                     Background="{DynamicResource Hg.Mantle}"
                     BorderBrush="{DynamicResource Hg.S0}"
                     BorderThickness="1">
-                <TextBlock Text="This action is applied immediately. Review the target before continuing."
+                <TextBlock Text="{svc:Loc Key=Xaml_This_action_is_applied_immediately_Review_690963d1}"
                            Style="{StaticResource Hg.DimText}"
                            TextWrapping="Wrap" />
             </Border>
@@ -61,14 +62,14 @@
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="1"
                         x:Name="CancelButton"
-                        Content="Cancel"
+                        Content="{svc:Loc Key=Xaml_Cancel_77dfd213}"
                         MinWidth="92"
                         Margin="0,0,8,0"
                         IsCancel="True"
                         Click="OnCancel" />
                 <Button Grid.Column="2"
                         x:Name="ConfirmButton"
-                        Content="Continue"
+                        Content="{svc:Loc Key=Xaml_Continue_2e026239}"
                         MinWidth="104"
                         Style="{StaticResource Hg.DangerButton}"
                         IsDefault="False"
