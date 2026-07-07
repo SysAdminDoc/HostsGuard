@@ -113,13 +113,14 @@ public sealed class LoopbackApi : IDisposable
             body = new string(buffer, 0, read);
         }
 
-        var (status, json) = Handle(
+        var (status, json) = await HandleAsync(
             req.HttpMethod,
             req.Url?.AbsolutePath ?? "/",
             req.QueryString.AllKeys.Where(k => k is not null)
                 .ToDictionary(k => k!, k => req.QueryString[k] ?? string.Empty, StringComparer.OrdinalIgnoreCase),
             req.Headers["X-HG-Token"],
-            body);
+            body,
+            _cts.Token);
 
         await WriteAsync(ctx, status, json);
     }
@@ -137,6 +138,12 @@ public sealed class LoopbackApi : IDisposable
     /// <summary>Pure request router — (status, json). Fully testable without a socket.</summary>
     public (int Status, string Json) Handle(
         string method, string path, IReadOnlyDictionary<string, string> query, string? token, string? body)
+        => HandleAsync(method, path, query, token, body, CancellationToken.None).GetAwaiter().GetResult();
+
+    /// <summary>Async request router for routes that validate service-owned egress.</summary>
+    public async Task<(int Status, string Json)> HandleAsync(
+        string method, string path, IReadOnlyDictionary<string, string> query, string? token, string? body,
+        CancellationToken ct)
     {
         if (path == "/openapi.json" && method == "GET")
         {
@@ -159,7 +166,7 @@ public sealed class LoopbackApi : IDisposable
             ("GET", "/log") => Log(query),
             ("GET", "/webhooks") => (200, GetWebhooks()),
             ("POST", "/domains") => PostDomain(body),
-            ("POST", "/webhooks") => PostWebhooks(body),
+            ("POST", "/webhooks") => await PostWebhooksAsync(body, ct),
             _ => (404, Error("not_found", $"no route for {method} {path}")),
         };
     }
@@ -328,7 +335,7 @@ public sealed class LoopbackApi : IDisposable
         }.ToJsonString();
     }
 
-    private (int, string) PostWebhooks(string? body)
+    private async Task<(int, string)> PostWebhooksAsync(string? body, CancellationToken ct)
     {
         if (_state.GateWhenLocked() is not null)
         {
@@ -356,10 +363,13 @@ public sealed class LoopbackApi : IDisposable
                     continue;
                 }
 
-                if (!Uri.TryCreate(u, UriKind.Absolute, out var uri) ||
-                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                try
                 {
-                    return (400, Error("invalid_url", $"'{u}' is not a valid http(s) URL"));
+                    await SsrfGuard.EnsurePublicHttpsAsync(u, ct);
+                }
+                catch (SsrfBlockedException ex)
+                {
+                    return (400, Error("invalid_url", ex.Message));
                 }
 
                 urls.Add(u);

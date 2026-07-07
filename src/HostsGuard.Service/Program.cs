@@ -176,7 +176,7 @@ if (LoopbackApi.IsEnabled())
 // engine-event stream but only POSTs when webhooks.json (ACL-locked dir) has a
 // URL — so enabling webhooks via the loopback API takes effect without a
 // restart (the config object is shared). Signed with X-HG-Signature.
-using var webhookHttp = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+using var webhookHttp = WebhookDeliverer.CreateHttpClient();
 using var webhooks = new WebhookDeliverer(state.Webhooks, WebhookDeliverer.HttpSender(webhookHttp),
     message => db.LogEvent("webhook", "delivery", details: message));
 webhooks.Start(state.Bus);

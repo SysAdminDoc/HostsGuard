@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 
 namespace HostsGuard.Service;
 
@@ -37,7 +36,7 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
             // ourselves re-validates the resolved addresses and dials only a
             // public one, so the socket can never reach a private/loopback/
             // metadata endpoint regardless of what the second lookup returns.
-            ConnectCallback = ConnectToPublicOnlyAsync,
+            ConnectCallback = SsrfGuard.ConnectToPublicOnlyAsync,
         };
         _http = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(30) };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HostsGuard/1.0");
@@ -79,51 +78,12 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
     }
 
     /// <summary>
-    /// Resolve the target host at connect time, drop every non-public address,
-    /// and open the socket only to a surviving public IP. This is the teeth
-    /// behind <see cref="SsrfGuard"/>: validation and the actual dial share one
-    /// resolution, so a DNS-rebinding attacker cannot slip a private address in
-    /// between the pre-check and the fetch.
-    /// </summary>
-    private static async ValueTask<Stream> ConnectToPublicOnlyAsync(
-        SocketsHttpConnectionContext context, CancellationToken ct)
-    {
-        var host = context.DnsEndPoint.Host;
-        IPAddress[] resolved = IPAddress.TryParse(host, out var literal)
-            ? new[] { literal }
-            : await Dns.GetHostAddressesAsync(host, ct);
-
-        var publicAddresses = PublicAddressesOrThrow(host, resolved);
-
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        try
-        {
-            await socket.ConnectAsync(publicAddresses, context.DnsEndPoint.Port, ct);
-            return new NetworkStream(socket, ownsSocket: true);
-        }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
-    }
-
-    /// <summary>
     /// Keep only public addresses from a connect-time resolution, or throw if
     /// none survive. Extracted so the DNS-rebinding defense is unit-testable
     /// without a live socket.
     /// </summary>
     public static IPAddress[] PublicAddressesOrThrow(string host, IPAddress[] resolved)
-    {
-        var publicAddresses = Array.FindAll(resolved, SsrfGuard.IsPublic);
-        if (publicAddresses.Length == 0)
-        {
-            throw new SsrfBlockedException(
-                $"'{host}' resolved to no public address at connect time");
-        }
-
-        return publicAddresses;
-    }
+        => SsrfGuard.PublicAddressesOrThrow(host, resolved);
 
     public void Dispose() => _http.Dispose();
 }

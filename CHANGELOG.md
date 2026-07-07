@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.6] - 2026-07-07
+
+### Fixed
+- Hardened outbound event webhooks against SSRF: loopback API configuration now
+  rejects non-HTTPS, loopback, private, link-local, metadata, ULA, and CGNAT
+  destinations before saving, and webhook delivery uses the same public-only
+  connect-time guard as remote list fetching.
+
 ## [0.12.5] - 2026-07-07
 
 ### Changed

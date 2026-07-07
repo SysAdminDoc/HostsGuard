@@ -165,6 +165,11 @@ public sealed class WebhookDeliverer : IDisposable
             {
                 status = await _sender(url, body, signature, ct);
             }
+            catch (SsrfBlockedException)
+            {
+                _log?.Invoke($"webhook {host} blocked by SSRF guard");
+                return;
+            }
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
             {
                 status = 0; // transport error — retryable
@@ -200,12 +205,29 @@ public sealed class WebhookDeliverer : IDisposable
     private static string SafeHost(string url)
         => Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : "(invalid url)";
 
-    /// <summary>Production HTTP sender: POST JSON with the signature header.</summary>
+    /// <summary>
+    /// Production HTTP client: redirects off and connect-time dialing restricted
+    /// to public addresses only, matching the list-fetch SSRF guard.
+    /// </summary>
+    public static System.Net.Http.HttpClient CreateHttpClient()
+    {
+        var handler = new System.Net.Http.SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            ConnectCallback = SsrfGuard.ConnectToPublicOnlyAsync,
+        };
+        var http = new System.Net.Http.HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(15) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("HostsGuard-Webhook/1.0");
+        return http;
+    }
+
+    /// <summary>Production HTTP sender: validate egress, POST JSON with the signature header.</summary>
     public static WebhookSender HttpSender(System.Net.Http.HttpClient http)
     {
         ArgumentNullException.ThrowIfNull(http);
         return async (url, body, signature, ct) =>
         {
+            await SsrfGuard.EnsurePublicHttpsAsync(url, ct);
             using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, url)
             {
                 Content = new System.Net.Http.StringContent(body, Encoding.UTF8, "application/json"),

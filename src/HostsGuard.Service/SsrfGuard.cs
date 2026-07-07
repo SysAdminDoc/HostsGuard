@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
 
 namespace HostsGuard.Service;
@@ -99,6 +100,50 @@ public static class SsrfGuard
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Resolve the target host at connect time, drop every non-public address,
+    /// and open the socket only to a surviving public IP. This closes the
+    /// resolve-then-connect DNS-rebinding window for LocalSystem-owned egress.
+    /// </summary>
+    public static async ValueTask<Stream> ConnectToPublicOnlyAsync(
+        SocketsHttpConnectionContext context, CancellationToken ct)
+    {
+        var host = context.DnsEndPoint.Host;
+        IPAddress[] resolved = IPAddress.TryParse(host, out var literal)
+            ? new[] { literal }
+            : await Dns.GetHostAddressesAsync(host, ct);
+
+        var publicAddresses = PublicAddressesOrThrow(host, resolved);
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        try
+        {
+            await socket.ConnectAsync(publicAddresses, context.DnsEndPoint.Port, ct);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Keep only public addresses from a connect-time resolution, or throw if
+    /// none survive.
+    /// </summary>
+    public static IPAddress[] PublicAddressesOrThrow(string host, IPAddress[] resolved)
+    {
+        var publicAddresses = Array.FindAll(resolved, IsPublic);
+        if (publicAddresses.Length == 0)
+        {
+            throw new SsrfBlockedException(
+                $"'{host}' resolved to no public address at connect time");
+        }
+
+        return publicAddresses;
     }
 }
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 using FluentAssertions;
@@ -145,10 +146,10 @@ public sealed class WebhooksTests : IDisposable
         using var api = new LoopbackApi(state, token);
 
         var (setStatus, setJson) = api.Handle("POST", "/webhooks", new Dictionary<string, string>(), token,
-            "{\"urls\":[\"https://sink.example/hook\"],\"secret\":\"topsecret\"}");
+            "{\"urls\":[\"https://1.1.1.1/hook\"],\"secret\":\"topsecret\"}");
         setStatus.Should().Be(200);
         JsonNode.Parse(setJson)!["ok"]!.GetValue<bool>().Should().BeTrue();
-        state.Webhooks.Urls.Should().ContainSingle().Which.Should().Be("https://sink.example/hook");
+        state.Webhooks.Urls.Should().ContainSingle().Which.Should().Be("https://1.1.1.1/hook");
 
         var (getStatus, getJson) = api.Handle("GET", "/webhooks", new Dictionary<string, string>(), token, null);
         getStatus.Should().Be(200);
@@ -159,6 +160,61 @@ public sealed class WebhooksTests : IDisposable
         var (badStatus, _) = api.Handle("POST", "/webhooks", new Dictionary<string, string>(), token,
             "{\"urls\":[\"ftp://nope\"]}");
         badStatus.Should().Be(400);
+    }
+
+    [Theory]
+    [InlineData("http://example.com/hook")]
+    [InlineData("https://127.0.0.1/hook")]
+    [InlineData("https://169.254.169.254/latest/meta-data/")]
+    [InlineData("https://192.168.1.10/hook")]
+    public void Loopback_rejects_webhooks_that_would_make_service_dial_unsafe_targets(string url)
+    {
+        File.WriteAllText(Path.Combine(_dir, "hosts"), "# hosts\n");
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(_dir, "hosts")),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")), dataDir: _dir);
+        const string token = "test-token-0123456789abcdef";
+        using var api = new LoopbackApi(state, token);
+
+        var (status, json) = api.Handle("POST", "/webhooks", new Dictionary<string, string>(), token,
+            $$"""{"urls":["{{url}}"],"secret":"topsecret"}""");
+
+        status.Should().Be(400);
+        json.Should().Contain("invalid_url");
+        state.Webhooks.Urls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Http_sender_rejects_unsafe_url_before_posting()
+    {
+        using var http = new HttpClient(new FailIfCalledHandler());
+        var sender = WebhookDeliverer.HttpSender(http);
+
+        await FluentActions.Awaiting(() => sender("http://127.0.0.1/hook", "{}", "sig", CancellationToken.None))
+            .Should().ThrowAsync<SsrfBlockedException>();
+    }
+
+    [Fact]
+    public async Task Deliverer_treats_ssrf_blocks_as_terminal_failures()
+    {
+        var cfg = new WebhookConfig { Urls = { "http://127.0.0.1/hook" } };
+        var calls = 0;
+        WebhookSender sender = (_, _, _, _) =>
+        {
+            calls++;
+            throw new SsrfBlockedException("blocked");
+        };
+        using var d = Deliverer(cfg, sender);
+
+        await d.DeliverAsync("{}", CancellationToken.None);
+
+        calls.Should().Be(1);
+    }
+
+    private sealed class FailIfCalledHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("HTTP send should not be reached");
     }
 
     public void Dispose()

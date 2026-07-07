@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.5-blue)
+![Version](https://img.shields.io/badge/version-0.12.6-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -133,7 +133,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Global outbound | Tray Block-all / Allow-all outbound posture selector (no restart) |
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
-| Event webhooks | Opt-in signed HTTP(S) POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API |
+| Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event log of every block, allow, firewall, and policy action |
@@ -169,7 +169,7 @@ dotnet test HostsGuard.sln           # 774 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.5-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.6-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
@@ -189,9 +189,10 @@ The .NET engine pins its runtime and dependency posture:
   transitives, retiring the old test-only 4.3.0 floors.
 - **Elevated surface:** the LocalSystem service's data directory
   (`%ProgramData%\HostsGuard`) is DACL-locked to SYSTEM+Admins before any state
-  file is written; client blocklist URLs pass an SSRF guard (loopback/RFC1918/
-  link-local/CGNAT/ULA/metadata rejected) before the service fetches them; the
-  gRPC control pipe is ACL'd and per-session-token authenticated.
+  file is written; client blocklist and webhook URLs pass an SSRF guard
+  (non-HTTPS, loopback/RFC1918/link-local/CGNAT/ULA/metadata rejected) before
+  the service dials them; the gRPC control pipe is ACL'd and per-session-token
+  authenticated.
 
 Report vulnerabilities via a GitHub issue with the redacted support bundle
 (Tools → **Export Support Bundle**).
