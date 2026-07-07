@@ -99,6 +99,78 @@ public sealed class PolicyPortabilityTests : IDisposable
     }
 
     [Fact]
+    public void Export_import_carries_non_secret_mutable_policy_state()
+    {
+        var (src, srcFw) = NewMachine();
+        using var srcKillSwitch = new KillSwitchMonitor(srcFw, src.Db, _ => true, src.DataDir);
+        src.KillSwitch = srcKillSwitch;
+
+        src.Consent.SetMode(ConsentBroker.ModeNotify);
+        src.Consent.SetChildInherit(true);
+        src.Consent.SetInboundConsent(true);
+        src.Consent.SetTrustedPublishers(new[] { "Acme Corp" });
+        src.Consent.SetTrustedFolders(new[] { @"C:\Tools" });
+        src.CnameCloak.SetEnabled(true);
+        src.Db.SetMeta("sni_capture", "on");
+        src.Doh.Import(new DohState
+        {
+            Updated = "2026-07-07T00:00:00.0000000Z",
+            Source = "test-list",
+            Sha256 = "abc123",
+            Ips = { "9.9.9.9" },
+        });
+        var fw = new FirewallControlServiceImpl(src);
+        fw.BlockQuic(new Empty(), TestContext());
+        fw.BlockEncryptedDns(new DohBlockRequest(), TestContext());
+        srcKillSwitch.Configure(true, "WireGuard");
+
+        src.Ai.SaveSettings("sk-secret", "test-model", "https://api.example.test", enabled: true);
+        src.Db.SetMeta("ai_last_run", "2026-07-07T01:00:00.0000000Z");
+        src.Db.SetMeta("ai_last_result", "categorized 1 domains");
+        src.Db.SetMeta("ai_knowledge_reviewed_at", "2026-07-07T02:00:00.0000000Z");
+        src.Db.UpsertAiKnowledge("purpose", "ads.example.com", "Ad delivery", "test-model");
+        src.Db.UpsertUserOverride("category", "ads.example.com", "Advertising");
+        src.Webhooks.Urls.Add("https://1.1.1.1/hook");
+        src.Webhooks.Secret = "webhook-secret";
+        src.Webhooks.Save(src.DataDir);
+
+        var json = PolicyPortability.Export(src).ToJson();
+        json.Should().NotContain("sk-secret").And.NotContain("webhook-secret");
+        var policy = PortablePolicy.FromJson(json);
+        policy.Ai!.ApiKeyConfigured.Should().BeTrue();
+        policy.Webhooks!.SecretConfigured.Should().BeTrue();
+
+        var (dst, dstFw) = NewMachine();
+        using var dstKillSwitch = new KillSwitchMonitor(dstFw, dst.Db, _ => true, dst.DataDir);
+        dst.KillSwitch = dstKillSwitch;
+
+        var summary = PolicyPortability.Import(dst, policy);
+
+        summary.Should().Contain(s => s.Contains("API key omitted", StringComparison.Ordinal));
+        summary.Should().Contain(s => s.Contains("secret omitted", StringComparison.Ordinal));
+        dst.Consent.Mode.Should().Be(ConsentBroker.ModeNotify);
+        dst.Consent.ChildInherit.Should().BeTrue();
+        dst.Consent.InboundConsent.Should().BeTrue();
+        dst.Consent.TrustedPublishers.Should().ContainSingle().Which.Should().Be("Acme Corp");
+        dst.Consent.TrustedFolders.Should().ContainSingle().Which.Should().Be(@"C:\Tools");
+        dst.CnameCloak.Enabled.Should().BeTrue();
+        dst.Db.GetMeta("sni_capture").Should().Be("on");
+        dst.Doh.Load().Ips.Should().Contain("9.9.9.9");
+        dstFw.Rules.Should().ContainKey(FirewallControlServiceImpl.QuicRuleName);
+        dstFw.Rules.Should().ContainKey("HG_DoT_TCP");
+        dst.KillSwitch!.Enabled.Should().BeTrue();
+        dst.KillSwitch.Adapter.Should().Be("WireGuard");
+
+        dst.Ai.Settings.Should().Be(new AiSettings(string.Empty, "test-model", "https://api.example.test", true));
+        dst.Db.GetMeta("ai_last_result").Should().Be("categorized 1 domains");
+        dst.Db.GetMeta("ai_knowledge_reviewed_at").Should().Be("2026-07-07T02:00:00.0000000Z");
+        dst.Db.GetAiKnowledge("purpose", new[] { "ads.example.com" })["ads.example.com"].Should().Be("Ad delivery");
+        dst.Db.GetUserOverride("category", "ads.example.com").Should().Be("Advertising");
+        dst.Webhooks.Urls.Should().ContainSingle().Which.Should().Be("https://1.1.1.1/hook");
+        dst.Webhooks.Secret.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Import_is_idempotent()
     {
         var (src, _) = NewMachine();

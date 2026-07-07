@@ -6,10 +6,10 @@ namespace HostsGuard.Core;
 /// <summary>
 /// A single versioned, portable snapshot of a HostsGuard machine's whole policy
 /// (NET-089): managed domains, HG_ firewall rules, schedules, rule-set profiles,
-/// the settings lock, network→profile mappings, and allow/blocklist
-/// subscriptions. Serializes to one JSON document so a machine's policy can be
-/// backed up and reconstructed on a clean install. Pure data — no OS deps — so
-/// the service, CLI, and UI all share it.
+/// the settings lock, network→profile mappings, allow/blocklist subscriptions,
+/// and non-secret mutable privacy posture. Serializes to one JSON document so a
+/// machine's policy can be backed up and reconstructed on a clean install. Pure
+/// data — no OS deps or secrets — so the service, CLI, and UI all share it.
 /// </summary>
 public sealed class PortablePolicy
 {
@@ -41,6 +41,20 @@ public sealed class PortablePolicy
     public List<PolicyBlocklistSub> BlocklistSubs { get; set; } = new();
 
     public List<string> AllowlistSubs { get; set; } = new();
+
+    public PolicyConsent? Consent { get; set; }
+
+    public PolicyDnsPrivacy? DnsPrivacy { get; set; }
+
+    public PolicyKillSwitch? KillSwitch { get; set; }
+
+    public PolicyAiSettings? Ai { get; set; }
+
+    public List<PolicyAiKnowledge>? AiKnowledge { get; set; }
+
+    public List<PolicyUserOverride>? UserOverrides { get; set; }
+
+    public PolicyWebhooks? Webhooks { get; set; }
 
     /// <summary>Carried meta settings (e.g. active_profile, history_retention_days).</summary>
     public Dictionary<string, string> Settings { get; set; } = new(StringComparer.Ordinal);
@@ -185,4 +199,101 @@ public sealed class PolicyBlocklistSub
     public string Name { get; set; } = string.Empty;
 
     public string Url { get; set; } = string.Empty;
+}
+
+/// <summary>Consent-mode posture and trust sets. Null properties mean "not present in this policy".</summary>
+public sealed class PolicyConsent
+{
+    public string? Mode { get; set; }
+
+    public bool? ChildInherit { get; set; }
+
+    public bool? InboundConsent { get; set; }
+
+    public List<string>? TrustedPublishers { get; set; }
+
+    public List<string>? TrustedFolders { get; set; }
+}
+
+/// <summary>DNS-bypass and name-attribution posture plus learned DoH resolver state.</summary>
+public sealed class PolicyDnsPrivacy
+{
+    public bool? DohBlocking { get; set; }
+
+    public bool? QuicBlocked { get; set; }
+
+    public bool? CnameCloak { get; set; }
+
+    public bool? SniCapture { get; set; }
+
+    public PolicyDohState? DohIntelligence { get; set; }
+}
+
+public sealed class PolicyDohState
+{
+    public string Updated { get; set; } = string.Empty;
+
+    public string Source { get; set; } = string.Empty;
+
+    public string Sha256 { get; set; } = string.Empty;
+
+    public List<string> Ips { get; set; } = new();
+}
+
+/// <summary>VPN-presence kill-switch policy. Prior engaged posture is machine-local and not portable.</summary>
+public sealed class PolicyKillSwitch
+{
+    public bool? Enabled { get; set; }
+
+    public string? Adapter { get; set; }
+}
+
+/// <summary>AI settings minus the secret API key.</summary>
+public sealed class PolicyAiSettings
+{
+    public string? Model { get; set; }
+
+    public string? Endpoint { get; set; }
+
+    public bool? Enabled { get; set; }
+
+    public bool? ApiKeyConfigured { get; set; }
+
+    public string? LastRun { get; set; }
+
+    public string? LastResult { get; set; }
+
+    public string? LastReviewed { get; set; }
+}
+
+public sealed class PolicyAiKnowledge
+{
+    public string Kind { get; set; } = string.Empty;
+
+    public string Key { get; set; } = string.Empty;
+
+    public string Value { get; set; } = string.Empty;
+
+    public string Model { get; set; } = string.Empty;
+
+    public string Created { get; set; } = string.Empty;
+}
+
+public sealed class PolicyUserOverride
+{
+    public string Kind { get; set; } = string.Empty;
+
+    public string Key { get; set; } = string.Empty;
+
+    public string Value { get; set; } = string.Empty;
+
+    public string Created { get; set; } = string.Empty;
+}
+
+/// <summary>Webhook endpoints only; signing secrets are intentionally not portable.</summary>
+public sealed class PolicyWebhooks
+{
+    public List<string>? Urls { get; set; }
+
+    public bool? SecretConfigured { get; set; }
 }

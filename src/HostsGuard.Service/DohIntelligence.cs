@@ -94,6 +94,14 @@ public sealed class DohIntelligence
         }
     }
 
+    /// <summary>Replace persisted resolver intelligence from a trusted portable-policy import.</summary>
+    public void Import(DohState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        state.Ips = DohResolvers.NormalizeIpSet(state.Ips).OrderBy(i => i, StringComparer.Ordinal).ToList();
+        Save(state);
+    }
+
     /// <summary>
     /// Refresh: Windows known DoH servers (registry) + an optional remote list.
     /// A remote URL requires the expected SHA-256; a mismatch throws and the

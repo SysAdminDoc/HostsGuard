@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.7] - 2026-07-07
+
+### Changed
+- Expanded portable-policy export/import to preserve non-secret mutable privacy
+  state: consent mode/trust sets, inbound consent, DoH/SNI/CNAME/QUIC posture,
+  DoH intelligence, kill-switch intent, AI settings/knowledge/overrides, and
+  webhook endpoint intent.
+- Portable-policy import now reports omitted AI API keys and webhook signing
+  secrets instead of carrying secrets across machines.
+
 ## [0.12.6] - 2026-07-07
 
 ### Fixed

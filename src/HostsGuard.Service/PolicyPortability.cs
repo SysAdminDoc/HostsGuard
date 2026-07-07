@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Versioning;
+using HostsGuard.Contracts;
 using HostsGuard.Core;
 
 namespace HostsGuard.Service;
@@ -92,6 +93,77 @@ public static class PolicyPortability
         }
 
         policy.AllowlistSubs.AddRange(state.Db.GetAllowlistSubs());
+
+        policy.Consent = new PolicyConsent
+        {
+            Mode = state.Consent.Mode,
+            ChildInherit = state.Consent.ChildInherit,
+            InboundConsent = state.Consent.InboundConsent,
+            TrustedPublishers = state.Consent.TrustedPublishers.ToList(),
+            TrustedFolders = state.Consent.TrustedFolders.ToList(),
+        };
+
+        var doh = state.Doh.Load();
+        policy.DnsPrivacy = new PolicyDnsPrivacy
+        {
+            DohBlocking = state.Firewall?.RuleExists("HG_DoT_TCP") ?? false,
+            QuicBlocked = state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false,
+            CnameCloak = state.CnameCloak.Enabled,
+            SniCapture = (state.Sni?.Active ?? false) || state.Db.GetMeta("sni_capture") == "on",
+            DohIntelligence = new PolicyDohState
+            {
+                Updated = doh.Updated,
+                Source = doh.Source,
+                Sha256 = doh.Sha256,
+                Ips = doh.Ips.ToList(),
+            },
+        };
+
+        if (state.KillSwitch is { } killSwitch)
+        {
+            policy.KillSwitch = new PolicyKillSwitch
+            {
+                Enabled = killSwitch.Enabled,
+                Adapter = killSwitch.Adapter,
+            };
+        }
+
+        var ai = state.Ai.Settings;
+        policy.Ai = new PolicyAiSettings
+        {
+            Model = ai.Model,
+            Endpoint = ai.Endpoint,
+            Enabled = ai.Enabled,
+            ApiKeyConfigured = ai.ApiKey.Length != 0,
+            LastRun = state.Db.GetMeta("ai_last_run"),
+            LastResult = state.Db.GetMeta("ai_last_result"),
+            LastReviewed = state.Db.GetMeta("ai_knowledge_reviewed_at"),
+        };
+        policy.AiKnowledge = state.Db.GetAllAiKnowledge()
+            .Select(k => new PolicyAiKnowledge
+            {
+                Kind = k.Kind,
+                Key = k.Key,
+                Value = k.Value,
+                Model = k.Model,
+                Created = k.Created,
+            })
+            .ToList();
+        policy.UserOverrides = state.Db.GetAllUserOverrides()
+            .Select(o => new PolicyUserOverride
+            {
+                Kind = o.Kind,
+                Key = o.Key,
+                Value = o.Value,
+                Created = o.Created,
+            })
+            .ToList();
+
+        policy.Webhooks = new PolicyWebhooks
+        {
+            Urls = state.Webhooks.Urls.ToList(),
+            SecretConfigured = state.Webhooks.Secret.Length != 0,
+        };
 
         // Carry the handful of meta settings a portable policy should reconstruct.
         foreach (var key in PortableMetaKeys)
@@ -244,6 +316,12 @@ public static class PolicyPortability
         state.Db.SetAllowlistSubs(policy.AllowlistSubs.Where(u => !string.IsNullOrWhiteSpace(u)));
         summary.Add($"{policy.BlocklistSubs.Count} blocklist + {policy.AllowlistSubs.Count} allowlist subscriptions");
 
+        ApplyConsent(state, policy, summary);
+        ApplyDnsPrivacy(state, policy, summary);
+        ApplyKillSwitch(state, policy, summary);
+        ApplyAi(state, policy, summary);
+        ApplyWebhooks(state, policy, summary);
+
         // ── Carried meta settings ──
         foreach (var (key, value) in policy.Settings)
         {
@@ -257,6 +335,203 @@ public static class PolicyPortability
             $"{policy.Domains.Count} domains, {policy.FirewallRules.Count} fw rules, {policy.Profiles.Count} profiles", reason: "manual");
         return summary;
     }
+
+    private static void ApplyConsent(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.Consent is not { } c)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(c.Mode))
+        {
+            state.Consent.SetMode(c.Mode);
+        }
+
+        if (c.ChildInherit is { } childInherit)
+        {
+            state.Consent.SetChildInherit(childInherit);
+        }
+
+        if (c.InboundConsent is { } inboundConsent)
+        {
+            state.Consent.SetInboundConsent(inboundConsent);
+        }
+
+        if (c.TrustedPublishers is { } publishers)
+        {
+            state.Consent.SetTrustedPublishers(publishers);
+        }
+
+        if (c.TrustedFolders is { } folders)
+        {
+            state.Consent.SetTrustedFolders(folders);
+        }
+
+        summary.Add("consent posture + trust sets");
+    }
+
+    private static void ApplyDnsPrivacy(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.DnsPrivacy is not { } dns)
+        {
+            return;
+        }
+
+        if (dns.DohIntelligence is { } importedDoh)
+        {
+            state.Doh.Import(new DohState
+            {
+                Updated = importedDoh.Updated,
+                Source = importedDoh.Source.Length != 0 ? importedDoh.Source : "Portable policy",
+                Sha256 = importedDoh.Sha256,
+                Ips = importedDoh.Ips ?? new List<string>(),
+            });
+        }
+
+        if (dns.CnameCloak is { } cname)
+        {
+            state.CnameCloak.SetEnabled(cname);
+        }
+
+        if (dns.SniCapture is { } sni)
+        {
+            state.Db.SetMeta("sni_capture", sni ? "on" : "off");
+            if (state.Sni is { } sniffer)
+            {
+                if (sni)
+                {
+                    sniffer.Start();
+                }
+                else
+                {
+                    sniffer.Stop();
+                }
+            }
+        }
+
+        if (state.Firewall is not null)
+        {
+            var fw = new FirewallControlServiceImpl(state);
+            if (dns.DohBlocking is { } dohBlock)
+            {
+                _ = dohBlock
+                    ? fw.BlockEncryptedDns(new DohBlockRequest(), null!).GetAwaiter().GetResult()
+                    : fw.UnblockEncryptedDns(new Empty(), null!).GetAwaiter().GetResult();
+            }
+
+            if (dns.QuicBlocked is { } quic)
+            {
+                _ = quic
+                    ? fw.BlockQuic(new Empty(), null!).GetAwaiter().GetResult()
+                    : fw.UnblockQuic(new Empty(), null!).GetAwaiter().GetResult();
+            }
+        }
+
+        summary.Add("DNS privacy posture");
+    }
+
+    private static void ApplyKillSwitch(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.KillSwitch?.Enabled is not { } enabled)
+        {
+            return;
+        }
+
+        if (state.KillSwitch is not { } killSwitch)
+        {
+            summary.Add("kill-switch skipped (monitor unavailable)");
+            return;
+        }
+
+        var adapter = policy.KillSwitch.Adapter ?? string.Empty;
+        var ack = killSwitch.Configure(enabled, adapter);
+        summary.Add(ack.Ok ? "kill-switch policy" : $"kill-switch skipped ({ack.Message})");
+    }
+
+    private static void ApplyAi(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.Ai is { } ai)
+        {
+            var current = state.Ai.Settings;
+            state.Ai.SaveSettings(
+                apiKey: string.Empty,
+                model: NonEmpty(ai.Model, current.Model),
+                endpoint: NonEmpty(ai.Endpoint, current.Endpoint),
+                enabled: ai.Enabled ?? current.Enabled);
+
+            SetMetaIfNotNull(state, "ai_last_run", ai.LastRun);
+            SetMetaIfNotNull(state, "ai_last_result", ai.LastResult);
+            SetMetaIfNotNull(state, "ai_knowledge_reviewed_at", ai.LastReviewed);
+        }
+
+        var knowledge = 0;
+        foreach (var k in policy.AiKnowledge ?? Enumerable.Empty<PolicyAiKnowledge>())
+        {
+            if (string.IsNullOrWhiteSpace(k.Kind) || string.IsNullOrWhiteSpace(k.Key))
+            {
+                continue;
+            }
+
+            state.Db.UpsertAiKnowledge(k.Kind, k.Key, k.Value ?? string.Empty, k.Model ?? string.Empty);
+            knowledge++;
+        }
+
+        var overrides = 0;
+        foreach (var o in policy.UserOverrides ?? Enumerable.Empty<PolicyUserOverride>())
+        {
+            if (string.IsNullOrWhiteSpace(o.Kind) || string.IsNullOrWhiteSpace(o.Key))
+            {
+                continue;
+            }
+
+            state.Db.UpsertUserOverride(o.Kind, o.Key, o.Value ?? string.Empty);
+            overrides++;
+        }
+
+        if (policy.Ai is not null || knowledge != 0 || overrides != 0)
+        {
+            summary.Add($"AI policy ({knowledge} learned, {overrides} overrides; API key omitted)");
+        }
+    }
+
+    private static void ApplyWebhooks(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.Webhooks?.Urls is not { } urls)
+        {
+            return;
+        }
+
+        var accepted = new List<string>();
+        var rejected = 0;
+        foreach (var url in urls.Select(u => (u ?? string.Empty).Trim()).Where(u => u.Length != 0))
+        {
+            try
+            {
+                SsrfGuard.EnsurePublicHttpsAsync(url, CancellationToken.None).GetAwaiter().GetResult();
+                accepted.Add(url);
+            }
+            catch (SsrfBlockedException)
+            {
+                rejected++;
+            }
+        }
+
+        state.Webhooks.Urls = accepted;
+        state.Webhooks.Save(state.DataDir);
+        summary.Add($"{accepted.Count} webhook endpoint(s), {rejected} rejected; secret omitted");
+    }
+
+    private static void SetMetaIfNotNull(ServiceState state, string key, string? value)
+    {
+        if (value is not null)
+        {
+            state.Db.SetMeta(key, value);
+        }
+    }
+
+    private static string NonEmpty(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
     private static string AppVersion() =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()
