@@ -1099,6 +1099,15 @@
                                      Tag="Search connections — try process:chrome, port:443, or !svchost"
                                      AutomationProperties.Name="Search live connections"
                                      ToolTip="Search: process:chrome  port:443  country!=US  !svchost" />
+                            <TextBox Width="220" Margin="10,0,0,0" VerticalAlignment="Center"
+                                     Text="{Binding ExplainInput, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource Hg.HintBox}"
+                                     Tag="Explain domain, IP, process, or path"
+                                     AutomationProperties.Name="Decision explainer target"
+                                     ToolTip="Explain the current rule decision for a domain, IP, process name, or executable path" />
+                            <Button Content="Explain" Margin="6,0,0,0" Padding="10,3"
+                                    Command="{Binding ExplainInputCommand}"
+                                    ToolTip="Show the ordered hosts/firewall/trust/posture decision chain for the entered target" />
                         </WrapPanel>
                         </Border>
 
@@ -1166,6 +1175,10 @@
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.Pid, StringFormat='inbound|{0}', RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
                                     <Separator />
+                                    <MenuItem Header="Explain decision"
+                                              Command="{Binding PlacementTarget.DataContext.ExplainSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="Show the ordered hosts/firewall/trust/posture decision chain for this connection" />
                                     <MenuItem Header="Explain / look up connection"
                                               ToolTip="Look up the connection's resolved domain (or IP) on threat-intel sites">
                                         <MenuItem Header="VirusTotal (site)"
@@ -1292,6 +1305,36 @@
                                                    Foreground="{DynamicResource Hg.Teal}"
                                                    MaxHeight="72" />
 
+                                        <TextBlock Text="Decision" Style="{StaticResource Hg.InspectorLabel}" />
+                                        <TextBlock Text="{Binding DataContext.DecisionSummary, ElementName=ConnectionsGrid}"
+                                                   Style="{StaticResource Hg.InspectorValue}"
+                                                   TextWrapping="Wrap"
+                                                   MaxHeight="54" />
+                                        <TextBlock Text="{Binding DataContext.DecisionNextAction, ElementName=ConnectionsGrid}"
+                                                   Style="{StaticResource Hg.DimText}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,3,0,0"
+                                                   MaxHeight="48" />
+                                        <ScrollViewer MaxHeight="126" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+                                            <ItemsControl ItemsSource="{Binding DataContext.DecisionChain, ElementName=ConnectionsGrid}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Margin="0,0,0,6">
+                                                            <TextBlock Text="{Binding Header}"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource Hg.Text}" />
+                                                            <TextBlock Text="{Binding Owner}"
+                                                                       Style="{StaticResource Hg.DimText}"
+                                                                       TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding Detail}"
+                                                                       Style="{StaticResource Hg.DimText}"
+                                                                       TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+
                                         <UniformGrid Columns="2" Margin="0,12,0,0">
                                             <Border Style="{StaticResource Hg.MetricTile}">
                                                 <StackPanel>
@@ -1332,6 +1375,12 @@
                                                     Style="{StaticResource Hg.ActionChip}"
                                                     Margin="0,0,6,6"
                                                     Command="{Binding DataContext.QuickBlockProcessCommand, ElementName=ConnectionsGrid}"
+                                                    CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ConnectionsGrid, Converter={StaticResource ObjectPresentBool}}" />
+                                            <Button Content="Explain"
+                                                    Style="{StaticResource Hg.ActionChip}"
+                                                    Margin="0,0,6,6"
+                                                    Command="{Binding DataContext.ExplainSelectedCommand, ElementName=ConnectionsGrid}"
                                                     CommandParameter="{Binding}"
                                                     IsEnabled="{Binding SelectedItem, ElementName=ConnectionsGrid, Converter={StaticResource ObjectPresentBool}}" />
                                         </WrapPanel>

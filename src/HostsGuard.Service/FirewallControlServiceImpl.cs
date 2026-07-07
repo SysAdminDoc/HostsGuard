@@ -1,5 +1,7 @@
 using System.IO;
+using System.Net;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -255,6 +257,55 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         var deleted = fw.DeleteRule(name);
         _state.Db.RemoveFwState(name);
         return Task.FromResult(deleted ? Ok($"deleted {name}") : Error("not_found", $"{name} does not exist"));
+    }
+
+    public override Task<DecisionExplanation> ExplainDecision(DecisionExplainRequest request, ServerCallContext context)
+    {
+        var input = BuildDecisionInput(request);
+        var domain = input.Domain;
+        if (domain.Length == 0 && input.RemoteAddress.Length != 0)
+        {
+            domain = _state.ResolveKnownHost(input.RemoteAddress).Trim().ToLowerInvariant();
+            input = input with { Domain = domain };
+        }
+
+        var root = Domains.LooksLikeDomain(domain) ? Domains.GetRoot(domain) : string.Empty;
+        IReadOnlyList<FwRule> rules = _state.Firewall?.ListRules() ?? Array.Empty<FwRule>();
+        IReadOnlyList<FwProfilePosture> profiles = Array.Empty<FwProfilePosture>();
+        if (_state.Firewall is { } fw)
+        {
+            try
+            {
+                profiles = fw.GetPosture();
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+                profiles = Array.Empty<FwProfilePosture>();
+            }
+        }
+
+        var groups = _state.Db.GetRuleGroups()
+            .GroupBy(g => g.RuleName, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(x => x.Group).Distinct(StringComparer.Ordinal).ToList(),
+                StringComparer.Ordinal);
+        var facts = new DecisionPolicyFacts(
+            DomainStatus: domain.Length == 0 ? null : _state.Db.GetDomainStatus(domain),
+            DomainSource: domain.Length == 0 ? null : _state.Db.GetDomainSource(domain),
+            RootStatus: root.Length == 0 || string.Equals(root, domain, StringComparison.Ordinal) ? null : _state.Db.GetDomainStatus(root),
+            RootSource: root.Length == 0 || string.Equals(root, domain, StringComparison.Ordinal) ? null : _state.Db.GetDomainSource(root),
+            Rules: rules,
+            RuleGroups: groups,
+            Profiles: profiles,
+            ActiveProfile: _state.Db.GetMeta("active_profile") ?? string.Empty,
+            TrustedPublishers: _state.Consent.TrustedPublishers,
+            TrustedFolders: _state.Consent.TrustedFolders,
+            KillSwitchEnabled: _state.KillSwitch?.Enabled ?? false,
+            KillSwitchEngaged: _state.KillSwitch?.IsEngaged ?? false,
+            KillSwitchAdapter: _state.KillSwitch?.Adapter ?? string.Empty);
+        var explanation = DecisionExplainer.Explain(input, facts);
+        return Task.FromResult(ToProto(explanation));
     }
 
     public override Task<Ack> SetRuleEnabled(RuleEnabledRequest request, ServerCallContext context)
@@ -706,6 +757,99 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     private static string MapDirection(string? direction)
         => FwRuleMapper.MapDirection(direction);
+
+    private DecisionInput BuildDecisionInput(DecisionExplainRequest request)
+    {
+        var target = (request.Target ?? string.Empty).Trim();
+        var domain = (request.Domain ?? string.Empty).Trim().TrimEnd('.').ToLowerInvariant();
+        var remote = (request.RemoteAddr ?? string.Empty).Trim();
+        var programPath = (request.ProgramPath ?? string.Empty).Trim();
+        var process = (request.Process ?? string.Empty).Trim();
+
+        if (target.Length != 0)
+        {
+            if (domain.Length == 0 && Domains.LooksLikeDomain(target))
+            {
+                domain = target.TrimEnd('.').ToLowerInvariant();
+            }
+            else if (remote.Length == 0 && IPAddress.TryParse(target, out _))
+            {
+                remote = target;
+            }
+            else if (programPath.Length == 0 && LooksLikePath(target))
+            {
+                programPath = target;
+                process = process.Length == 0 ? Path.GetFileName(target) : process;
+            }
+            else if (process.Length == 0)
+            {
+                process = target;
+            }
+        }
+
+        var signer = (request.Signer ?? string.Empty).Trim();
+        if (signer.Length == 0 && programPath.Length != 0)
+        {
+            signer = ResolveSigner(programPath);
+        }
+
+        return new DecisionInput(
+            domain,
+            remote,
+            Math.Max(0, request.RemotePort),
+            string.IsNullOrWhiteSpace(request.Protocol) ? "Any" : request.Protocol.Trim(),
+            programPath,
+            process,
+            string.IsNullOrWhiteSpace(request.Direction) ? "Out" : request.Direction.Trim(),
+            signer,
+            (request.Service ?? string.Empty).Trim());
+    }
+
+    private static bool LooksLikePath(string target) =>
+        target.Contains('\\', StringComparison.Ordinal) ||
+        target.Contains('/', StringComparison.Ordinal) ||
+        target.Contains(':', StringComparison.Ordinal);
+
+    private string ResolveSigner(string programPath)
+    {
+        if (_state.Consent.LookupSigner is { } hook)
+        {
+            return hook(programPath) ?? string.Empty;
+        }
+
+        try
+        {
+            return FirewallIdentity.Compute(programPath).Signer ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or ArgumentException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static DecisionExplanation ToProto(DecisionExplanationResult result)
+    {
+        var proto = new DecisionExplanation
+        {
+            Verdict = result.Verdict,
+            Summary = result.Summary,
+            NextSafeAction = result.NextSafeAction,
+        };
+        foreach (var step in result.Steps)
+        {
+            proto.Steps.Add(new DecisionStep
+            {
+                Order = step.Order,
+                Layer = step.Layer,
+                Outcome = step.Outcome,
+                Owner = step.Owner,
+                Detail = step.Detail,
+                NextAction = step.NextAction,
+            });
+        }
+
+        return proto;
+    }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 

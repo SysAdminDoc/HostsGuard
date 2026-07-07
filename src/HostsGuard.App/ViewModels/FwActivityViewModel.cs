@@ -191,6 +191,30 @@ public sealed partial class EventLogRowViewModel : ObservableObject
     private string _details = string.Empty;
 }
 
+/// <summary>One ordered factor from the rule decision simulator.</summary>
+public sealed partial class DecisionStepViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private int _order;
+
+    [ObservableProperty]
+    private string _layer = string.Empty;
+
+    [ObservableProperty]
+    private string _outcome = string.Empty;
+
+    [ObservableProperty]
+    private string _owner = string.Empty;
+
+    [ObservableProperty]
+    private string _detail = string.Empty;
+
+    [ObservableProperty]
+    private string _nextAction = string.Empty;
+
+    public string Header => $"{Order}. {Outcome} - {Layer}";
+}
+
 /// <summary>
 /// FW Activity tab: live connections from the WatchConnections stream with
 /// quick-block (IP / program) actions that create visible HG_ COM rules, a
@@ -242,6 +266,15 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _timelineStatus = "No activity yet";
 
+    [ObservableProperty]
+    private string _explainInput = string.Empty;
+
+    [ObservableProperty]
+    private string _decisionSummary = "Select a connection or enter a target to explain.";
+
+    [ObservableProperty]
+    private string _decisionNextAction = string.Empty;
+
     public FwActivityViewModel(HostsServiceClient client, IConfirm confirm, AppConfigStore? config = null,
         IFilePicker? filePicker = null)
     {
@@ -266,6 +299,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public ObservableCollection<ConnectionRowViewModel> Rows { get; } = new();
 
     public ObservableCollection<TimelineSeriesViewModel> Timeline { get; } = new();
+
+    public ObservableCollection<DecisionStepViewModel> DecisionChain { get; } = new();
 
     // ─── Grouped + searchable live view (NET-071) ─────────────────────────────
 
@@ -457,6 +492,79 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             {
                 row.Info = info;
             }
+        }
+    }
+
+    [RelayCommand]
+    public async Task ExplainInputAsync()
+    {
+        var target = (ExplainInput ?? string.Empty).Trim();
+        if (target.Length == 0)
+        {
+            DecisionSummary = "Enter a domain, IP, process, or executable path to explain.";
+            DecisionNextAction = string.Empty;
+            DecisionChain.Clear();
+            return;
+        }
+
+        await ExplainDecisionAsync(new DecisionExplainRequest { Target = target });
+    }
+
+    [RelayCommand]
+    public async Task ExplainSelectedAsync(ConnectionRowViewModel? row)
+    {
+        if (row is null)
+        {
+            DecisionSummary = "Select a connection first.";
+            DecisionNextAction = string.Empty;
+            DecisionChain.Clear();
+            return;
+        }
+
+        var programPath = ResolveProgramPath(row.Pid);
+        ExplainInput = row.ResearchTarget;
+        await ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            Domain = row.Host,
+            RemoteAddr = row.RemoteAddr,
+            RemotePort = row.RemotePort,
+            Protocol = row.Protocol,
+            Process = row.Process,
+            ProgramPath = programPath,
+            Direction = "Out",
+            Service = row.Service,
+        });
+    }
+
+    private async Task ExplainDecisionAsync(DecisionExplainRequest request)
+    {
+        try
+        {
+            var result = await _client.Firewall.ExplainDecisionAsync(request);
+            DecisionChain.Clear();
+            foreach (var step in result.Steps)
+            {
+                DecisionChain.Add(new DecisionStepViewModel
+                {
+                    Order = step.Order,
+                    Layer = step.Layer,
+                    Outcome = step.Outcome,
+                    Owner = step.Owner,
+                    Detail = step.Detail,
+                    NextAction = step.NextAction,
+                });
+            }
+
+            DecisionSummary = $"{result.Verdict}: {result.Summary}";
+            DecisionNextAction = result.NextSafeAction;
+            StatusText = result.Summary;
+        }
+        catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
+        {
+            DecisionSummary = "Decision explanation failed - service unavailable";
+            DecisionNextAction = "Reconnect from the status bar, then retry.";
+            DecisionChain.Clear();
+            StatusText = DecisionSummary;
         }
     }
 
@@ -1217,6 +1325,23 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
         StatusText = ack.Message;
+    }
+
+    private static string ResolveProgramPath(int pid)
+    {
+        if (pid <= 0)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return System.Diagnostics.Process.GetProcessById(pid).MainModule?.FileName ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return string.Empty;
+        }
     }
 
     /// <summary>

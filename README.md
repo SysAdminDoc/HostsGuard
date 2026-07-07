@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.9-blue)
+![Version](https://img.shields.io/badge/version-0.12.10-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -92,7 +92,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
 | Connection history | Retention-bounded searchable log of past connections (default 30 days) |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
-| Explain / look up connection | Right-click a connection to look it up — VirusTotal, who.is, Google on the resolved domain; AbuseIPDB on the IP |
+| Explain / look up connection | Right-click a connection to show the ordered hosts/firewall/trust/profile/kill-switch decision chain, or look it up on VirusTotal, who.is, Google, and AbuseIPDB |
 | Learning review | Batch-promote, reverse, or discard Learning-mode auto-decisions |
 
 ### Hosts File
@@ -146,6 +146,7 @@ HostsGuard.Cli status
 HostsGuard.Cli block <domain> [reason]
 HostsGuard.Cli allow <domain> [reason]
 HostsGuard.Cli unblock <domain>
+HostsGuard.Cli explain <domain|ip|process|exe> [--program path] [--port N] [--proto tcp|udp]
 HostsGuard.Cli export [path.json]
 HostsGuard.Cli export-policy [path.json]
 HostsGuard.Cli import-policy <path.json>
@@ -170,11 +171,11 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 785 tests, no elevation needed
+dotnet test HostsGuard.sln           # 790 tests, no elevation needed
 build\publish.ps1                    # single-file self-contained win-x64 -> dist\dotnet\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.9-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.10-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

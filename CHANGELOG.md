@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.10] - 2026-07-07
+
+### Added
+- Added a rule decision explainer and simulator through `FirewallControl`,
+  WPF Firewall Activity, and `HostsGuard.Cli explain`.
+- Explanations now show ordered hosts, firewall-rule, trust, profile-default,
+  and VPN kill-switch evidence with the next safe action for the operator.
+
 ## [0.12.9] - 2026-07-07
 
 ### Added

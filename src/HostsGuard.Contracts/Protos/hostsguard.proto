@@ -432,6 +432,9 @@ service FirewallControl {
   rpc BlockProgram(FirewallProgramRequest) returns (Ack);
   rpc CreateRule(FirewallRule) returns (Ack);
   rpc DeleteRule(RuleNameRequest) returns (Ack);
+  // Rule/hosts/posture explainer (NET-140): simulate the ordered local
+  // decision chain for a selected row or manually entered domain/IP/process.
+  rpc ExplainDecision(DecisionExplainRequest) returns (DecisionExplanation);
   rpc SetRuleEnabled(RuleEnabledRequest) returns (Ack);
   rpc ListRules(Empty) returns (FirewallRuleList);
   rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
@@ -494,6 +497,35 @@ message GlobalModeRequest {
 message AppScopeRequest {
   string program_path = 1;
   string scope = 2;  // "internet" | "lan" | "localhost" | "inbound"
+}
+
+message DecisionExplainRequest {
+  string target = 1;       // generic domain/IP/process/path from CLI/UI input
+  string domain = 2;
+  string remote_addr = 3;
+  int32 remote_port = 4;
+  string protocol = 5;     // "TCP" | "UDP" | "Any"; empty = Any
+  string process = 6;      // display name when full path is unavailable
+  string program_path = 7;
+  string direction = 8;    // "Out" | "In"; empty = Out
+  string signer = 9;       // optional Authenticode subject for publisher trust
+  string service = 10;     // SCM service key/display when known
+}
+
+message DecisionStep {
+  int32 order = 1;
+  string layer = 2;
+  string outcome = 3;      // Block | Allow | Observed | Unknown
+  string owner = 4;        // rule/source/profile/trust entry
+  string detail = 5;
+  string next_action = 6;
+}
+
+message DecisionExplanation {
+  string verdict = 1;          // Blocked | Allowed | Unknown
+  string summary = 2;
+  string next_safe_action = 3;
+  repeated DecisionStep steps = 4;
 }
 
 message FirewallPosture {

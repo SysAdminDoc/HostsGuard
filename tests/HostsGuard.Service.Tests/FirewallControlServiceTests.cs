@@ -303,6 +303,122 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ExplainDecision_reports_hosts_block_before_firewall_policy()
+    {
+        _state.Db.AddDomain("ads.example.test", "blocked", "manual");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var explanation = await Client(channel).ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            Domain = "ads.example.test",
+            RemoteAddr = "203.0.113.20",
+            RemotePort = 443,
+            Protocol = "TCP",
+        });
+
+        explanation.Verdict.Should().Be("Blocked");
+        explanation.Steps.Should().Contain(s => s.Layer == "Hosts" && s.Outcome == "Block" && s.Owner == "manual");
+        explanation.NextSafeAction.Should().Contain("Allow");
+    }
+
+    [Fact]
+    public async Task ExplainDecision_reports_matching_firewall_block_and_allow_rules()
+    {
+        var program = Path.Combine(_dir, "browser.exe");
+        _fw.Rules["HG_Block_Test_Out"] = new FwRule(
+            "HG_Block_Test_Out", "Out", "Block", true, "203.0.113.0/24", "TCP", program, "hostsguard", "443");
+        _state.Db.AssignRuleToGroup("HG_Block_Test_Out", "Browser lockdown");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var blocked = await fw.ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            RemoteAddr = "203.0.113.21",
+            RemotePort = 443,
+            Protocol = "TCP",
+            ProgramPath = program,
+        });
+
+        blocked.Verdict.Should().Be("Blocked");
+        blocked.Steps.Should().Contain(s => s.Layer == "Firewall rule" && s.Owner.Contains("HG_Block_Test_Out"));
+
+        _fw.Rules.Clear();
+        _fw.SetDefaultOutboundBlock(true);
+        _fw.Rules["HG_Allow_Test_Out"] = new FwRule(
+            "HG_Allow_Test_Out", "Out", "Allow", true, "Any", "Any", program, "hostsguard");
+
+        var allowed = await fw.ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            RemoteAddr = "198.51.100.9",
+            ProgramPath = program,
+        });
+
+        allowed.Verdict.Should().Be("Allowed");
+        allowed.Steps.Should().Contain(s => s.Layer == "Firewall rule" && s.Outcome == "Allow");
+    }
+
+    [Fact]
+    public async Task ExplainDecision_reports_trusted_publisher_and_folder()
+    {
+        var trustedRoot = Path.Combine(_dir, "trusted");
+        var program = Path.Combine(trustedRoot, "tool.exe");
+        _state.Consent.SetTrustedPublishers(new[] { "Trusted Corp" });
+        _state.Consent.SetTrustedFolders(new[] { trustedRoot });
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var explanation = await Client(channel).ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            ProgramPath = program,
+            Signer = "CN=Trusted Corp, O=Trusted Corp",
+            RemoteAddr = "198.51.100.22",
+        });
+
+        explanation.Verdict.Should().Be("Allowed");
+        explanation.Steps.Should().Contain(s => s.Owner == "trusted publisher:Trusted Corp" && s.Outcome == "Allow");
+        explanation.Steps.Should().Contain(s => s.Owner.StartsWith("trusted folder:", StringComparison.Ordinal) && s.Outcome == "Allow");
+    }
+
+    [Fact]
+    public async Task ExplainDecision_reports_profile_default_block()
+    {
+        _fw.SetDefaultOutboundBlock(true);
+        _fw.Rules["System package allow"] = new FwRule(
+            "System package allow", "Out", "Allow", true, "Any", "Any", "", "system");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var explanation = await Client(channel).ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            RemoteAddr = "198.51.100.23",
+            Protocol = "TCP",
+            RemotePort = 443,
+        });
+
+        explanation.Verdict.Should().Be("Blocked");
+        explanation.Steps.Should().NotContain(s => s.Owner == "System package allow");
+        explanation.Steps.Should().Contain(s => s.Layer == "Profile default" && s.Outcome == "Block");
+        explanation.NextSafeAction.Should().Contain("allow rule");
+    }
+
+    [Fact]
+    public async Task ExplainDecision_reports_engaged_kill_switch()
+    {
+        using var killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => false, _dir);
+        _state.KillSwitch = killSwitch;
+        killSwitch.Configure(true, "Test VPN").Ok.Should().BeTrue();
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var explanation = await Client(channel).ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            RemoteAddr = "198.51.100.24",
+            Protocol = "UDP",
+            RemotePort = 443,
+        });
+
+        explanation.Verdict.Should().Be("Blocked");
+        explanation.Steps.Should().Contain(s => s.Layer == "Posture" && s.Owner == "VPN kill-switch" && s.Outcome == "Block");
+    }
+
+    [Fact]
     public async Task WatchConnections_streams_published_sightings()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

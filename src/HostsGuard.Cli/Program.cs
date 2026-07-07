@@ -1,10 +1,12 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 using HostsGuard.Ipc;
 using HostsGuard.Windows;
 
@@ -21,6 +23,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
     "block-app" => await ProgramOpAsync(args, block: true),
     "unblock-app" => await ProgramOpAsync(args, block: false),
+    "explain" => await ExplainAsync(args),
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
@@ -53,6 +56,8 @@ static int Usage()
           HostsGuard.Cli unblock <domain>
           HostsGuard.Cli block-app <exe-path> [out|in]
           HostsGuard.Cli unblock-app <exe-path> [out|in]
+          HostsGuard.Cli explain <domain|ip|process|exe> [--domain d] [--ip a] [--program path]
+                              [--process name] [--port n] [--proto tcp|udp] [--direction out|in]
           HostsGuard.Cli export [path.json]
           HostsGuard.Cli export-policy [path.json]
           HostsGuard.Cli import-policy <path.json>
@@ -170,6 +175,144 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         }
     }
 }
+
+static async Task<int> ExplainAsync(string[] args)
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing target.");
+        return Usage();
+    }
+
+    var request = BuildExplainRequest(args);
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var explanation = await new FirewallControl.FirewallControlClient(channel).ExplainDecisionAsync(request);
+            Console.WriteLine($"{explanation.Verdict}: {explanation.Summary}");
+            Console.WriteLine($"next: {explanation.NextSafeAction}");
+            foreach (var step in explanation.Steps)
+            {
+                Console.WriteLine($"{step.Order}. [{step.Outcome}] {step.Layer} - {step.Owner}");
+                Console.WriteLine($"   {step.Detail}");
+                if (!string.IsNullOrWhiteSpace(step.NextAction))
+                {
+                    Console.WriteLine($"   action: {step.NextAction}");
+                }
+            }
+
+            return explanation.Verdict == "Unknown" ? 2 : 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static DecisionExplainRequest BuildExplainRequest(string[] args)
+{
+    var request = new DecisionExplainRequest { Target = args[1] };
+    ApplyTarget(request, args[1]);
+    for (var i = 2; i < args.Length; i++)
+    {
+        var key = args[i].Trim().ToLowerInvariant();
+        if (!key.StartsWith("--", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        var value = i + 1 < args.Length ? args[++i] : string.Empty;
+        switch (key)
+        {
+            case "--domain":
+                request.Domain = value;
+                break;
+            case "--ip":
+            case "--addr":
+            case "--remote":
+                request.RemoteAddr = value;
+                break;
+            case "--program":
+            case "--path":
+                request.ProgramPath = value;
+                if (string.IsNullOrWhiteSpace(request.Process))
+                {
+                    request.Process = Path.GetFileName(value);
+                }
+
+                break;
+            case "--process":
+            case "--app":
+                request.Process = value;
+                break;
+            case "--port":
+                if (int.TryParse(value, out var port))
+                {
+                    request.RemotePort = port;
+                }
+
+                break;
+            case "--proto":
+            case "--protocol":
+                request.Protocol = value;
+                break;
+            case "--direction":
+            case "--dir":
+                request.Direction = value;
+                break;
+            case "--signer":
+                request.Signer = value;
+                break;
+            case "--service":
+                request.Service = value;
+                break;
+        }
+    }
+
+    return request;
+}
+
+static void ApplyTarget(DecisionExplainRequest request, string target)
+{
+    var t = (target ?? string.Empty).Trim();
+    if (t.Length == 0)
+    {
+        return;
+    }
+
+    if (Domains.LooksLikeDomain(t))
+    {
+        request.Domain = t;
+    }
+    else if (IPAddress.TryParse(t, out _))
+    {
+        request.RemoteAddr = t;
+    }
+    else if (LooksLikePath(t))
+    {
+        request.ProgramPath = t;
+        request.Process = Path.GetFileName(t);
+    }
+    else
+    {
+        request.Process = t;
+    }
+}
+
+static bool LooksLikePath(string target) =>
+    target.Contains('\\', StringComparison.Ordinal) ||
+    target.Contains('/', StringComparison.Ordinal) ||
+    target.Contains(':', StringComparison.Ordinal);
 
 // NET-114: block/unblock a program's outbound (or inbound) via the HG_ firewall
 // rule. block-app creates it (BlockProgram); unblock-app deletes the same-named

@@ -54,6 +54,7 @@ public class SchemaLockTests
           BlockQuic(Empty) returns (Ack)
           CreateRule(FirewallRule) returns (Ack)
           DeleteRule(RuleNameRequest) returns (Ack)
+          ExplainDecision(DecisionExplainRequest) returns (DecisionExplanation)
           GetKillSwitch(Empty) returns (KillSwitchStatus)
           GetPosture(Empty) returns (FirewallPosture)
           GetSecureRules(Empty) returns (SecureRulesStatus)
