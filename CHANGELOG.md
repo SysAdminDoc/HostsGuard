@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.14] - 2026-07-07
+
+### Added
+- Added a settings-lock PasswordBox watermark using a compiled-window local
+  style plus an attached empty-state helper, avoiding the shared theme
+  dictionary parse trap while keeping headless style tests green.
+
 ## [0.12.13] - 2026-07-07
 
 ### Fixed

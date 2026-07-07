@@ -18,6 +18,55 @@
         <svc:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <svc:EmptyStateVisibilityConverter x:Key="EmptyStateVis" />
         <svc:ObjectPresentBooleanConverter x:Key="ObjectPresentBool" />
+        <Style x:Key="Hg.LockPasswordBox" TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Grid>
+                            <Border x:Name="FocusRing"
+                                    BorderBrush="{DynamicResource Hg.Focus}"
+                                    BorderThickness="2"
+                                    CornerRadius="8"
+                                    Margin="-2"
+                                    Opacity="0"
+                                    IsHitTestVisible="False" />
+                            <Border x:Name="Chrome"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6">
+                                <Grid>
+                                    <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                                    <TextBlock x:Name="Hint"
+                                               Margin="8,0"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False"
+                                               Visibility="Collapsed"
+                                               Foreground="{DynamicResource Hg.Dim}"
+                                               Text="{Binding Path=(svc:PasswordBoxHelper.Watermark), RelativeSource={RelativeSource TemplatedParent}}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="svc:PasswordBoxHelper.IsEmpty" Value="True">
+                                <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                                <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <Grid>
         <tb:TaskbarIcon x:Name="Tray"
@@ -1913,6 +1962,8 @@
                                         <Button DockPanel.Dock="Right" Content="Protect hosts file" Command="{Binding ProtectHostsCommand}" Margin="6,0,0,0" Padding="10,2"
                                                 ToolTip="Enforce a SYSTEM+Admins-only DACL on the hosts file" />
                                         <PasswordBox x:Name="LockPasswordBox" VerticalAlignment="Center"
+                                                     Style="{StaticResource Hg.LockPasswordBox}"
+                                                     svc:PasswordBoxHelper.Watermark="Enter lock password"
                                                      AutomationProperties.Name="Settings lock password" />
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">

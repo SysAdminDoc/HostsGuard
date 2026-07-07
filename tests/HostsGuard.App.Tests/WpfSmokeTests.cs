@@ -220,6 +220,11 @@ public sealed class WpfSmokeTests
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
                     .Should().Contain(t => t.StartsWith("Use a domain, service target, or fw:HG_RuleName", StringComparison.Ordinal));
+                var lockPassword = (PasswordBox)window.FindName("LockPasswordBox");
+                PasswordBoxHelper.GetWatermark(lockPassword).Should().Be("Enter lock password");
+                PasswordBoxHelper.GetIsEmpty(lockPassword).Should().BeTrue();
+                lockPassword.Template.Triggers.OfType<Trigger>()
+                    .Should().Contain(t => t.Property == PasswordBoxHelper.IsEmptyProperty && Equals(t.Value, true));
 
                 _stage = $"{theme}: constructing ConsentWindow";
                 var consent = new ConsentWindow(new ConnectionDecisionRequest
