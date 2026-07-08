@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.25] - 2026-07-08
+
+### Fixed
+- `ServiceState.Dispose` now disposes `AiCategorizer`, which in turn disposes
+  its owned disposable completer/DeepSeek `HttpClient`; regression coverage
+  verifies the service shutdown path releases the AI completer.
+
 ## [0.12.24] - 2026-07-08
 
 ### Fixed

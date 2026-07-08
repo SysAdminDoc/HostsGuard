@@ -302,6 +302,7 @@ public sealed class ServiceState : IDisposable
         Schedules.Dispose();
         TempAllows.Dispose();
         ActivityPersistence.Dispose();
+        Ai.Dispose();
         Db.Dispose();
     }
 }

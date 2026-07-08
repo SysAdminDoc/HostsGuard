@@ -81,7 +81,7 @@ public sealed class DeepSeekCompleter : IAiCompleter, IDisposable
 /// the managed hosts entries under their category section headers.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class AiCategorizer
+public sealed class AiCategorizer : IDisposable
 {
     private const int BatchSize = 60;
     private const int MaxDomainsPerRun = 600;
@@ -122,6 +122,14 @@ public sealed class AiCategorizer
         _completer = completer ?? throw new ArgumentNullException(nameof(completer));
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDir);
         _configPath = Path.Combine(dataDir, "ai_config.json");
+    }
+
+    public void Dispose()
+    {
+        if (_completer is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     public AiSettings Settings

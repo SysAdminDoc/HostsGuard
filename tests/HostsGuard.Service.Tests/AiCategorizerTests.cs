@@ -7,17 +7,21 @@ using Xunit;
 
 namespace HostsGuard.Service.Tests;
 
-internal sealed class FakeAiCompleter : IAiCompleter
+internal sealed class FakeAiCompleter : IAiCompleter, IDisposable
 {
     public string Reply { get; set; } = "{}";
 
     public List<string> Prompts { get; } = new();
+
+    public bool Disposed { get; private set; }
 
     public Task<string> CompleteAsync(AiSettings settings, string systemPrompt, string userPrompt, CancellationToken ct)
     {
         Prompts.Add(userPrompt);
         return Task.FromResult(Reply);
     }
+
+    public void Dispose() => Disposed = true;
 }
 
 [SupportedOSPlatform("windows")]
@@ -43,6 +47,7 @@ public sealed class AiCategorizerTests : IDisposable
 
     public void Dispose()
     {
+        _ai.Dispose();
         _db.Dispose();
         SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
@@ -58,6 +63,21 @@ public sealed class AiCategorizerTests : IDisposable
         _ai.Settings.ApiKey.Should().Be("sk-test-123");
         _ai.Settings.Model.Should().Be("deepseek-reasoner");
         _ai.Settings.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ServiceState_disposes_ai_completer()
+    {
+        var completer = new FakeAiCompleter();
+        var state = new ServiceState(
+            new HostsEngine(_hostsPath),
+            new HostsDatabase(Path.Combine(_dir, "state-ai.db")),
+            dataDir: _dir,
+            aiCompleter: completer);
+
+        state.Dispose();
+
+        completer.Disposed.Should().BeTrue();
     }
 
     [Fact]
