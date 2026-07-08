@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.31] - 2026-07-08
+
+### Tests
+- Verified the audit-exposed gap list is now covered by targeted regressions for
+  service reconnect/token rotation, event-ledger LIKE escaping, SQL-paged event
+  category filters, and retention sweeps.
+
 ## [0.12.30] - 2026-07-08
 
 ### Fixed
