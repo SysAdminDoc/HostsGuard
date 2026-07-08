@@ -41,7 +41,8 @@ public static class PolicyPortability
         if (state.Firewall is { } fw)
         {
             foreach (var r in fw.ListRules()
-                .Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)))
+                .Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)
+                    && !r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal)))
             {
                 policy.FirewallRules.Add(new PolicyFirewallRule
                 {
@@ -56,6 +57,19 @@ public static class PolicyPortability
                     ServiceName = r.ServiceName,
                 });
             }
+        }
+
+        foreach (var r in state.Db.ListDomainFirewallRules())
+        {
+            policy.DomainFirewallRules.Add(new PolicyDomainFirewallRule
+            {
+                Domain = r.Domain,
+                Program = r.Program,
+                RuleName = r.RuleName,
+                Action = r.Action,
+                Enabled = r.Enabled,
+                RemoteAddr = r.RemoteAddr,
+            });
         }
 
         foreach (var (target, days, start, end) in state.Db.GetSchedules())
@@ -255,6 +269,52 @@ public static class PolicyPortability
         }
 
         // ── Schedules (replace-all) ──
+        var domainFirewallCreated = 0;
+        foreach (var r in policy.DomainFirewallRules)
+        {
+            if (string.IsNullOrWhiteSpace(r.Domain) ||
+                string.IsNullOrWhiteSpace(r.RuleName) ||
+                !r.RuleName.StartsWith("HG_Domain_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var ruleName = r.RuleName.Trim();
+            var action = FwRuleMapper.MapAction(r.Action);
+            var remote = string.IsNullOrWhiteSpace(r.RemoteAddr) ? string.Empty : r.RemoteAddr.Trim();
+            state.Db.UpsertDomainFirewallRule(
+                r.Domain.Trim(),
+                r.Program ?? string.Empty,
+                ruleName,
+                action,
+                r.Enabled,
+                remote);
+
+            if (state.Firewall is { } fw2 && remote.Length != 0)
+            {
+                var rule = new FwRule(
+                    ruleName,
+                    "Out",
+                    action,
+                    r.Enabled,
+                    remote,
+                    "Any",
+                    r.Program ?? string.Empty,
+                    "hostsguard");
+                if (fw2.CreateRule(rule))
+                {
+                    domainFirewallCreated++;
+                }
+
+                state.Db.UpsertFwState(rule.Name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol, rule.Program);
+            }
+        }
+
+        if (policy.DomainFirewallRules.Count != 0)
+        {
+            summary.Add($"{policy.DomainFirewallRules.Count} domain firewall rules (+{domainFirewallCreated} created)");
+        }
+
         state.Db.SetSchedules(policy.Schedules.Select(s => (s.Target, s.Days, s.Start, s.End)));
         state.Schedules.Kick();
         summary.Add($"{policy.Schedules.Count} schedules");

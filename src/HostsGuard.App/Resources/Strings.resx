@@ -248,6 +248,8 @@
   <data name="Xaml_Live_firewall_connections_9f7d7451" xml:space="preserve"><value>Live firewall connections</value></data>
   <data name="Xaml_Block_this_site_domain_99db658c" xml:space="preserve"><value>Block this site (domain)</value></data>
   <data name="Xaml_Block_the_resolved_domain_via_the_9b0f5c9b" xml:space="preserve"><value>Block the resolved domain via the hosts file (durable - survives IP rotation); falls back to the IP when unresolved</value></data>
+  <data name="Xaml_Block_site_for_this_app_firewall_154a0d67" xml:space="preserve"><value>Block this site for this app (firewall)</value></data>
+  <data name="Xaml_Create_a_per_app_domain_firewall_rule_154a0d67" xml:space="preserve"><value>Create a per-app HG_Domain firewall rule whose IPs follow DNS answers; safer than global IP blocking on CDN-shared addresses</value></data>
   <data name="Xaml_Allow_this_site_domain_7a372753" xml:space="preserve"><value>Allow this site (domain)</value></data>
   <data name="Xaml_Whitelist_the_resolved_domain_via_the_8decb985" xml:space="preserve"><value>Whitelist the resolved domain via the hosts file</value></data>
   <data name="Xaml_Block_remote_IP_5e8f9ae4" xml:space="preserve"><value>Block remote IP</value></data>
@@ -284,6 +286,7 @@
   <data name="Xaml_Decision_7f59a1f1" xml:space="preserve"><value>Decision</value></data>
   <data name="Xaml_LOCAL_9be34046" xml:space="preserve"><value>LOCAL</value></data>
   <data name="Xaml_Block_site_4721aec9" xml:space="preserve"><value>Block site</value></data>
+  <data name="Xaml_Block_site_app_154a0d67" xml:space="preserve"><value>Block site/app</value></data>
   <data name="Xaml_Allow_site_6217275e" xml:space="preserve"><value>Allow site</value></data>
   <data name="Xaml_Block_IP_907a3ec9" xml:space="preserve"><value>Block IP</value></data>
   <data name="Xaml_Block_app_5cb3c2de" xml:space="preserve"><value>Block app</value></data>

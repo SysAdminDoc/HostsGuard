@@ -75,6 +75,17 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
             Rules[name] = rule with { Program = programPath };
             return true;
         }
+
+        public bool SetRuleRemoteAddresses(string name, string remoteAddresses)
+        {
+            if (!Rules.TryGetValue(name, out var rule))
+            {
+                return false;
+            }
+
+            Rules[name] = rule with { RemoteAddr = remoteAddresses };
+            return true;
+        }
     }
 
     public async Task InitializeAsync()

@@ -26,7 +26,8 @@ public sealed class ServiceState : IDisposable
         IDefender? defender = null,
         IAiCompleter? aiCompleter = null,
         IFlowTerminator? flowTerminator = null,
-        Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null)
+        Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null,
+        Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -46,6 +47,7 @@ public sealed class ServiceState : IDisposable
             db,
             flowTerminator,
             connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot()));
+        DomainFirewall = new DomainFirewallRuleCoordinator(db, firewall, domainResolver);
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
@@ -161,6 +163,9 @@ public sealed class ServiceState : IDisposable
     public EnforcementPauseCoordinator EnforcementPause { get; }
 
     public FlowTeardownCoordinator FlowTeardown { get; }
+
+    /// <summary>Reactive domain-scoped firewall rules (NET-154).</summary>
+    public DomainFirewallRuleCoordinator DomainFirewall { get; }
 
     /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
     public BandwidthAggregator? Bandwidth { get; set; }
@@ -316,6 +321,7 @@ public sealed class ServiceState : IDisposable
         var now = DateTime.Now;
         ResolvedIps.Record(d, addresses, now);
         ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
+        DomainFirewall.ObserveResolution(d, addresses);
     }
 
     public Task FlushActivityPersistenceAsync(CancellationToken cancellationToken = default) =>
@@ -330,6 +336,7 @@ public sealed class ServiceState : IDisposable
         GeoIp.Dispose();
         Lists?.Dispose();
         Schedules.Dispose();
+        DomainFirewall.Dispose();
         EnforcementPause.Dispose();
         TempAllows.Dispose();
         ActivityPersistence.Dispose();

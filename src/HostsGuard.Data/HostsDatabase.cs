@@ -24,6 +24,17 @@ public sealed record DnsSightingWrite(string Domain, string Process, string? Rea
 public sealed record FwStateRow(
     string Name, string? Direction, string? Action, string? RemoteAddr, string? Protocol, string? Program);
 
+/// <summary>A domain-scoped firewall rule intent (reactive DNS answers -> HG_Domain_* rule).</summary>
+public sealed record DomainFirewallRuleRow(
+    string Domain,
+    string Program,
+    string RuleName,
+    string Action,
+    bool Enabled,
+    string RemoteAddr,
+    string Updated,
+    string Created);
+
 /// <summary>Current full Windows Firewall rule snapshot row (report-only baseline).</summary>
 public sealed class FirewallRuleSnapshotRow
 {
@@ -159,7 +170,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 18;
+    public const int SchemaVersion = 19;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -223,6 +234,12 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS fw_state(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT, protocol TEXT,
                 program TEXT, created TEXT);
+            CREATE TABLE IF NOT EXISTS domain_firewall_rules(
+                rule_name TEXT PRIMARY KEY, domain TEXT NOT NULL, program TEXT NOT NULL DEFAULT '',
+                action TEXT NOT NULL DEFAULT 'Block', enabled INTEGER DEFAULT 1,
+                remote_addr TEXT NOT NULL DEFAULT '', updated TEXT, created TEXT,
+                UNIQUE(domain, program));
+            CREATE INDEX IF NOT EXISTS idx_domain_firewall_rules_domain ON domain_firewall_rules(domain);
             CREATE TABLE IF NOT EXISTS firewall_rule_snapshot(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, enabled INTEGER DEFAULT 0,
                 remote_addr TEXT, protocol TEXT, program TEXT, source TEXT, remote_ports TEXT, service_name TEXT,

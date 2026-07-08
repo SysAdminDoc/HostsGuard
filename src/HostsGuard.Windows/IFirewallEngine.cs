@@ -38,4 +38,7 @@ public interface IFirewallEngine
 
     /// <summary>Re-target an existing rule's program path (orphan rebind).</summary>
     bool SetRuleProgram(string name, string programPath);
+
+    /// <summary>Replace an existing rule's remote-address set.</summary>
+    bool SetRuleRemoteAddresses(string name, string remoteAddresses);
 }

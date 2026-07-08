@@ -28,6 +28,8 @@ public sealed class PortablePolicy
 
     public List<PolicyFirewallRule> FirewallRules { get; set; } = new();
 
+    public List<PolicyDomainFirewallRule> DomainFirewallRules { get; set; } = new();
+
     public List<PolicySchedule> Schedules { get; set; } = new();
 
     public List<PolicyProfile> Profiles { get; set; } = new();
@@ -87,6 +89,7 @@ public sealed class PortablePolicy
         // a section AND the property had no initializer path taken.
         policy.Domains ??= new();
         policy.FirewallRules ??= new();
+        policy.DomainFirewallRules ??= new();
         policy.Schedules ??= new();
         policy.Profiles ??= new();
         policy.Lock ??= new();
@@ -113,6 +116,22 @@ public sealed class PolicyDomain
     public string Category { get; set; } = string.Empty;
 
     public string Notes { get; set; } = string.Empty;
+}
+
+/// <summary>A domain-scoped firewall rule intent whose live IPs refresh from DNS.</summary>
+public sealed class PolicyDomainFirewallRule
+{
+    public string Domain { get; set; } = string.Empty;
+
+    public string Program { get; set; } = string.Empty;
+
+    public string RuleName { get; set; } = string.Empty;
+
+    public string Action { get; set; } = "Block";
+
+    public bool Enabled { get; set; } = true;
+
+    public string RemoteAddr { get; set; } = string.Empty;
 }
 
 /// <summary>An HG_-authored firewall rule, everything needed to recreate it.</summary>

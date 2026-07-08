@@ -221,6 +221,23 @@ public sealed class FirewallEngine : IFirewallEngine
         return false;
     }
 
+    public bool SetRuleRemoteAddresses(string name, string remoteAddresses)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(remoteAddresses);
+        var policy = CreatePolicy();
+        foreach (var comRule in policy.Rules)
+        {
+            if (string.Equals((string?)comRule.Name, name, StringComparison.Ordinal))
+            {
+                comRule.RemoteAddresses = remoteAddresses is "Any" ? "*" : remoteAddresses;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool Exists(dynamic policy, string name)
     {
         foreach (var comRule in policy.Rules)

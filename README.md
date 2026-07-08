@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.38-blue)
+![Version](https://img.shields.io/badge/version-0.12.39-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -88,7 +88,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Service attribution | svchost-hosted connections show the responsible Windows service (SCM enumeration) |
 | Blocked-connection watch | Security event log 5157/5152 detection feeds the consent broker |
 | Status overlay | Each connection shows blocked-by-hosts/firewall/threat, plus **DIRECT-IP** for raw-IP dials with no preceding DNS lookup |
-| Quick blocking | Block any remote IP or program, or scope-block a program to Internet / LAN / localhost / inbound |
+| Quick blocking | Block any remote IP or program, block a resolved site through the hosts file, create a per-app DNS-following `HG_Domain_` firewall rule, or scope-block a program to Internet / LAN / localhost / inbound |
 | Immediate flow close | Right-click an established IPv4 TCP row to close it now; opt in to **Close TCP on block** to close matching IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 teardown is reported unsupported. |
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
 | Connection history | Retention-bounded searchable log of past connections (default 30 days) |
@@ -114,7 +114,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Feature | Description |
 |---------|-------------|
 | Full rule viewer | All Windows Firewall rules with name, direction, action, protocol, address, program, and report-only drift status |
-| `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable |
+| `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable, including DNS-following `HG_Domain_` per-app rules |
 | Full-firewall drift baseline | Snapshots every Windows Firewall rule and ledgers when foreign rules appear, change, or vanish without auto-reverting non-HostsGuard rules |
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back (only HostsGuard's own rules — your other configuration is never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
@@ -136,7 +136,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
-| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent |
+| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
@@ -175,7 +175,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 837 tests, no elevation needed
+dotnet test HostsGuard.sln           # 840 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
@@ -184,8 +184,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.38-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.38-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.39-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.39-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
@@ -227,7 +227,7 @@ Report vulnerabilities via a GitHub issue with the redacted support bundle
 No. The UI and CLI run unelevated; all privileged work happens in the `HostsGuardSvc` LocalSystem service that the installer registers (installation itself elevates once).
 
 **Q: I blocked a domain but it still resolves**
-Flush the DNS cache (Tools tab) or wait for the cache to expire. Some applications maintain their own DNS cache separate from the OS — the DNS-bypass defenses (QUIC block, DoH blocklist) close the common tunnels.
+Flush the DNS cache (Tools tab) or wait for the cache to expire. Some applications maintain their own DNS cache separate from the OS; for those, use FW Activity -> **Block this site for this app (firewall)** after the site resolves to create a per-app `HG_Domain_` rule whose IP list follows later DNS answers. The DNS-bypass defenses (QUIC block, DoH blocklist) close the common tunnels.
 
 **Q: How do I undo everything?**
 Hosts File tab → **Restore** restores the most recent backup; **Emergency Reset** rewrites the hosts file to Windows defaults; FW Rules tab → **Delete HG Rules** removes all HostsGuard-created firewall rules. Uninstalling does all of this automatically and restores your prior firewall posture.

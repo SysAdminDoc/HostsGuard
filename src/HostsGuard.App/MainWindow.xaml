@@ -1381,6 +1381,10 @@
                                               Command="{Binding PlacementTarget.DataContext.BlockSiteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               ToolTip="{svc:Loc Key=Xaml_Block_the_resolved_domain_via_the_9b0f5c9b}" />
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Block_site_for_this_app_firewall_154a0d67}"
+                                              Command="{Binding PlacementTarget.DataContext.BlockDomainFirewallCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="{svc:Loc Key=Xaml_Create_a_per_app_domain_firewall_rule_154a0d67}" />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Allow_this_site_domain_7a372753}"
                                               Command="{Binding PlacementTarget.DataContext.AllowSiteCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -1593,6 +1597,13 @@
                                                     Margin="0,0,6,6"
                                                     Command="{Binding DataContext.BlockSiteCommand, ElementName=ConnectionsGrid}"
                                                     CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ConnectionsGrid, Converter={StaticResource ObjectPresentBool}}" />
+                                            <Button Content="{svc:Loc Key=Xaml_Block_site_app_154a0d67}"
+                                                    Style="{StaticResource Hg.ActionChip}"
+                                                    Margin="0,0,6,6"
+                                                    Command="{Binding DataContext.BlockDomainFirewallCommand, ElementName=ConnectionsGrid}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="{svc:Loc Key=Xaml_Create_a_per_app_domain_firewall_rule_154a0d67}"
                                                     IsEnabled="{Binding SelectedItem, ElementName=ConnectionsGrid, Converter={StaticResource ObjectPresentBool}}" />
                                             <Button Content="{svc:Loc Key=Xaml_Allow_site_6217275e}"
                                                     Style="{StaticResource Hg.ActionChip}"

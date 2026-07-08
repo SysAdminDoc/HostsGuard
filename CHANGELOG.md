@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.39] - 2026-07-08
+
+### Added
+- Added per-app domain-scoped firewall rules (`HG_Domain_*`) whose remote IP
+  lists populate from observed DNS answers and periodic re-resolution, with FW
+  Activity actions, portable-policy round-trip, and decision-explainer evidence.
+
 ## [0.12.38] - 2026-07-08
 
 ### Changed

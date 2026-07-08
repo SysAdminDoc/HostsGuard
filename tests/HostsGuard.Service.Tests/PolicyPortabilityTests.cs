@@ -59,6 +59,13 @@ public sealed class PolicyPortabilityTests : IDisposable
             Protocol = "Any",
             Program = @"C:\evil\evil.exe",
         }, TestContext());
+        src.Db.UpsertDomainFirewallRule(
+            "api.example.com",
+            @"C:\Browser\browser.exe",
+            "HG_Domain_api_example_com_ABCDEF123456",
+            "Block",
+            enabled: true,
+            remoteAddr: "203.0.113.44");
 
         src.Db.SetSchedules(new[] { ("games.example.com", "5,6", "22:00", "23:59") });
         src.Db.AddDomain("work.example.com", "blocked", "manual");
@@ -74,6 +81,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         var json = exported.ToJson();
         var policy = PortablePolicy.FromJson(json);
         policy.Version.Should().Be(PortablePolicy.CurrentVersion);
+        policy.FirewallRules.Should().NotContain(r => r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal));
+        policy.DomainFirewallRules.Should().ContainSingle(r => r.Domain == "api.example.com");
 
         // Import onto a fresh, empty machine.
         var (dst, dstFw) = NewMachine();
@@ -87,6 +96,11 @@ public sealed class PolicyPortabilityTests : IDisposable
 
         dstFw.Rules.Should().ContainKey("HG_BlockApp_evil_Out");
         dstFw.Rules["HG_BlockApp_evil_Out"].Program.Should().Be(@"C:\evil\evil.exe");
+        dst.Db.ListDomainFirewallRules().Should().ContainSingle(r =>
+            r.RuleName == "HG_Domain_api_example_com_ABCDEF123456" &&
+            r.Program == @"C:\Browser\browser.exe" &&
+            r.RemoteAddr == "203.0.113.44");
+        dstFw.Rules.Should().ContainKey("HG_Domain_api_example_com_ABCDEF123456");
 
         dst.Db.GetSchedules().Should().ContainSingle(s => s.Target == "games.example.com" && s.Start == "22:00");
         dst.Db.ListProfiles().Should().Contain("Work");

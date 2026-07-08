@@ -92,6 +92,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
             _ when name.StartsWith("HG_Base_", StringComparison.Ordinal) => "baseline",
             _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => "child-allow",
             _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => "temporary",
+            _ when name.StartsWith("HG_Domain_", StringComparison.Ordinal) => "domain",
             _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => "app-scope",
             _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
                 || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => "DoH block",

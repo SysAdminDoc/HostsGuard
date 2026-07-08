@@ -469,6 +469,12 @@ service FirewallControl {
   // Internet / LAN / localhost, or all inbound. Portmaster-style scope rules.
   rpc BlockAppScope(AppScopeRequest) returns (Ack);
   rpc UnblockAppScope(AppScopeRequest) returns (Ack);
+  // Domain-scoped firewall enforcement (NET-154): maintain HG_Domain_* rules
+  // whose RemoteAddresses follow observed/periodically refreshed DNS answers.
+  rpc CreateDomainFirewallRule(DomainFirewallRuleRequest) returns (Ack);
+  rpc DeleteDomainFirewallRule(RuleNameRequest) returns (Ack);
+  rpc ListDomainFirewallRules(Empty) returns (DomainFirewallRuleList);
+  rpc RefreshDomainFirewallRules(Empty) returns (Ack);
   // Immediate IPv4 TCP flow teardown (NET-152): manual close plus opt-in
   // automatic close after block actions. IPv6 is reported unsupported.
   rpc CloseConnection(FlowCloseRequest) returns (Ack);
@@ -518,6 +524,25 @@ message EnforcementPauseStatus {
 message AppScopeRequest {
   string program_path = 1;
   string scope = 2;  // "internet" | "lan" | "localhost" | "inbound"
+}
+
+message DomainFirewallRuleRequest {
+  string domain = 1;
+  string program_path = 2; // required by default to avoid CDN IP over-blocking
+}
+
+message DomainFirewallRule {
+  string domain = 1;
+  string program = 2;
+  string rule_name = 3;
+  string action = 4;
+  bool enabled = 5;
+  string remote_addr = 6;
+  string updated = 7;
+}
+
+message DomainFirewallRuleList {
+  repeated DomainFirewallRule rules = 1;
 }
 
 message FlowCloseRequest {

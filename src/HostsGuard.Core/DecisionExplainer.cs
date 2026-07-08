@@ -24,6 +24,7 @@ public sealed record DecisionPolicyFacts(
     string? RootStatus,
     string? RootSource,
     IReadOnlyList<FwRule> Rules,
+    IReadOnlyList<DomainFirewallRuleFact> DomainFirewallRules,
     IReadOnlyDictionary<string, IReadOnlyList<string>> RuleGroups,
     IReadOnlyList<FwProfilePosture> Profiles,
     string ActiveProfile,
@@ -32,6 +33,14 @@ public sealed record DecisionPolicyFacts(
     bool KillSwitchEnabled,
     bool KillSwitchEngaged,
     string KillSwitchAdapter);
+
+public sealed record DomainFirewallRuleFact(
+    string Domain,
+    string Program,
+    string RuleName,
+    string Action,
+    bool Enabled,
+    string RemoteAddr);
 
 public sealed record DecisionFactor(
     int Order,
@@ -140,6 +149,24 @@ public static class DecisionExplainer
             .OrderBy(r => RuleRank(r.Action))
             .ThenBy(r => r.Name, StringComparer.Ordinal)
             .ToList();
+        var domainRules = policy.DomainFirewallRules
+            .Where(r => r.Enabled && string.Equals(NormalizeDomain(r.Domain), domain, StringComparison.Ordinal))
+            .Where(r => ProgramMatches(r.Program, "hostsguard", input.ProgramPath, input.Process))
+            .OrderBy(r => RuleRank(r.Action))
+            .ThenBy(r => r.RuleName, StringComparer.Ordinal)
+            .ToList();
+        var domainBlockRules = domainRules.Where(r => string.Equals(r.Action, "Block", StringComparison.OrdinalIgnoreCase)).ToList();
+        var domainAllowRules = domainRules.Where(r => string.Equals(r.Action, "Allow", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        foreach (var rule in domainRules)
+        {
+            Add("Domain firewall", NormalizeAction(rule.Action), rule.RuleName,
+                DescribeDomainRule(rule),
+                string.Equals(rule.Action, "Block", StringComparison.OrdinalIgnoreCase)
+                    ? "Disable/delete this domain firewall rule if the destination should be reachable."
+                    : "This domain-scoped allow covers the app when the domain resolves.");
+        }
+
         var blockRules = matchingRules.Where(r => IsAction(r, "Block")).ToList();
         var allowRules = matchingRules.Where(r => IsAction(r, "Allow")).ToList();
 
@@ -183,7 +210,7 @@ public static class DecisionExplainer
 
         var (verdict, summary, action) = FinalVerdict(
             input, hostsBlocked, hostsAllowed, publisherTrusted, trustedFolder,
-            blockRules, allowRules, policy.KillSwitchEngaged, outboundDefaultBlock, activeProfiles.Count);
+            domainBlockRules, domainAllowRules, blockRules, allowRules, policy.KillSwitchEngaged, outboundDefaultBlock, activeProfiles.Count);
         Add("Result", verdict, "simulator", summary, action);
         return new DecisionExplanationResult(verdict, summary, action, steps);
     }
@@ -194,6 +221,8 @@ public static class DecisionExplainer
         bool hostsAllowed,
         bool publisherTrusted,
         string? trustedFolder,
+        IReadOnlyList<DomainFirewallRuleFact> domainBlockRules,
+        IReadOnlyList<DomainFirewallRuleFact> domainAllowRules,
         IReadOnlyList<FwRule> blockRules,
         IReadOnlyList<FwRule> allowRules,
         bool killSwitchEngaged,
@@ -206,10 +235,22 @@ public static class DecisionExplainer
                 "Allow/temp-allow the domain or remove the owning list/source if this is wrong.");
         }
 
+        if (domainBlockRules.Count != 0)
+        {
+            return ("Blocked", $"Domain firewall rule '{domainBlockRules[0].RuleName}' tracks this domain.",
+                "Disable/delete that domain firewall rule or narrow it to a different app if this is wrong.");
+        }
+
         if (blockRules.Count != 0)
         {
             return ("Blocked", $"Firewall block rule '{blockRules[0].Name}' covers this traffic.",
                 "Review that rule, its group, or create a narrower allow only if the destination is trusted.");
+        }
+
+        if (domainAllowRules.Count != 0)
+        {
+            return ("Allowed", $"Domain firewall allow rule '{domainAllowRules[0].RuleName}' tracks this domain.",
+                "Disable that domain rule if the app or destination should not connect.");
         }
 
         if (allowRules.Count != 0)
@@ -488,6 +529,13 @@ public static class DecisionExplainer
         var remote = string.IsNullOrWhiteSpace(rule.RemoteAddr) ? "Any" : rule.RemoteAddr;
         var ports = string.IsNullOrWhiteSpace(rule.RemotePorts) ? "Any" : rule.RemotePorts;
         return $"{rule.Action} {rule.Direction} {rule.Protocol} {program} -> {remote}:{ports}";
+    }
+
+    private static string DescribeDomainRule(DomainFirewallRuleFact rule)
+    {
+        var program = string.IsNullOrWhiteSpace(rule.Program) ? "any program" : Path.GetFileName(rule.Program);
+        var remote = string.IsNullOrWhiteSpace(rule.RemoteAddr) ? "waiting for DNS answers" : rule.RemoteAddr;
+        return $"{rule.Action} {program} when {rule.Domain} resolves to {remote}";
     }
 
     private static string DescribeInput(string domain, string remoteAddress, int remotePort, string protocol,

@@ -91,6 +91,17 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
         Rules[name] = rule with { Program = programPath };
         return true;
     }
+
+    public bool SetRuleRemoteAddresses(string name, string remoteAddresses)
+    {
+        if (!Rules.TryGetValue(name, out var rule))
+        {
+            return false;
+        }
+
+        Rules[name] = rule with { RemoteAddr = remoteAddresses };
+        return true;
+    }
 }
 
 internal sealed class FakeFlowTerminator : IFlowTerminator
@@ -118,6 +129,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     private FakeFirewallEngine _fw = null!;
     private FakeFlowTerminator _flows = null!;
     private List<ConnectionInfo> _connections = null!;
+    private Dictionary<string, IReadOnlyList<string>> _domainAnswers = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -131,6 +143,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         _fw = new FakeFirewallEngine();
         _flows = new FakeFlowTerminator();
         _connections = new List<ConnectionInfo>();
+        _domainAnswers = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
@@ -138,7 +151,11 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
             new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
             dataDir: _dir,
             flowTerminator: _flows,
-            connectionSnapshot: () => _connections);
+            connectionSnapshot: () => _connections,
+            domainResolver: (domain, _) => Task.FromResult(
+                _domainAnswers.TryGetValue(domain, out var ips)
+                    ? ips
+                    : (IReadOnlyList<string>)Array.Empty<string>()));
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.FwTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -458,6 +475,80 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
 
         allowed.Verdict.Should().Be("Allowed");
         allowed.Steps.Should().Contain(s => s.Layer == "Firewall rule" && s.Outcome == "Allow");
+    }
+
+    [Fact]
+    public async Task CreateDomainFirewallRule_tracks_per_app_rule_and_explainer_reports_domain_layer()
+    {
+        var program = Path.Combine(_dir, "browser.exe");
+        _domainAnswers["api.example.com"] = new[] { "203.0.113.44" };
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var ack = await fw.CreateDomainFirewallRuleAsync(new DomainFirewallRuleRequest
+        {
+            Domain = "api.example.com",
+            ProgramPath = program,
+        });
+
+        ack.Ok.Should().BeTrue();
+        var ruleName = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Domain_api_example_com_", StringComparison.Ordinal));
+        _fw.Rules[ruleName].Program.Should().Be(program);
+        _fw.Rules[ruleName].RemoteAddr.Should().Be("203.0.113.44");
+
+        var rules = await fw.ListDomainFirewallRulesAsync(new Empty());
+        rules.Rules.Should().ContainSingle(r =>
+            r.RuleName == ruleName &&
+            r.Domain == "api.example.com" &&
+            r.Program == program &&
+            r.RemoteAddr == "203.0.113.44");
+
+        var explanation = await fw.ExplainDecisionAsync(new DecisionExplainRequest
+        {
+            Domain = "api.example.com",
+            RemoteAddr = "203.0.113.44",
+            ProgramPath = program,
+        });
+
+        explanation.Verdict.Should().Be("Blocked");
+        explanation.Steps.Should().Contain(s => s.Layer == "Domain firewall" && s.Owner == ruleName);
+    }
+
+    [Fact]
+    public async Task RememberResolution_refreshes_domain_firewall_remote_addresses()
+    {
+        var program = Path.Combine(_dir, "browser.exe");
+        _domainAnswers["api.example.com"] = new[] { "203.0.113.44" };
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+        await fw.CreateDomainFirewallRuleAsync(new DomainFirewallRuleRequest
+        {
+            Domain = "api.example.com",
+            ProgramPath = program,
+        });
+        var ruleName = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Domain_api_example_com_", StringComparison.Ordinal));
+
+        _state.RememberResolution("api.example.com", new[] { "203.0.113.56", "203.0.113.55" });
+
+        _fw.Rules[ruleName].RemoteAddr.Should().Be("203.0.113.55,203.0.113.56");
+        _state.Db.ListDomainFirewallRules().Single(r => r.RuleName == ruleName).RemoteAddr
+            .Should().Be("203.0.113.55,203.0.113.56");
+    }
+
+    [Fact]
+    public async Task CreateDomainFirewallRule_rejects_global_domain_blocks_without_program_path()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await Client(channel).CreateDomainFirewallRuleAsync(new DomainFirewallRuleRequest
+        {
+            Domain = "api.example.com",
+        });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_program");
+        _fw.Rules.Should().BeEmpty();
+        _state.Db.ListDomainFirewallRules().Should().BeEmpty();
     }
 
     [Fact]

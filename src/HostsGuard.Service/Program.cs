@@ -37,6 +37,7 @@ using var listFetcher = new HttpListFetcher();
 var defender = new DefenderConfig();
 using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender,
     flowTerminator: new FlowTerminator());
+state.DomainFirewall.StartPeriodic();
 
 // One-time on start: consolidate any legacy per-vendor category sections
 // ("Snapchat Tracking", "LinkedIn CDN", …) into the canonical taxonomy.

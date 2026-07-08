@@ -301,6 +301,9 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             RootStatus: root.Length == 0 || string.Equals(root, domain, StringComparison.Ordinal) ? null : _state.Db.GetDomainStatus(root),
             RootSource: root.Length == 0 || string.Equals(root, domain, StringComparison.Ordinal) ? null : _state.Db.GetDomainSource(root),
             Rules: rules,
+            DomainFirewallRules: _state.Db.ListDomainFirewallRules()
+                .Select(r => new DomainFirewallRuleFact(r.Domain, r.Program, r.RuleName, r.Action, r.Enabled, r.RemoteAddr))
+                .ToList(),
             RuleGroups: groups,
             Profiles: profiles,
             ActiveProfile: _state.Db.GetMeta("active_profile") ?? string.Empty,
@@ -822,6 +825,52 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         var removed = fw.DeleteRule(name);
         _state.Db.RemoveFwState(name);
         return Task.FromResult(Ok(removed ? $"unblocked {Path.GetFileName(path)} → {scope}" : "scope was not blocked"));
+    }
+
+    public override async Task<Ack> CreateDomainFirewallRule(DomainFirewallRuleRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return gate;
+        }
+
+        return await _state.DomainFirewall.CreateOrUpdateAsync(request.Domain, request.ProgramPath, context.CancellationToken);
+    }
+
+    public override Task<Ack> DeleteDomainFirewallRule(RuleNameRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return Task.FromResult(_state.DomainFirewall.Delete(request.Name));
+    }
+
+    public override Task<DomainFirewallRuleList> ListDomainFirewallRules(Empty request, ServerCallContext context)
+    {
+        var result = new DomainFirewallRuleList();
+        foreach (var row in _state.DomainFirewall.List())
+        {
+            result.Rules.Add(new DomainFirewallRule
+            {
+                Domain = row.Domain,
+                Program = row.Program,
+                RuleName = row.RuleName,
+                Action = row.Action,
+                Enabled = row.Enabled,
+                RemoteAddr = row.RemoteAddr,
+                Updated = row.Updated,
+            });
+        }
+
+        return Task.FromResult(result);
+    }
+
+    public override async Task<Ack> RefreshDomainFirewallRules(Empty request, ServerCallContext context)
+    {
+        var changed = await _state.DomainFirewall.RefreshAllAsync(context.CancellationToken);
+        return Ok($"refreshed {changed} domain firewall rule{(changed == 1 ? string.Empty : "s")}");
     }
 
     public override Task<KillSwitchStatus> GetKillSwitch(Empty request, ServerCallContext context)

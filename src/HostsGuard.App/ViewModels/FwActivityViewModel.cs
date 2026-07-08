@@ -1375,6 +1375,44 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// NET-154: block the row's resolved domain for this app only, using a
+    /// DNS-following HG_Domain_* firewall rule instead of a global IP block.
+    /// </summary>
+    [RelayCommand]
+    public async Task BlockDomainFirewallAsync(ConnectionRowViewModel? row)
+    {
+        if (row is null)
+        {
+            SetOperatorStatus("Select a row first");
+            return;
+        }
+
+        var host = row.Host.Trim().ToLowerInvariant();
+        if (!HostsGuard.Core.Domains.LooksLikeDomain(host))
+        {
+            SetOperatorStatus("This row has no resolved domain for a domain firewall rule");
+            return;
+        }
+
+        var path = ResolveProgramPath(row.Pid);
+        if (path.Length == 0)
+        {
+            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
+            return;
+        }
+
+        await RunServiceActionAsync("Block site for this app", async () =>
+        {
+            var ack = await _client.Firewall.CreateDomainFirewallRuleAsync(new DomainFirewallRuleRequest
+            {
+                Domain = host,
+                ProgramPath = path,
+            });
+            SetOperatorStatus(ack.Message);
+        });
+    }
+
     /// <summary>NET-115: allow (whitelist) the row's resolved site via the hosts file.</summary>
     [RelayCommand]
     public async Task AllowSiteAsync(ConnectionRowViewModel? row)
