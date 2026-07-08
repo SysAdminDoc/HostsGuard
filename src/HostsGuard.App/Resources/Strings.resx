@@ -225,6 +225,9 @@
   <data name="Xaml_Inbound_prompts_a42a5e5c" xml:space="preserve"><value>Inbound prompts</value></data>
   <data name="Xaml_Inbound_connection_consent_d2906bf6" xml:space="preserve"><value>Inbound-connection consent</value></data>
   <data name="Xaml_Inbound_connection_consent_also_prompt_on_2905613f" xml:space="preserve"><value>Inbound-connection consent: also prompt on unruled inbound connections and let you create inbound rules (opt-in; off by default because unsolicited inbound is noisy)</value></data>
+  <data name="Xaml_Close_TCP_on_block_b15d5697" xml:space="preserve"><value>Close TCP on block</value></data>
+  <data name="Xaml_Close_matching_IPv4_TCP_flows_on_block_b80df497" xml:space="preserve"><value>Close matching IPv4 TCP flows on block</value></data>
+  <data name="Xaml_Opt_in_closes_matching_established_899aa84d" xml:space="preserve"><value>Opt-in: closes matching established IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 is reported unsupported.</value></data>
   <data name="Xaml_AI_identify_f32080d7" xml:space="preserve"><value>AI identify</value></data>
   <data name="Xaml_Have_DeepSeek_explain_what_each_connection_bf26cd35" xml:space="preserve"><value>Have DeepSeek explain what each connection is likely for (fills the Info column; results are saved to the AI knowledge log)</value></data>
   <data name="Xaml_Resolve_IPs_263bfa86" xml:space="preserve"><value>Resolve IPs</value></data>
@@ -249,6 +252,8 @@
   <data name="Xaml_Whitelist_the_resolved_domain_via_the_8decb985" xml:space="preserve"><value>Whitelist the resolved domain via the hosts file</value></data>
   <data name="Xaml_Block_remote_IP_5e8f9ae4" xml:space="preserve"><value>Block remote IP</value></data>
   <data name="Xaml_Block_program_accc5df3" xml:space="preserve"><value>Block program</value></data>
+  <data name="Xaml_Close_connection_78b5d6bf" xml:space="preserve"><value>Close connection</value></data>
+  <data name="Xaml_Immediately_close_this_established_IPv4_TCP_b0037bc9" xml:space="preserve"><value>Immediately close this established IPv4 TCP connection. UDP and IPv6 are not torn down.</value></data>
   <data name="Xaml_Block_app_scope_5000247e" xml:space="preserve"><value>Block app scope</value></data>
   <data name="Xaml_Internet_public_IPs_6e6ca14f" xml:space="preserve"><value>Internet (public IPs)</value></data>
   <data name="Xaml_LAN_private_ranges_03642d23" xml:space="preserve"><value>LAN (private ranges)</value></data>

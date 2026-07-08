@@ -154,7 +154,9 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             _state.Db.LogEvent(addr, "fw_blocked", details: name, reason: "manual");
         }
 
-        return Task.FromResult(Ok(created ? $"created {name}" : $"{name} already exists"));
+        var closed = _state.FlowTeardown.CloseForRemoteAddress(addr, "ip_block");
+        var suffix = closed > 0 ? $" and closed {closed} IPv4 TCP flow{(closed == 1 ? string.Empty : "s")}" : string.Empty;
+        return Task.FromResult(Ok((created ? $"created {name}" : $"{name} already exists") + suffix));
     }
 
     public override Task<Ack> BlockProgram(FirewallProgramRequest request, ServerCallContext context)
@@ -181,7 +183,9 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             _state.Db.LogEvent(path, "fw_blocked", details: name, reason: "manual");
         }
 
-        return Task.FromResult(Ok(created ? $"created {name}" : $"{name} already exists"));
+        var closed = _state.FlowTeardown.CloseForProgram(path, "program_block");
+        var suffix = closed > 0 ? $" and closed {closed} IPv4 TCP flow{(closed == 1 ? string.Empty : "s")}" : string.Empty;
+        return Task.FromResult(Ok((created ? $"created {name}" : $"{name} already exists") + suffix));
     }
 
     public override Task<Ack> CreateRule(FirewallRule request, ServerCallContext context)
@@ -372,6 +376,26 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
         return Task.FromResult(list);
     }
+
+    public override Task<Ack> CloseConnection(FlowCloseRequest request, ServerCallContext context)
+        => Task.FromResult(_state.FlowTeardown.CloseManual(new FlowTuple(
+            request.Protocol,
+            request.LocalAddr,
+            request.LocalPort,
+            request.RemoteAddr,
+            request.RemotePort,
+            request.Process)));
+
+    public override Task<FlowTeardownStatus> GetFlowTeardown(Empty request, ServerCallContext context)
+        => Task.FromResult(new FlowTeardownStatus
+        {
+            Available = _state.FlowTeardown.Available,
+            Enabled = _state.FlowTeardown.Enabled,
+            Limit = "IPv4 TCP only",
+        });
+
+    public override Task<Ack> SetFlowTeardown(FlowTeardownRequest request, ServerCallContext context)
+        => Task.FromResult(_state.FlowTeardown.SetEnabled(request.Enabled));
 
     private static FirewallRule ToRule(FwRule rule, FirewallRuleSnapshotRow? snapshot, bool adopted)
     {
@@ -775,6 +799,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             _state.Db.LogEvent(path, "fw_scope_blocked", details: $"{scope}", reason: "manual");
         }
 
+        _state.FlowTeardown.CloseForProgram(path, $"scope_block:{scope}");
         return Task.FromResult(Ok(created
             ? $"blocked {Path.GetFileName(path)} → {scope}"
             : $"{Path.GetFileName(path)} → {scope} already blocked"));

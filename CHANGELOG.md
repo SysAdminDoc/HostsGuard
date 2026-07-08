@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.36] - 2026-07-08
+
+### Added
+- Added opt-in immediate IPv4 TCP flow teardown after IP, app, consent, or
+  kill-switch blocks, plus a FW Activity right-click action to close an
+  established IPv4 TCP connection. Every successful teardown is ledgered.
+
 ## [0.12.35] - 2026-07-08
 
 ### Added

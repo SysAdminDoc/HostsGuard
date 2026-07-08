@@ -1150,6 +1150,10 @@
                                       ToolTip="{svc:Loc Key=Xaml_Inbound_connection_consent_also_prompt_on_2905613f}" />
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
+                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Close_TCP_on_block_b15d5697}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                      IsChecked="{Binding FlowTeardownEnabled}"
+                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Close_matching_IPv4_TCP_flows_on_block_b80df497}"
+                                      ToolTip="{svc:Loc Key=Xaml_Opt_in_closes_matching_established_899aa84d}" />
                             <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_AI_identify_f32080d7}" Margin="10,0,0,0" Padding="10,3"
                                     Command="{Binding IdentifyConnectionsCommand}"
                                     ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_explain_what_each_connection_bf26cd35}" />
@@ -1233,6 +1237,10 @@
                                     <MenuItem Header="{svc:Loc Key=Xaml_Block_program_accc5df3}"
                                               Command="{Binding PlacementTarget.DataContext.QuickBlockProcessCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Close_connection_78b5d6bf}"
+                                              Command="{Binding PlacementTarget.DataContext.CloseConnectionCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="{svc:Loc Key=Xaml_Immediately_close_this_established_IPv4_TCP_b0037bc9}" />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Block_app_scope_5000247e}">
                                         <MenuItem Header="{svc:Loc Key=Xaml_Internet_public_IPs_6e6ca14f}"
                                                   Command="{Binding PlacementTarget.DataContext.BlockScopeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

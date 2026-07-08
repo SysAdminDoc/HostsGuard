@@ -48,6 +48,8 @@ public sealed class KillSwitchMonitor : IDisposable
 
     public Action? BeforeEngage { get; set; }
 
+    public Action? AfterEngage { get; set; }
+
     public Action? AfterRelease { get; set; }
 
     /// <summary>Whether the kill-switch is turned on (may or may not be engaged right now).</summary>
@@ -167,6 +169,7 @@ public sealed class KillSwitchMonitor : IDisposable
         _armed = true;
         SaveState();
         _db.LogEvent("killswitch", "engaged", details: _state.Adapter, reason: "vpn_down");
+        AfterEngage?.Invoke();
     }
 
     // Caller holds _gate.

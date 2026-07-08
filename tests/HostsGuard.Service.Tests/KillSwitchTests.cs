@@ -69,6 +69,20 @@ public sealed class KillSwitchTests : IDisposable
     }
 
     [Fact]
+    public void Engaging_invokes_after_engage_hook()
+    {
+        using var ks = NewMonitor();
+        var calls = 0;
+        ks.AfterEngage = () => calls++;
+        ks.Configure(true, "WireGuard");
+
+        _vpnUp = false;
+        ks.Evaluate();
+
+        calls.Should().Be(1);
+    }
+
+    [Fact]
     public void Vpn_back_up_restores_the_prior_posture()
     {
         _fw.OutboundBlock = false; // user's normal posture: outbound allowed

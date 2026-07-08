@@ -469,6 +469,11 @@ service FirewallControl {
   // Internet / LAN / localhost, or all inbound. Portmaster-style scope rules.
   rpc BlockAppScope(AppScopeRequest) returns (Ack);
   rpc UnblockAppScope(AppScopeRequest) returns (Ack);
+  // Immediate IPv4 TCP flow teardown (NET-152): manual close plus opt-in
+  // automatic close after block actions. IPv6 is reported unsupported.
+  rpc CloseConnection(FlowCloseRequest) returns (Ack);
+  rpc GetFlowTeardown(Empty) returns (FlowTeardownStatus);
+  rpc SetFlowTeardown(FlowTeardownRequest) returns (Ack);
   // VPN-presence kill-switch (NET-119): when the chosen VPN adapter is down,
   // force default-outbound Block on every profile so nothing leaks outside the
   // tunnel; restore the prior posture when it returns. Opt-in, off by default.
@@ -513,6 +518,25 @@ message EnforcementPauseStatus {
 message AppScopeRequest {
   string program_path = 1;
   string scope = 2;  // "internet" | "lan" | "localhost" | "inbound"
+}
+
+message FlowCloseRequest {
+  string protocol = 1;      // "TCP"; UDP cannot be torn down
+  string local_addr = 2;
+  int32 local_port = 3;
+  string remote_addr = 4;
+  int32 remote_port = 5;
+  string process = 6;       // display only, used in the ledger
+}
+
+message FlowTeardownRequest {
+  bool enabled = 1;
+}
+
+message FlowTeardownStatus {
+  bool available = 1;
+  bool enabled = 2;
+  string limit = 3;         // currently "IPv4 TCP only"
 }
 
 message DecisionExplainRequest {

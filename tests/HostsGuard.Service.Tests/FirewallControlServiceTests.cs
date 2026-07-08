@@ -93,6 +93,17 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
     }
 }
 
+internal sealed class FakeFlowTerminator : IFlowTerminator
+{
+    public List<FlowTuple> Closed { get; } = new();
+
+    public FlowTerminationResult CloseTcp4(FlowTuple flow)
+    {
+        Closed.Add(flow);
+        return new FlowTerminationResult(true, "closed IPv4 TCP flow");
+    }
+}
+
 /// <summary>
 /// NET-022 service surface: quick-block, HG_-only mutation guard, custom rule
 /// creation with prefix enforcement, drift + orphan flags, and the live
@@ -105,6 +116,8 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     private WebApplication _app = null!;
     private ServiceState _state = null!;
     private FakeFirewallEngine _fw = null!;
+    private FakeFlowTerminator _flows = null!;
+    private List<ConnectionInfo> _connections = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -116,12 +129,16 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         File.WriteAllText(hostsPath, "# hosts\n");
 
         _fw = new FakeFirewallEngine();
+        _flows = new FakeFlowTerminator();
+        _connections = new List<ConnectionInfo>();
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             _fw,
             new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
-            dataDir: _dir);
+            dataDir: _dir,
+            flowTerminator: _flows,
+            connectionSnapshot: () => _connections);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.FwTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -242,6 +259,59 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
 
         var list = await fw.ListRulesAsync(new Empty());
         list.Rules.Should().Contain(r => r.Name == "HG_Block_203.0.113.7_Out" && r.Source == "hostsguard");
+    }
+
+    [Fact]
+    public async Task Close_connection_terminates_ipv4_tcp_tuple_and_logs()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var ack = await fw.CloseConnectionAsync(new FlowCloseRequest
+        {
+            Protocol = "TCP",
+            LocalAddr = "10.0.0.5",
+            LocalPort = 51000,
+            RemoteAddr = "93.184.216.34",
+            RemotePort = 443,
+            Process = "edge.exe",
+        });
+
+        ack.Ok.Should().BeTrue();
+        _flows.Closed.Should().ContainSingle(f => f.RemoteAddress == "93.184.216.34" && f.RemotePort == 443);
+        _state.Db.GetEvents(new EventLogFilter(Action: EventTaxonomy.FwFlowTeardown)).Rows
+            .Should().ContainSingle(e => e.Process == "edge.exe" && e.Domain == "93.184.216.34:443");
+    }
+
+    [Fact]
+    public async Task Flow_teardown_opt_in_closes_matching_ipv4_tcp_after_ip_block()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+        await fw.SetFlowTeardownAsync(new FlowTeardownRequest { Enabled = true });
+        _connections.Add(new ConnectionInfo("TCP", "10.0.0.5", 51000, "203.0.113.7", 443, "ESTABLISHED", 42, "browser"));
+        _connections.Add(new ConnectionInfo("TCP", "10.0.0.5", 51001, "203.0.113.8", 443, "ESTABLISHED", 42, "browser"));
+        _connections.Add(new ConnectionInfo("UDP", "10.0.0.5", 51002, "203.0.113.7", 53, "", 42, "browser"));
+
+        var ack = await fw.BlockIpAsync(new FirewallIpRequest { Address = "203.0.113.7", Direction = "Outbound" });
+
+        ack.Ok.Should().BeTrue();
+        ack.Message.Should().Contain("closed 1 IPv4 TCP flow");
+        _flows.Closed.Should().ContainSingle(f => f.RemoteAddress == "203.0.113.7" && f.Protocol == "TCP");
+    }
+
+    [Fact]
+    public async Task Flow_teardown_stays_off_until_enabled()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+        _connections.Add(new ConnectionInfo("TCP", "10.0.0.5", 51000, "203.0.113.7", 443, "ESTABLISHED", 42, "browser"));
+
+        var ack = await fw.BlockIpAsync(new FirewallIpRequest { Address = "203.0.113.7", Direction = "Outbound" });
+
+        ack.Ok.Should().BeTrue();
+        ack.Message.Should().NotContain("closed");
+        _flows.Closed.Should().BeEmpty();
     }
 
     [Fact]

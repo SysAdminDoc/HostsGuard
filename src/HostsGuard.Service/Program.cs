@@ -35,7 +35,8 @@ var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"))
 var dns = new DnsConfig();
 using var listFetcher = new HttpListFetcher();
 var defender = new DefenderConfig();
-using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender);
+using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender,
+    flowTerminator: new FlowTerminator());
 
 // One-time on start: consolidate any legacy per-vendor category sections
 // ("Snapchat Tracking", "LinkedIn CDN", …) into the canonical taxonomy.
@@ -135,6 +136,7 @@ using var killSwitch = new KillSwitchMonitor(firewall, db, NetworkAdapters.IsUp,
 state.KillSwitch = killSwitch;
 state.EnforcementPause.IsKillSwitchEngaged = () => killSwitch.IsEngaged;
 killSwitch.BeforeEngage = state.EnforcementPause.SuspendForKillSwitch;
+killSwitch.AfterEngage = () => state.FlowTeardown.CloseInternetForKillSwitch();
 killSwitch.AfterRelease = state.EnforcementPause.TryResumeAfterKillSwitch;
 killSwitch.Start();
 

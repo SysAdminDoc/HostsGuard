@@ -74,6 +74,8 @@ public sealed partial class ConsentBroker : IDisposable
     /// <summary>Threat-intel membership test for a remote IP (NET-066 prompt enrichment).</summary>
     public Func<string, bool>? LookupThreat { get; set; }
 
+    public FlowTeardownCoordinator? FlowTeardown { get; set; }
+
     /// <summary>
     /// Authenticode signer-subject lookup for an application (NET-113); overrides
     /// the default file-based probe (injectable for tests). Returns null/"" when
@@ -918,6 +920,11 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, permanent);
+        if (action == "Block")
+        {
+            FlowTeardown?.CloseForProgram(application, "consent_block", decision.RemoteAddress, decision.RemotePort);
+        }
+
         return new Ack
         {
             Ok = true,
@@ -970,6 +977,11 @@ public sealed partial class ConsentBroker : IDisposable
             }
 
             LogDecision(application, direction, "Any", "Any", action == "Allow" ? "allow" : "block", permanent: true);
+        }
+
+        if (action == "Block")
+        {
+            FlowTeardown?.CloseForProgram(application, "consent_block_all");
         }
 
         return new Ack

@@ -123,6 +123,7 @@ public sealed class PolicyPortabilityTests : IDisposable
         fw.BlockQuic(new Empty(), TestContext());
         fw.BlockEncryptedDns(new DohBlockRequest(), TestContext());
         srcKillSwitch.Configure(true, "WireGuard");
+        src.FlowTeardown.Enabled = true;
 
         src.Ai.SaveSettings("sk-secret", "test-model", "https://api.example.test", enabled: true);
         src.Db.SetMeta("ai_last_run", "2026-07-07T01:00:00.0000000Z");
@@ -160,6 +161,7 @@ public sealed class PolicyPortabilityTests : IDisposable
         dstFw.Rules.Should().ContainKey("HG_DoT_TCP");
         dst.KillSwitch!.Enabled.Should().BeTrue();
         dst.KillSwitch.Adapter.Should().Be("WireGuard");
+        dst.FlowTeardown.Enabled.Should().BeTrue();
 
         dst.Ai.Settings.Should().Be(new AiSettings(string.Empty, "test-model", "https://api.example.test", true));
         dst.Db.GetMeta("ai_last_result").Should().Be("categorized 1 domains");

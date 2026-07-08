@@ -24,7 +24,9 @@ public sealed class ServiceState : IDisposable
         string? dataDir = null,
         IListFetcher? listFetcher = null,
         IDefender? defender = null,
-        IAiCompleter? aiCompleter = null)
+        IAiCompleter? aiCompleter = null,
+        IFlowTerminator? flowTerminator = null,
+        Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -40,6 +42,10 @@ public sealed class ServiceState : IDisposable
         TempAllows.Resume();
         EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
         EnforcementPause.Resume();
+        FlowTeardown = new FlowTeardownCoordinator(
+            db,
+            flowTerminator,
+            connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot()));
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
@@ -49,6 +55,7 @@ public sealed class ServiceState : IDisposable
         {
             LookupCountry = GeoIp.Lookup,
             LookupThreat = Threats.Contains,
+            FlowTeardown = FlowTeardown,
         };
         SecureRules = new SecureRulesGuard(firewall, db);
         FirewallDrift = new FirewallDriftMonitor(firewall, db);
@@ -152,6 +159,8 @@ public sealed class ServiceState : IDisposable
     public TempAllowScheduler TempAllows { get; }
 
     public EnforcementPauseCoordinator EnforcementPause { get; }
+
+    public FlowTeardownCoordinator FlowTeardown { get; }
 
     /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
     public BandwidthAggregator? Bandwidth { get; set; }

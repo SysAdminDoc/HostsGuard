@@ -179,7 +179,7 @@ public static class PolicyPortability
     }
 
     /// <summary>Meta keys carried in a portable policy (reconstructable settings).</summary>
-    private static readonly string[] PortableMetaKeys = { "active_profile", "history_retention_days" };
+    private static readonly string[] PortableMetaKeys = { "active_profile", "history_retention_days", "flow_teardown_enabled" };
 
     /// <summary>
     /// Apply an imported policy, reconstructing every section. Idempotent: applying

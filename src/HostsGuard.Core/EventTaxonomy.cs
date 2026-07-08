@@ -37,6 +37,7 @@ public static class EventTaxonomy
     public const string FwRuleAdded = "fw_rule_added";
     public const string FwRuleChanged = "fw_rule_changed";
     public const string FwRuleVanished = "fw_rule_vanished";
+    public const string FwFlowTeardown = "fw_flow_teardown";
     public const string LockdownOn = "lockdown_on";
     public const string LockdownOff = "lockdown_off";
     public const string EnforcementPaused = "enforcement_paused";

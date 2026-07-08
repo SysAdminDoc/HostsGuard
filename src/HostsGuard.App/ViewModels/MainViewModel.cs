@@ -171,6 +171,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await RawHosts.LoadAsync();
             FwActivity.StartWatching();
             await FwActivity.LoadPostureAsync();
+            await FwActivity.LoadFlowTeardownAsync();
             await FwActivity.LoadConsentHistoryAsync();
             await FwActivity.LoadLearnedAsync();
             await FwRules.RefreshAsync();
@@ -811,6 +812,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (FwActivity is not null)
         {
             await FwActivity.LoadPostureAsync();
+            await FwActivity.LoadFlowTeardownAsync();
             await FwActivity.LoadConsentHistoryAsync();
             await FwActivity.LoadLearnedAsync();
         }

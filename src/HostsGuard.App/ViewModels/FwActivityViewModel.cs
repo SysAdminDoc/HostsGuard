@@ -72,6 +72,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _decisionNextAction = string.Empty;
 
+    [ObservableProperty]
+    private bool _flowTeardownEnabled;
+
+    [ObservableProperty]
+    private string _flowTeardownText = "TCP teardown: off";
+
+    private bool _suppressFlowTeardownWrite;
+
     public FwActivityViewModel(HostsServiceClient client, IConfirm confirm, AppConfigStore? config = null,
         IFilePicker? filePicker = null)
     {
@@ -1095,6 +1103,59 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         });
     }
 
+    public async Task LoadFlowTeardownAsync()
+    {
+        await RunServiceActionAsync("Load TCP teardown mode", s => FlowTeardownText = s, async () =>
+        {
+            var status = await _client.Firewall.GetFlowTeardownAsync(new Empty());
+            _suppressFlowTeardownWrite = true;
+            try
+            {
+                FlowTeardownEnabled = status.Enabled;
+            }
+            finally
+            {
+                _suppressFlowTeardownWrite = false;
+            }
+
+            FlowTeardownText = status.Available
+                ? $"TCP teardown: {(status.Enabled ? "on" : "off")} ({status.Limit})"
+                : "TCP teardown unavailable";
+        });
+    }
+
+    partial void OnFlowTeardownEnabledChanged(bool value)
+    {
+        if (!_suppressFlowTeardownWrite)
+        {
+            _ = ApplyFlowTeardownAsync(value);
+        }
+    }
+
+    private async Task ApplyFlowTeardownAsync(bool enabled)
+    {
+        try
+        {
+            var ack = await _client.Firewall.SetFlowTeardownAsync(new FlowTeardownRequest { Enabled = enabled });
+            SetOperatorStatus(ack.Message);
+            if (!ack.Ok)
+            {
+                _suppressFlowTeardownWrite = true;
+                FlowTeardownEnabled = !enabled;
+                _suppressFlowTeardownWrite = false;
+            }
+
+            await LoadFlowTeardownAsync();
+        }
+        catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
+        {
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Apply TCP teardown mode", ex));
+            _suppressFlowTeardownWrite = true;
+            FlowTeardownEnabled = !enabled;
+            _suppressFlowTeardownWrite = false;
+        }
+    }
+
     partial void OnLockdownChanged(bool value)
     {
         if (_suppressPostureWrite)
@@ -1196,6 +1257,30 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         await RunServiceActionAsync("Block remote IP", async () =>
         {
             var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
+            SetOperatorStatus(ack.Message);
+        });
+    }
+
+    [RelayCommand]
+    public async Task CloseConnectionAsync(ConnectionRowViewModel? row)
+    {
+        if (row is null)
+        {
+            SetOperatorStatus("Select a row first");
+            return;
+        }
+
+        await RunServiceActionAsync("Close connection", async () =>
+        {
+            var ack = await _client.Firewall.CloseConnectionAsync(new FlowCloseRequest
+            {
+                Protocol = row.Protocol,
+                LocalAddr = row.LocalAddr,
+                LocalPort = row.LocalPort,
+                RemoteAddr = row.RemoteAddr,
+                RemotePort = row.RemotePort,
+                Process = row.Process,
+            });
             SetOperatorStatus(ack.Message);
         });
     }
