@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.43] - 2026-07-08
+
+### Added
+- Added persistent daily app/domain data-usage rollups. The bandwidth
+  aggregator now writes resolved endpoint bytes into a `usage_daily` table under
+  the history retention policy, with a `Monitoring.GetUsageRollups` RPC, FW
+  Activity usage table, and `HostsGuard.Cli usage` filters.
+
 ## [0.12.42] - 2026-07-08
 
 ### Added

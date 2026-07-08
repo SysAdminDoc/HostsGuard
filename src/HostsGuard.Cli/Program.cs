@@ -28,6 +28,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
+    "usage" => await UsageAsync(args),
     "blocklists" => await BlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "safe-posture" => await SafePostureAsync(),
@@ -65,6 +66,7 @@ static int Usage()
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
+          HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
@@ -660,6 +662,88 @@ static bool TryReadOptionValue(string[] args, ref int index, string arg, string 
     return value.Length != 0;
 }
 
+static async Task<int> UsageAsync(string[] args)
+{
+    var request = new UsageRollupRequest { Days = 30, Limit = 200 };
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--days", out var value))
+        {
+            if (!int.TryParse(value, out var days))
+            {
+                Console.Error.WriteLine("Invalid --days value.");
+                return 1;
+            }
+
+            request.Days = days;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--limit", out value))
+        {
+            if (!int.TryParse(value, out var limit))
+            {
+                Console.Error.WriteLine("Invalid --limit value.");
+                return 1;
+            }
+
+            request.Limit = limit;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--search", out value))
+        {
+            request.Search = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--app", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            request.Process = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--domain", out value))
+        {
+            request.Domain = value;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown usage option: {arg}");
+        return 1;
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var list = await new Monitoring.MonitoringClient(channel).GetUsageRollupsAsync(request);
+            Console.WriteLine($"usage: {list.Entries.Count} rows (retention {list.RetentionDays} days)");
+            Console.WriteLine("day\tprocess\tdomain\tsent\treceived\ttotal");
+            foreach (var e in list.Entries)
+            {
+                Console.WriteLine($"{e.Day}\t{e.Process}\t{e.Domain}\t{FormatBytes(e.Sent)}\t{FormatBytes(e.Recv)}\t{FormatBytes(e.Total)}");
+            }
+
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
 static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
 {
     var sb = new System.Text.StringBuilder();
@@ -684,6 +768,20 @@ static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
             ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
             : value;
     }
+}
+
+static string FormatBytes(long bytes)
+{
+    string[] units = ["B", "KB", "MB", "GB", "TB"];
+    double value = Math.Max(0, bytes);
+    var unit = 0;
+    while (value >= 1024 && unit < units.Length - 1)
+    {
+        value /= 1024;
+        unit++;
+    }
+
+    return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
 }
 
 static async Task<int> BlocklistsAsync(string[] args)

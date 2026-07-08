@@ -137,6 +137,7 @@ public class SchemaLockTests
           GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
           GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)
           GetHistorySettings(Empty) returns (HistorySettings)
+          GetUsageRollups(UsageRollupRequest) returns (UsageRollupList)
           ListAlertTypes(Empty) returns (AlertTypeList)
           ListAlerts(AlertRequest) returns (AlertList)
           ListEvents(EventLogRequest) returns (EventLogList)

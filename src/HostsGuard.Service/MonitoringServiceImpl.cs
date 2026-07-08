@@ -231,6 +231,38 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     public override Task<HistorySettings> GetHistorySettings(Empty request, ServerCallContext context)
         => Task.FromResult(new HistorySettings { RetentionDays = _state.Db.HistoryRetentionDays });
 
+    public override Task<UsageRollupList> GetUsageRollups(UsageRollupRequest request, ServerCallContext context)
+        => Task.FromResult(BuildUsageRollups(request, DateTime.Now));
+
+    public UsageRollupList BuildUsageRollups(UsageRollupRequest request, DateTime now)
+    {
+        var days = Math.Clamp(request.Days > 0 ? request.Days : 30, 1, 365);
+        var limit = Math.Clamp(request.Limit > 0 ? request.Limit : 200, 1, 2000);
+        var since = now.Date.AddDays(-(days - 1));
+        var rows = _state.Db.GetUsageRollups(
+            since,
+            limit,
+            Clean(request.Search),
+            Clean(request.Process),
+            Clean(request.Domain));
+
+        var list = new UsageRollupList { RetentionDays = _state.Db.HistoryRetentionDays };
+        foreach (var row in rows)
+        {
+            list.Entries.Add(new UsageRollupEntry
+            {
+                Day = row.Day,
+                Process = row.Process,
+                Domain = row.Domain,
+                Sent = row.Sent,
+                Recv = row.Recv,
+                Total = row.Sent + row.Recv,
+            });
+        }
+
+        return list;
+    }
+
     public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
     {
         if (request.RetentionDays is < 1 or > 365)

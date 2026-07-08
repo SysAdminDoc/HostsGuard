@@ -116,6 +116,33 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public void BuildUsageRollups_clamps_window_filters_and_maps_totals()
+    {
+        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 100, 50);
+        _db.AddUsageRollup("api.example.net", "curl.exe", now.AddDays(-1), 5, 15);
+        _db.AddUsageRollup("old.example.com", "chrome.exe", now.AddDays(-40), 999, 999);
+        var impl = new MonitoringServiceImpl(_state);
+
+        var list = impl.BuildUsageRollups(new UsageRollupRequest
+        {
+            Days = 2,
+            Limit = 10,
+            Search = "example",
+            Process = "chrome",
+        }, now);
+
+        list.RetentionDays.Should().Be(30);
+        var row = list.Entries.Should().ContainSingle().Subject;
+        row.Day.Should().Be("2026-07-08");
+        row.Process.Should().Be("chrome.exe");
+        row.Domain.Should().Be("cdn.example.com");
+        row.Sent.Should().Be(100);
+        row.Recv.Should().Be(50);
+        row.Total.Should().Be(150);
+    }
+
+    [Fact]
     public async Task History_settings_rpc_validates_and_persists_retention()
     {
         var impl = new MonitoringServiceImpl(_state);

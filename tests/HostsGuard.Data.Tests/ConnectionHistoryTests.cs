@@ -48,6 +48,9 @@ public sealed class ConnectionHistoryTests : IDisposable
     private static string Hour(DateTime dt) =>
         dt.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
 
+    private static string Day(DateTime dt) =>
+        dt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
     [Fact]
     public void History_records_and_queries_newest_first()
     {
@@ -130,6 +133,34 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
+    public void Usage_rollups_accumulate_and_filter_by_window_app_domain_and_search()
+    {
+        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 100, 50);
+        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 25, 25);
+        _db.AddUsageRollup("api.example.net", "curl.exe", now.AddDays(-1), 5, 5);
+        _db.AddUsageRollup("old.example.com", "chrome.exe", now.AddDays(-10), 999, 999);
+
+        var rows = _db.GetUsageRollups(now.AddDays(-1), limit: 10);
+
+        rows.Should().HaveCount(2);
+        rows[0].Should().BeEquivalentTo(new
+        {
+            Day = "2026-07-08",
+            Process = "chrome.exe",
+            Domain = "cdn.example.com",
+            Sent = 125L,
+            Recv = 75L,
+        });
+        _db.GetUsageRollups(now.AddDays(-1), search: "api").Should().ContainSingle()
+            .Which.Process.Should().Be("curl.exe");
+        _db.GetUsageRollups(now.AddDays(-1), process: "chrome").Should().ContainSingle()
+            .Which.Domain.Should().Be("cdn.example.com");
+        _db.GetUsageRollups(now.AddDays(-1), domain: "example.net").Should().ContainSingle()
+            .Which.Process.Should().Be("curl.exe");
+    }
+
+    [Fact]
     public void Retention_sweep_bounds_unbounded_tables_and_is_idempotent()
     {
         var now = new DateTime(2026, 7, 8, 12, 0, 0);
@@ -154,6 +185,9 @@ public sealed class ConnectionHistoryTests : IDisposable
                 INSERT INTO app_bandwidth(process,minute,sent,recv) VALUES
                     ('old.exe',@oldMinute,1,1),
                     ('fresh.exe',@freshMinute,2,2);
+                INSERT INTO usage_daily(day,process,domain,sent,recv) VALUES
+                    (@oldDay,'old.exe','old-rollup.example',1,1),
+                    (@freshDay,'fresh.exe','fresh-rollup.example',2,2);
                 INSERT INTO feed_hourly(root,hour,hits) VALUES
                     ('old-hour.example',@oldHour,1),
                     ('fresh-hour.example',@freshHour,2);
@@ -164,6 +198,8 @@ public sealed class ConnectionHistoryTests : IDisposable
                     freshIso = Iso(fresh),
                     oldMinute = Minute(old),
                     freshMinute = Minute(fresh),
+                    oldDay = Day(old),
+                    freshDay = Day(fresh),
                     oldHour = Hour(now.AddHours(-72)),
                     freshHour = Hour(now.AddHours(-1)),
                 });
@@ -176,6 +212,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             ResolvedHosts = 1,
             DomainUsageRows = 1,
             BandwidthBuckets = 1,
+            UsageDailyRows = 1,
             HourlyBuckets = 1,
             MaintenanceRan = true,
         });
@@ -187,6 +224,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             ResolvedHosts = 0,
             DomainUsageRows = 0,
             BandwidthBuckets = 0,
+            UsageDailyRows = 0,
             HourlyBuckets = 0,
             MaintenanceRan = false,
         });
@@ -197,10 +235,12 @@ public sealed class ConnectionHistoryTests : IDisposable
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM resolved_hosts").Should().Be(1);
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM domain_usage").Should().Be(1);
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM app_bandwidth").Should().Be(1);
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM usage_daily").Should().Be(1);
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM feed_hourly").Should().Be(1);
         verify.ExecuteScalar<string>("SELECT domain FROM log").Should().Be("fresh-log.example");
         verify.ExecuteScalar<string>("SELECT host FROM resolved_hosts").Should().Be("fresh-host.example");
         verify.ExecuteScalar<string>("SELECT domain FROM domain_usage").Should().Be("fresh-usage.example");
+        verify.ExecuteScalar<string>("SELECT domain FROM usage_daily").Should().Be("fresh-rollup.example");
     }
 
     [Fact]
@@ -220,6 +260,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
         }
 
+        SqliteConnection.ClearAllPools();
         using var verify = new SqliteConnection($"Data Source={path}");
         verify.Open();
         verify.ExecuteScalar<long>("PRAGMA auto_vacuum").Should().Be(2);

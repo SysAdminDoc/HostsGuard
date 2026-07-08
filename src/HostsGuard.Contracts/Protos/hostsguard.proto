@@ -855,6 +855,9 @@ service Monitoring {
   rpc GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList);
   // History retention policy (default 30 days; prune runs opportunistically).
   rpc GetHistorySettings(Empty) returns (HistorySettings);
+  // Daily app x domain byte rollups (NET-158), persisted under the history
+  // retention window for GlassWire-style usage review.
+  rpc GetUsageRollups(UsageRollupRequest) returns (UsageRollupList);
   rpc SetHistorySettings(HistorySettings) returns (Ack);
 }
 
@@ -982,6 +985,28 @@ message AppBandwidthList {
 
 message HistorySettings {
   int32 retention_days = 1;   // clamp 1..365
+}
+
+message UsageRollupRequest {
+  int32 days = 1;       // 0 = server default (30), max 365
+  int32 limit = 2;      // 0 = server default (200), max 2000
+  string search = 3;    // substring match on process/domain
+  string process = 4;   // optional process substring
+  string domain = 5;    // optional domain substring
+}
+
+message UsageRollupEntry {
+  string day = 1;       // yyyy-MM-dd
+  string process = 2;
+  string domain = 3;
+  int64 sent = 4;
+  int64 recv = 5;
+  int64 total = 6;
+}
+
+message UsageRollupList {
+  repeated UsageRollupEntry entries = 1;
+  int32 retention_days = 2;
 }
 
 message DnsEvent {

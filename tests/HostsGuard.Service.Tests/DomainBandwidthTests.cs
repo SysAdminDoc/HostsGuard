@@ -58,6 +58,15 @@ public sealed class DomainBandwidthTests : IDisposable
         _db.GetDomainUsageTotals(new[] { "cdn.example.com" })["cdn.example.com"].Should().Be(5000);
         _db.GetDomainUsage("cdn.example.com").Should().ContainSingle()
             .Which.Should().Be(("cdn.example.com", "chrome", 1000L, 4000L));
+        _db.GetUsageRollups(new DateTime(2026, 7, 4), domain: "cdn.example.com").Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new
+            {
+                Day = "2026-07-04",
+                Process = "chrome",
+                Domain = "cdn.example.com",
+                Sent = 1000L,
+                Recv = 4000L,
+            });
         // The unresolved bare-IP endpoint contributes to no domain.
         _db.GetDomainUsageTotals(new[] { "198.51.100.9" }).Should().BeEmpty();
     }
@@ -75,6 +84,8 @@ public sealed class DomainBandwidthTests : IDisposable
         agg.FlushOnce(new DateTime(2026, 7, 4, 12, 1, 0));
 
         _db.GetDomainUsageTotals(new[] { "site.example.com" })["site.example.com"].Should().Be(400);
+        _db.GetUsageRollups(new DateTime(2026, 7, 4), domain: "site.example.com").Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new { Sent = 100L, Recv = 300L });
     }
 
     public void Dispose()

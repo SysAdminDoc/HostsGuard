@@ -106,6 +106,7 @@ public sealed class BandwidthAggregator : IDisposable
 
                 var process = _nameCache.GetOrAdd(key.Pid, _resolve);
                 _db.AddDomainUsage(domain, process, bytes.Sent, bytes.Recv);
+                _db.AddUsageRollup(domain, process, now.Date, bytes.Sent, bytes.Recv);
             }
         }
 

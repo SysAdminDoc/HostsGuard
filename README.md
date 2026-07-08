@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.42-blue)
+![Version](https://img.shields.io/badge/version-0.12.43-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -94,6 +94,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
 | Connection history | Retention-bounded searchable log of past connections (default 30 days) |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
+| Data usage rollups | Retention-bounded daily app x domain byte table with sent/received/total filters |
 | Explain / look up connection | Right-click a connection to show the ordered hosts/firewall/trust/profile/kill-switch decision chain, or look it up on VirusTotal, who.is, Google, and AbuseIPDB |
 | Learning review | Batch-promote, reverse, or discard Learning-mode auto-decisions |
 
@@ -158,6 +159,7 @@ HostsGuard.Cli export-policy [path.json]
 HostsGuard.Cli import-policy <path.json>
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
+HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
 HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove]
 HostsGuard.Cli safe-posture
 HostsGuard.Cli release-smoke
@@ -178,7 +180,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 863 tests, no elevation needed
+dotnet test HostsGuard.sln           # 866 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
@@ -187,8 +189,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.42-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.42-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.43-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.43-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

@@ -602,6 +602,23 @@
   <data name="Xaml_Block_all_pending_connections_from_this_e8cbceda" xml:space="preserve"><value>Block all pending connections from this app</value></data>
   <data name="Xaml_Write_one_whole_app_block_rule_3cc8f54a" xml:space="preserve"><value>Write one whole-app block rule and answer every pending prompt from this program</value></data>
   <data name="Xaml_If_the_timer_expires_the_connection_53901c4b" xml:space="preserve"><value>If the timer expires, the connection stays blocked. By default the decision applies to the whole app; choose scope options to narrow it. Temporary decisions are removed automatically.</value></data>
+  <data name="UsageRollups_Title" xml:space="preserve"><value>Data usage rollups</value></data>
+  <data name="UsageRollups_Load" xml:space="preserve"><value>Load usage</value></data>
+  <data name="UsageRollups_DaysName" xml:space="preserve"><value>Usage days</value></data>
+  <data name="UsageRollups_DaysTip" xml:space="preserve"><value>Usage window in days (1-365)</value></data>
+  <data name="UsageRollups_LimitName" xml:space="preserve"><value>Usage row limit</value></data>
+  <data name="UsageRollups_LimitTip" xml:space="preserve"><value>Maximum usage rows to show (1-2000)</value></data>
+  <data name="UsageRollups_SearchHint" xml:space="preserve"><value>Search usage</value></data>
+  <data name="UsageRollups_SearchName" xml:space="preserve"><value>Search usage rollups</value></data>
+  <data name="UsageRollups_ProcessHint" xml:space="preserve"><value>App filter</value></data>
+  <data name="UsageRollups_ProcessName" xml:space="preserve"><value>Usage app filter</value></data>
+  <data name="UsageRollups_DomainHint" xml:space="preserve"><value>Domain filter</value></data>
+  <data name="UsageRollups_DomainName" xml:space="preserve"><value>Usage domain filter</value></data>
+  <data name="UsageRollups_TableName" xml:space="preserve"><value>Daily app and domain usage table</value></data>
+  <data name="UsageRollups_Day" xml:space="preserve"><value>Day</value></data>
+  <data name="UsageRollups_Sent" xml:space="preserve"><value>Sent</value></data>
+  <data name="UsageRollups_Received" xml:space="preserve"><value>Received</value></data>
+  <data name="UsageRollups_Total" xml:space="preserve"><value>Total</value></data>
   <data name="FwRules_Ports" xml:space="preserve"><value>Ports</value></data>
   <data name="LanSurface_Title" xml:space="preserve"><value>LAN attack surface</value></data>
   <data name="LanSurface_Intro" xml:space="preserve"><value>Reversible one-click controls for chatty LAN discovery and legacy name lookup plus auto-proxy and inbound file sharing.</value></data>

@@ -639,6 +639,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<EventLogRowViewModel> EventRows { get; } = new();
 
+    public ObservableCollection<UsageRollupRowViewModel> UsageRows { get; } = new();
+
     public ObservableCollection<TimelineSeriesViewModel> Bandwidth { get; } = new();
 
     public static IReadOnlyList<string> EventCategories { get; } = new[]
@@ -698,6 +700,24 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _bandwidthStatus = "Not loaded";
 
     [ObservableProperty]
+    private string _usageSearch = string.Empty;
+
+    [ObservableProperty]
+    private string _usageProcess = string.Empty;
+
+    [ObservableProperty]
+    private string _usageDomain = string.Empty;
+
+    [ObservableProperty]
+    private int _usageDays = 30;
+
+    [ObservableProperty]
+    private int _usageLimit = 200;
+
+    [ObservableProperty]
+    private string _usageStatus = "Click Load usage to show daily app/domain data.";
+
+    [ObservableProperty]
     private int _retentionDays = 30;
 
     [RelayCommand]
@@ -730,6 +750,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
             HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
             await LoadBandwidthAsync();
+            await LoadUsageAsync();
         });
     }
 
@@ -864,6 +885,39 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         {
             var list = await _client.Monitoring.GetAppBandwidthAsync(new BandwidthRequest { Minutes = 60, Top = TimelineMaxSeries });
             BuildBandwidthSeries(list);
+        });
+    }
+
+    [RelayCommand]
+    public async Task LoadUsageAsync()
+    {
+        await RunServiceActionAsync("Load usage rollups", s => UsageStatus = s, async () =>
+        {
+            UsageDays = Math.Clamp(UsageDays <= 0 ? 30 : UsageDays, 1, 365);
+            UsageLimit = Math.Clamp(UsageLimit <= 0 ? 200 : UsageLimit, 1, 2000);
+            var list = await _client.Monitoring.GetUsageRollupsAsync(new UsageRollupRequest
+            {
+                Days = UsageDays,
+                Limit = UsageLimit,
+                Search = UsageSearch ?? string.Empty,
+                Process = UsageProcess ?? string.Empty,
+                Domain = UsageDomain ?? string.Empty,
+            });
+
+            UsageRows.Clear();
+            foreach (var row in list.Entries)
+            {
+                UsageRows.Add(new UsageRollupRowViewModel
+                {
+                    Day = row.Day,
+                    Process = row.Process,
+                    Domain = row.Domain,
+                    Sent = row.Sent,
+                    Recv = row.Recv,
+                });
+            }
+
+            UsageStatus = $"{Plural.Of(UsageRows.Count, "usage row")} shown - retained {Plural.Of(list.RetentionDays, "day")}";
         });
     }
 

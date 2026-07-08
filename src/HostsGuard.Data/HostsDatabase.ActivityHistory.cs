@@ -124,6 +124,8 @@ public sealed partial class HostsDatabase
             .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
         var bandwidthCutoff = now.AddDays(-HistoryRetentionDays)
             .ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        var usageDailyCutoff = now.AddDays(-HistoryRetentionDays)
+            .ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         var hourlyCutoff = now.AddHours(-48)
             .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
         var domainHourlyCutoff = now.AddDays(-HistoryRetentionDays)
@@ -142,6 +144,8 @@ public sealed partial class HostsDatabase
                 new { cutoff = historyCutoff }, tx);
             var bandwidthBuckets = _conn.Execute("DELETE FROM app_bandwidth WHERE minute < @cutoff",
                 new { cutoff = bandwidthCutoff }, tx);
+            var usageDailyRows = _conn.Execute("DELETE FROM usage_daily WHERE day < @cutoff",
+                new { cutoff = usageDailyCutoff }, tx);
             var hourlyBuckets = _conn.Execute("DELETE FROM feed_hourly WHERE hour < @cutoff",
                 new { cutoff = hourlyCutoff }, tx);
             hourlyBuckets += _conn.Execute("DELETE FROM feed_domain_hourly WHERE hour < @cutoff",
@@ -162,6 +166,7 @@ public sealed partial class HostsDatabase
                 resolvedHosts,
                 domainUsage,
                 bandwidthBuckets,
+                usageDailyRows,
                 hourlyBuckets,
                 maintenanceRan);
         }
@@ -216,6 +221,77 @@ public sealed partial class HostsDatabase
                     recv,
                     now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 });
+        }
+    }
+
+    /// <summary>Accumulate bytes into the durable daily app x domain rollup.</summary>
+    public void AddUsageRollup(string domain, string process, DateTime day, long sent, long recv)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        if (sent == 0 && recv == 0)
+        {
+            return;
+        }
+
+        var dayKey = day.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO usage_daily(day,process,domain,sent,recv)
+                VALUES(@day,@process,@domain,@sent,@recv)
+                ON CONFLICT(day,process,domain) DO UPDATE SET
+                    sent=sent+excluded.sent, recv=recv+excluded.recv
+                """,
+                new
+                {
+                    day = dayKey,
+                    process = process ?? string.Empty,
+                    domain = domain.ToLowerInvariant(),
+                    sent,
+                    recv,
+                });
+        }
+    }
+
+    /// <summary>Query daily per-app/per-domain rollups, newest window first and largest rows first.</summary>
+    public IReadOnlyList<UsageRollupRow> GetUsageRollups(
+        DateTime sinceDay,
+        int limit = 200,
+        string? search = null,
+        string? process = null,
+        string? domain = null)
+    {
+        var sql = """
+            SELECT day AS Day, process AS Process, domain AS Domain, sent AS Sent, recv AS Recv
+            FROM usage_daily
+            WHERE day >= @since
+            """;
+        var p = new DynamicParameters();
+        p.Add("since", sinceDay.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sql += " AND (domain LIKE @search OR process LIKE @search)";
+            p.Add("search", $"%{search.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(process))
+        {
+            sql += " AND process LIKE @process";
+            p.Add("process", $"%{process.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            sql += " AND domain LIKE @domain";
+            p.Add("domain", $"%{domain.Trim().ToLowerInvariant()}%");
+        }
+
+        sql += " ORDER BY (sent+recv) DESC, day DESC, process COLLATE NOCASE, domain COLLATE NOCASE LIMIT @limit";
+        p.Add("limit", Math.Clamp(limit, 1, 2000));
+        lock (_gate)
+        {
+            return _conn.Query<UsageRollupRow>(sql, p).ToList();
         }
     }
 

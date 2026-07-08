@@ -182,6 +182,39 @@ public sealed partial class EventLogRowViewModel : ObservableObject
     private string _details = string.Empty;
 }
 
+/// <summary>Row VM for a daily app/domain usage rollup.</summary>
+public sealed partial class UsageRollupRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _day = string.Empty;
+
+    [ObservableProperty]
+    private string _process = string.Empty;
+
+    [ObservableProperty]
+    private string _domain = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SentText))]
+    [NotifyPropertyChangedFor(nameof(Total))]
+    [NotifyPropertyChangedFor(nameof(TotalText))]
+    private long _sent;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RecvText))]
+    [NotifyPropertyChangedFor(nameof(Total))]
+    [NotifyPropertyChangedFor(nameof(TotalText))]
+    private long _recv;
+
+    public long Total => Sent + Recv;
+
+    public string SentText => FwActivityViewModel.FormatBytes(Sent);
+
+    public string RecvText => FwActivityViewModel.FormatBytes(Recv);
+
+    public string TotalText => FwActivityViewModel.FormatBytes(Total);
+}
+
 /// <summary>One ordered factor from the rule decision simulator.</summary>
 public sealed partial class DecisionStepViewModel : ObservableObject
 {

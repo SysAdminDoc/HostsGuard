@@ -57,6 +57,21 @@ public sealed class BandwidthViewTests
     }
 
     [Fact]
+    public void Usage_rollup_row_formats_sent_received_and_total_bytes()
+    {
+        var row = new UsageRollupRowViewModel
+        {
+            Sent = 1024,
+            Recv = 1536,
+        };
+
+        row.SentText.Should().Be("1 KB");
+        row.RecvText.Should().Be("1.5 KB");
+        row.Total.Should().Be(2560);
+        row.TotalText.Should().Be("2.5 KB");
+    }
+
+    [Fact]
     public void History_csv_has_a_header_and_rfc4180_quotes_fields_with_commas()
     {
         var rows = new[]

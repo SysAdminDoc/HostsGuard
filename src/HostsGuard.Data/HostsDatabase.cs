@@ -119,6 +119,9 @@ public sealed record ConnHistoryRow(
 /// <summary>A per-process per-minute bandwidth bucket (NET-070).</summary>
 public sealed record BandwidthRow(string Process, string Minute, long Sent, long Recv);
 
+/// <summary>A per-day per-process per-domain data-usage rollup (NET-158).</summary>
+public sealed record UsageRollupRow(string Day, string Process, string Domain, long Sent, long Recv);
+
 /// <summary>A persisted event-log row with its derived taxonomy category.</summary>
 public sealed record EventLogRow(
     long Id, string Ts, string Domain, string Action, string Process, string Details, string Reason, string Category);
@@ -174,6 +177,7 @@ public sealed record RetentionSweepResult(
     int ResolvedHosts,
     int DomainUsageRows,
     int BandwidthBuckets,
+    int UsageDailyRows,
     int HourlyBuckets,
     bool MaintenanceRan);
 
@@ -193,7 +197,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 21;
+    public const int SchemaVersion = 22;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -326,6 +330,13 @@ public sealed partial class HostsDatabase : IDisposable
                 sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0, updated TEXT,
                 PRIMARY KEY(domain, process)) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS idx_domain_usage_updated ON domain_usage(updated);
+            CREATE TABLE IF NOT EXISTS usage_daily(
+                day TEXT NOT NULL, process TEXT NOT NULL DEFAULT '', domain TEXT NOT NULL,
+                sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0,
+                PRIMARY KEY(day, process, domain)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_usage_daily_day ON usage_daily(day);
+            CREATE INDEX IF NOT EXISTS idx_usage_daily_process ON usage_daily(process);
+            CREATE INDEX IF NOT EXISTS idx_usage_daily_domain ON usage_daily(domain);
             CREATE TABLE IF NOT EXISTS rule_groups(
                 grp TEXT NOT NULL, rule_name TEXT NOT NULL,
                 PRIMARY KEY(grp, rule_name)) WITHOUT ROWID;
@@ -441,8 +452,8 @@ public sealed partial class HostsDatabase : IDisposable
                 return;
             }
 
-            SqliteConnection.ClearPool(_conn);
             _conn.Dispose();
+            SqliteConnection.ClearPool(_conn);
             _disposed = true;
         }
     }
