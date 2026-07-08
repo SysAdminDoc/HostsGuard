@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.20] - 2026-07-08
+
+### Fixed
+- Reconnect now drops stale named-pipe clients, re-reads the service handshake
+  token, rebuilds tab view-models with the fresh client, and restarts live DNS,
+  firewall-connection, and consent-prompt streams with bounded retry after
+  transient service disconnects.
+
 ## [0.12.19] - 2026-07-07
 
 ### Added

@@ -15,7 +15,10 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.19: dependency hygiene ratchet updates direct test/build package
+    <!-- 0.12.20: service reconnect now re-reads the handshake token, rebuilds
+         tab clients, and restarts live DNS/connection/consent streams after
+         transient drops.
+         0.12.19: dependency hygiene ratchet updates direct test/build package
          pins and fails releases on vulnerable, outdated direct, or undeferred
          outdated transitive NuGet packages.
          0.12.18: XAML shell/dialog strings route through neutral resources and
@@ -88,7 +91,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.19</Version>
+    <Version>0.12.20</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

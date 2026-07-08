@@ -129,21 +129,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task ConnectAsync()
     {
+        ResetConnection();
+
         try
         {
-            _client ??= _connectFactory();
-            var status = await _client.Diagnostics.GetStatusAsync(new Empty());
+            _client = _connectFactory();
+            var client = _client;
+            var status = await client.Diagnostics.GetStatusAsync(new Empty());
             ServiceVersion = status.Version;
             HostsBlocked = status.HostsBlocked;
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
-            Hosts ??= new HostsViewModel(_client, _confirm);
-            Activity ??= new HostsActivityViewModel(_client, _config, _prompt);
-            RawHosts ??= new RawHostsViewModel(_client);
-            FwActivity ??= new FwActivityViewModel(_client, _confirm, _config, _filePicker);
-            FwRules ??= new FwRulesViewModel(_client, _confirm, _filePicker, _prompt);
-            Tools ??= new ToolsViewModel(_client, _confirm);
-            Blocklists ??= new BlocklistsViewModel(_client, _confirm);
+            Hosts = new HostsViewModel(client, _confirm);
+            Activity = new HostsActivityViewModel(client, _config, _prompt);
+            RawHosts = new RawHostsViewModel(client);
+            FwActivity = new FwActivityViewModel(client, _confirm, _config, _filePicker);
+            FwRules = new FwRulesViewModel(client, _confirm, _filePicker, _prompt);
+            Tools = new ToolsViewModel(client, _confirm);
+            Blocklists = new BlocklistsViewModel(client, _confirm);
             IsConnected = true;
             ConnectionText = I18n.T("Status.ConnectedLoading", "Connected - loading views...");
 
@@ -176,6 +179,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            ResetConnection();
             IsConnected = false;
             ConnectionText = I18n.T(
                 "Status.Unavailable",
@@ -318,45 +322,100 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _decisionCts = new CancellationTokenSource();
-        _ = WatchDecisionsAsync(_client, _decisionCts.Token);
+        var cts = new CancellationTokenSource();
+        _decisionCts = cts;
+        _ = WatchDecisionsAsync(_client, cts);
     }
 
-    private async Task WatchDecisionsAsync(HostsServiceClient client, CancellationToken ct)
+    private async Task WatchDecisionsAsync(HostsServiceClient client, CancellationTokenSource owner)
     {
+        var ct = owner.Token;
+        var failures = 0;
         try
         {
-            using var call = client.Consent.WatchDecisions(new Empty(), cancellationToken: ct);
-            await foreach (var request in call.ResponseStream.ReadAllAsync(ct))
+            while (!ct.IsCancellationRequested)
             {
-                // Optional audible alert on a new block/prompt (NET-085).
-                if (_config.SoundOnBlock)
+                try
+                {
+                    using var call = client.Consent.WatchDecisions(new Empty(), cancellationToken: ct);
+                    failures = 0;
+                    await foreach (var request in call.ResponseStream.ReadAllAsync(ct))
+                    {
+                        // Optional audible alert on a new block/prompt (NET-085).
+                        if (_config.SoundOnBlock)
+                        {
+                            try
+                            {
+                                System.Media.SystemSounds.Exclamation.Play();
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                // No audio device - never let it break the prompt flow.
+                            }
+                        }
+
+                        if (_ui is null)
+                        {
+                            DecisionRequested?.Invoke(request);
+                        }
+                        else
+                        {
+                            _ui.Post(_ => DecisionRequested?.Invoke(request), null);
+                        }
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex) when (WatchRetry.IsStreamFailure(ex))
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    if (WatchRetry.IsAuthenticationFailure(ex))
+                    {
+                        SetConnectionTextOnUi("Consent prompt stream authentication expired - reconnect to the service.");
+                        break;
+                    }
+
+                    SetConnectionTextOnUi("Consent prompt stream disconnected - retrying...");
+                }
+
+                if (!ct.IsCancellationRequested)
                 {
                     try
                     {
-                        System.Media.SystemSounds.Exclamation.Play();
+                        await Task.Delay(WatchRetry.Delay(failures++), ct);
                     }
-                    catch (InvalidOperationException)
+                    catch (OperationCanceledException)
                     {
-                        // No audio device — never let it break the prompt flow.
+                        break;
                     }
-                }
-
-                if (_ui is null)
-                {
-                    DecisionRequested?.Invoke(request);
-                }
-                else
-                {
-                    _ui.Post(_ => DecisionRequested?.Invoke(request), null);
                 }
             }
         }
-        catch (Exception ex) when (ex is Grpc.Core.RpcException or OperationCanceledException or System.IO.IOException)
+        finally
         {
-            // Stream ends with the connection; reconnect restarts it.
-            _decisionCts?.Dispose();
-            _decisionCts = null;
+            if (ReferenceEquals(_decisionCts, owner))
+            {
+                _decisionCts = null;
+                owner.Dispose();
+            }
+        }
+    }
+
+    private void SetConnectionTextOnUi(string text)
+    {
+        if (_ui is null)
+        {
+            ConnectionText = text;
+        }
+        else
+        {
+            _ui.Post(_ => ConnectionText = text, null);
         }
     }
 
@@ -787,13 +846,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => ConnectionText = s, work);
 
-    public void Dispose()
+    private void ResetConnection()
     {
         _decisionCts?.Cancel();
         _decisionCts?.Dispose();
         _decisionCts = null;
         Activity?.Dispose();
         FwActivity?.Dispose();
+        Hosts = null;
+        Activity = null;
+        RawHosts = null;
+        FwActivity = null;
+        FwRules = null;
+        Tools = null;
+        Blocklists = null;
         _client?.Dispose();
+        _client = null;
+        IsConnected = false;
     }
+
+    public void Dispose() => ResetConnection();
 }

@@ -26,6 +26,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
     private ServiceState _state = null!;
     private HostsServiceClient _client = null!;
     private AppConfigStore _config = null!;
+    private string _token = null!;
+    private string _pipe = null!;
 
     public async Task InitializeAsync()
     {
@@ -35,11 +37,11 @@ public sealed class MainViewModelTests : IAsyncLifetime
         File.WriteAllText(hostsPath, "# hosts\n");
 
         _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "db.sqlite")));
-        var token = SessionToken.Generate();
-        var pipe = "HostsGuard.MainVmTest." + Guid.NewGuid().ToString("N");
-        _app = ServiceHost.Build(_state, token, pipe);
+        _token = SessionToken.Generate();
+        _pipe = "HostsGuard.MainVmTest." + Guid.NewGuid().ToString("N");
+        _app = ServiceHost.Build(_state, _token, _pipe);
         await _app.StartAsync();
-        _client = new HostsServiceClient(NamedPipeChannel.Create(token, pipe));
+        _client = CreateClient();
         _config = new AppConfigStore(Path.Combine(_dir, "config.json"));
         _config.Load();
     }
@@ -53,14 +55,16 @@ public sealed class MainViewModelTests : IAsyncLifetime
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
-    private MainViewModel CreateShell() => new(() => _client, _config, new ThemeManager(), new FakeConfirm(true));
+    private HostsServiceClient CreateClient() => new(NamedPipeChannel.Create(_token, _pipe));
+
+    private MainViewModel CreateShell() => new(CreateClient, _config, new ThemeManager(), new FakeConfirm(true));
 
     [Fact]
     public async Task Connect_populates_status_and_hosts_tab()
     {
         await _client.Hosts.BlockAsync(new Contracts.DomainRequest { Domain = "ads.example.com", Source = "manual" });
 
-        var vm = CreateShell();
+        using var vm = CreateShell();
         await vm.ConnectCommand.ExecuteAsync(null);
 
         vm.IsConnected.Should().BeTrue();
@@ -74,7 +78,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     [Fact]
     public async Task Failed_connect_reports_unavailable_instead_of_crashing()
     {
-        var vm = new MainViewModel(
+        using var vm = new MainViewModel(
             () => throw new IOException("pipe not found"), _config, new ThemeManager(), new FakeConfirm(true));
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -84,9 +88,29 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Reconnect_recreates_client_after_token_rotation_and_restores_live_feeds()
+    {
+        using var vm = CreateShell();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        vm.IsConnected.Should().BeTrue();
+        var firstActivity = vm.Activity;
+        var firstFwActivity = vm.FwActivity;
+
+        await RotateServiceTokenAsync();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        vm.IsConnected.Should().BeTrue();
+        vm.Activity.Should().NotBeNull().And.NotBeSameAs(firstActivity);
+        vm.FwActivity.Should().NotBeNull().And.NotBeSameAs(firstFwActivity);
+
+        await PublishDnsUntilVisibleAsync(vm, "after-restart.example.com");
+        await PublishConnectionUntilVisibleAsync(vm, "198.51.100.44", 443);
+    }
+
+    [Fact]
     public void Theme_toggle_flips_and_persists()
     {
-        var vm = CreateShell();
+        using var vm = CreateShell();
         vm.Theme.Should().Be("dark");
 
         vm.ToggleThemeCommand.Execute(null);
@@ -100,7 +124,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     [Fact]
     public void Scale_change_updates_transform_factor_and_persists()
     {
-        var vm = CreateShell();
+        using var vm = CreateShell();
 
         vm.UiScalePct = 125;
 
@@ -121,8 +145,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
                 new DateTimeOffset(2026, 7, 7, 12, 0, 0, TimeSpan.Zero),
                 [new ReleaseAssetInfo("HostsGuard-v0.12.16-dotnet-Setup.exe", 10, "sha256:abc", null)],
                 "Update available: v0.12.16 (published 2026-07-07). HostsGuard-v0.12.16-dotnet-Setup.exe (10 B, sha256:abc; 1 asset listed). No auto-install performed."));
-        var vm = new MainViewModel(
-            () => _client, _config, new ThemeManager(), new FakeConfirm(true), releaseUpdateChecker: checker);
+        using var vm = new MainViewModel(
+            CreateClient, _config, new ThemeManager(), new FakeConfirm(true), releaseUpdateChecker: checker);
 
         await vm.CheckForUpdatesCommand.ExecuteAsync(null);
 
@@ -143,5 +167,57 @@ public sealed class MainViewModelTests : IAsyncLifetime
             InstalledVersion = installedVersion;
             return Task.FromResult(result);
         }
+    }
+
+    private async Task RotateServiceTokenAsync()
+    {
+        _client.Dispose();
+        await _app.DisposeAsync();
+        _token = SessionToken.Generate();
+        _app = ServiceHost.Build(_state, _token, _pipe);
+        await _app.StartAsync();
+        _client = CreateClient();
+    }
+
+    private async Task PublishDnsUntilVisibleAsync(MainViewModel vm, string domain)
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            _state.RecordDns(domain, "edge.exe", 1234);
+            if (vm.Activity?.Rows.Any(r => r.Domain == domain) == true)
+            {
+                return;
+            }
+
+            await Task.Delay(50);
+        }
+
+        vm.Activity.Should().NotBeNull();
+        vm.Activity!.Rows.Select(r => r.Domain).Should().Contain(domain);
+    }
+
+    private async Task PublishConnectionUntilVisibleAsync(MainViewModel vm, string remoteAddr, int remotePort)
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            _state.PublishConnection(new ConnectionInfo(
+                "TCP",
+                "10.0.0.5",
+                51000 + i,
+                remoteAddr,
+                remotePort,
+                "ESTABLISHED",
+                4242,
+                "edge.exe"));
+            if (vm.FwActivity?.Rows.Any(r => r.RemoteAddr == remoteAddr && r.RemotePort == remotePort) == true)
+            {
+                return;
+            }
+
+            await Task.Delay(50);
+        }
+
+        vm.FwActivity.Should().NotBeNull();
+        vm.FwActivity!.Rows.Should().Contain(r => r.RemoteAddr == remoteAddr && r.RemotePort == remotePort);
     }
 }

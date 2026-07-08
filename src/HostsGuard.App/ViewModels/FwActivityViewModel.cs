@@ -620,29 +620,68 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _watchCts = new CancellationTokenSource();
-        _ = WatchLoopAsync(_watchCts.Token);
+        var cts = new CancellationTokenSource();
+        _watchCts = cts;
+        _ = WatchLoopAsync(cts);
     }
 
-    private async Task WatchLoopAsync(CancellationToken ct)
+    private async Task WatchLoopAsync(CancellationTokenSource owner)
     {
+        var ct = owner.Token;
+        var failures = 0;
         try
         {
-            using var call = _client.Monitoring.WatchConnections(new Empty(), cancellationToken: ct);
-            await foreach (var ev in call.ResponseStream.ReadAllAsync(ct))
+            while (!ct.IsCancellationRequested)
             {
-                OnUi(() => Upsert(ev));
-            }
-        }
-        catch (Exception ex) when (ex is RpcException or OperationCanceledException or IOException)
-        {
-            OnUi(() =>
-            {
+                try
+                {
+                    using var call = _client.Monitoring.WatchConnections(new Empty(), cancellationToken: ct);
+                    failures = 0;
+                    await foreach (var ev in call.ResponseStream.ReadAllAsync(ct))
+                    {
+                        OnUi(() => Upsert(ev));
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex) when (WatchRetry.IsStreamFailure(ex))
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    if (WatchRetry.IsAuthenticationFailure(ex))
+                    {
+                        OnUi(() => SetLiveStatus("Live feed authentication expired - reconnect to the service", force: true));
+                        break;
+                    }
+
+                    OnUi(() => SetLiveStatus("Live feed disconnected - retrying", force: true));
+                }
+
                 if (!ct.IsCancellationRequested)
                 {
-                    SetLiveStatus("Live feed disconnected", force: true);
+                    try
+                    {
+                        await Task.Delay(WatchRetry.Delay(failures++), ct);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
-            });
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_watchCts, owner))
+            {
+                _watchCts = null;
+                owner.Dispose();
+            }
         }
     }
 
@@ -1530,8 +1569,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _watchCts?.Cancel();
-        _watchCts?.Dispose();
+        var watch = _watchCts;
         _watchCts = null;
+        watch?.Cancel();
+        watch?.Dispose();
     }
 }
