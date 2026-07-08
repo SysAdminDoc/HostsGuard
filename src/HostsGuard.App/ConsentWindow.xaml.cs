@@ -24,7 +24,7 @@ public partial class ConsentWindow : Window
         _request = request ?? throw new ArgumentNullException(nameof(request));
         InitializeComponent();
 
-        AppName.Text = Path.GetFileName(request.Application);
+        AppName.Text = request.CommandLine.Length != 0 ? request.CommandLine : Path.GetFileName(request.Application);
         AppPath.Text = request.Application;
         RemoteText.Text = $"{request.RemoteAddress}:{request.RemotePort} ({request.Protocol})";
         DirectionText.Text = request.Direction == "In" ? "Inbound" : "Outbound";
@@ -64,6 +64,14 @@ public partial class ConsentWindow : Window
         {
             ScopeService.Visibility = Visibility.Visible;
             ScopeService.Content = $"Only the '{request.ServiceKey}' service";
+        }
+
+        if (request.CommandLine.Length != 0 && request.ScriptBindingKey.Length != 0)
+        {
+            CommandLineLabel.Visibility = CommandLineText.Visibility = Visibility.Visible;
+            CommandLineText.Text = request.CommandLine;
+            ScopeCommandLine.Visibility = Visibility.Visible;
+            ScopeCommandLine.IsChecked = true;
         }
 
         _ = ResolveHostAsync(request.RemoteAddress);
@@ -139,6 +147,10 @@ public partial class ConsentWindow : Window
             ScopeProtocol = ScopeProtocol.IsChecked == true,
             ScopeService = ScopeService.IsChecked == true,
             ServiceKey = _request.ServiceKey,
+            ScopeCommandLine = ScopeCommandLine.IsChecked == true,
+            CommandLine = _request.CommandLine,
+            ScriptPath = _request.ScriptPath,
+            ScriptBindingKey = _request.ScriptBindingKey,
             Duration = SelectedDuration(),
             TrustPublisher = TrustPublisher.IsChecked == true,
             TrustFolder = TrustFolder.IsChecked == true,

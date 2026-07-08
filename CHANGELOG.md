@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.41] - 2026-07-08
+
+### Added
+- Added command-line-aware consent for common interpreters (`python`, `node`,
+  `pwsh`, `java`, `wscript`, and `cscript`). Prompts show the extracted
+  script/module identity, script-bound allows stay remote/protocol/port scoped
+  instead of broadly allowing the interpreter, and script-bound blocks are
+  enforced by the broker without writing a broad block rule.
+
 ## [0.12.40] - 2026-07-08
 
 ### Added

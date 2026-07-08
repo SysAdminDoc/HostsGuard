@@ -567,6 +567,10 @@
   <data name="Xaml_This_service_only_faf667a0" xml:space="preserve"><value>This service only</value></data>
   <data name="Xaml_Restrict_the_rule_to_the_owning_21045308" xml:space="preserve"><value>Restrict the rule to the owning Windows service</value></data>
   <data name="Xaml_Blocks_only_this_service_not_everything_1b90c1c7" xml:space="preserve"><value>Blocks only this service, not everything hosted by the same process (svchost)</value></data>
+  <data name="Xaml_Command_line_796f8db3" xml:space="preserve"><value>Command line</value></data>
+  <data name="Xaml_Only_this_script_module_76f07ae2" xml:space="preserve"><value>Only this script/module</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_script_61fd89a5" xml:space="preserve"><value>Restrict the rule to this script or module</value></data>
+  <data name="Xaml_Keeps_other_interpreter_scripts_separate_7febbc2b" xml:space="preserve"><value>Keeps other scripts run by the same interpreter separate</value></data>
   <data name="Xaml_Trust_all_software_signed_by_this_f4f554f6" xml:space="preserve"><value>Trust all software signed by this publisher</value></data>
   <data name="Xaml_On_Allow_auto_allow_any_future_9dd11626" xml:space="preserve"><value>On Allow, auto-allow any future binary signed by the same publisher without prompting</value></data>
   <data name="Xaml_Trust_all_software_in_this_folder_e1cab6fe" xml:space="preserve"><value>Trust all software in this folder</value></data>

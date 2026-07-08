@@ -944,6 +944,7 @@
 
                             <DataGrid Grid.Column="0" x:Name="AlertsGrid" ItemsSource="{Binding Alerts}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Low_volume_alerts_cad2ca46}"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                       IsVisibleChanged="OnGridVisible">
                                 <DataGrid.RowStyle>
                                     <Style TargetType="DataGridRow">

@@ -178,6 +178,96 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Interpreter_prompt_carries_script_identity_and_allow_is_not_a_broad_interpreter_rule()
+    {
+        var app = WriteExe("node.exe");
+        var script = Path.Combine(_dir, "scraper", "index.js");
+        var otherScript = Path.Combine(_dir, "scraper", "other.js");
+        Directory.CreateDirectory(Path.GetDirectoryName(script)!);
+        _state.Consent.LookupCommandLine = _ => $"\"{app}\" \"{script}\"";
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+        var now = DateTime.UtcNow;
+
+        _state.Consent.OnBlocked(Blocked(app, now, remote: "203.0.113.44"));
+
+        sub.Reader.TryRead(out var req).Should().BeTrue();
+        req!.CommandLine.Should().Be($"node {script}");
+        req.ScriptPath.Should().Be(script);
+        req.ScriptBindingKey.Should().NotBeEmpty();
+
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Id = req.Id,
+            Application = req.Application,
+            Direction = req.Direction,
+            RemoteAddress = req.RemoteAddress,
+            RemotePort = req.RemotePort,
+            Protocol = req.Protocol,
+            Verdict = "allow",
+            Duration = "always",
+            ScopeCommandLine = true,
+            CommandLine = req.CommandLine,
+            ScriptPath = req.ScriptPath,
+            ScriptBindingKey = req.ScriptBindingKey,
+        }).Ok.Should().BeTrue();
+
+        var ruleName = _fw.Rules.Keys.Single(k => k.StartsWith("HG_Cmd_Allow_node_", StringComparison.Ordinal));
+        _fw.Rules.Keys.Should().NotContain("HG_Consent_Allow_node_Out");
+        _fw.Rules[ruleName].Program.Should().Be(app);
+        _fw.Rules[ruleName].RemoteAddr.Should().Be("203.0.113.44");
+        _fw.Rules[ruleName].Protocol.Should().Be("TCP");
+        _fw.Rules[ruleName].RemotePorts.Should().Be("443");
+
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(10), remote: "203.0.113.44"));
+        _state.Consent.PendingCount.Should().Be(0);
+
+        _state.Consent.LookupCommandLine = _ => $"\"{app}\" \"{otherScript}\"";
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(20), remote: "203.0.113.44"));
+        _state.Consent.PendingCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void Interpreter_block_is_broker_enforced_without_writing_a_broad_block_rule()
+    {
+        var app = WriteExe("node.exe");
+        var script = Path.Combine(_dir, "job.js");
+        _state.Consent.LookupCommandLine = _ => $"\"{app}\" \"{script}\"";
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+        var now = DateTime.UtcNow;
+
+        _state.Consent.OnBlocked(Blocked(app, now, remote: "203.0.113.45"));
+
+        sub.Reader.TryRead(out var req).Should().BeTrue();
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Id = req!.Id,
+            Application = req.Application,
+            Direction = req.Direction,
+            RemoteAddress = req.RemoteAddress,
+            RemotePort = req.RemotePort,
+            Protocol = req.Protocol,
+            Verdict = "block",
+            Duration = "always",
+            ScopeCommandLine = true,
+            CommandLine = req.CommandLine,
+            ScriptPath = req.ScriptPath,
+            ScriptBindingKey = req.ScriptBindingKey,
+        }).Ok.Should().BeTrue();
+
+        _fw.Rules.Keys.Should().NotContain(k => k.StartsWith("HG_Consent_Block_node_", StringComparison.Ordinal));
+        _fw.Rules.Keys.Should().NotContain(k => k.StartsWith("HG_Cmd_Block_node_", StringComparison.Ordinal));
+
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(10), remote: "203.0.113.99"));
+        _state.Consent.PendingCount.Should().Be(0);
+
+        _state.Consent.LookupCommandLine = _ => $"\"{app}\" \"{Path.Combine(_dir, "other.js")}\"";
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(20), remote: "203.0.113.99"));
+        _state.Consent.PendingCount.Should().Be(1);
+    }
+
+    [Fact]
     public void Learning_auto_allows_records_and_remembers_identity()
     {
         _state.Consent.SetMode("learning");

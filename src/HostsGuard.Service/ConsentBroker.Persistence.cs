@@ -27,6 +27,8 @@ public sealed partial class ConsentBroker
         public bool InboundConsent { get; set; }
 
         public List<OnceRule> OnceRules { get; set; } = new();
+
+        public List<CommandLineRule> CommandLineRules { get; set; } = new();
     }
 
     private sealed class OnceRule
@@ -34,6 +36,29 @@ public sealed partial class ConsentBroker
         public string Name { get; set; } = string.Empty;
 
         public DateTime ExpiresUtc { get; set; }
+    }
+
+    private sealed class CommandLineRule
+    {
+        public string Application { get; set; } = string.Empty;
+
+        public string ScriptKey { get; set; } = string.Empty;
+
+        public string ScriptPath { get; set; } = string.Empty;
+
+        public string Direction { get; set; } = "Out";
+
+        public string Action { get; set; } = "Allow";
+
+        public string RemoteAddress { get; set; } = "Any";
+
+        public int RemotePort { get; set; }
+
+        public string Protocol { get; set; } = "Any";
+
+        public string RuleName { get; set; } = string.Empty;
+
+        public DateTime? ExpiresUtc { get; set; }
     }
 
     private PersistedState LoadState()
@@ -45,6 +70,10 @@ public sealed partial class ConsentBroker
                 var loaded = JsonSerializer.Deserialize<PersistedState>(File.ReadAllText(_statePath));
                 if (loaded is not null)
                 {
+                    loaded.TrustedPublishers ??= new();
+                    loaded.TrustedFolders ??= new();
+                    loaded.OnceRules ??= new();
+                    loaded.CommandLineRules ??= new();
                     _onceRules.AddRange(loaded.OnceRules.Select(r => (r.Name, r.ExpiresUtc)));
                     return loaded;
                 }

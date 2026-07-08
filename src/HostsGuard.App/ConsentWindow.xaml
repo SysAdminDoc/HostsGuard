@@ -50,7 +50,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
-                    <RowDefinition />
+                    <RowDefinition /> <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{svc:Loc Key=Xaml_Remote_c93f6536}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
@@ -68,6 +68,10 @@
                            Foreground="{DynamicResource Hg.Sub}" Margin="0,4,16,0" />
                 <TextBlock Grid.Row="6" Grid.Column="1" x:Name="ServiceText" Visibility="Collapsed"
                            Margin="0,4,0,0" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="7" Grid.Column="0" x:Name="CommandLineLabel" Text="{svc:Loc Key=Xaml_Command_line_796f8db3}" Visibility="Collapsed"
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,4,16,0" />
+                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="CommandLineText" Visibility="Collapsed"
+                           Margin="0,4,0,0" TextWrapping="Wrap" FontFamily="Consolas" />
             </Grid>
             </Border>
 
@@ -86,6 +90,10 @@
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_the_owning_21045308}"
                           ToolTip="{svc:Loc Key=Xaml_Blocks_only_this_service_not_everything_1b90c1c7}"
                           Foreground="{DynamicResource Hg.Sub}" />
+                <CheckBox x:Name="ScopeCommandLine" Content="{svc:Loc Key=Xaml_Only_this_script_module_76f07ae2}" Visibility="Collapsed" TabIndex="4"
+                          AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_this_script_61fd89a5}"
+                          ToolTip="{svc:Loc Key=Xaml_Keeps_other_interpreter_scripts_separate_7febbc2b}"
+                          Foreground="{DynamicResource Hg.Sub}" />
             </WrapPanel>
 
             <!-- NET-113: trust the app's Authenticode publisher (shown only when signed). -->
@@ -103,7 +111,7 @@
             <DockPanel Margin="0,12,0,0" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Duration_1370004d}" VerticalAlignment="Center"
                            Margin="0,0,10,0" Foreground="{DynamicResource Hg.Sub}" FontWeight="SemiBold" />
-                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3" TabIndex="4"
+                <ComboBox DockPanel.Dock="Left" x:Name="DurationBox" Width="160" SelectedIndex="3" TabIndex="5"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Rule_duration_5c7aecf7}">
                     <ComboBoxItem Tag="once" Content="{svc:Loc Key=Xaml_Once_15_min_2aef53b4}" />
                     <ComboBoxItem Tag="1h" Content="{svc:Loc Key=Xaml_1_hour_f030c3d6}" />
@@ -116,10 +124,10 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition /> <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="AllowButton" Grid.Column="0" Content="{svc:Loc Key=Xaml_Allow_connection_8a284745}" Margin="0,0,6,0" Padding="8,8" TabIndex="5"
+                <Button x:Name="AllowButton" Grid.Column="0" Content="{svc:Loc Key=Xaml_Allow_connection_8a284745}" Margin="0,0,6,0" Padding="8,8" TabIndex="6"
                         AutomationProperties.Name="{svc:Loc Key=Xaml_Allow_this_connection_07a37a38}"
                         Style="{StaticResource Hg.AccentButton}" Click="OnAllow" />
-                <Button Grid.Column="1" Content="{svc:Loc Key=Xaml_Keep_blocked_74d09533}" Padding="8,8" TabIndex="6"
+                <Button Grid.Column="1" Content="{svc:Loc Key=Xaml_Keep_blocked_74d09533}" Padding="8,8" TabIndex="7"
                         AutomationProperties.Name="{svc:Loc Key=Xaml_Keep_this_connection_blocked_14498f92}"
                         Style="{StaticResource Hg.DangerButton}" Click="OnBlock" />
             </Grid>
@@ -129,11 +137,11 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition /> <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="{svc:Loc Key=Xaml_Allow_all_from_this_app_b32b8fb7}" Margin="0,0,6,0" Padding="8,6" TabIndex="7"
+                <Button Grid.Column="0" Content="{svc:Loc Key=Xaml_Allow_all_from_this_app_b32b8fb7}" Margin="0,0,6,0" Padding="8,6" TabIndex="8"
                         AutomationProperties.Name="{svc:Loc Key=Xaml_Allow_all_pending_connections_from_this_f6b8a4c1}"
                         ToolTip="{svc:Loc Key=Xaml_Write_one_whole_app_allow_rule_46ffd33f}"
                         Click="OnAllowAll" />
-                <Button Grid.Column="1" Content="{svc:Loc Key=Xaml_Block_all_from_this_app_afff7d44}" Padding="8,6" TabIndex="8"
+                <Button Grid.Column="1" Content="{svc:Loc Key=Xaml_Block_all_from_this_app_afff7d44}" Padding="8,6" TabIndex="9"
                         AutomationProperties.Name="{svc:Loc Key=Xaml_Block_all_pending_connections_from_this_e8cbceda}"
                         ToolTip="{svc:Loc Key=Xaml_Write_one_whole_app_block_rule_3cc8f54a}"
                         Click="OnBlockAll" />

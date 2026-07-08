@@ -230,12 +230,15 @@ public sealed class WpfSmokeTests
                 var consent = new ConsentWindow(new ConnectionDecisionRequest
                 {
                     Id = "smoke",
-                    Application = @"C:\Program Files\Example\example.exe",
+                    Application = @"C:\Program Files\nodejs\node.exe",
                     Direction = "Out",
                     RemoteAddress = "203.0.113.9",
                     RemotePort = 443,
                     Protocol = "TCP",
                     ProcessId = 4711,
+                    CommandLine = @"node C:\dev\scraper\index.js",
+                    ScriptPath = @"C:\dev\scraper\index.js",
+                    ScriptBindingKey = @"c:\program files\nodejs\node.exe|c:\dev\scraper\index.js",
                 });
                 consent.Measure(new Size(500, 600));
                 consent.Arrange(new Rect(0, 0, 500, 600));
@@ -247,6 +250,11 @@ public sealed class WpfSmokeTests
                 System.Windows.Automation.AutomationProperties.GetName(allow).Should().Be("Allow this connection");
                 System.Windows.Automation.AutomationProperties.GetName(consent)
                     .Should().Be("HostsGuard connection consent prompt");
+                var appName = (TextBlock)consent.FindName("AppName");
+                appName.Text.Should().Be(@"node C:\dev\scraper\index.js");
+                var scriptScope = (CheckBox)consent.FindName("ScopeCommandLine");
+                scriptScope.Visibility.Should().Be(Visibility.Visible);
+                scriptScope.IsChecked.Should().BeTrue();
 
                 _stage = $"{theme}: constructing ConfirmDialog";
                 var confirm = new ConfirmDialog("Delete firewall rule", "Delete HG_Test?");

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.40-blue)
+![Version](https://img.shields.io/badge/version-0.12.41-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -56,8 +56,9 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Feature | Description |
 |---------|-------------|
 | Filtering modes | **Normal** (enforce silently), **Notify** (prompt on new outbound connections), **Learning** (auto-allow and record) — switchable from the tray |
-| Consent window | Top-most prompt on blocked outbound attempts with process path, signer, resolved hostname, GeoIP country, threat-intel verdict, and domain purpose |
+| Consent window | Top-most prompt on blocked outbound attempts with process path or interpreter command line, signer, resolved hostname, GeoIP country, threat-intel verdict, and domain purpose |
 | Scope + duration | Allow/block by program, remote IP, or port — permanently or for a limited time window |
+| Interpreter script binding | Prompts for `python`, `node`, `pwsh`, `java`, `wscript`, and `cscript` show the extracted script/module and can bind the decision to exe+script without broadly allowing every script under that interpreter |
 | Known-safe baseline | OS-essential binaries (Windows Update, Defender, kernel, LSA) are auto-allowed so prompts target interesting traffic |
 | Identity-bound rules | Rules record the binary's SHA-256 and signer; a renamed impostor at a whitelisted path is re-prompted, while an auto-updater moving to a new versioned directory is recognized as the same app |
 | Trust publisher / folder | Auto-allow future software signed by a trusted Authenticode publisher, or any binary under a trusted install folder — opted in from the prompt |
@@ -176,7 +177,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 844 tests, no elevation needed
+dotnet test HostsGuard.sln           # 854 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
@@ -185,8 +186,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.40-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.40-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.41-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.41-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.
