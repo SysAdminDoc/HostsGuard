@@ -17,6 +17,7 @@ internal static class VisualSmokeRunner
     private static readonly string[] TabNames =
     [
         "Hosts Activity",
+        "Alerts",
         "Hosts File",
         "Firewall Activity",
         "Firewall Rules",

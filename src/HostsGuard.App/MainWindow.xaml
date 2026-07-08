@@ -215,7 +215,7 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="220" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -226,12 +226,12 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Hidden">
+                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Disabled">
                             <StackPanel>
-                                <StackPanel HorizontalAlignment="Center" Margin="0,6,0,10">
-                                    <Border Width="54"
-                                            Height="54"
-                                            CornerRadius="16"
+                                <StackPanel HorizontalAlignment="Center" Margin="0,4,0,8">
+                                    <Border Width="52"
+                                            Height="52"
+                                            CornerRadius="12"
                                             Background="{DynamicResource Hg.Mauve}"
                                             Padding="8"
                                             HorizontalAlignment="Center">
@@ -239,10 +239,10 @@
                                                Stretch="Uniform" />
                                     </Border>
                                     <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}"
-                                               FontSize="18"
+                                               FontSize="17"
                                                FontWeight="SemiBold"
                                                HorizontalAlignment="Center"
-                                               Margin="0,8,0,0" />
+                                               Margin="0,6,0,0" />
                                     <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}"
                                                Style="{StaticResource Hg.DimText}"
                                                HorizontalAlignment="Center"
@@ -290,11 +290,9 @@
                                     <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Filtering_mode_10d184c2}" Style="{StaticResource Hg.Kicker}" />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <TextBlock Text="{svc:Loc Key=Xaml_â_967a8976}"
-                                                       Foreground="{DynamicResource Hg.Mauve}"
-                                                       FontSize="16"
-                                                       Margin="0,0,8,0"
-                                                       VerticalAlignment="Center" />
+                                            <Path Style="{StaticResource Hg.RailGlyphPath}"
+                                                  Data="M 8 2 L 14 8 L 8 14 L 2 8 Z"
+                                                  Stroke="{DynamicResource Hg.Mauve}" />
                                             <TextBlock Text="{Binding FilteringModeTitle}"
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Mauve}" />
@@ -315,11 +313,9 @@
                                     <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Global_posture_3b00dca1}" Style="{StaticResource Hg.Kicker}" />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <TextBlock Text="{svc:Loc Key=Xaml_â_967a8976}"
-                                                       Foreground="{DynamicResource Hg.Teal}"
-                                                       FontSize="16"
-                                                       Margin="0,0,8,0"
-                                                       VerticalAlignment="Center" />
+                                            <Path Style="{StaticResource Hg.RailGlyphPath}"
+                                                  Data="M 8 2 L 14 8 L 8 14 L 2 8 Z M 5 8 H 11"
+                                                  Stroke="{DynamicResource Hg.Teal}" />
                                             <TextBlock Text="{Binding EnforcementPauseTitle}"
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Teal}" />
@@ -356,11 +352,9 @@
                                     <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Alert_inbox_2be348dd}" Style="{StaticResource Hg.Kicker}" />
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                            <TextBlock Text="{svc:Loc Key=Xaml_Alert_icon_8fd14cc6}"
-                                                       Foreground="{DynamicResource Hg.Peach}"
-                                                       FontSize="16"
-                                                       Margin="0,0,8,0"
-                                                       VerticalAlignment="Center" />
+                                            <Path Style="{StaticResource Hg.RailGlyphPath}"
+                                                  Data="M 8 2 L 14 13 H 2 Z M 8 6 V 9 M 8 11 H 8"
+                                                  Stroke="{DynamicResource Hg.Peach}" />
                                             <TextBlock Text="{Binding Alerts.UnreadTitle}"
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Peach}" />
@@ -377,72 +371,88 @@
                                 <Border Style="{StaticResource Hg.RailTile}">
                                     <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Quick_actions_e47e8042}" Style="{StaticResource Hg.Kicker}" Margin="0,0,0,8" />
-                                        <Button Style="{StaticResource Hg.RailLinkButton}"
-                                                Command="{Binding Tools.FlushDnsCommand}"
-                                                HorizontalContentAlignment="Left"
-                                                Margin="0,0,0,4">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{svc:Loc Key=Xaml_â_91c4509a}" Margin="0,0,8,0" />
-                                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource Hg.RailLinkButton}"
-                                                Command="{Binding RunDiagnosticsCommand}"
-                                                HorizontalContentAlignment="Left"
-                                                Margin="0,0,0,4">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{svc:Loc Key=Xaml_â_Ž_231c88db}" Margin="0,0,8,0" />
-                                                <TextBlock Text="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource Hg.RailLinkButton}"
-                                                Command="{Binding Tools.ExportBundleCommand}"
-                                                HorizontalContentAlignment="Left"
-                                                Margin="0,0,0,4">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{svc:Loc Key=Xaml_â_07394d92}" Margin="0,0,8,0" />
-                                                <TextBlock Text="{svc:Loc Key=Xaml_Export_support_bundle_5b5b35e2}" />
-                                            </StackPanel>
-                                        </Button>
-                                        <Button Style="{StaticResource Hg.RailLinkButton}"
-                                                Command="{Binding CheckForUpdatesCommand}"
-                                                HorizontalContentAlignment="Left">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{svc:Loc Key=Xaml_âŸ_1865e00f}" Margin="0,0,8,0" />
-                                                <TextBlock Text="{svc:Loc Key=Xaml_Check_for_updates_736b9062}" />
-                                            </StackPanel>
-                                        </Button>
+                                        <UniformGrid Columns="4">
+                                            <Button Width="38"
+                                                    Height="34"
+                                                    MinHeight="34"
+                                                    Padding="0"
+                                                    Command="{Binding Tools.FlushDnsCommand}"
+                                                    ToolTip="{svc:Loc Key=Xaml_Flush_DNS_15214212}"
+                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Flush_DNS_15214212}">
+                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
+                                            </Button>
+                                            <Button Width="38"
+                                                    Height="34"
+                                                    MinHeight="34"
+                                                    Padding="0"
+                                                    Command="{Binding RunDiagnosticsCommand}"
+                                                    ToolTip="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}"
+                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}">
+                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                                      Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5" />
+                                            </Button>
+                                            <Button Width="38"
+                                                    Height="34"
+                                                    MinHeight="34"
+                                                    Padding="0"
+                                                    Command="{Binding Tools.ExportBundleCommand}"
+                                                    ToolTip="{svc:Loc Key=Xaml_Export_support_bundle_5b5b35e2}"
+                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Export_support_bundle_5b5b35e2}">
+                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                                      Data="M 8 2 V 11 M 4 7 L 8 11 L 12 7 M 4 13 H 12" />
+                                            </Button>
+                                            <Button Width="38"
+                                                    Height="34"
+                                                    MinHeight="34"
+                                                    Padding="0"
+                                                    Command="{Binding CheckForUpdatesCommand}"
+                                                    ToolTip="{svc:Loc Key=Xaml_Check_for_updates_736b9062}"
+                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Check_for_updates_736b9062}">
+                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
+                                            </Button>
+                                        </UniformGrid>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
 
                         <StackPanel Grid.Row="1">
-                            <Border Style="{StaticResource Hg.RailDivider}" Margin="0,8,0,10" />
+                            <Border Style="{StaticResource Hg.RailDivider}" Margin="0,6,0,8" />
                             <UniformGrid Columns="3">
-                                <Button Content="{svc:Loc Key=Xaml_âŸ_1865e00f}"
-                                        Width="38"
-                                        Height="34"
-                                        MinHeight="34"
+                                <Button Width="38"
+                                        Height="32"
+                                        MinHeight="32"
                                         Padding="0"
                                         Command="{Binding RefreshAllCommand}"
-                                        ToolTip="{svc:Loc Key=Xaml_Refresh_all_bc959b88}" />
-                                <Button Content="{svc:Loc Key=Xaml_â_b90c3aa8}"
-                                        Width="38"
-                                        Height="34"
-                                        MinHeight="34"
+                                        ToolTip="{svc:Loc Key=Xaml_Refresh_all_bc959b88}"
+                                        AutomationProperties.Name="{svc:Loc Key=Xaml_Refresh_all_bc959b88}">
+                                    <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                          Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
+                                </Button>
+                                <Button Width="38"
+                                        Height="32"
+                                        MinHeight="32"
                                         Padding="0"
                                         Command="{Binding ToggleThemeCommand}"
                                         Margin="6,0,0,0"
-                                        ToolTip="{svc:Loc Key=Xaml_Switch_theme_9a9a20fa}" />
-                                <Button Content="{svc:Loc Key=Xaml_â_77f3d765}"
-                                        Width="38"
-                                        Height="34"
-                                        MinHeight="34"
+                                        ToolTip="{svc:Loc Key=Xaml_Switch_theme_9a9a20fa}"
+                                        AutomationProperties.Name="{svc:Loc Key=Xaml_Switch_theme_9a9a20fa}">
+                                    <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                          Data="M 11 2 A 6 6 0 1 0 14 11 A 5 5 0 0 1 11 2" />
+                                </Button>
+                                <Button Width="38"
+                                        Height="32"
+                                        MinHeight="32"
                                         Padding="0"
                                         Command="{Binding ResetViewCommand}"
                                         Margin="6,0,0,0"
-                                        ToolTip="{svc:Loc Key=Xaml_Reset_view_80d8db7a}" />
+                                        ToolTip="{svc:Loc Key=Xaml_Reset_view_80d8db7a}"
+                                        AutomationProperties.Name="{svc:Loc Key=Xaml_Reset_view_80d8db7a}">
+                                    <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                          Data="M 4 5 H 12 M 4 8 H 12 M 4 11 H 12" />
+                                </Button>
                             </UniformGrid>
                         </StackPanel>
                     </Grid>
@@ -455,7 +465,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_â_Ž_231c88db}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -533,7 +545,7 @@
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
                                 <!-- Flat section headers: a styled band per root with the
-                                     normal grid rows directly beneath â€” same layout as the
+                                     normal grid rows directly beneath - same layout as the
                                      ungrouped feed, just sectioned. Right-click hides the root. -->
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
@@ -559,7 +571,7 @@
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
                                                                                Foreground="{DynamicResource Hg.Blue}" />
-                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' â€” {0} domains'}"
+                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' - {0} domains'}"
                                                                                Style="{StaticResource Hg.DimText}" />
                                                                 </StackPanel>
                                                             </Border>
@@ -758,14 +770,19 @@
                                         </StackPanel.Style>
                                         <DockPanel LastChildFill="True">
                                             <Button DockPanel.Dock="Right"
-                                                    Content="{svc:Loc Key=Xaml_Ã_ee75f098}"
                                                     Style="{StaticResource Hg.CloseIconButton}"
                                                     ToolTip="{svc:Loc Key=Xaml_Clear_selection_247fd631}"
-                                                    Click="OnClearActivitySelection" />
+                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Clear_selection_247fd631}"
+                                                    Click="OnClearActivitySelection">
+                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                                      Data="M 4 4 L 12 12 M 12 4 L 4 12"
+                                                      Stroke="{DynamicResource Hg.Sub}" />
+                                            </Button>
                                             <TextBlock DockPanel.Dock="Left"
-                                                       Text="{svc:Loc Key=Xaml_â_Ž_231c88db}"
+                                                       Text="{svc:Loc Key=Xaml_DNS_3ddc21b1}"
                                                        Foreground="{DynamicResource Hg.Teal}"
-                                                       FontSize="18"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
                                                        Margin="0,0,8,0"
                                                        VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding Domain, TargetNullValue='Select a DNS row'}"
@@ -879,7 +896,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_Alert_icon_8fd14cc6}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 8 2 L 14 13 H 2 Z M 8 6 V 9 M 8 11 H 8"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_Alerts, Default=Alerts}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -911,6 +930,7 @@
                                 <TextBox Text="{Binding TypeFilter, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource Hg.HintBox}"
                                          MinWidth="190"
+                                         Tag="{svc:Loc Key=Xaml_Type_filter_6e3b3ab7}"
                                          AutomationProperties.Name="{svc:Loc Key=Xaml_Type_filter_6e3b3ab7}"
                                          ToolTip="{svc:Loc Key=Xaml_Alert_type_exact_filter_095a0f53}" />
                             </DockPanel>
@@ -919,7 +939,7 @@
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="300" />
+                                <ColumnDefinition Width="400" />
                             </Grid.ColumnDefinitions>
 
                             <DataGrid Grid.Column="0" x:Name="AlertsGrid" ItemsSource="{Binding Alerts}"
@@ -971,8 +991,8 @@
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_Alert_type_settings_8e403573}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Type_4f6f5f0b}" Binding="{Binding Label}" Width="*" />
-                                            <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Surface_5e1f39da}" Binding="{Binding Surface}" Width="70" />
-                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Unread_alerts_0f4f2d44}" Binding="{Binding Unread}" Width="70" />
+                                            <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Surface_5e1f39da}" Binding="{Binding Surface}" Width="64" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Unread_alerts_0f4f2d44}" Binding="{Binding Unread}" Width="100" />
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Grid>
@@ -987,7 +1007,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_â_8408cc8d}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 4 2 H 10 L 13 5 V 14 H 4 Z M 10 2 V 5 H 13 M 6 8 H 11 M 6 11 H 10"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -1023,7 +1045,7 @@
                                               SelectedItem="{Binding StatusFilter}" />
                                     <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource Hg.HintBox}"
-                                             Tag="Search managed domains â€” try field:value or !term"
+                                             Tag="Search managed domains - try field:value or !term"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_Search_managed_domains_f5421c94}"
                                              ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_â_supports_a2c98d15}" />
                                 </DockPanel>
@@ -1244,7 +1266,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_â_ˆ_279a02f7}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 3 11 C 4.5 6 6 4 8 4 S 11.5 6 13 3 M 3 13 H 13 M 5 9 H 11"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_FirewallActivity, Default=Firewall Activity}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -1303,7 +1327,7 @@
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      MinWidth="260"
-                                     Tag="Search connections â€” try process:chrome, port:443, or !svchost"
+                                     Tag="Search connections - try process:chrome, port:443, or !svchost"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_live_connections_0c00b205}"
                                      ToolTip="{svc:Loc Key=Xaml_Search_process_chrome_port_443_country_7a34001a}" />
                             <TextBox Width="220" Margin="10,0,0,0" VerticalAlignment="Center"
@@ -1912,7 +1936,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_â_06a1e29b}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 3 4 H 13 M 3 8 H 13 M 3 12 H 13 M 5 2 V 14 M 11 2 V 14"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_FirewallRules, Default=Firewall Rules}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -2112,7 +2138,9 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{svc:Loc Key=Xaml_âš_e38dfb24}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <Path Style="{StaticResource Hg.MainTabIconPath}"
+                                  Data="M 8 2 V 5 M 8 11 V 14 M 2 8 H 5 M 11 8 H 14 M 4.5 4.5 L 6.5 6.5 M 9.5 9.5 L 11.5 11.5 M 11.5 4.5 L 9.5 6.5 M 6.5 9.5 L 4.5 11.5"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
                             <TextBlock Text="{svc:Loc Key=Tab_Tools, Default=Tools}" />
                         </StackPanel>
                     </TabItem.Header>
@@ -2178,7 +2206,7 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Enter_a_domain_to_resolve_and_bdf20a48}" />
                                         <TextBox Text="{Binding InspectDomain, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Domain to resolve and check â€” e.g. tracker.example.com"
+                                                 Tag="Domain to resolve and check - e.g. tracker.example.com"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Domain_to_inspect_ea69d8b4}"
                                                  ToolTip="{svc:Loc Key=Xaml_Domain_to_resolve_and_check_block_be2f0bc0}" />
                                     </DockPanel>
@@ -2198,7 +2226,7 @@
                                                     <Setter Property="Content" Value="See everything (force browser DNS to OS resolver)" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SeeEverythingActive}" Value="True">
-                                                            <Setter Property="Content" Value="See-everything is ON â€” click to turn off" />
+                                                            <Setter Property="Content" Value="See-everything is ON - click to turn off" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>

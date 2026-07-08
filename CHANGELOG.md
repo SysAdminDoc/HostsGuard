@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.38] - 2026-07-08
+
+### Changed
+- Refined the WPF shell toward a more premium operational-console design with
+  updated dark/light theme tokens, carded status rail sections, stronger table
+  and inspector chrome, vector tab/action icons, and refreshed dark/light
+  screenshots.
+- Expanded rendered visual smoke coverage to include the Alerts tab so evidence
+  filenames match all six primary tabs.
+
 ## [0.12.37] - 2026-07-08
 
 ### Added

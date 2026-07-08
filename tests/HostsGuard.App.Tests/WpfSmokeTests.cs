@@ -211,12 +211,12 @@ public sealed class WpfSmokeTests
                     AssertTabAccessible(window, tab, theme);
                 }
 
-                mainTabs.SelectedIndex = 3; // FW Rules.
+                mainTabs.SelectedIndex = 4; // FW Rules.
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
                     .Should().Contain("Create HostsGuard rule");
 
-                mainTabs.SelectedIndex = 4; // Tools.
+                mainTabs.SelectedIndex = 5; // Tools.
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
                     .Should().Contain(t => t.StartsWith("Use a domain, service target, or fw:HG_RuleName", StringComparison.Ordinal));

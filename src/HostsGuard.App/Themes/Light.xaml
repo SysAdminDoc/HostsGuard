@@ -4,45 +4,45 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <SolidColorBrush x:Key="Hg.Bg" Color="#f4f7fb" />
-    <SolidColorBrush x:Key="Hg.Base" Color="#ffffff" />
-    <SolidColorBrush x:Key="Hg.Mantle" Color="#eef3f8" />
-    <SolidColorBrush x:Key="Hg.Crust" Color="#e2e9f2" />
-    <SolidColorBrush x:Key="Hg.S0" Color="#cfd9e6" />
-    <SolidColorBrush x:Key="Hg.S1" Color="#b9c6d6" />
-    <SolidColorBrush x:Key="Hg.S2" Color="#93a4ba" />
-    <SolidColorBrush x:Key="Hg.Text" Color="#273142" />
-    <SolidColorBrush x:Key="Hg.Sub" Color="#455368" />
-    <SolidColorBrush x:Key="Hg.Dim" Color="#68778d" />
-    <SolidColorBrush x:Key="Hg.Blue" Color="#1f68e5" />
-    <SolidColorBrush x:Key="Hg.AccentHover" Color="#1a58c4" />
-    <SolidColorBrush x:Key="Hg.Green" Color="#207a36" />
-    <SolidColorBrush x:Key="Hg.SuccessSoft" Color="#E7F5EA" />
-    <SolidColorBrush x:Key="Hg.SuccessBorder" Color="#9DD8AC" />
-    <SolidColorBrush x:Key="Hg.SuccessHover" Color="#D8EFDD" />
-    <SolidColorBrush x:Key="Hg.Red" Color="#c91d42" />
-    <SolidColorBrush x:Key="Hg.DangerSoft" Color="#F9E5EA" />
+    <SolidColorBrush x:Key="Hg.Bg" Color="#EEF3F8" />
+    <SolidColorBrush x:Key="Hg.Base" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Hg.Mantle" Color="#F6F9FC" />
+    <SolidColorBrush x:Key="Hg.Crust" Color="#DDE6F0" />
+    <SolidColorBrush x:Key="Hg.S0" Color="#C9D5E4" />
+    <SolidColorBrush x:Key="Hg.S1" Color="#AFC0D3" />
+    <SolidColorBrush x:Key="Hg.S2" Color="#8498B1" />
+    <SolidColorBrush x:Key="Hg.Text" Color="#1E2A3A" />
+    <SolidColorBrush x:Key="Hg.Sub" Color="#3D4D64" />
+    <SolidColorBrush x:Key="Hg.Dim" Color="#66758B" />
+    <SolidColorBrush x:Key="Hg.Blue" Color="#265FDB" />
+    <SolidColorBrush x:Key="Hg.AccentHover" Color="#1F4FB9" />
+    <SolidColorBrush x:Key="Hg.Green" Color="#1C7A3D" />
+    <SolidColorBrush x:Key="Hg.SuccessSoft" Color="#E4F5EA" />
+    <SolidColorBrush x:Key="Hg.SuccessBorder" Color="#92D4A8" />
+    <SolidColorBrush x:Key="Hg.SuccessHover" Color="#D5EFDE" />
+    <SolidColorBrush x:Key="Hg.Red" Color="#B91F3D" />
+    <SolidColorBrush x:Key="Hg.DangerSoft" Color="#FAE5EB" />
     <SolidColorBrush x:Key="Hg.DangerBorder" Color="#E0A0AD" />
     <SolidColorBrush x:Key="Hg.DangerSoftHover" Color="#F2D5DD" />
-    <SolidColorBrush x:Key="Hg.Danger2" Color="#941332" />
-    <SolidColorBrush x:Key="Hg.DangerHover" Color="#a71435" />
+    <SolidColorBrush x:Key="Hg.Danger2" Color="#8C1530" />
+    <SolidColorBrush x:Key="Hg.DangerHover" Color="#9F1836" />
     <SolidColorBrush x:Key="Hg.OnDanger" Color="#ffffff" />
-    <SolidColorBrush x:Key="Hg.Peach" Color="#c95c17" />
-    <SolidColorBrush x:Key="Hg.Yellow" Color="#9a6700" />
-    <SolidColorBrush x:Key="Hg.WarnSoft" Color="#FFF2D7" />
-    <SolidColorBrush x:Key="Hg.Mauve" Color="#7b3bd8" />
-    <SolidColorBrush x:Key="Hg.Teal" Color="#087d79" />
-    <SolidColorBrush x:Key="Hg.Sky" Color="#147bb6" />
-    <SolidColorBrush x:Key="Hg.Focus" Color="#1f68e5" />
+    <SolidColorBrush x:Key="Hg.Peach" Color="#BE5A17" />
+    <SolidColorBrush x:Key="Hg.Yellow" Color="#8F6200" />
+    <SolidColorBrush x:Key="Hg.WarnSoft" Color="#FFF1D4" />
+    <SolidColorBrush x:Key="Hg.Mauve" Color="#6B35C7" />
+    <SolidColorBrush x:Key="Hg.Teal" Color="#047D78" />
+    <SolidColorBrush x:Key="Hg.Sky" Color="#0E72AC" />
+    <SolidColorBrush x:Key="Hg.Focus" Color="#265FDB" />
     <!-- sel = rgba(31,104,229,0.12) -->
-    <SolidColorBrush x:Key="Hg.Sel" Color="#1f1f68e5" />
+    <SolidColorBrush x:Key="Hg.Sel" Color="#24265FDB" />
     <SolidColorBrush x:Key="Hg.OnSel" Color="#ffffff" />
 
     <!-- chart series accents (timeline / sparklines) -->
-    <SolidColorBrush x:Key="Hg.Series0" Color="#1f68e5" />
-    <SolidColorBrush x:Key="Hg.Series1" Color="#087d79" />
-    <SolidColorBrush x:Key="Hg.Series2" Color="#c95c17" />
-    <SolidColorBrush x:Key="Hg.Series3" Color="#7b3bd8" />
-    <SolidColorBrush x:Key="Hg.Series4" Color="#9a6700" />
+    <SolidColorBrush x:Key="Hg.Series0" Color="#265FDB" />
+    <SolidColorBrush x:Key="Hg.Series1" Color="#047D78" />
+    <SolidColorBrush x:Key="Hg.Series2" Color="#BE5A17" />
+    <SolidColorBrush x:Key="Hg.Series3" Color="#6B35C7" />
+    <SolidColorBrush x:Key="Hg.Series4" Color="#8F6200" />
 
 </ResourceDictionary>

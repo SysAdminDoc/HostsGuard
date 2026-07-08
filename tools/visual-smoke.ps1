@@ -5,7 +5,7 @@ param(
     [int]$Width = 1600,
     [int]$Height = 1000,
     [int]$SettleMs = 1200,
-    [string[]]$Tabs = @("Hosts Activity", "Hosts File", "Firewall Activity", "Firewall Rules", "Tools")
+    [string[]]$Tabs = @("Hosts Activity", "Alerts", "Hosts File", "Firewall Activity", "Firewall Rules", "Tools")
 )
 
 Set-StrictMode -Version Latest
