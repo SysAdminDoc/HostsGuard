@@ -11,6 +11,8 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed class ConnectionFeed : IDisposable
 {
+    private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(5);
+
     private readonly ServiceState _state;
     private readonly ConnectionMonitor _monitor = new();
     private readonly CancellationTokenSource _cts = new();
@@ -53,9 +55,13 @@ public sealed class ConnectionFeed : IDisposable
                     seen.Remove(gone);
                 }
             }
-            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Table read hiccup — retry next tick.
+                return;
+            }
+            catch (Exception ex)
+            {
+                TryLogLoopError(ex);
             }
 
             try
@@ -72,6 +78,47 @@ public sealed class ConnectionFeed : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
+        WaitForLoop();
         _cts.Dispose();
+    }
+
+    private void WaitForLoop()
+    {
+        if (_loop is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_loop.Wait(StopTimeout))
+            {
+                TryLogLoopError(new TimeoutException("connection feed loop did not stop before timeout"));
+            }
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Normal cancellation.
+        }
+        catch (AggregateException ex)
+        {
+            TryLogLoopError(ex.Flatten().InnerExceptions.FirstOrDefault() ?? ex);
+        }
+    }
+
+    private void TryLogLoopError(Exception ex)
+    {
+        try
+        {
+            _state.Db.LogEvent("connection_feed", "loop_error", details: $"{ex.GetType().Name}: {ex.Message}");
+        }
+        catch (Exception logEx) when (logEx is Microsoft.Data.Sqlite.SqliteException or InvalidOperationException)
+        {
+            // If the DB itself is unavailable, keep the polling loop alive.
+        }
+        catch (Exception)
+        {
+            // Logging must not fault the background polling loop.
+        }
     }
 }

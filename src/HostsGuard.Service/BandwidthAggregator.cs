@@ -16,6 +16,7 @@ namespace HostsGuard.Service;
 public sealed class BandwidthAggregator : IDisposable
 {
     private const int PruneEveryFlushes = 60;
+    private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(5);
 
     private readonly HostsDatabase _db;
     private readonly IBandwidthSource _source;
@@ -59,10 +60,13 @@ public sealed class BandwidthAggregator : IDisposable
             {
                 FlushOnce(DateTime.Now);
             }
-            catch (Microsoft.Data.Sqlite.SqliteException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // Transient DB contention — counters were drained, this window's
-                // bytes are lost; the next flush proceeds normally.
+                return;
+            }
+            catch (Exception ex)
+            {
+                TryLogLoopError(ex);
             }
         }
     }
@@ -128,6 +132,47 @@ public sealed class BandwidthAggregator : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
+        WaitForLoop();
         _cts.Dispose();
+    }
+
+    private void WaitForLoop()
+    {
+        if (_loop is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_loop.Wait(StopTimeout))
+            {
+                TryLogLoopError(new TimeoutException("bandwidth loop did not stop before timeout"));
+            }
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Normal cancellation.
+        }
+        catch (AggregateException ex)
+        {
+            TryLogLoopError(ex.Flatten().InnerExceptions.FirstOrDefault() ?? ex);
+        }
+    }
+
+    private void TryLogLoopError(Exception ex)
+    {
+        try
+        {
+            _db.LogEvent("bandwidth", "loop_error", details: $"{ex.GetType().Name}: {ex.Message}");
+        }
+        catch (Exception logEx) when (logEx is Microsoft.Data.Sqlite.SqliteException or InvalidOperationException)
+        {
+            // If the DB itself is unavailable, keep the flush loop alive.
+        }
+        catch (Exception)
+        {
+            // Logging must not fault the background flush loop.
+        }
     }
 }

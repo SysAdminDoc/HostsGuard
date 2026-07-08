@@ -82,6 +82,8 @@ public delegate Task<int> WebhookSender(string url, string body, string signatur
 [SupportedOSPlatform("windows")]
 public sealed class WebhookDeliverer : IDisposable
 {
+    private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(5);
+
     private readonly WebhookConfig _config;
     private readonly WebhookSender _sender;
     private readonly Action<string>? _log;
@@ -115,12 +117,27 @@ public sealed class WebhookDeliverer : IDisposable
         {
             await foreach (var ev in sub.Reader.ReadAllAsync(ct))
             {
-                await DeliverAsync(BuildPayload(ev), ct);
+                try
+                {
+                    await DeliverAsync(BuildPayload(ev), ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    SafeLog($"webhook loop delivery failed: {ex.GetType().Name}: {ex.Message}");
+                }
             }
         }
         catch (OperationCanceledException)
         {
             // Shutdown.
+        }
+        catch (Exception ex)
+        {
+            SafeLog($"webhook loop stopped: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -167,7 +184,7 @@ public sealed class WebhookDeliverer : IDisposable
             }
             catch (SsrfBlockedException)
             {
-                _log?.Invoke($"webhook {host} blocked by SSRF guard");
+                SafeLog($"webhook {host} blocked by SSRF guard");
                 return;
             }
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
@@ -177,7 +194,7 @@ public sealed class WebhookDeliverer : IDisposable
 
             if (status is >= 200 and < 300)
             {
-                _log?.Invoke($"webhook {host} delivered ({status})");
+                SafeLog($"webhook {host} delivered ({status})");
                 return;
             }
 
@@ -186,7 +203,7 @@ public sealed class WebhookDeliverer : IDisposable
             var retryable = status == 0 || status == 429 || status >= 500;
             if (!retryable || attempt == _maxAttempts)
             {
-                _log?.Invoke($"webhook {host} failed after {attempt} attempt(s) (last status {status})");
+                SafeLog($"webhook {host} failed after {attempt} attempt(s) (last status {status})");
                 return;
             }
 
@@ -242,6 +259,44 @@ public sealed class WebhookDeliverer : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
+        WaitForLoop();
         _cts.Dispose();
+    }
+
+    private void WaitForLoop()
+    {
+        if (_loop is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_loop.Wait(StopTimeout))
+            {
+                SafeLog("webhook loop did not stop before timeout");
+            }
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Normal cancellation.
+        }
+        catch (AggregateException ex)
+        {
+            var cause = ex.Flatten().InnerExceptions.FirstOrDefault() ?? ex;
+            SafeLog($"webhook loop stopped: {cause.GetType().Name}: {cause.Message}");
+        }
+    }
+
+    private void SafeLog(string message)
+    {
+        try
+        {
+            _log?.Invoke(message);
+        }
+        catch (Exception)
+        {
+            // Logging must not fault webhook delivery.
+        }
     }
 }

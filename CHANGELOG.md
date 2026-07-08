@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.27] - 2026-07-08
+
+### Fixed
+- Webhook, bandwidth, and connection-feed background loops now catch and log
+  unexpected per-event/tick failures instead of silently dying for the rest of
+  service uptime, and their `Dispose` paths wait briefly for cancellation to
+  drain.
+- Added a webhook loop regression proving a non-network sender exception does
+  not stop subsequent deliveries.
+
 ## [0.12.26] - 2026-07-08
 
 ### Fixed

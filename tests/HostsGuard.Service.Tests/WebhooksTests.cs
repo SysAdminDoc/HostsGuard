@@ -211,6 +211,36 @@ public sealed class WebhooksTests : IDisposable
         calls.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Delivery_loop_continues_after_non_network_sender_exception()
+    {
+        var cfg = new WebhookConfig { Urls = { "https://a.example/hook" } };
+        var calls = 0;
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var logs = new ConcurrentQueue<string>();
+        WebhookSender sender = (_, _, _, _) =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                throw new InvalidOperationException("boom");
+            }
+
+            delivered.TrySetResult();
+            return Task.FromResult(200);
+        };
+        using var d = new WebhookDeliverer(cfg, sender, logs.Enqueue, maxAttempts: 1, backoffBase: TimeSpan.Zero);
+        var bus = new EventBus();
+        d.Start(bus);
+
+        await Task.Delay(250);
+        bus.Publish(new ActivityEvent { Domain = "first.example.com", Action = "blocked" });
+        bus.Publish(new ActivityEvent { Domain = "second.example.com", Action = "blocked" });
+
+        await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        calls.Should().Be(2);
+        logs.Should().Contain(l => l.Contains("webhook loop delivery failed", StringComparison.Ordinal));
+    }
+
     private sealed class FailIfCalledHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
