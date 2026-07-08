@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.32] - 2026-07-08
+
+### Refactored
+- Split large WPF row ViewModels, HostsDatabase domain areas, and ConsentBroker
+  review/history/persistence sections into focused files without changing the
+  public behavior surface.
+
 ## [0.12.31] - 2026-07-08
 
 ### Tests

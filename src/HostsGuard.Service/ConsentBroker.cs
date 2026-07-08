@@ -1,5 +1,4 @@
 using System.Runtime.Versioning;
-using System.Text.Json;
 using Google.Protobuf.WellKnownTypes;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -13,19 +12,19 @@ namespace HostsGuard.Service;
 /// connections flow in from <see cref="BlockedConnectionWatch"/>; per the
 /// filtering mode they are dropped (normal), auto-allowed and recorded
 /// (learning), or deduped and pushed to the UI as pending decisions (notify).
-/// Decisions come back as HG_ COM rules — permanent, or once-rules reaped
-/// after a timeout — with <see cref="FirewallIdentity.Remember"/> on every
+/// Decisions come back as HG_ COM rules â€” permanent, or once-rules reaped
+/// after a timeout â€” with <see cref="FirewallIdentity.Remember"/> on every
 /// write so rebind history exists before the next app update.
 ///
 /// Posture rails: arming detection (notify/learning) saves the current
 /// default-outbound posture and sets Block; returning to normal restores the
 /// saved posture. Mode + saved posture persist in consent_state.json so a
-/// service restart re-arms (or stays disarmed) faithfully — the WFC-conflict
+/// service restart re-arms (or stays disarmed) faithfully â€” the WFC-conflict
 /// lesson is that firewall posture must never change without an explicit,
 /// reversible opt-in.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class ConsentBroker : IDisposable
+public sealed partial class ConsentBroker : IDisposable
 {
     public const string ModeNormal = "normal";
     public const string ModeNotify = "notify";
@@ -83,13 +82,13 @@ public sealed class ConsentBroker : IDisposable
     public Func<string, string?>? LookupSigner { get; set; }
 
     /// <summary>
-    /// PID→sole-owning-service resolution (NET-073): (SCM key, display name),
+    /// PIDâ†’sole-owning-service resolution (NET-073): (SCM key, display name),
     /// or null when the process hosts no service or several.
     /// </summary>
     public Func<int, (string Key, string Display)?>? LookupSoleService { get; set; }
 
     /// <summary>
-    /// PID→(parent PID, parent image path) resolution (NET-093 child auto-allow),
+    /// PIDâ†’(parent PID, parent image path) resolution (NET-093 child auto-allow),
     /// or null when the parent is dead/unreadable. Wired by the host.
     /// </summary>
     public Func<int, (int ParentPid, string ParentPath)?>? LookupParent { get; set; }
@@ -123,7 +122,7 @@ public sealed class ConsentBroker : IDisposable
     /// <summary>
     /// Child-process auto-allow (NET-093): when on, a blocked connection whose
     /// direct parent already has an HG allow rule is auto-allowed (bounded TTL)
-    /// instead of prompting. Off by default — deny-by-default is preserved.
+    /// instead of prompting. Off by default â€” deny-by-default is preserved.
     /// </summary>
     public bool ChildInherit
     {
@@ -162,8 +161,8 @@ public sealed class ConsentBroker : IDisposable
         {
             Ok = true,
             Message = enabled
-                ? "inbound consent ON — unruled inbound connections prompt in Notify mode"
-                : "inbound consent OFF — inbound connections are not prompted",
+                ? "inbound consent ON â€” unruled inbound connections prompt in Notify mode"
+                : "inbound consent OFF â€” inbound connections are not prompted",
         };
     }
 
@@ -181,8 +180,8 @@ public sealed class ConsentBroker : IDisposable
         {
             Ok = true,
             Message = enabled
-                ? "child-process auto-allow ON — direct children of an allowed app inherit its allow for 1 hour"
-                : "child-process auto-allow OFF — every unruled child prompts",
+                ? "child-process auto-allow ON â€” direct children of an allowed app inherit its allow for 1 hour"
+                : "child-process auto-allow OFF â€” every unruled child prompts",
         };
     }
 
@@ -283,9 +282,9 @@ public sealed class ConsentBroker : IDisposable
             Ok = true,
             Message = mode switch
             {
-                ModeNotify => "notify mode — unruled connections prompt for a decision (default outbound: Block)",
-                ModeLearning => "learning mode — unruled connections are auto-allowed and recorded (default outbound: Block)",
-                _ => "normal mode — rules enforce silently (default outbound restored)",
+                ModeNotify => "notify mode â€” unruled connections prompt for a decision (default outbound: Block)",
+                ModeLearning => "learning mode â€” unruled connections are auto-allowed and recorded (default outbound: Block)",
+                _ => "normal mode â€” rules enforce silently (default outbound restored)",
             },
         };
     }
@@ -297,7 +296,7 @@ public sealed class ConsentBroker : IDisposable
             return;
         }
 
-        // Restore each profile to exactly what it was before we armed — a mixed
+        // Restore each profile to exactly what it was before we armed â€” a mixed
         // prior posture (e.g. Public=Block, others Allow) round-trips faithfully
         // instead of collapsing to a single all-profiles value.
         fw.SetDefaultOutboundBlock(prior);
@@ -346,7 +345,7 @@ public sealed class ConsentBroker : IDisposable
                 return;
             }
 
-            // Inbound consent (NET-104) is opt-in — unsolicited inbound blocks are
+            // Inbound consent (NET-104) is opt-in â€” unsolicited inbound blocks are
             // noisy, so drop them unless the user enabled inbound prompting.
             if (blocked.Direction == "In" && !inboundConsent)
             {
@@ -376,7 +375,7 @@ public sealed class ConsentBroker : IDisposable
         var service = SafeInvoke(() => LookupSoleService?.Invoke(blocked.ProcessId));
 
         // Apps that already have an HG rule covering this direction were
-        // decided already — never re-prompt (WFCP-010 trust check).
+        // decided already â€” never re-prompt (WFCP-010 trust check).
         if (HasCoveringRule(blocked.Application, blocked.Direction, service?.Key))
         {
             return;
@@ -399,7 +398,7 @@ public sealed class ConsentBroker : IDisposable
         }
 
         // Trust-by-folder (NET-117): a binary under a user-trusted folder is
-        // auto-allowed — the driver-free "trust this whole install directory".
+        // auto-allowed â€” the driver-free "trust this whole install directory".
         if (IsTrustedFolder(blocked.Application))
         {
             AutoAllowFolder(blocked);
@@ -505,7 +504,7 @@ public sealed class ConsentBroker : IDisposable
             }
 
             // A service-scoped rule (NET-073) only covers connections from that
-            // service — svchost's other services still get their own prompt.
+            // service â€” svchost's other services still get their own prompt.
             if (r.ServiceName.Length != 0 &&
                 !r.ServiceName.Equals(serviceKey ?? string.Empty, StringComparison.OrdinalIgnoreCase))
             {
@@ -550,12 +549,12 @@ public sealed class ConsentBroker : IDisposable
         if (parent is not { } p || p.ParentPath.Length == 0 ||
             p.ParentPath.Equals(blocked.Application, StringComparison.OrdinalIgnoreCase))
         {
-            return false; // no readable parent, or self-parent — nothing to inherit
+            return false; // no readable parent, or self-parent â€” nothing to inherit
         }
 
         if (!HasCoveringRule(p.ParentPath, blocked.Direction, requireAction: "Allow"))
         {
-            return false; // parent isn't trusted (no allow verdict) — prompt as usual
+            return false; // parent isn't trusted (no allow verdict) â€” prompt as usual
         }
 
         AutoAllowChild(blocked, p.ParentPath);
@@ -586,7 +585,7 @@ public sealed class ConsentBroker : IDisposable
             details: $"{blocked.Direction}|inherited from {Path.GetFileName(parentPath)}|1h", reason: "consent");
     }
 
-    // ─── Trust-by-publisher (NET-113) ────────────────────────────────────────
+    // â”€â”€â”€ Trust-by-publisher (NET-113) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>Publisher CNs whose signed binaries auto-allow without a prompt.</summary>
     public IReadOnlyList<string> TrustedPublishers
@@ -668,7 +667,7 @@ public sealed class ConsentBroker : IDisposable
             details: $"{blocked.Direction}|trusted publisher", reason: "consent");
     }
 
-    // ─── Trust-by-folder (NET-117) ───────────────────────────────────────────
+    // â”€â”€â”€ Trust-by-folder (NET-117) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// <summary>Folders whose binaries auto-allow without a prompt.</summary>
     public IReadOnlyList<string> TrustedFolders
@@ -894,8 +893,8 @@ public sealed class ConsentBroker : IDisposable
             stem = $"{stem}.{serviceKey}";
         }
 
-        // Duration (NET-067): "always" → permanent COM rule; "once"/"1h"/"session"
-        // → ephemeral HG_Once_ rule. Blank falls back to the legacy permanent flag.
+        // Duration (NET-067): "always" â†’ permanent COM rule; "once"/"1h"/"session"
+        // â†’ ephemeral HG_Once_ rule. Blank falls back to the legacy permanent flag.
         var (permanent, expiresUtc, label) = ResolveDuration(decision.Duration, decision.Permanent);
 
         var name = permanent
@@ -922,7 +921,7 @@ public sealed class ConsentBroker : IDisposable
         return new Ack
         {
             Ok = true,
-            Message = created ? $"{verdict} {stem} ({label}) — {name}" : $"{name} already exists",
+            Message = created ? $"{verdict} {stem} ({label}) â€” {name}" : $"{name} already exists",
         };
     }
 
@@ -1014,7 +1013,7 @@ public sealed class ConsentBroker : IDisposable
 
         if (autoLock)
         {
-            _db.LogEvent("consent", "learning_autolock", details: "learning window expired — reverted to Normal; batch left for review");
+            _db.LogEvent("consent", "learning_autolock", details: "learning window expired â€” reverted to Normal; batch left for review");
             SetMode(ModeNormal);
         }
 
@@ -1031,7 +1030,7 @@ public sealed class ConsentBroker : IDisposable
         foreach (var request in expired)
         {
             // Default-block already holds the connection; a timeout writes no
-            // rule — it just records that nobody answered.
+            // rule â€” it just records that nobody answered.
             LogDecision(request.Application, request.Direction, request.RemoteAddress, request.Protocol, "timeout", permanent: false);
         }
 
@@ -1087,103 +1086,6 @@ public sealed class ConsentBroker : IDisposable
         }
     }
 
-    // ─── "Decide later" review of Learning-mode auto-decisions (NET-074) ─────
-
-    /// <summary>The Learning-mode auto-allow rules awaiting review.</summary>
-    public LearnedList ListLearned()
-    {
-        var list = new LearnedList();
-        if (_firewall is not { } fw)
-        {
-            return list;
-        }
-
-        foreach (var r in fw.ListRules()
-                     .Where(r => r.Name.StartsWith(LearnPrefix, StringComparison.Ordinal))
-                     .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            list.Entries.Add(new LearnedEntry
-            {
-                RuleName = r.Name,
-                Application = r.Program,
-                Direction = r.Direction,
-                ServiceName = r.ServiceName,
-            });
-        }
-
-        return list;
-    }
-
-    /// <summary>
-    /// Apply review verdicts to learned rules: <c>promote</c> converts the
-    /// auto-allow into a permanent consent allow, <c>block</c> reverses it into
-    /// a permanent consent block, <c>discard</c> just removes it (the app
-    /// prompts again next time). Unknown rules/actions are skipped and counted.
-    /// </summary>
-    public Ack ReviewLearned(LearnedReviewRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        if (_firewall is not { } fw)
-        {
-            return new Ack { Ok = false, Message = "firewall engine is not attached to this service instance", ErrorCode = "hostsguard.error.v1/firewall_unavailable" };
-        }
-
-        var byName = fw.ListRules()
-            .Where(r => r.Name.StartsWith(LearnPrefix, StringComparison.Ordinal))
-            .ToDictionary(r => r.Name, StringComparer.Ordinal);
-        int promoted = 0, blocked = 0, discarded = 0, skipped = 0;
-        foreach (var action in request.Actions)
-        {
-            if (!byName.TryGetValue(action.RuleName, out var learned))
-            {
-                skipped++;
-                continue;
-            }
-
-            var verdict = (action.Action ?? string.Empty).Trim().ToLowerInvariant();
-            if (verdict is not ("promote" or "block" or "discard"))
-            {
-                skipped++;
-                continue;
-            }
-
-            fw.DeleteRule(learned.Name);
-            _db.RemoveFwState(learned.Name);
-            if (verdict == "discard")
-            {
-                discarded++;
-                _db.LogEvent(learned.Program, "consent_discarded", details: $"{learned.Direction}|reviewed", reason: "consent");
-                continue;
-            }
-
-            var ruleAction = verdict == "promote" ? "Allow" : "Block";
-            var stem = Path.GetFileNameWithoutExtension(learned.Program);
-            if (learned.ServiceName.Length != 0)
-            {
-                stem = $"{stem}.{learned.ServiceName}";
-            }
-
-            var name = $"{ConsentPrefix}{ruleAction}_{stem}_{learned.Direction}";
-            if (!fw.RuleExists(name) &&
-                fw.CreateRule(learned with { Name = name, Action = ruleAction }))
-            {
-                _db.UpsertFwState(name, learned.Direction, ruleAction, learned.RemoteAddr, learned.Protocol, learned.Program);
-                _identity?.Remember(name, learned.Program);
-            }
-
-            _ = verdict == "promote" ? promoted++ : blocked++;
-            LogDecision(learned.Program, learned.Direction, learned.RemoteAddr, learned.Protocol,
-                verdict == "promote" ? "allow" : "block", permanent: true);
-        }
-
-        return new Ack
-        {
-            Ok = true,
-            Message = $"reviewed: {promoted} promoted, {blocked} blocked, {discarded} discarded" +
-                      (skipped > 0 ? $", {skipped} skipped" : string.Empty),
-        };
-    }
-
     /// <summary>Pending count for tests/diagnostics.</summary>
     public int PendingCount
     {
@@ -1194,106 +1096,6 @@ public sealed class ConsentBroker : IDisposable
                 return _pending.Count;
             }
         }
-    }
-
-    private void LogDecision(string application, string direction, string remote, string protocol, string verdict, bool permanent)
-        => _db.LogEvent(
-            application,
-            $"consent_{verdict}",
-            details: $"{direction}|{remote}|{protocol}|{(permanent ? "permanent" : "once")}",
-            reason: "consent");
-
-    /// <summary>Read persisted consent decisions back out of the event log.</summary>
-    public DecisionHistory History(int limit)
-    {
-        var history = new DecisionHistory();
-        foreach (var row in _db.GetLog(limit is > 0 and <= 2000 ? limit * 4 : 800))
-        {
-            if (!row.Action.StartsWith("consent_", StringComparison.Ordinal) || row.Action == "consent_once_reaped")
-            {
-                continue;
-            }
-
-            var parts = (row.Details ?? string.Empty).Split('|');
-            history.Entries.Add(new DecisionEntry
-            {
-                DecidedAt = row.Ts,
-                Application = row.Domain,
-                Direction = parts.Length > 0 ? parts[0] : string.Empty,
-                RemoteAddress = parts.Length > 1 ? parts[1] : string.Empty,
-                Protocol = parts.Length > 2 ? parts[2] : string.Empty,
-                Verdict = row.Action["consent_".Length..],
-                Permanent = parts.Length > 3 && parts[3] == "permanent",
-            });
-            if (history.Entries.Count >= (limit is > 0 and <= 2000 ? limit : 200))
-            {
-                break;
-            }
-        }
-
-        return history;
-    }
-
-    // ─── Persistence ──────────────────────────────────────────────────────────
-
-    private sealed class PersistedState
-    {
-        public string Mode { get; set; } = ModeNormal;
-
-        public Dictionary<string, bool>? PriorOutboundBlock { get; set; }
-
-        public bool ChildInherit { get; set; }
-
-        /// <summary>Deadline for a time-boxed Learning window (NET-101); null = unbounded.</summary>
-        public DateTime? LearnUntilUtc { get; set; }
-
-        /// <summary>Publisher CNs whose signed binaries auto-allow without a prompt (NET-113).</summary>
-        public List<string> TrustedPublishers { get; set; } = new();
-
-        /// <summary>Folders whose binaries auto-allow without a prompt (NET-117).</summary>
-        public List<string> TrustedFolders { get; set; } = new();
-
-        /// <summary>Prompt on unruled inbound connections too (NET-104); default off (noise).</summary>
-        public bool InboundConsent { get; set; }
-
-        public List<OnceRule> OnceRules { get; set; } = new();
-    }
-
-    private sealed class OnceRule
-    {
-        public string Name { get; set; } = string.Empty;
-
-        public DateTime ExpiresUtc { get; set; }
-    }
-
-    private PersistedState LoadState()
-    {
-        try
-        {
-            if (File.Exists(_statePath))
-            {
-                var loaded = JsonSerializer.Deserialize<PersistedState>(File.ReadAllText(_statePath));
-                if (loaded is not null)
-                {
-                    _onceRules.AddRange(loaded.OnceRules.Select(r => (r.Name, r.ExpiresUtc)));
-                    return loaded;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is IOException or JsonException)
-        {
-            // Corrupt state — fall back to normal mode rather than fail startup.
-        }
-
-        return new PersistedState();
-    }
-
-    private void SaveState()
-    {
-        _state.OnceRules = _onceRules.Select(r => new OnceRule { Name = r.RuleName, ExpiresUtc = r.ExpiresUtc }).ToList();
-        var tmp = _statePath + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
-        File.Move(tmp, _statePath, overwrite: true);
     }
 
     public void Dispose() => _sweepTimer.Dispose();
