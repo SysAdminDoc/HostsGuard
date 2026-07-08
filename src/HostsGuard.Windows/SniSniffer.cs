@@ -24,6 +24,7 @@ public sealed class SniSniffer : IDisposable
 {
     private const int SioRcvAll = unchecked((int)0x98000001);
     private const int HttpsPort = 443;
+    private static readonly TimeSpan PumpJoinTimeout = TimeSpan.FromMilliseconds(500);
 
     private readonly Action<SniObservation> _onSni;
     private readonly Action<string>? _log;
@@ -61,31 +62,32 @@ public sealed class SniSniffer : IDisposable
                 _cts.Dispose();
                 _cts = new CancellationTokenSource();
             }
-        }
 
-        var started = 0;
-        foreach (var ip in LocalIPv4Addresses())
-        {
-            try
+            var token = _cts.Token;
+            var started = 0;
+            foreach (var ip in LocalIPv4Addresses())
             {
-                var socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
-                socket.Bind(new IPEndPoint(ip, 0));
-                socket.IOControl(SioRcvAll, BitConverter.GetBytes(1), null);
-                socket.ReceiveBufferSize = 1 << 20;
-                _sockets.Add(socket);
-                var pump = new Thread(() => Pump(socket)) { IsBackground = true, Name = "HostsGuardSni" };
-                _pumps.Add(pump);
-                pump.Start();
-                started++;
+                try
+                {
+                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
+                    socket.Bind(new IPEndPoint(ip, 0));
+                    socket.IOControl(SioRcvAll, BitConverter.GetBytes(1), null);
+                    socket.ReceiveBufferSize = 1 << 20;
+                    _sockets.Add(socket);
+                    var pump = new Thread(() => Pump(socket, token)) { IsBackground = true, Name = "HostsGuardSni" };
+                    _pumps.Add(pump);
+                    pump.Start();
+                    started++;
+                }
+                catch (SocketException ex)
+                {
+                    _log?.Invoke($"SNI capture unavailable on {ip}: {ex.Message}");
+                }
             }
-            catch (SocketException ex)
-            {
-                _log?.Invoke($"SNI capture unavailable on {ip}: {ex.Message}");
-            }
-        }
 
-        _active = started > 0;
-        return _active ? DnsMonitorStatus.Started : DnsMonitorStatus.Unavailable;
+            _active = started > 0;
+            return _active ? DnsMonitorStatus.Started : DnsMonitorStatus.Unavailable;
+        }
     }
 
     private static IEnumerable<IPAddress> LocalIPv4Addresses()
@@ -108,10 +110,10 @@ public sealed class SniSniffer : IDisposable
         }
     }
 
-    private void Pump(Socket socket)
+    private void Pump(Socket socket, CancellationToken token)
     {
         var buffer = new byte[65535];
-        while (!_cts.IsCancellationRequested)
+        while (!token.IsCancellationRequested)
         {
             int read;
             try
@@ -196,6 +198,19 @@ public sealed class SniSniffer : IDisposable
             }
 
             _sockets.Clear();
+            foreach (var pump in _pumps)
+            {
+                if (pump == Thread.CurrentThread)
+                {
+                    continue;
+                }
+
+                if (!pump.Join(PumpJoinTimeout))
+                {
+                    _log?.Invoke("SNI capture pump did not stop before timeout");
+                }
+            }
+
             _pumps.Clear();
             _active = false;
         }

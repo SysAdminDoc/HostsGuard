@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.26] - 2026-07-08
+
+### Fixed
+- `SniSniffer.Start` now mutates capture sockets and pump threads under the same
+  gate as `Stop`, each pump uses its captured cancellation token, and `Stop`
+  joins pump threads before returning so SNI callbacks cannot fire after
+  shutdown completes.
+
 ## [0.12.25] - 2026-07-08
 
 ### Fixed

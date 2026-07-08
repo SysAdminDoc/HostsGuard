@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using FluentAssertions;
 using HostsGuard.Windows;
@@ -86,4 +87,44 @@ public class SniSnifferTests
         sniffer.Inspect(Ipv4Tcp(MinimalClientHello("udp.example.org"), destPort: 443, protocol: 17));
         seen.Should().BeNull();
     }
+
+    [Fact]
+    public void Stop_waits_for_pump_threads_to_exit()
+    {
+        using var sniffer = new SniSniffer(_ => { });
+        var cts = Field<CancellationTokenSource>(sniffer, "_cts");
+        var stopped = new ManualResetEventSlim();
+        var pump = new Thread(() =>
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                Thread.Sleep(1);
+            }
+
+            Thread.Sleep(150);
+            stopped.Set();
+        })
+        {
+            IsBackground = true,
+            Name = "HostsGuardSniTest",
+        };
+        Field<List<Thread>>(sniffer, "_pumps").Add(pump);
+        SetField(sniffer, "_active", true);
+        pump.Start();
+
+        sniffer.Stop();
+
+        stopped.IsSet.Should().BeTrue();
+        pump.IsAlive.Should().BeFalse();
+        sniffer.Active.Should().BeFalse();
+        Field<List<Thread>>(sniffer, "_pumps").Should().BeEmpty();
+    }
+
+    private static T Field<T>(SniSniffer sniffer, string name) where T : class =>
+        (T)typeof(SniSniffer).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(sniffer)!;
+
+    private static void SetField<T>(SniSniffer sniffer, string name, T value) =>
+        typeof(SniSniffer).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(sniffer, value);
 }
