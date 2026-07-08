@@ -63,7 +63,7 @@ public sealed record RetentionSweepResult(
 
 /// <summary>A subscribed blocklist source plus source-owned domain count.</summary>
 public sealed record BlocklistSubRow(
-    string Name, string Url, string LastRefresh, long DomainCount, bool Enabled, long OwnedDomainCount);
+    string Name, string Url, string LastRefresh, long DomainCount, bool Enabled, long OwnedDomainCount, long Hits30d);
 
 /// <summary>Rollback result for removing one blocklist source.</summary>
 public sealed record BlocklistRemoval(long Removed, long Preserved);
@@ -77,7 +77,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 15;
+    public const int SchemaVersion = 16;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -159,6 +159,9 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS feed_hourly(
                 root TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(root, hour));
             CREATE INDEX IF NOT EXISTS idx_feed_hourly_hour ON feed_hourly(hour);
+            CREATE TABLE IF NOT EXISTS feed_domain_hourly(
+                domain TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(domain, hour)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_feed_domain_hourly_hour ON feed_domain_hourly(hour);
             CREATE TABLE IF NOT EXISTS conn_history(
                 id INTEGER PRIMARY KEY, ts TEXT, process TEXT, pid INTEGER, protocol TEXT,
                 remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT);

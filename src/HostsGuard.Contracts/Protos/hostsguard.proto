@@ -273,6 +273,7 @@ message BlocklistSource {
   string mirror = 8;           // fallback URL (NET-077); "" when none
   bool enabled = 9;            // subscribed source participates in refresh
   int64 owned_domain_count = 10; // source-owned rows that rollback can inspect
+  int64 hits_30d = 11;         // exact DNS/feed hits attributed to this source
 }
 
 message BlocklistSources {

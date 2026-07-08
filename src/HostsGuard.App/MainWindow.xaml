@@ -996,6 +996,7 @@
                                         <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Enabled_df174a3f}" Binding="{Binding Enabled}" Width="72" IsReadOnly="True" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Domains_a0d641b3}" Binding="{Binding DomainCount}" Width="90" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Owned_b62ff5cc}" Binding="{Binding OwnedDomainCount}" Width="70" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_30d_d0f4cbfd}" Binding="{Binding Hits30d}" Width="80" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Last_refresh_53cadc51}" Binding="{Binding LastRefresh}" Width="160" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Health_3703cd21}" Binding="{Binding Flags}" Width="100">
                                             <DataGridTextColumn.ElementStyle>

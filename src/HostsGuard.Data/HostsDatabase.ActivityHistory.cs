@@ -126,6 +126,8 @@ public sealed partial class HostsDatabase
             .ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
         var hourlyCutoff = now.AddHours(-48)
             .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+        var domainHourlyCutoff = now.AddDays(-HistoryRetentionDays)
+            .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
 
         lock (_gate)
         {
@@ -142,6 +144,8 @@ public sealed partial class HostsDatabase
                 new { cutoff = bandwidthCutoff }, tx);
             var hourlyBuckets = _conn.Execute("DELETE FROM feed_hourly WHERE hour < @cutoff",
                 new { cutoff = hourlyCutoff }, tx);
+            hourlyBuckets += _conn.Execute("DELETE FROM feed_domain_hourly WHERE hour < @cutoff",
+                new { cutoff = domainHourlyCutoff }, tx);
             tx.Commit();
 
             var maintenanceRan = ShouldRunRetentionMaintenance(now, forceMaintenance);

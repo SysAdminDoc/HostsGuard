@@ -64,7 +64,7 @@ static int Usage()
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
-          HostsGuard.Cli blocklists [list|refresh]
+          HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
           HostsGuard.Cli blocklists disable|enable|remove <name>
@@ -703,10 +703,22 @@ static async Task<int> BlocklistsAsync(string[] args)
             {
                 case "list":
                     var sources = await client.ListBlocklistSourcesAsync(new Empty());
-                    Console.WriteLine("name\tsubscribed\tenabled\tdomains\towned\turl");
+                    Console.WriteLine("name\tsubscribed\tenabled\tdomains\towned\thits_30d\turl");
                     foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.Url}");
+                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.Hits30D}\t{s.Url}");
+                    }
+
+                    return 0;
+                case "stats":
+                    var stats = await client.ListBlocklistSourcesAsync(new Empty());
+                    Console.WriteLine("name\thits_30d\towned\tdomains\tenabled");
+                    foreach (var s in stats.Sources
+                                 .Where(s => s.Subscribed)
+                                 .OrderByDescending(s => s.Hits30D)
+                                 .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"{s.Name}\t{s.Hits30D}\t{s.OwnedDomainCount}\t{s.DomainCount}\t{s.Enabled}");
                     }
 
                     return 0;

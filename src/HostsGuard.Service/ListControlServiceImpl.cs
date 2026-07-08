@@ -25,6 +25,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             var domainCount = subscribed && sub is not null ? sub.DomainCount : 0;
             var enabled = !subscribed || sub is null || sub.Enabled;
             var owned = subscribed && sub is not null ? sub.OwnedDomainCount : 0;
+            var hits30d = subscribed && sub is not null ? sub.Hits30d : 0;
             list.Sources.Add(new BlocklistSource
             {
                 Category = src.Category,
@@ -37,6 +38,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Mirror = src.Mirror,
                 Enabled = enabled,
                 OwnedDomainCount = owned,
+                Hits30D = hits30d,
             });
         }
 
@@ -53,6 +55,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 DomainCount = sub.DomainCount,
                 Enabled = sub.Enabled,
                 OwnedDomainCount = sub.OwnedDomainCount,
+                Hits30D = sub.Hits30d,
             });
         }
 

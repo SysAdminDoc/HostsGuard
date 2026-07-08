@@ -465,7 +465,9 @@ public sealed partial class HostsDatabase
     public void RecordFeed(string domain, string process = "", string? reason = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(domain);
-        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var seenAt = DateTime.Now;
+        var now = seenAt.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var hour = seenAt.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
         lock (_gate)
         {
             _conn.Execute(
@@ -478,6 +480,12 @@ public sealed partial class HostsDatabase
                     process=CASE WHEN excluded.process!='' THEN excluded.process ELSE feed.process END
                 """,
                 new { domain = domain.ToLowerInvariant(), now, process, reason });
+            _conn.Execute(
+                """
+                INSERT INTO feed_domain_hourly(domain,hour,hits) VALUES(@domain,@hour,1)
+                ON CONFLICT(domain,hour) DO UPDATE SET hits=hits+1
+                """,
+                new { domain = domain.ToLowerInvariant(), hour });
         }
     }
 
@@ -531,6 +539,23 @@ public sealed partial class HostsDatabase
                         process,
                         reason,
                     },
+                    tx);
+            }
+
+            foreach (var group in rows
+                         .Select(r => new
+                         {
+                             r.Domain,
+                             Hour = r.SeenAt.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture),
+                         })
+                         .GroupBy(r => (r.Domain, r.Hour)))
+            {
+                _conn.Execute(
+                    """
+                    INSERT INTO feed_domain_hourly(domain,hour,hits) VALUES(@domain,@hour,@hits)
+                    ON CONFLICT(domain,hour) DO UPDATE SET hits=hits+excluded.hits
+                    """,
+                    new { domain = group.Key.Domain, hour = group.Key.Hour, hits = group.Count() },
                     tx);
             }
 

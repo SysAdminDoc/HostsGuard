@@ -75,6 +75,30 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Blocklist_source_stats_sum_exact_domain_hits_for_the_last_30_days()
+    {
+        using var db = new HostsDatabase(DbPath("source-stats.db"));
+        var now = DateTime.Now;
+        db.UpsertBlocklistSub("A", "https://lists.test/a.txt", 2);
+        db.UpsertBlocklistSub("B", "https://lists.test/b.txt", 1);
+        db.ReplaceBlocklistSourceDomains("A", new[] { "ads.example.com", "shared.example.net" });
+        db.ReplaceBlocklistSourceDomains("B", new[] { "shared.example.net" });
+        db.RecordDnsSightings(new[]
+        {
+            new DnsSightingWrite("ads.example.com", "browser", null, now),
+            new DnsSightingWrite("ads.example.com", "browser", null, now.AddMinutes(1)),
+            new DnsSightingWrite("shared.example.net", "browser", null, now.AddMinutes(2)),
+            new DnsSightingWrite("ads.example.com", "browser", null, now.AddDays(-31)),
+            new DnsSightingWrite("unlisted.example.org", "browser", null, now),
+        });
+
+        var rows = db.GetBlocklistSubs();
+
+        rows.Single(r => r.Name == "A").Hits30d.Should().Be(3);
+        rows.Single(r => r.Name == "B").Hits30d.Should().Be(1);
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");

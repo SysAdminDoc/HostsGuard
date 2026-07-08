@@ -118,9 +118,19 @@ public sealed class ListControlServiceTests : IAsyncLifetime
         result.Added.Should().Be(3);
         _state.Hosts.GetBlocked().Should().BeEquivalentTo("ads.example.com", "track.example.net", "plain.example.org");
         _state.Db.GetDomainSource("ads.example.com").Should().Be("list:Test Ads");
+        _state.Db.RecordDnsSightings(new[]
+        {
+            new DnsSightingWrite("ads.example.com", "browser", null, DateTime.Now),
+            new DnsSightingWrite("track.example.net", "browser", null, DateTime.Now),
+        });
 
         var sources = await Client(channel).ListBlocklistSourcesAsync(new Empty());
-        sources.Sources.Should().Contain(s => s.Name == "Test Ads" && s.Subscribed && s.DomainCount == 3 && s.Category == "Custom");
+        sources.Sources.Should().Contain(s =>
+            s.Name == "Test Ads" &&
+            s.Subscribed &&
+            s.DomainCount == 3 &&
+            s.Category == "Custom" &&
+            s.Hits30D == 2);
     }
 
     [Fact]

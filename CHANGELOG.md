@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.34] - 2026-07-08
+
+### Added
+- Added exact per-source blocklist efficacy stats. The service now keeps
+  per-domain hourly DNS hit rollups, surfaces hits/30d in the Blocklists table,
+  and exposes the same data through `HostsGuard.Cli blocklists stats`.
+
 ## [0.12.33] - 2026-07-08
 
 ### Added

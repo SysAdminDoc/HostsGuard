@@ -288,25 +288,36 @@ public sealed partial class HostsDatabase
 
     public IReadOnlyList<BlocklistSubRow> GetBlocklistSubs()
     {
+        var cutoff = DateTime.Now.AddDays(-30)
+            .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
         lock (_gate)
         {
-            return _conn.Query<(string Name, string Url, string LastRefresh, long DomainCount, long Enabled, long OwnedDomainCount)>(
+            return _conn.Query<(string Name, string Url, string LastRefresh, long DomainCount, long Enabled, long OwnedDomainCount, long Hits30d)>(
                 """
                 SELECT s.name AS Name, s.url AS Url, COALESCE(s.last_refresh,'') AS LastRefresh,
                        COALESCE(s.domain_count,0) AS DomainCount, COALESCE(s.enabled,1) AS Enabled,
-                       COUNT(b.domain) AS OwnedDomainCount
+                       COUNT(b.domain) AS OwnedDomainCount, COALESCE(stats.hits_30d,0) AS Hits30d
                 FROM blocklist_subs s
                 LEFT JOIN blocklist_domain_sources b ON b.source=s.name
+                LEFT JOIN (
+                    SELECT b.source, SUM(h.hits) AS hits_30d
+                    FROM blocklist_domain_sources b
+                    JOIN feed_domain_hourly h ON h.domain=b.domain
+                    WHERE h.hour >= @cutoff
+                    GROUP BY b.source
+                ) stats ON stats.source=s.name
                 GROUP BY s.name, s.url, s.last_refresh, s.domain_count, s.enabled
                 ORDER BY s.name
-                """)
+                """,
+                new { cutoff })
                 .Select(r => new BlocklistSubRow(
                     r.Name,
                     r.Url,
                     r.LastRefresh,
                     r.DomainCount,
                     r.Enabled != 0,
-                    r.OwnedDomainCount))
+                    r.OwnedDomainCount,
+                    r.Hits30d))
                 .ToList();
         }
     }

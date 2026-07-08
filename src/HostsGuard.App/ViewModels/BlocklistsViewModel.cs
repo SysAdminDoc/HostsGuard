@@ -36,6 +36,9 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     private long _ownedDomainCount;
 
     [ObservableProperty]
+    private long _hits30d;
+
+    [ObservableProperty]
     private bool _largeListWarning;
 
     [ObservableProperty]
@@ -58,6 +61,7 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         LastRefresh = s.LastRefresh,
         DomainCount = s.DomainCount,
         OwnedDomainCount = s.OwnedDomainCount,
+        Hits30d = s.Hits30D,
         LargeListWarning = s.LargeListWarning,
         Mirror = s.Mirror,
     };
@@ -235,7 +239,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 
         var allow = await _client.Lists.GetAllowlistsAsync(new Empty());
         AllowlistUrlsText = string.Join(Environment.NewLine, allow.Urls);
-        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed";
+        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed, {Sources.Sum(s => s.Hits30d):N0} hits/30d";
     }
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
