@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.28] - 2026-07-08
+
+### Fixed
+- `HostsDatabase.Dispose` now clears only the SQLite pool tied to its own
+  connection instead of clearing every process-wide pool, keeping unrelated live
+  database instances intact.
+- Re-enabled service-test assembly parallelization after three consecutive
+  green runs, and added a regression proving one database disposal does not
+  break another live database.
+
 ## [0.12.27] - 2026-07-08
 
 ### Fixed

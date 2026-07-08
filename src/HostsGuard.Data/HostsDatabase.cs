@@ -87,6 +87,7 @@ public sealed class HostsDatabase : IDisposable
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
+    private bool _disposed;
 
     public HostsDatabase(string path)
     {
@@ -1906,7 +1907,16 @@ public sealed class HostsDatabase : IDisposable
 
     public void Dispose()
     {
-        _conn.Dispose();
-        SqliteConnection.ClearAllPools();
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            SqliteConnection.ClearPool(_conn);
+            _conn.Dispose();
+            _disposed = true;
+        }
     }
 }

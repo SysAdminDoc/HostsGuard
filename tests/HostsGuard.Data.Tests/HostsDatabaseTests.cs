@@ -255,6 +255,20 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Dispose_clears_only_this_database_pool()
+    {
+        var first = new HostsDatabase(DbPath("pool-a.db"));
+        using var second = new HostsDatabase(DbPath("pool-b.db"));
+
+        first.AddDomain("first.example.com");
+        second.AddDomain("second.example.com");
+        first.Dispose();
+
+        second.AddDomain("still-live.example.com");
+        second.GetDomains().Should().Contain(r => r.Domain == "still-live.example.com");
+    }
+
+    [Fact]
     public void Stats_counts_blocked_allowed_feed()
     {
         using var db = new HostsDatabase(DbPath("stats.db"));
