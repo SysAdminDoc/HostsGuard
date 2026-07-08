@@ -1624,7 +1624,7 @@ public sealed class HostsDatabase : IDisposable
         var args = new DynamicParameters();
 
         AddLike("search", filter.Search,
-            "(domain LIKE @search OR action LIKE @search OR process LIKE @search OR details LIKE @search OR reason LIKE @search)");
+            "(domain LIKE @search ESCAPE '\\' OR action LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\' OR details LIKE @search ESCAPE '\\' OR reason LIKE @search ESCAPE '\\')");
         if (!string.IsNullOrWhiteSpace(filter.Since))
         {
             clauses.Add("ts >= @since");
@@ -1639,8 +1639,8 @@ public sealed class HostsDatabase : IDisposable
 
         AddExact("action", filter.Action, "action");
         AddExact("reason", filter.Reason, "reason");
-        AddLike("domain", filter.Domain, "domain LIKE @domain");
-        AddLike("process", filter.Process, "process LIKE @process");
+        AddLike("domain", filter.Domain, "domain LIKE @domain ESCAPE '\\'");
+        AddLike("process", filter.Process, "process LIKE @process ESCAPE '\\'");
 
         return (clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses), args);
 
@@ -1668,9 +1668,9 @@ public sealed class HostsDatabase : IDisposable
     }
 
     private static string EscapeLike(string value) => value
-        .Replace("[", "[[]", StringComparison.Ordinal)
-        .Replace("%", "[%]", StringComparison.Ordinal)
-        .Replace("_", "[_]", StringComparison.Ordinal);
+        .Replace("\\", "\\\\", StringComparison.Ordinal)
+        .Replace("%", "\\%", StringComparison.Ordinal)
+        .Replace("_", "\\_", StringComparison.Ordinal);
 
     private static EventLogRow ToEventLogRow(EventLogRowRaw row)
         => new(

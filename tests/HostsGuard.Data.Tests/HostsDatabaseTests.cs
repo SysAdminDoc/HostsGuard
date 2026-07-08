@@ -154,6 +154,24 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Event_ledger_like_filters_treat_sqlite_wildcards_as_literals()
+    {
+        using var db = new HostsDatabase(DbPath("event-like-escape.db"));
+        db.LogEvent("svc_host.example.com", "blocked", process: "svc_host.exe", details: "literal underscore");
+        db.LogEvent("svcxhost.example.com", "blocked", process: "svcxhost.exe", details: "underscore control");
+        db.LogEvent("percent.example.com", "blocked", process: "meter.exe", details: "loaded 100% of filter");
+        db.LogEvent("percent-control.example.com", "blocked", process: "meter.exe", details: "loaded 1000 of filter");
+        db.LogEvent("bracket.example.com", "blocked", process: "tagger.exe", details: "kept [tag] marker");
+
+        db.GetEvents(new EventLogFilter(Search: "svc_host")).Rows.Should()
+            .ContainSingle(e => e.Domain == "svc_host.example.com");
+        db.GetEvents(new EventLogFilter(Search: "100%")).Rows.Should()
+            .ContainSingle(e => e.Domain == "percent.example.com");
+        db.GetEvents(new EventLogFilter(Search: "[tag]")).Rows.Should()
+            .ContainSingle(e => e.Domain == "bracket.example.com");
+    }
+
+    [Fact]
     public void Migration_is_idempotent()
     {
         var path = DbPath("idem.db");

@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.21] - 2026-07-08
+
+### Fixed
+- Event-ledger search now uses SQLite `LIKE ... ESCAPE '\'` semantics so
+  literal `_`, `%`, `[`, and backslash terms filter correctly instead of being
+  treated as wildcards or SQL Server bracket escapes.
+
 ## [0.12.20] - 2026-07-08
 
 ### Fixed
