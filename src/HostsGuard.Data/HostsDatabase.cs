@@ -17,6 +17,9 @@ public sealed record FeedRow(
     string Domain, string? FirstSeen, string? LastSeen, long Hits,
     string? Process, long Hidden, string? Reason, string? Status);
 
+/// <summary>A DNS sighting queued for batched feed/hourly persistence.</summary>
+public sealed record DnsSightingWrite(string Domain, string Process, string? Reason, DateTime SeenAt);
+
 /// <summary>A tracked HostsGuard firewall rule, for the Secure-Rules reconcile.</summary>
 public sealed record FwStateRow(
     string Name, string? Direction, string? Action, string? RemoteAddr, string? Protocol, string? Program);
@@ -739,17 +742,89 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
-    /// <summary>Recent feed rows (newest first), joined with managed-domain status.</summary>
+    /// <summary>
+    /// Persist a batch of DNS sightings in one transaction: feed rows are
+    /// upserted by domain and hourly sparkline buckets by root/hour.
+    /// </summary>
+    public void RecordDnsSightings(IEnumerable<DnsSightingWrite> sightings)
+    {
+        ArgumentNullException.ThrowIfNull(sightings);
+        var rows = sightings
+            .Where(s => !string.IsNullOrWhiteSpace(s.Domain))
+            .Select(s => new DnsSightingWrite(
+                s.Domain.ToLowerInvariant().Trim(),
+                s.Process ?? string.Empty,
+                s.Reason,
+                s.SeenAt))
+            .ToList();
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            foreach (var group in rows.GroupBy(r => r.Domain, StringComparer.Ordinal))
+            {
+                var first = group.Min(r => r.SeenAt)
+                    .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                var last = group.Max(r => r.SeenAt)
+                    .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                var process = group.LastOrDefault(r => !string.IsNullOrWhiteSpace(r.Process))?.Process ?? string.Empty;
+                var reason = group.LastOrDefault(r => !string.IsNullOrWhiteSpace(r.Reason))?.Reason;
+                _conn.Execute(
+                    """
+                    INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason)
+                    VALUES(@domain,@first,@last,@hits,@process,0,@reason)
+                    ON CONFLICT(domain) DO UPDATE SET
+                        last_seen=excluded.last_seen,
+                        hits=feed.hits+excluded.hits,
+                        process=CASE WHEN excluded.process!='' THEN excluded.process ELSE feed.process END,
+                        reason=CASE WHEN excluded.reason IS NOT NULL AND excluded.reason!='' THEN excluded.reason ELSE feed.reason END
+                    """,
+                    new
+                    {
+                        domain = group.Key,
+                        first,
+                        last,
+                        hits = group.Count(),
+                        process,
+                        reason,
+                    },
+                    tx);
+            }
+
+            foreach (var group in rows
+                         .Select(r => new
+                         {
+                             Root = Domains.GetRoot(r.Domain),
+                             Hour = r.SeenAt.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture),
+                         })
+                         .Where(r => !string.IsNullOrWhiteSpace(r.Root))
+                         .GroupBy(r => (r.Root, r.Hour)))
+            {
+                _conn.Execute(
+                    """
+                    INSERT INTO feed_hourly(root,hour,hits) VALUES(@root,@hour,@hits)
+                    ON CONFLICT(root,hour) DO UPDATE SET hits=hits+excluded.hits
+                    """,
+                    new { root = group.Key.Root, hour = group.Key.Hour, hits = group.Count() },
+                    tx);
+            }
+
+            tx.Commit();
+        }
+    }
+
     /// <summary>
     /// Increment the current-hour hit bucket for a domain root (NET-042
-    /// sparkline source). Opportunistically prunes buckets older than 48 h so
-    /// the table stays bounded without a scheduler.
+    /// sparkline source). Retention is handled by <see cref="RunRetentionSweep"/>.
     /// </summary>
     public void RecordHourly(string root, DateTime now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
         var hour = now.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
-        var cutoff = now.AddHours(-48).ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
         lock (_gate)
         {
             _conn.Execute(
@@ -758,10 +833,10 @@ public sealed class HostsDatabase : IDisposable
                 ON CONFLICT(root,hour) DO UPDATE SET hits=hits+1
                 """,
                 new { root, hour });
-            _conn.Execute("DELETE FROM feed_hourly WHERE hour < @cutoff", new { cutoff });
         }
     }
 
+    /// <summary>Recent feed rows (newest first), joined with managed-domain status.</summary>
     /// <summary>
     /// 24-hour hourly hit histogram for a domain root, oldest→newest, ending at
     /// <paramref name="now"/>'s hour. Missing hours are zero-filled so the

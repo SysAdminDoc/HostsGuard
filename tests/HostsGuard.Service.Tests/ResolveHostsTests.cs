@@ -62,9 +62,10 @@ public sealed class ResolveHostsTests : IAsyncLifetime
     }
 
     [Fact]
-    public void RememberResolution_persists_forward_dns_for_reuse()
+    public async Task RememberResolution_persists_forward_dns_for_reuse()
     {
         _state.RememberResolution("images.example.com", new[] { "203.0.113.20", "203.0.113.21" });
+        await _state.FlushActivityPersistenceAsync();
 
         _state.Db.GetResolvedHost("203.0.113.20").Should().Be("images.example.com");
         _state.ResolveKnownHost("203.0.113.21").Should().Be("images.example.com");

@@ -70,6 +70,7 @@ public sealed class DnsFeedBlockedStatusTests : IDisposable
         // Seed a feed row, hide the exact domain, then re-sight it: the live
         // event must report Hidden=true (the "coming back" bug).
         _state.RecordDns("cdn.example.com");
+        await _state.FlushActivityPersistenceAsync();
         _state.Db.HideDomains(new[] { "cdn.example.com" });
         using var sub = _state.Bus.Subscribe<DnsEvent>();
 

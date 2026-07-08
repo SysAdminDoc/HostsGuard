@@ -340,7 +340,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(Ok($"unhidden root {root}"));
     }
 
-    public override Task<Ack> HideDomains(HideDomainsRequest request, ServerCallContext context)
+    public override async Task<Ack> HideDomains(HideDomainsRequest request, ServerCallContext context)
     {
         // Hiding is a per-row display flag on domains already IN the feed — not a
         // blocking mutation — so it must accept any feed key, including names that
@@ -354,13 +354,14 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             .ToList();
         if (domains.Count == 0)
         {
-            return Task.FromResult(Ok("nothing to hide"));
+            return Ok("nothing to hide");
         }
 
+        await _state.FlushActivityPersistenceAsync(context.CancellationToken);
         _state.Db.HideDomains(domains);
-        return Task.FromResult(Ok(domains.Count == 1
+        return Ok(domains.Count == 1
             ? $"hidden {domains[0]}"
-            : $"hidden {domains.Count} domains"));
+            : $"hidden {domains.Count} domains");
     }
 
     public override Task<Ack> UnhideDomains(HideDomainsRequest request, ServerCallContext context)
@@ -374,8 +375,9 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(Ok($"revealed {domains.Count} domains"));
     }
 
-    public override Task<ActivityList> GetActivity(ActivityRequest request, ServerCallContext context)
+    public override async Task<ActivityList> GetActivity(ActivityRequest request, ServerCallContext context)
     {
+        await _state.FlushActivityPersistenceAsync(context.CancellationToken);
         var limit = request.Limit is > 0 and <= 5000 ? request.Limit : 500;
         var hiddenRoots = _state.Db.GetHiddenRoots();
         var feed = _state.Db.GetFeed(limit);
@@ -445,7 +447,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             list.Rows.Add(activityRow);
         }
 
-        return Task.FromResult(list);
+        return list;
     }
 
     // ─── AI categorization (DeepSeek) ─────────────────────────────────────────
@@ -561,8 +563,9 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
     }
 
-    public override Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)
+    public override async Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)
     {
+        await _state.FlushActivityPersistenceAsync(context.CancellationToken);
         var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
         var root = Domains.LooksLikeDomain(d) ? Domains.GetRoot(d) : d;
         var sparkline = new Sparkline();
@@ -571,7 +574,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             sparkline.Hits.AddRange(_state.Db.GetHourlyHits(root, DateTime.Now));
         }
 
-        return Task.FromResult(sparkline);
+        return sparkline;
     }
 
     public override Task<Ack> BackupHosts(Empty request, ServerCallContext context)

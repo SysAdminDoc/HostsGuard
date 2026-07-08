@@ -35,6 +35,7 @@ public sealed class ServiceState : IDisposable
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
         StartedAtUtc = DateTime.UtcNow;
         Bus = new EventBus();
+        ActivityPersistence = new ActivityPersistenceQueue(db);
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
@@ -109,6 +110,9 @@ public sealed class ServiceState : IDisposable
 
     public EventBus Bus { get; }
 
+    /// <summary>Single-reader durable writer for DNS/SNI persistence.</summary>
+    public ActivityPersistenceQueue ActivityPersistence { get; }
+
     public ConsentBroker Consent { get; }
 
     public SecureRulesGuard SecureRules { get; }
@@ -173,7 +177,7 @@ public sealed class ServiceState : IDisposable
 
         var host = obs.Host.ToLowerInvariant();
         ResolvedIps.Record(host, new[] { obs.RemoteAddress }, DateTime.Now);
-        Db.UpsertResolvedHost(obs.RemoteAddress, host, "sni");
+        ActivityPersistence.EnqueueResolvedHosts(new[] { (obs.RemoteAddress, host) }, "sni");
     }
 
     public DateTime StartedAtUtc { get; }
@@ -191,8 +195,7 @@ public sealed class ServiceState : IDisposable
         }
 
         var root = Core.Domains.GetRoot(d);
-        Db.RecordFeed(d, process);
-        Db.RecordHourly(root, DateTime.Now);
+        ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot
         // uses. Without this the live stream re-adds blocked domains as normal
@@ -283,8 +286,11 @@ public sealed class ServiceState : IDisposable
 
         var now = DateTime.Now;
         ResolvedIps.Record(d, addresses, now);
-        Db.UpsertResolvedHosts(addresses.Select(a => (a, d)), "dns");
+        ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
     }
+
+    public Task FlushActivityPersistenceAsync(CancellationToken cancellationToken = default) =>
+        ActivityPersistence.FlushAsync(cancellationToken);
 
     public void Dispose()
     {
@@ -295,6 +301,7 @@ public sealed class ServiceState : IDisposable
         Lists?.Dispose();
         Schedules.Dispose();
         TempAllows.Dispose();
+        ActivityPersistence.Dispose();
         Db.Dispose();
     }
 }

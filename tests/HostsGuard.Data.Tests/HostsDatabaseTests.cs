@@ -65,7 +65,8 @@ public sealed class HostsDatabaseTests : IDisposable
         var now = new DateTime(2026, 7, 2, 14, 0, 0);
 
         db.RecordHourly("example.com", now.AddHours(-72)); // stale
-        db.RecordHourly("example.com", now);               // triggers prune
+        db.RecordHourly("example.com", now);
+        db.RunRetentionSweep(now);                         // triggers prune
 
         using var conn = new SqliteConnection($"Data Source={DbPath("prune.db")}");
         conn.Open();

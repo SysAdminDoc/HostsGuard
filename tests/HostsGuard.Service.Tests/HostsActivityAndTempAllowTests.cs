@@ -305,6 +305,7 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
         ev.Blocked.Should().BeTrue();
 
         // The sighting also landed in the persistent feed.
+        await _state.FlushActivityPersistenceAsync(cts.Token);
         _state.Db.GetFeed().Should().Contain(f => f.Domain == "live.example.com" && f.Hits == 1);
     }
 }

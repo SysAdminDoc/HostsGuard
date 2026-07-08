@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.23] - 2026-07-08
+
+### Fixed
+- Moved DNS/SNI SQLite persistence off ETW/sniffer callbacks into a bounded
+  single-reader batch queue while keeping live blocked/hidden stamps synchronous
+  with `GetActivity` semantics.
+- Activity and sparkline snapshot RPCs now flush queued activity writes before
+  reading SQLite, and exact-domain hide flushes first so hidden rows do not
+  bounce back behind a queued feed insert.
+- Added burst and shutdown-drain tests proving ordered live DNS delivery,
+  blocked/hidden stamping, batched persistence, and graceful queue drain.
+
 ## [0.12.22] - 2026-07-08
 
 ### Fixed

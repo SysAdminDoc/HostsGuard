@@ -15,7 +15,9 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.22: retention sweeps bound long-uptime SQLite tables and enable
+    <!-- 0.12.23: DNS/SNI ETW callbacks enqueue SQLite persistence to one
+         bounded batch writer, with snapshot flush barriers for coherent reads.
+         0.12.22: retention sweeps bound long-uptime SQLite tables and enable
          incremental auto-vacuum maintenance on existing databases.
          0.12.21: event-ledger LIKE filters now use SQLite ESCAPE syntax so
          literal _, %, [, and backslash searches page correctly.
@@ -95,7 +97,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.22</Version>
+    <Version>0.12.23</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
