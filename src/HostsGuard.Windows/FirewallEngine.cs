@@ -56,7 +56,8 @@ public sealed class FirewallEngine : IFirewallEngine
                     SafeApplicationName(comRule),
                     SafeRemotePorts(comRule),
                     SafeServiceName(comRule),
-                    SafeLocalPorts(comRule)));
+                    SafeLocalPorts(comRule),
+                    SafeInterfaces(comRule)));
             }
             catch (COMException)
             {
@@ -112,6 +113,18 @@ public sealed class FirewallEngine : IFirewallEngine
             // Scope the rule to one SCM service — blocks Dnscache without
             // blocking every other service hosted by svchost.exe (NET-073).
             com.serviceName = rule.ServiceName;
+        }
+
+        if (rule.Interfaces is not ("" or "Any"))
+        {
+            var interfaces = rule.Interfaces
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (interfaces.Length != 0)
+            {
+                com.Interfaces = interfaces;
+            }
         }
 
         policy.Rules.Add(com);
@@ -302,6 +315,18 @@ public sealed class FirewallEngine : IFirewallEngine
         catch (COMException)
         {
             return string.Empty;
+        }
+    }
+
+    private static string SafeInterfaces(dynamic comRule)
+    {
+        try
+        {
+            return FwRuleMapper.MapInterfaces(comRule.Interfaces);
+        }
+        catch (COMException)
+        {
+            return "Any";
         }
     }
 }

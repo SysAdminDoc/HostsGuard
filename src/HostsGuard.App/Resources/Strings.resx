@@ -24,6 +24,17 @@
   <data name="Status.Ready" xml:space="preserve">
     <value>Ready</value>
   </data>
+  <data name="Tools_AppVpnBinding_Title" xml:space="preserve"><value>Per-app VPN binding</value></data>
+  <data name="Tools_AppVpnBinding_Help" xml:space="preserve"><value>Bind one program to an adapter by blocking it on other active interfaces. Default outbound and hosts-file blocks are unchanged.</value></data>
+  <data name="Tools_AppVpnBinding_Program" xml:space="preserve"><value>Program</value></data>
+  <data name="Tools_AppVpnBinding_ProgramHint" xml:space="preserve"><value>Program path</value></data>
+  <data name="Tools_AppVpnBinding_ProgramName" xml:space="preserve"><value>Program path for VPN binding</value></data>
+  <data name="Tools_AppVpnBinding_Adapter" xml:space="preserve"><value>Adapter</value></data>
+  <data name="Tools_AppVpnBinding_AdapterName" xml:space="preserve"><value>VPN adapter for app binding</value></data>
+  <data name="Tools_AppVpnBinding_Bind" xml:space="preserve"><value>Bind app</value></data>
+  <data name="Tools_AppVpnBinding_RemoveName" xml:space="preserve"><value>Remove app VPN binding</value></data>
+  <data name="Tools_AppVpnBinding_Empty" xml:space="preserve"><value>No app VPN bindings yet.</value></data>
+  <data name="FwRules_Interfaces" xml:space="preserve"><value>Interfaces</value></data>
   <data name="Tab_HostsActivity" xml:space="preserve"><value>Hosts Activity</value></data>
   <data name="Tab_HostsFile" xml:space="preserve"><value>Hosts File</value></data>
   <data name="Tab_FirewallActivity" xml:space="preserve"><value>Firewall Activity</value></data>

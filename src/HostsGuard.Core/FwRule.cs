@@ -14,7 +14,8 @@ public sealed record FwRule(
     string Source,    // "hostsguard" | "system"
     string RemotePorts = "Any",
     string ServiceName = "", // SCM short name — scopes the rule to one service (NET-073)
-    string LocalPorts = "Any");
+    string LocalPorts = "Any",
+    string Interfaces = "Any");
 
 /// <summary>
 /// Shape-tolerant mapping of raw firewall-rule scalar values into <see cref="FwRule"/>.
@@ -37,7 +38,8 @@ public static class FwRuleMapper
         string? program,
         object? remotePorts = null,
         string? serviceName = null,
-        object? localPorts = null)
+        object? localPorts = null,
+        object? interfaces = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -51,7 +53,8 @@ public static class FwRuleMapper
             Source: n.StartsWith(HostsGuardPrefix, StringComparison.Ordinal) ? "hostsguard" : "system",
             RemotePorts: MapPorts(remotePorts),
             ServiceName: MapService(serviceName),
-            LocalPorts: MapPorts(localPorts));
+            LocalPorts: MapPorts(localPorts),
+            Interfaces: MapInterfaces(interfaces));
     }
 
     /// <summary>Normalize the COM serviceName value ("*" means any/none for our model).</summary>
@@ -65,6 +68,29 @@ public static class FwRuleMapper
     {
         var s = (v?.ToString() ?? string.Empty).Trim();
         return s is "" or "*" or "Any" or "any" ? "Any" : s;
+    }
+
+    public static string MapInterfaces(object? v)
+    {
+        string joined;
+        if (v is string s)
+        {
+            joined = s;
+        }
+        else if (v is IEnumerable en and not string)
+        {
+            joined = string.Join(',', en.Cast<object?>()
+                .Select(x => x?.ToString()?.Trim() ?? string.Empty)
+                .Where(x => x.Length != 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+        }
+        else
+        {
+            joined = v?.ToString() ?? string.Empty;
+        }
+
+        joined = joined.Trim();
+        return joined is "" or "*" or "Any" or "any" ? "Any" : joined;
     }
 
     public static string MapDirection(object? v)

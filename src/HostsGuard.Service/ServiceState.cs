@@ -189,6 +189,9 @@ public sealed class ServiceState : IDisposable
     /// <summary>VPN-presence kill-switch (NET-119); wired by the host, opt-in.</summary>
     public KillSwitchMonitor? KillSwitch { get; set; }
 
+    /// <summary>Per-app VPN adapter bindings (NET-157); wired by the host, opt-in.</summary>
+    public AppVpnBindingCoordinator? AppVpnBindings { get; set; }
+
     /// <summary>
     /// Record a TLS SNI observation (NET-109): persist the IP→host mapping (source
     /// "sni") and seed the live cache so the connection feed names an HTTPS dial

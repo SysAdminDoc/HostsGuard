@@ -489,6 +489,10 @@ service FirewallControl {
   // tunnel; restore the prior posture when it returns. Opt-in, off by default.
   rpc GetKillSwitch(Empty) returns (KillSwitchStatus);
   rpc SetKillSwitch(KillSwitchRequest) returns (Ack);
+  // Per-app VPN binding (NET-157): a program may connect only through the
+  // selected adapter by blocking it on every other active interface. Opt-in.
+  rpc GetAppVpnBindings(Empty) returns (AppVpnBindingStatus);
+  rpc SetAppVpnBinding(AppVpnBindingRequest) returns (Ack);
 }
 
 message KillSwitchRequest {
@@ -508,6 +512,25 @@ message NetworkAdapterInfo {
   string description = 2;
   bool is_up = 3;
   bool is_vpn_likely = 4;
+}
+
+message AppVpnBindingRequest {
+  string program_path = 1;
+  string adapter = 2;
+  bool enabled = 3;
+}
+
+message AppVpnBinding {
+  string program_path = 1;
+  string adapter = 2;
+  string rule_name = 3;
+  bool selected_adapter_up = 4;
+  repeated string blocked_interfaces = 5;
+}
+
+message AppVpnBindingStatus {
+  repeated AppVpnBinding bindings = 1;
+  repeated NetworkAdapterInfo adapters = 2;
 }
 
 message GlobalModeRequest {
@@ -686,6 +709,7 @@ message FirewallRule {
   string last_seen = 17;    // ISO timestamp from the full-firewall baseline
   string changed_at = 18;   // ISO timestamp of latest detected drift
   string local_ports = 19;  // "Any" or a COM local-port list, used by inbound service blocks
+  string interfaces = 20;   // "Any" or comma-separated Windows interface aliases
 }
 
 message FirewallRuleList {

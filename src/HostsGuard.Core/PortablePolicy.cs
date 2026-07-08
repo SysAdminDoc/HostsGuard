@@ -50,6 +50,8 @@ public sealed class PortablePolicy
 
     public PolicyKillSwitch? KillSwitch { get; set; }
 
+    public List<PolicyAppVpnBinding> AppVpnBindings { get; set; } = new();
+
     public PolicyLanAttackSurface? LanAttackSurface { get; set; }
 
     public PolicyAiSettings? Ai { get; set; }
@@ -99,6 +101,7 @@ public sealed class PortablePolicy
         policy.RuleGroups ??= new();
         policy.BlocklistSubs ??= new();
         policy.AllowlistSubs ??= new();
+        policy.AppVpnBindings ??= new();
         policy.LanAttackSurface ??= new();
         policy.LanAttackSurface.Toggles ??= new();
         policy.Settings ??= new(StringComparer.Ordinal);
@@ -160,6 +163,8 @@ public sealed class PolicyFirewallRule
     public string LocalPorts { get; set; } = "Any";
 
     public string ServiceName { get; set; } = string.Empty;
+
+    public string Interfaces { get; set; } = "Any";
 }
 
 /// <summary>A scheduled block window (domain or fw:HG_ rule target).</summary>
@@ -271,6 +276,14 @@ public sealed class PolicyKillSwitch
     public bool? Enabled { get; set; }
 
     public string? Adapter { get; set; }
+}
+
+/// <summary>Per-app adapter binding intent (live firewall interface list is machine-local).</summary>
+public sealed class PolicyAppVpnBinding
+{
+    public string Program { get; set; } = string.Empty;
+
+    public string Adapter { get; set; } = string.Empty;
 }
 
 public sealed class PolicyLanAttackSurface

@@ -30,7 +30,16 @@ public sealed record FwStateRow(
     string? Program,
     string? RemotePorts,
     string? LocalPorts,
-    string? ServiceName);
+    string? ServiceName,
+    string? Interfaces);
+
+/// <summary>An opt-in app-to-adapter policy (NET-157).</summary>
+public sealed record AppVpnBindingRow(
+    string Program,
+    string Adapter,
+    string RuleName,
+    string Created,
+    string Updated);
 
 /// <summary>A domain-scoped firewall rule intent (reactive DNS answers -> HG_Domain_* rule).</summary>
 public sealed record DomainFirewallRuleRow(
@@ -68,6 +77,8 @@ public sealed class FirewallRuleSnapshotRow
 
     public string ServiceName { get; set; } = string.Empty;
 
+    public string Interfaces { get; set; } = string.Empty;
+
     public string Hash { get; set; } = string.Empty;
 
     public bool Present { get; set; }
@@ -97,6 +108,7 @@ public sealed record FirewallRuleDriftRow(
     string RemotePorts,
     string LocalPorts,
     string ServiceName,
+    string Interfaces,
     string Details);
 
 /// <summary>A recorded (historical) connection sighting (NET-070).</summary>
@@ -181,7 +193,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 20;
+    public const int SchemaVersion = 21;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -244,7 +256,10 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen);
             CREATE TABLE IF NOT EXISTS fw_state(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT, protocol TEXT,
-                program TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, created TEXT);
+                program TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, interfaces TEXT, created TEXT);
+            CREATE TABLE IF NOT EXISTS app_vpn_bindings(
+                program TEXT PRIMARY KEY, adapter TEXT NOT NULL, rule_name TEXT NOT NULL,
+                created TEXT, updated TEXT);
             CREATE TABLE IF NOT EXISTS domain_firewall_rules(
                 rule_name TEXT PRIMARY KEY, domain TEXT NOT NULL, program TEXT NOT NULL DEFAULT '',
                 action TEXT NOT NULL DEFAULT 'Block', enabled INTEGER DEFAULT 1,
@@ -253,7 +268,7 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_domain_firewall_rules_domain ON domain_firewall_rules(domain);
             CREATE TABLE IF NOT EXISTS firewall_rule_snapshot(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, enabled INTEGER DEFAULT 0,
-                remote_addr TEXT, protocol TEXT, program TEXT, source TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT,
+                remote_addr TEXT, protocol TEXT, program TEXT, source TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, interfaces TEXT,
                 hash TEXT, present INTEGER DEFAULT 1, first_seen TEXT, last_seen TEXT, changed_at TEXT,
                 change_kind TEXT DEFAULT '', change_detail TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_firewall_rule_snapshot_present ON firewall_rule_snapshot(present);
@@ -333,7 +348,9 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("fw_state", "remote_ports", "TEXT");
         AddColumnIfMissing("fw_state", "local_ports", "TEXT");
         AddColumnIfMissing("fw_state", "service_name", "TEXT");
+        AddColumnIfMissing("fw_state", "interfaces", "TEXT");
         AddColumnIfMissing("firewall_rule_snapshot", "local_ports", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "interfaces", "TEXT");
         _conn.Execute(
             """
             INSERT OR IGNORE INTO blocklist_domain_sources(source, domain)

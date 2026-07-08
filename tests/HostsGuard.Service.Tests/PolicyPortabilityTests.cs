@@ -136,6 +136,11 @@ public sealed class PolicyPortabilityTests : IDisposable
         var (src, srcFw) = NewMachine();
         using var srcKillSwitch = new KillSwitchMonitor(srcFw, src.Db, _ => true, src.DataDir);
         src.KillSwitch = srcKillSwitch;
+        src.AppVpnBindings = new AppVpnBindingCoordinator(srcFw, src.Db, () => new[]
+        {
+            new AdapterInfo("WireGuard", "Wintun Userspace Tunnel", true, true),
+            new AdapterInfo("Ethernet", "Intel Ethernet", true, false),
+        });
 
         src.Consent.SetMode(ConsentBroker.ModeNotify);
         src.Consent.SetChildInherit(true);
@@ -155,6 +160,7 @@ public sealed class PolicyPortabilityTests : IDisposable
         fw.BlockQuic(new Empty(), TestContext());
         fw.BlockEncryptedDns(new DohBlockRequest(), TestContext());
         srcKillSwitch.Configure(true, "WireGuard");
+        src.AppVpnBindings.Set(@"C:\Apps\sync.exe", "WireGuard", enabled: true);
         src.FlowTeardown.Enabled = true;
 
         src.Ai.SaveSettings("sk-secret", "test-model", "https://api.example.test", enabled: true);
@@ -172,10 +178,16 @@ public sealed class PolicyPortabilityTests : IDisposable
         var policy = PortablePolicy.FromJson(json);
         policy.Ai!.ApiKeyConfigured.Should().BeTrue();
         policy.Webhooks!.SecretConfigured.Should().BeTrue();
+        policy.AppVpnBindings.Should().ContainSingle(b => b.Program == @"C:\Apps\sync.exe" && b.Adapter == "WireGuard");
 
         var (dst, dstFw) = NewMachine();
         using var dstKillSwitch = new KillSwitchMonitor(dstFw, dst.Db, _ => true, dst.DataDir);
         dst.KillSwitch = dstKillSwitch;
+        dst.AppVpnBindings = new AppVpnBindingCoordinator(dstFw, dst.Db, () => new[]
+        {
+            new AdapterInfo("WireGuard", "Wintun Userspace Tunnel", true, true),
+            new AdapterInfo("Ethernet", "Intel Ethernet", true, false),
+        });
 
         var summary = PolicyPortability.Import(dst, policy);
 
@@ -193,6 +205,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         dstFw.Rules.Should().ContainKey("HG_DoT_TCP");
         dst.KillSwitch!.Enabled.Should().BeTrue();
         dst.KillSwitch.Adapter.Should().Be("WireGuard");
+        dst.Db.ListAppVpnBindings().Should().ContainSingle(b => b.Program == @"C:\Apps\sync.exe" && b.Adapter == "WireGuard");
+        dstFw.Rules.Values.Should().Contain(r => r.Name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) && r.Interfaces == "Ethernet");
         dst.FlowTeardown.Enabled.Should().BeTrue();
 
         dst.Ai.Settings.Should().Be(new AiSettings(string.Empty, "test-model", "https://api.example.test", true));

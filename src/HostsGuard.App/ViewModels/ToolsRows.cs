@@ -105,6 +105,38 @@ public sealed partial class AdapterRowViewModel : ObservableObject
     private string _label = string.Empty;
 }
 
+/// <summary>Row VM for per-app VPN adapter bindings (NET-157).</summary>
+public sealed partial class AppVpnBindingRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _programPath = string.Empty;
+
+    [ObservableProperty]
+    private string _adapter = string.Empty;
+
+    [ObservableProperty]
+    private string _ruleName = string.Empty;
+
+    [ObservableProperty]
+    private bool _selectedAdapterUp;
+
+    [ObservableProperty]
+    private string _blockedInterfacesText = string.Empty;
+
+    public string AdapterStatus => SelectedAdapterUp ? "adapter up" : "adapter down or absent";
+
+    public static AppVpnBindingRowViewModel From(AppVpnBinding binding) => new()
+    {
+        ProgramPath = binding.ProgramPath,
+        Adapter = binding.Adapter,
+        RuleName = binding.RuleName,
+        SelectedAdapterUp = binding.SelectedAdapterUp,
+        BlockedInterfacesText = binding.BlockedInterfaces.Count == 0
+            ? "none active"
+            : string.Join(", ", binding.BlockedInterfaces),
+    };
+}
+
 /// <summary>Row VM for a one-click blockable service.</summary>
 public sealed partial class BlockableServiceViewModel : ObservableObject
 {

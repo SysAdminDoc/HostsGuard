@@ -42,7 +42,8 @@ public static class PolicyPortability
         {
             foreach (var r in fw.ListRules()
                 .Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)
-                    && !r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal)))
+                    && !r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal)
+                    && !r.Name.StartsWith("HG_VPNBind_", StringComparison.Ordinal)))
             {
                 policy.FirewallRules.Add(new PolicyFirewallRule
                 {
@@ -56,6 +57,7 @@ public static class PolicyPortability
                     RemotePorts = r.RemotePorts,
                     LocalPorts = r.LocalPorts,
                     ServiceName = r.ServiceName,
+                    Interfaces = r.Interfaces,
                 });
             }
         }
@@ -141,6 +143,15 @@ public static class PolicyPortability
                 Enabled = killSwitch.Enabled,
                 Adapter = killSwitch.Adapter,
             };
+        }
+
+        foreach (var binding in state.Db.ListAppVpnBindings())
+        {
+            policy.AppVpnBindings.Add(new PolicyAppVpnBinding
+            {
+                Program = binding.Program,
+                Adapter = binding.Adapter,
+            });
         }
 
         policy.LanAttackSurface = new PolicyLanAttackSurface
@@ -256,7 +267,8 @@ public static class PolicyPortability
                     "hostsguard",
                     FwRuleMapper.MapPorts(r.RemotePorts),
                     FwRuleMapper.MapService(r.ServiceName),
-                    FwRuleMapper.MapPorts(r.LocalPorts));
+                    FwRuleMapper.MapPorts(r.LocalPorts),
+                    FwRuleMapper.MapInterfaces(r.Interfaces));
                 if (fw.CreateRule(rule))
                 {
                     rulesCreated++;
@@ -272,7 +284,8 @@ public static class PolicyPortability
                     rule.Program,
                     rule.RemotePorts,
                     rule.LocalPorts,
-                    rule.ServiceName);
+                    rule.ServiceName,
+                    rule.Interfaces);
                 if (rule.Program.Length != 0)
                 {
                     state.Identity?.Remember(rule.Name, rule.Program);
@@ -397,6 +410,7 @@ public static class PolicyPortability
         ApplyConsent(state, policy, summary);
         ApplyDnsPrivacy(state, policy, summary);
         ApplyKillSwitch(state, policy, summary);
+        ApplyAppVpnBindings(state, policy, summary);
         ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
@@ -526,6 +540,37 @@ public static class PolicyPortability
         var adapter = policy.KillSwitch.Adapter ?? string.Empty;
         var ack = killSwitch.Configure(enabled, adapter);
         summary.Add(ack.Ok ? "kill-switch policy" : $"kill-switch skipped ({ack.Message})");
+    }
+
+    private static void ApplyAppVpnBindings(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.AppVpnBindings.Count == 0)
+        {
+            return;
+        }
+
+        if (state.AppVpnBindings is not { } bindings)
+        {
+            summary.Add($"{policy.AppVpnBindings.Count} app VPN bindings skipped (coordinator unavailable)");
+            return;
+        }
+
+        var applied = 0;
+        foreach (var binding in policy.AppVpnBindings)
+        {
+            if (string.IsNullOrWhiteSpace(binding.Program) || string.IsNullOrWhiteSpace(binding.Adapter))
+            {
+                continue;
+            }
+
+            var ack = bindings.Set(binding.Program, binding.Adapter, enabled: true);
+            if (ack.Ok)
+            {
+                applied++;
+            }
+        }
+
+        summary.Add($"{policy.AppVpnBindings.Count} app VPN bindings ({applied} applied)");
     }
 
     private static void ApplyLanAttackSurface(ServiceState state, PortablePolicy policy, List<string> summary)

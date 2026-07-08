@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.42] - 2026-07-08
+
+### Added
+- Added opt-in per-app VPN binding. The service can bind a program to one
+  adapter by maintaining `HG_VPNBind_*` Windows Firewall rules scoped to the
+  other active interfaces, without changing default outbound posture or
+  hosts-file blocks. Bindings are visible in Tools, included in portable policy,
+  and interface aliases now appear in the firewall rule viewer and explainer.
+
 ## [0.12.41] - 2026-07-08
 
 ### Added

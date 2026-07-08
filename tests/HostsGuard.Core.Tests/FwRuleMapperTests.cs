@@ -57,10 +57,20 @@ public class FwRuleMapperTests
     }
 
     [Fact]
+    public void Interfaces_list_valued_is_joined_and_deduped()
+    {
+        FwRuleMapper.MapInterfaces(new[] { "Ethernet", "Wi-Fi", "ethernet" }).Should().Be("Ethernet,Wi-Fi");
+        FwRuleMapper.MapInterfaces(null).Should().Be("Any");
+        FwRuleMapper.MapInterfaces("*").Should().Be("Any");
+    }
+
+    [Fact]
     public void FromValues_full_rule_and_source_by_prefix()
     {
-        var hg = FwRuleMapper.FromValues("HG_Block_x", 2, 0, 1, new[] { "1.1.1.1", "8.8.8.8" }, 6, @"C:\a.exe");
-        hg.Should().Be(new FwRule("HG_Block_x", "Out", "Block", true, "1.1.1.1,8.8.8.8", "TCP", @"C:\a.exe", "hostsguard"));
+        var hg = FwRuleMapper.FromValues("HG_Block_x", 2, 0, 1, new[] { "1.1.1.1", "8.8.8.8" }, 6, @"C:\a.exe",
+            interfaces: new[] { "Ethernet" });
+        hg.Should().Be(new FwRule("HG_Block_x", "Out", "Block", true, "1.1.1.1,8.8.8.8", "TCP", @"C:\a.exe", "hostsguard",
+            Interfaces: "Ethernet"));
 
         var sys = FwRuleMapper.FromValues("SomeSystemRule", 1, 1, 0, "Any", 256, "");
         sys.Direction.Should().Be("In");

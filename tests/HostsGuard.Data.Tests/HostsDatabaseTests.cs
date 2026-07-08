@@ -124,6 +124,37 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Firewall_state_snapshot_and_app_vpn_bindings_preserve_interfaces()
+    {
+        using var db = new HostsDatabase(DbPath("fw-interfaces.db"));
+        var rule = new FwRule(
+            "HG_VPNBind_test",
+            "Out",
+            "Block",
+            true,
+            "Any",
+            "Any",
+            @"C:\Apps\sync.exe",
+            "hostsguard",
+            Interfaces: "Ethernet,Wi-Fi");
+
+        db.UpsertFwState(rule.Name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol, rule.Program,
+            rule.RemotePorts, rule.LocalPorts, rule.ServiceName, rule.Interfaces);
+        db.GetFwState().Should().ContainSingle(r => r.Interfaces == "Ethernet,Wi-Fi");
+
+        db.SnapshotFirewallRules(new[] { rule }, new DateTime(2026, 7, 8, 11, 0, 0)).Should().BeEmpty();
+        var changed = rule with { Interfaces = "Ethernet" };
+        db.SnapshotFirewallRules(new[] { changed }, new DateTime(2026, 7, 8, 11, 5, 0))
+            .Should().ContainSingle(d => d.Details.Contains("interfaces: Ethernet,Wi-Fi -> Ethernet", StringComparison.Ordinal));
+
+        db.UpsertAppVpnBinding(rule.Program, "WireGuard", rule.Name);
+        db.ListAppVpnBindings().Should().ContainSingle(b =>
+            b.Program == rule.Program && b.Adapter == "WireGuard" && b.RuleName == rule.Name);
+        db.RemoveAppVpnBinding(rule.Program).Should().BeTrue();
+        db.ListAppVpnBindings().Should().BeEmpty();
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");

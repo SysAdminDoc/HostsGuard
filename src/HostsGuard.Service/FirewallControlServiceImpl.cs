@@ -228,7 +228,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             "hostsguard",
             FwRuleMapper.MapPorts(request.RemotePorts),
             FwRuleMapper.MapService(request.ServiceName),
-            FwRuleMapper.MapPorts(request.LocalPorts));
+            FwRuleMapper.MapPorts(request.LocalPorts),
+            FwRuleMapper.MapInterfaces(request.Interfaces));
         var created = fw.CreateRule(rule);
         if (created)
         {
@@ -241,7 +242,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
                 rule.Program,
                 rule.RemotePorts,
                 rule.LocalPorts,
-                rule.ServiceName);
+                rule.ServiceName,
+                rule.Interfaces);
             if (rule.Program.Length != 0)
             {
                 _state.Identity?.Remember(rule.Name, rule.Program);
@@ -271,6 +273,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
         var deleted = fw.DeleteRule(name);
         _state.Db.RemoveFwState(name);
+        if (name.StartsWith("HG_VPNBind_", StringComparison.Ordinal))
+        {
+            _state.Db.RemoveAppVpnBindingByRuleName(name);
+        }
+
         return Task.FromResult(deleted ? Ok($"deleted {name}") : Error("not_found", $"{name} does not exist"));
     }
 
@@ -456,6 +463,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             RemotePorts = rule.RemotePorts,
             LocalPorts = rule.LocalPorts,
             ServiceName = rule.ServiceName,
+            Interfaces = rule.Interfaces,
             Adopted = adopted,
             DriftStatus = driftStatus,
             DriftDetail = DriftDetail(snapshot),
@@ -479,6 +487,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         RemotePorts = snapshot.RemotePorts,
         LocalPorts = snapshot.LocalPorts,
         ServiceName = snapshot.ServiceName,
+        Interfaces = snapshot.Interfaces,
         DriftStatus = string.IsNullOrWhiteSpace(snapshot.ChangeKind) ? "vanished" : snapshot.ChangeKind,
         DriftDetail = DriftDetail(snapshot),
         FirstSeen = snapshot.FirstSeen,
@@ -950,6 +959,55 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         }
 
         return Task.FromResult(ks.Configure(request.Enabled, request.Adapter));
+    }
+
+    public override Task<AppVpnBindingStatus> GetAppVpnBindings(Empty request, ServerCallContext context)
+    {
+        var status = new AppVpnBindingStatus();
+        var adapters = _state.AppVpnBindings?.ListAdapters() ?? NetworkAdapters.List();
+        foreach (var a in adapters)
+        {
+            status.Adapters.Add(new NetworkAdapterInfo
+            {
+                Name = a.Name,
+                Description = a.Description,
+                IsUp = a.IsUp,
+                IsVpnLikely = a.IsVpnLikely,
+            });
+        }
+
+        if (_state.AppVpnBindings is { } bindings)
+        {
+            foreach (var binding in bindings.List())
+            {
+                var proto = new AppVpnBinding
+                {
+                    ProgramPath = binding.Program,
+                    Adapter = binding.Adapter,
+                    RuleName = binding.RuleName,
+                    SelectedAdapterUp = binding.SelectedAdapterUp,
+                };
+                proto.BlockedInterfaces.AddRange(binding.BlockedInterfaces);
+                status.Bindings.Add(proto);
+            }
+        }
+
+        return Task.FromResult(status);
+    }
+
+    public override Task<Ack> SetAppVpnBinding(AppVpnBindingRequest request, ServerCallContext context)
+    {
+        if (_state.AppVpnBindings is not { } bindings)
+        {
+            return Task.FromResult(Error("app_vpn_unavailable", "app VPN binding coordinator is not attached to this service instance"));
+        }
+
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return Task.FromResult(bindings.Set(request.ProgramPath, request.Adapter, request.Enabled));
     }
 
     private static string MapDirection(string? direction)

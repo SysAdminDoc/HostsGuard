@@ -528,7 +528,10 @@ public static class DecisionExplainer
         var program = string.IsNullOrWhiteSpace(rule.Program) ? "any program" : Path.GetFileName(rule.Program);
         var remote = string.IsNullOrWhiteSpace(rule.RemoteAddr) ? "Any" : rule.RemoteAddr;
         var ports = string.IsNullOrWhiteSpace(rule.RemotePorts) ? "Any" : rule.RemotePorts;
-        return $"{rule.Action} {rule.Direction} {rule.Protocol} {program} -> {remote}:{ports}";
+        var interfaces = string.IsNullOrWhiteSpace(rule.Interfaces) || rule.Interfaces == "Any"
+            ? string.Empty
+            : $" interfaces={rule.Interfaces}";
+        return $"{rule.Action} {rule.Direction} {rule.Protocol} {program} -> {remote}:{ports}{interfaces}";
     }
 
     private static string DescribeDomainRule(DomainFirewallRuleFact rule)

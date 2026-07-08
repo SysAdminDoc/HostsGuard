@@ -2017,6 +2017,7 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="60" />
                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="86" IsReadOnly="True" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Program_9d68007b}" Binding="{Binding Program}" Width="*" />
+                                <DataGridTextColumn Header="{svc:Loc Key=FwRules_Interfaces, Default=Interfaces}" Binding="{Binding Interfaces}" Width="120" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="110" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="82">
                                     <DataGridTextColumn.ElementStyle>
@@ -2829,6 +2830,66 @@
                                     </WrapPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,4,0,0">
                                         <TextBlock Text="{Binding KillSwitchStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Per-app VPN binding (NET-157) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Tools_AppVpnBinding_Title, Default=Per-app VPN binding}" FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding LoadAppVpnBindingsCommand}" Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=Tools_AppVpnBinding_Help, Default=Bind one program to an adapter by blocking it on other active interfaces. Default outbound and hosts-file blocks are unchanged.}"
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8" TextWrapping="Wrap" />
+                                    <WrapPanel>
+                                        <TextBlock Text="{svc:Loc Key=Tools_AppVpnBinding_Program, Default=Program}" VerticalAlignment="Center" Margin="0,0,8,8" />
+                                        <TextBox Width="360" Margin="0,0,8,8"
+                                                 Text="{Binding AppVpnProgramPath, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=Tools_AppVpnBinding_ProgramHint, Default=Program path}"
+                                                 AutomationProperties.Name="{svc:Loc Key=Tools_AppVpnBinding_ProgramName, Default=Program path for VPN binding}" />
+                                        <TextBlock Text="{svc:Loc Key=Tools_AppVpnBinding_Adapter, Default=Adapter}" VerticalAlignment="Center" Margin="0,0,8,8" />
+                                        <ComboBox Width="300" Margin="0,0,8,8"
+                                                  ItemsSource="{Binding Adapters}"
+                                                  SelectedItem="{Binding SelectedAppVpnAdapter}"
+                                                  DisplayMemberPath="Label"
+                                                  AutomationProperties.Name="{svc:Loc Key=Tools_AppVpnBinding_AdapterName, Default=VPN adapter for app binding}" />
+                                        <Button Content="{svc:Loc Key=Tools_AppVpnBinding_Bind, Default=Bind app}"
+                                                Command="{Binding SaveAppVpnBindingCommand}" Margin="0,0,10,8" />
+                                    </WrapPanel>
+                                    <ItemsControl ItemsSource="{Binding AppVpnBindings}" Margin="0,2,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,6">
+                                                    <DockPanel LastChildFill="True">
+                                                        <Button DockPanel.Dock="Right"
+                                                                Content="{svc:Loc Key=Xaml_Remove_e963907d}"
+                                                                Padding="8,2"
+                                                                Command="{Binding DataContext.RemoveAppVpnBindingCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"
+                                                                AutomationProperties.Name="{svc:Loc Key=Tools_AppVpnBinding_RemoveName, Default=Remove app VPN binding}" />
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding ProgramPath}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            <WrapPanel Margin="0,3,0,0">
+                                                                <TextBlock Text="{Binding Adapter}" Style="{StaticResource Hg.DimText}" Margin="0,0,10,0" />
+                                                                <TextBlock Text="{Binding AdapterStatus}" Style="{StaticResource Hg.DimText}" Margin="0,0,10,0" />
+                                                                <TextBlock Text="{Binding BlockedInterfacesText}" Style="{StaticResource Hg.DimText}" />
+                                                            </WrapPanel>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{svc:Loc Key=Tools_AppVpnBinding_Empty, Default=No app VPN bindings yet.}" Style="{StaticResource Hg.DimText}"
+                                               Visibility="{Binding AppVpnBindings.Count, Converter={StaticResource EmptyStateVis}}" />
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,4,0,0">
+                                        <TextBlock Text="{Binding AppVpnStatusText}"
                                                    Style="{StaticResource Hg.SubText}"
                                                    AutomationProperties.LiveSetting="Polite" />
                                     </Border>

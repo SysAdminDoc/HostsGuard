@@ -69,6 +69,9 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private string _localPorts = string.Empty;
 
+    [ObservableProperty]
+    private string _interfaces = string.Empty;
+
     public string Ports => LocalPorts is not ("" or "Any")
         ? $"local {LocalPorts}"
         : RemotePortsForDisplay is "" or "Any" ? "Any" : $"remote {RemotePortsForDisplay}";
@@ -103,6 +106,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
             _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => "child-allow",
             _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => "temporary",
             _ when name.StartsWith("HG_Domain_", StringComparison.Ordinal) => "domain",
+            _ when name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) => "app VPN",
             _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => "app-scope",
             _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
                 || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => "DoH block",
@@ -132,6 +136,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
         Adopted = r.Adopted,
         ServiceName = r.ServiceName,
         LocalPorts = r.LocalPorts,
+        Interfaces = r.Interfaces,
         RemotePortsForDisplay = r.RemotePorts,
     };
 }
@@ -284,6 +289,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 !r.RemoteAddr.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.ServiceName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.Interfaces.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.DriftStatus.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.DriftDetail.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {

@@ -193,6 +193,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadTrustedPublishersAsync();
             await Tools.LoadTrustedFoldersAsync();
             await Tools.LoadKillSwitchAsync();
+            await Tools.LoadAppVpnBindingsAsync();
             await Blocklists.RefreshAsync();
             await LoadFilteringModeAsync();
             await LoadEnforcementPauseAsync();
@@ -843,6 +844,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadTrustedPublishersAsync();
             await Tools.LoadTrustedFoldersAsync();
             await Tools.LoadKillSwitchAsync();
+            await Tools.LoadAppVpnBindingsAsync();
         }
 
         await LoadEnforcementPauseAsync();

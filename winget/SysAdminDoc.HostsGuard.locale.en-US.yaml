@@ -1,5 +1,5 @@
 PackageIdentifier: SysAdminDoc.HostsGuard
-PackageVersion: 0.12.41
+PackageVersion: 0.12.42
 PackageLocale: en-US
 Publisher: SysAdminDoc
 PublisherUrl: https://github.com/SysAdminDoc
@@ -10,9 +10,10 @@ LicenseUrl: https://github.com/SysAdminDoc/HostsGuard/blob/main/LICENSE
 ShortDescription: Driver-free, single-host, zero-telemetry Windows network-privacy manager.
 Description: >-
   HostsGuard is a Windows network-privacy manager with ask-to-connect consent,
-  hosts-file and Windows Firewall rule management, DoH/QUIC survival, per-app and
-  per-domain bandwidth, persisted event-ledger browsing, source-scoped blocklist
-  rollback, rule-decision explanations and portable-policy import/export.
+  hosts-file and Windows Firewall rule management, DoH/QUIC survival, per-app VPN
+  binding, per-app and per-domain bandwidth, persisted event-ledger browsing,
+  source-scoped blocklist rollback, rule-decision explanations and portable-policy
+  import/export.
   Split-trust: an elevated LocalSystem service owns all mutation while the WPF UI
   runs unelevated over an ACL'd named pipe — no kernel driver, no account, no
   telemetry.

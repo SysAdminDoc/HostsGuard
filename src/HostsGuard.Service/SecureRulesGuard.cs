@@ -101,7 +101,8 @@ public sealed class SecureRulesGuard : IDisposable
                     "hostsguard",
                     string.IsNullOrEmpty(tracked.RemotePorts) ? "Any" : tracked.RemotePorts,
                     tracked.ServiceName ?? string.Empty,
-                    string.IsNullOrEmpty(tracked.LocalPorts) ? "Any" : tracked.LocalPorts);
+                    string.IsNullOrEmpty(tracked.LocalPorts) ? "Any" : tracked.LocalPorts,
+                    string.IsNullOrEmpty(tracked.Interfaces) ? "Any" : tracked.Interfaces);
                 if (fw.CreateRule(rule))
                 {
                     reverts++;

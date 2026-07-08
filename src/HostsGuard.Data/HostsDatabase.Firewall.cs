@@ -21,7 +21,8 @@ public sealed partial class HostsDatabase
         string program,
         string remotePorts = "Any",
         string localPorts = "Any",
-        string serviceName = "")
+        string serviceName = "",
+        string interfaces = "Any")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
@@ -29,11 +30,11 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT OR REPLACE INTO fw_state(name,direction,action,remote_addr,protocol,program,remote_ports,local_ports,service_name,created)
-                VALUES(@name,@direction,@action,@remoteAddr,@protocol,@program,@remotePorts,@localPorts,@serviceName,
+                INSERT OR REPLACE INTO fw_state(name,direction,action,remote_addr,protocol,program,remote_ports,local_ports,service_name,interfaces,created)
+                VALUES(@name,@direction,@action,@remoteAddr,@protocol,@program,@remotePorts,@localPorts,@serviceName,@interfaces,
                        COALESCE((SELECT created FROM fw_state WHERE name=@name),@now))
                 """,
-                new { name, direction, action, remoteAddr, protocol, program, remotePorts, localPorts, serviceName, now });
+                new { name, direction, action, remoteAddr, protocol, program, remotePorts, localPorts, serviceName, interfaces, now });
         }
     }
 
@@ -112,7 +113,8 @@ public sealed partial class HostsDatabase
                 """
                 SELECT name AS Name, direction AS Direction, action AS Action,
                        remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program,
-                       remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName
+                       remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
+                       interfaces AS Interfaces
                 FROM fw_state
                 """).ToList();
         }
@@ -151,7 +153,8 @@ public sealed partial class HostsDatabase
                     """
                     SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
                            remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
-                           remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName, hash AS Hash,
+                           remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
+                           interfaces AS Interfaces, hash AS Hash,
                            present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
                            changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
                     FROM firewall_rule_snapshot
@@ -169,9 +172,9 @@ public sealed partial class HostsDatabase
                     _conn.Execute(
                         """
                         INSERT INTO firewall_rule_snapshot(
-                            name,direction,action,enabled,remote_addr,protocol,program,source,remote_ports,local_ports,service_name,
+                            name,direction,action,enabled,remote_addr,protocol,program,source,remote_ports,local_ports,service_name,interfaces,
                             hash,present,first_seen,last_seen,changed_at,change_kind,change_detail)
-                        VALUES(@Name,@Direction,@Action,@Enabled,@RemoteAddr,@Protocol,@Program,@Source,@RemotePorts,@LocalPorts,@ServiceName,
+                        VALUES(@Name,@Direction,@Action,@Enabled,@RemoteAddr,@Protocol,@Program,@Source,@RemotePorts,@LocalPorts,@ServiceName,@Interfaces,
                                @Hash,1,@now,@now,@changedAt,@ChangeKind,@ChangeDetail)
                         """,
                         SnapshotParams(rule, hash, now, initialized ? now : string.Empty, kind, detail), tx);
@@ -192,7 +195,8 @@ public sealed partial class HostsDatabase
                         UPDATE firewall_rule_snapshot
                         SET direction=@Direction, action=@Action, enabled=@Enabled, remote_addr=@RemoteAddr,
                             protocol=@Protocol, program=@Program, source=@Source, remote_ports=@RemotePorts,
-                            local_ports=@LocalPorts, service_name=@ServiceName, hash=@Hash, present=1, last_seen=@now,
+                            local_ports=@LocalPorts, service_name=@ServiceName, interfaces=@Interfaces,
+                            hash=@Hash, present=1, last_seen=@now,
                             changed_at=@changedAt, change_kind=@ChangeKind, change_detail=@ChangeDetail
                         WHERE name=@Name
                         """,
@@ -243,7 +247,8 @@ public sealed partial class HostsDatabase
                 """
                 SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
                        remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
-                       remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName, hash AS Hash,
+                       remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
+                       interfaces AS Interfaces, hash AS Hash,
                        present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
                        changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
                 FROM firewall_rule_snapshot
@@ -265,6 +270,7 @@ public sealed partial class HostsDatabase
         RemotePorts = Clean(rule.RemotePorts),
         LocalPorts = Clean(rule.LocalPorts),
         ServiceName = Clean(rule.ServiceName),
+        Interfaces = Clean(rule.Interfaces),
         Hash = hash,
         now,
         changedAt,
@@ -284,7 +290,8 @@ public sealed partial class HostsDatabase
             Clean(rule.Source),
             Clean(rule.RemotePorts),
             Clean(rule.LocalPorts),
-            Clean(rule.ServiceName));
+            Clean(rule.ServiceName),
+            Clean(rule.Interfaces));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -301,6 +308,7 @@ public sealed partial class HostsDatabase
         Clean(rule.RemotePorts),
         Clean(rule.LocalPorts),
         Clean(rule.ServiceName),
+        Clean(rule.Interfaces),
         details);
 
     private static FirewallRuleDriftRow ToDrift(FirewallRuleSnapshotRow row, string kind, string details) => new(
@@ -316,15 +324,16 @@ public sealed partial class HostsDatabase
         Clean(row.RemotePorts),
         Clean(row.LocalPorts),
         Clean(row.ServiceName),
+        Clean(row.Interfaces),
         details);
 
     private static string Describe(FwRule rule) =>
         $"{Clean(rule.Source)} {Clean(rule.Direction)} {Clean(rule.Action)} {(rule.Enabled ? "enabled" : "disabled")} " +
-        $"{Clean(rule.Protocol)} remote={Clean(rule.RemoteAddr)} remotePorts={Clean(rule.RemotePorts)} localPorts={Clean(rule.LocalPorts)} program={Clean(rule.Program)} service={Clean(rule.ServiceName)}";
+        $"{Clean(rule.Protocol)} remote={Clean(rule.RemoteAddr)} remotePorts={Clean(rule.RemotePorts)} localPorts={Clean(rule.LocalPorts)} program={Clean(rule.Program)} service={Clean(rule.ServiceName)} interfaces={Clean(rule.Interfaces)}";
 
     private static string Describe(FirewallRuleSnapshotRow row) =>
         $"{Clean(row.Source)} {Clean(row.Direction)} {Clean(row.Action)} {(row.Enabled ? "enabled" : "disabled")} " +
-        $"{Clean(row.Protocol)} remote={Clean(row.RemoteAddr)} remotePorts={Clean(row.RemotePorts)} localPorts={Clean(row.LocalPorts)} program={Clean(row.Program)} service={Clean(row.ServiceName)}";
+        $"{Clean(row.Protocol)} remote={Clean(row.RemoteAddr)} remotePorts={Clean(row.RemotePorts)} localPorts={Clean(row.LocalPorts)} program={Clean(row.Program)} service={Clean(row.ServiceName)} interfaces={Clean(row.Interfaces)}";
 
     private static string DescribeChanges(FirewallRuleSnapshotRow old, FwRule current)
     {
@@ -338,6 +347,7 @@ public sealed partial class HostsDatabase
         Add("remote ports", old.RemotePorts, current.RemotePorts);
         Add("local ports", old.LocalPorts, current.LocalPorts);
         Add("service", old.ServiceName, current.ServiceName);
+        Add("interfaces", old.Interfaces, current.Interfaces);
         return changes.Count == 0 ? $"changed {Describe(current)}" : "changed " + string.Join("; ", changes);
 
         void Add(string label, string? before, string? after)

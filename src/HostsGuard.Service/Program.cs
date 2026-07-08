@@ -168,6 +168,12 @@ killSwitch.AfterEngage = () => state.FlowTeardown.CloseInternetForKillSwitch();
 killSwitch.AfterRelease = state.EnforcementPause.TryResumeAfterKillSwitch;
 killSwitch.Start();
 
+// Per-app VPN binding (NET-157): opt-in per-program rules block only active
+// non-selected interfaces, leaving default outbound and hosts-file blocks alone.
+using var appVpnBindings = new AppVpnBindingCoordinator(firewall, db, NetworkAdapters.List);
+state.AppVpnBindings = appVpnBindings;
+appVpnBindings.Start();
+
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
 var devicePaths = new DevicePathMapper();
 using var blockedWatch = new BlockedConnectionWatch(
