@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.24] - 2026-07-08
+
+### Fixed
+- Category-filtered event-ledger queries now translate `EventTaxonomy` into a
+  SQLite `CASE` predicate so counts and pages are filtered in SQL instead of
+  materializing the full log before paging.
+- Added deterministic mixed-ledger coverage that compares SQL category pages to
+  the taxonomy-derived in-memory result across categories, limits, and offsets.
+
 ## [0.12.23] - 2026-07-08
 
 ### Fixed

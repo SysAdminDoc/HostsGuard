@@ -1768,9 +1768,8 @@ public sealed class HostsDatabase : IDisposable
     // ─── Stats ────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Paged/filterable persistent event ledger. Direct filters run in SQLite;
-    /// the category filter is applied after deriving the canonical taxonomy
-    /// bucket from the stored action.
+    /// Paged/filterable persistent event ledger. Filters, including derived
+    /// taxonomy category, run in SQLite before paging.
     /// </summary>
     public EventLogPage GetEvents(EventLogFilter filter)
     {
@@ -1781,17 +1780,6 @@ public sealed class HostsDatabase : IDisposable
 
         lock (_gate)
         {
-            if (!string.IsNullOrWhiteSpace(filter.Category))
-            {
-                var all = _conn.Query<EventLogRowRaw>(
-                        $"SELECT id, ts, domain, action, process, details, reason FROM log{where} ORDER BY ts DESC, id DESC",
-                        args)
-                    .Select(ToEventLogRow)
-                    .Where(r => string.Equals(r.Category, filter.Category, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                return new EventLogPage(all.Skip(offset).Take(limit).ToList(), all.Count);
-            }
-
             var total = _conn.ExecuteScalar<int>($"SELECT COUNT(*) FROM log{where}", args);
             args.Add("limit", limit);
             args.Add("offset", offset);
@@ -1827,6 +1815,7 @@ public sealed class HostsDatabase : IDisposable
         AddExact("reason", filter.Reason, "reason");
         AddLike("domain", filter.Domain, "domain LIKE @domain ESCAPE '\\'");
         AddLike("process", filter.Process, "process LIKE @process ESCAPE '\\'");
+        AddCategory(filter.Category);
 
         return (clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses), args);
 
@@ -1851,7 +1840,34 @@ public sealed class HostsDatabase : IDisposable
             clauses.Add($"LOWER({column}) = LOWER(@{name})");
             args.Add(name, value.Trim());
         }
+
+        void AddCategory(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            clauses.Add($"{EventCategorySql} = @category");
+            args.Add("category", value.Trim().ToLowerInvariant());
+        }
     }
+
+    private static readonly string EventCategorySql =
+        $"""
+        CASE
+            WHEN action IS NULL OR action = '' THEN '{EventTaxonomy.Categories.Other}'
+            WHEN LOWER(action) LIKE 'consent%' OR LOWER(action) IN ('{EventTaxonomy.ModeChanged}', '{EventTaxonomy.PostureRestoredOnStop}') THEN '{EventTaxonomy.Categories.Consent}'
+            WHEN LOWER(action) LIKE 'fw\_%' ESCAPE '\' OR LOWER(action) IN ('{EventTaxonomy.LockdownOn}', '{EventTaxonomy.LockdownOff}') THEN '{EventTaxonomy.Categories.Firewall}'
+            WHEN LOWER(action) IN ('{EventTaxonomy.Blocked}', '{EventTaxonomy.Whitelisted}', '{EventTaxonomy.RawEdit}', '{EventTaxonomy.AclHardened}', '{EventTaxonomy.BackupRestored}') THEN '{EventTaxonomy.Categories.Hosts}'
+            WHEN LOWER(action) = '{EventTaxonomy.ExclusionAdded}' OR LOWER(action) LIKE '%defender%' THEN '{EventTaxonomy.Categories.Defender}'
+            WHEN LOWER(action) = '{EventTaxonomy.BundleExport}' OR LOWER(action) LIKE 'support%' THEN '{EventTaxonomy.Categories.Support}'
+            WHEN LOWER(action) LIKE '%doh%' OR LOWER(action) LIKE '%dns%' OR LOWER(action) LIKE '%resolver%' THEN '{EventTaxonomy.Categories.Dns}'
+            WHEN LOWER(action) LIKE '%blocklist%' OR LOWER(action) LIKE '%allowlist%' OR LOWER(action) LIKE '%list%' THEN '{EventTaxonomy.Categories.Lists}'
+            WHEN LOWER(action) LIKE '%profile%' OR LOWER(action) LIKE '%schedule%' OR LOWER(action) LIKE '%lock%' OR LOWER(action) = 'imported' THEN '{EventTaxonomy.Categories.Policy}'
+            ELSE '{EventTaxonomy.Categories.Other}'
+        END
+        """;
 
     private static string EscapeLike(string value) => value
         .Replace("\\", "\\\\", StringComparison.Ordinal)

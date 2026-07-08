@@ -1,5 +1,6 @@
 using Dapper;
 using FluentAssertions;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using Microsoft.Data.Sqlite;
 using Xunit;
@@ -152,6 +153,77 @@ public sealed class HostsDatabaseTests : IDisposable
 
         db.GetEvents(new EventLogFilter(Since: DateTime.Now.AddMinutes(-1).ToString("o"))).Total.Should().Be(3);
         db.GetEvents(new EventLogFilter(Until: DateTime.Now.AddMinutes(-1).ToString("o"))).Total.Should().Be(0);
+    }
+
+    [Fact]
+    public void Event_ledger_category_filter_pages_in_sql_equivalent_to_taxonomy()
+    {
+        using var db = new HostsDatabase(DbPath("event-category-sql.db"));
+        var actions = new[]
+        {
+            EventTaxonomy.Blocked,
+            EventTaxonomy.Whitelisted,
+            EventTaxonomy.RawEdit,
+            EventTaxonomy.FwBlocked,
+            "FW_UNBLOCKED",
+            EventTaxonomy.LockdownOn,
+            EventTaxonomy.ConsentAllow,
+            EventTaxonomy.ConsentTimeout,
+            EventTaxonomy.ModeChanged,
+            "doh_refreshed",
+            "dns_blocklist_refresh",
+            "resolver_changed",
+            "blocklist_imported",
+            "allowlist_refreshed",
+            EventTaxonomy.ExclusionAdded,
+            "defender_status",
+            EventTaxonomy.BundleExport,
+            "support_bundle_opened",
+            "profile_applied",
+            "schedule_window_started",
+            "settings_lock_armed",
+            "imported",
+            "something_unmapped",
+            string.Empty,
+        };
+        var rng = new Random(140);
+        for (var i = 0; i < 300; i++)
+        {
+            var action = actions[rng.Next(actions.Length)];
+            db.LogEvent($"event-{i:D3}.example.com", action, process: $"proc-{i % 7}.exe", details: $"row {i}");
+        }
+
+        var all = db.GetEvents(new EventLogFilter(Limit: 500)).Rows;
+        all.Should().HaveCount(300);
+        var categories = new[]
+        {
+            EventTaxonomy.Categories.Hosts,
+            EventTaxonomy.Categories.Firewall,
+            EventTaxonomy.Categories.Consent,
+            EventTaxonomy.Categories.Dns,
+            EventTaxonomy.Categories.Lists,
+            EventTaxonomy.Categories.Defender,
+            EventTaxonomy.Categories.Support,
+            EventTaxonomy.Categories.Policy,
+            EventTaxonomy.Categories.Other,
+        };
+        var pages = new[] { (Limit: 1, Offset: 0), (Limit: 7, Offset: 3), (Limit: 25, Offset: 20) };
+
+        foreach (var category in categories)
+        {
+            var expected = all
+                .Where(r => EventTaxonomy.Category(r.Action) == category)
+                .ToList();
+            foreach (var (limit, offset) in pages)
+            {
+                var actual = db.GetEvents(new EventLogFilter(Limit: limit, Offset: offset, Category: category));
+
+                actual.Total.Should().Be(expected.Count, $"category {category} total should match taxonomy");
+                actual.Rows.Select(r => r.Id).Should().Equal(
+                    expected.Skip(offset).Take(limit).Select(r => r.Id),
+                    $"category {category} page should be SQL-paged after filtering");
+            }
+        }
     }
 
     [Fact]
