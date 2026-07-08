@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
+using HostsGuard.Data;
 using HostsGuard.Windows;
 
 namespace HostsGuard.Service;
@@ -335,39 +336,108 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         }
 
         var live = fw.ListRules();
+        _state.FirewallDrift.CaptureNow(live);
+        var snapshots = _state.Db.GetFirewallRuleSnapshots()
+            .ToDictionary(s => s.Name, StringComparer.Ordinal);
         var liveNames = new HashSet<string>(live.Select(r => r.Name), StringComparer.Ordinal);
         var adoptedNames = _state.Db.GetAdoptedRuleNames();
         foreach (var r in live)
         {
-            list.Rules.Add(new FirewallRule
-            {
-                Name = r.Name,
-                Direction = r.Direction,
-                Action = r.Action,
-                Enabled = r.Enabled,
-                RemoteAddr = r.RemoteAddr,
-                Protocol = r.Protocol,
-                Program = r.Program,
-                Source = r.Source,
-                Orphaned = FirewallIdentity.IsOrphaned(r),
-                RemotePorts = r.RemotePorts,
-                ServiceName = r.ServiceName,
-                Adopted = r.Source != "hostsguard" && adoptedNames.Contains(r.Name),
-            });
+            snapshots.TryGetValue(r.Name, out var snapshot);
+            list.Rules.Add(ToRule(r, snapshot, r.Source != "hostsguard" && adoptedNames.Contains(r.Name)));
+        }
+
+        foreach (var snapshot in snapshots.Values.Where(s => !s.Present && !liveNames.Contains(s.Name)))
+        {
+            list.Rules.Add(ToRule(snapshot));
         }
 
         // Tracked rules missing live = drift (deleted behind our back).
         foreach (var name in _state.Db.GetFwStateNames().Where(n => !liveNames.Contains(n)))
         {
+            if (list.Rules.Any(r => string.Equals(r.Name, name, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
             list.Rules.Add(new FirewallRule
             {
                 Name = name,
                 Source = "hostsguard",
                 Drifted = true,
+                DriftStatus = "missing",
+                DriftDetail = "tracked HostsGuard rule is missing from Windows Firewall",
             });
         }
 
         return Task.FromResult(list);
+    }
+
+    private static FirewallRule ToRule(FwRule rule, FirewallRuleSnapshotRow? snapshot, bool adopted)
+    {
+        var driftStatus = snapshot?.Present == true ? snapshot.ChangeKind : string.Empty;
+        return new FirewallRule
+        {
+            Name = rule.Name,
+            Direction = rule.Direction,
+            Action = rule.Action,
+            Enabled = rule.Enabled,
+            RemoteAddr = rule.RemoteAddr,
+            Protocol = rule.Protocol,
+            Program = rule.Program,
+            Source = rule.Source,
+            Orphaned = FirewallIdentity.IsOrphaned(rule),
+            Drifted = !string.IsNullOrWhiteSpace(driftStatus),
+            RemotePorts = rule.RemotePorts,
+            ServiceName = rule.ServiceName,
+            Adopted = adopted,
+            DriftStatus = driftStatus,
+            DriftDetail = DriftDetail(snapshot),
+            FirstSeen = snapshot?.FirstSeen ?? string.Empty,
+            LastSeen = snapshot?.LastSeen ?? string.Empty,
+            ChangedAt = snapshot?.ChangedAt ?? string.Empty,
+        };
+    }
+
+    private static FirewallRule ToRule(FirewallRuleSnapshotRow snapshot) => new()
+    {
+        Name = snapshot.Name,
+        Direction = snapshot.Direction,
+        Action = snapshot.Action,
+        Enabled = snapshot.Enabled,
+        RemoteAddr = snapshot.RemoteAddr,
+        Protocol = snapshot.Protocol,
+        Program = snapshot.Program,
+        Source = snapshot.Source,
+        Drifted = true,
+        RemotePorts = snapshot.RemotePorts,
+        ServiceName = snapshot.ServiceName,
+        DriftStatus = string.IsNullOrWhiteSpace(snapshot.ChangeKind) ? "vanished" : snapshot.ChangeKind,
+        DriftDetail = DriftDetail(snapshot),
+        FirstSeen = snapshot.FirstSeen,
+        LastSeen = snapshot.LastSeen,
+        ChangedAt = snapshot.ChangedAt,
+    };
+
+    private static string DriftDetail(FirewallRuleSnapshotRow? snapshot)
+    {
+        if (snapshot is null || string.IsNullOrWhiteSpace(snapshot.ChangeKind))
+        {
+            return string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(snapshot.ChangeDetail))
+        {
+            return snapshot.ChangeDetail;
+        }
+
+        return snapshot.ChangeKind switch
+        {
+            "added" => "rule appeared after the baseline was seeded",
+            "changed" => "rule fields changed after the baseline was seeded",
+            "vanished" => "rule vanished after the baseline was seeded",
+            _ => snapshot.ChangeKind,
+        };
     }
 
     /// <summary>HG_DoH_* rule names (kept in parity with the Python DOH_RULES).</summary>

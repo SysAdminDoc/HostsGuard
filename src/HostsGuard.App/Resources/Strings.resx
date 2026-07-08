@@ -345,6 +345,8 @@
   <data name="Xaml_Import_existing_rules_6cc9e389" xml:space="preserve"><value>Import existing rules</value></data>
   <data name="Xaml_Read_the_machine_s_current_Windows_7e27ca24" xml:space="preserve"><value>Read the machine&apos;s current Windows Firewall rules into HostsGuard&apos;s view (read-only; adopted rules are marked â˜…)</value></data>
   <data name="Xaml_HostsGuard_rules_only_a5afd2dd" xml:space="preserve"><value>HostsGuard rules only</value></data>
+  <data name="Xaml_Drift_only_d7e80af4" xml:space="preserve"><value>Drift only</value></data>
+  <data name="Xaml_Show_only_firewall_rules_that_changed_7d356f72" xml:space="preserve"><value>Show only firewall rules that appeared, changed, or vanished after the baseline was seeded</value></data>
   <data name="Xaml_Search_firewall_rules_bbf5460e" xml:space="preserve"><value>Search firewall rules</value></data>
   <data name="Xaml_Filters_as_you_type_â_matches_4dd5c1e7" xml:space="preserve"><value>Filters as you type â€” matches rule name, remote address, service, or program</value></data>
   <data name="Xaml_Firewall_rules_1e019fbf" xml:space="preserve"><value>Firewall rules</value></data>
@@ -357,6 +359,7 @@
   <data name="Xaml_Origin_44ab85a2" xml:space="preserve"><value>Origin</value></data>
   <data name="Xaml_On_e0049a66" xml:space="preserve"><value>On</value></data>
   <data name="Xaml_Program_9d68007b" xml:space="preserve"><value>Program</value></data>
+  <data name="Xaml_Drift_0c1f6e7a" xml:space="preserve"><value>Drift</value></data>
   <data name="Xaml_Flags_5d728758" xml:space="preserve"><value>Flags</value></data>
   <data name="Xaml_No_firewall_rules_match_6d4b1891" xml:space="preserve"><value>No firewall rules match</value></data>
   <data name="Xaml_Clear_the_filter_turn_off_HostsGuard_811239c1" xml:space="preserve"><value>Clear the filter, turn off HostsGuard-only, or refresh to load current Windows Firewall rules.</value></data>

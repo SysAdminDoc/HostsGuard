@@ -610,6 +610,11 @@ message FirewallRule {
   string remote_ports = 11; // "Any" or a COM port list, e.g. "853" (TCP/UDP only)
   string service_name = 12; // SCM short name the rule is scoped to (NET-073); "" = whole program
   bool adopted = 13;        // existing WF rule HostsGuard adopted into its view (NET-095)
+  string drift_status = 14; // "", "added", "changed", "vanished", or "missing"
+  string drift_detail = 15; // compact report-only diff detail
+  string first_seen = 16;   // ISO timestamp from the full-firewall baseline
+  string last_seen = 17;    // ISO timestamp from the full-firewall baseline
+  string changed_at = 18;   // ISO timestamp of latest detected drift
 }
 
 message FirewallRuleList {

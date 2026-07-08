@@ -43,6 +43,21 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private bool _drifted;
 
+    [ObservableProperty]
+    private string _driftStatus = string.Empty;
+
+    [ObservableProperty]
+    private string _driftDetail = string.Empty;
+
+    [ObservableProperty]
+    private string _firstSeen = string.Empty;
+
+    [ObservableProperty]
+    private string _lastSeen = string.Empty;
+
+    [ObservableProperty]
+    private string _changedAt = string.Empty;
+
     /// <summary>An existing WF rule HostsGuard adopted into its view (NET-095).</summary>
     [ObservableProperty]
     private bool _adopted;
@@ -53,6 +68,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
 
     public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty)
         + (Drifted ? "⚠ drifted " : string.Empty)
+        + (!string.IsNullOrWhiteSpace(DriftStatus) ? $"{DriftStatus} " : string.Empty)
         + (Adopted ? "★ adopted" : string.Empty);
 
     /// <summary>
@@ -96,6 +112,11 @@ public sealed partial class FwRuleViewModel : ObservableObject
         Source = r.Source,
         Orphaned = r.Orphaned,
         Drifted = r.Drifted,
+        DriftStatus = r.DriftStatus,
+        DriftDetail = r.DriftDetail,
+        FirstSeen = r.FirstSeen,
+        LastSeen = r.LastSeen,
+        ChangedAt = r.ChangedAt,
         Adopted = r.Adopted,
         ServiceName = r.ServiceName,
     };
@@ -142,6 +163,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
     private bool _hostsGuardOnly = true;
 
     [ObservableProperty]
+    private bool _driftOnly;
+
+    [ObservableProperty]
     private string _statusText = "Ready";
 
     // Inline custom-rule form.
@@ -185,6 +209,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
     partial void OnHostsGuardOnlyChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
 
+    partial void OnDriftOnlyChanged(bool value) => _ = GuardedRefreshAsync(CancellationToken.None);
+
     /// <summary>Live search: re-query shortly after typing stops instead of waiting for Refresh.</summary>
     partial void OnFilterChanged(string value)
     {
@@ -223,10 +249,18 @@ public sealed partial class FwRulesViewModel : ObservableObject
     {
         var list = await _client.Firewall.ListRulesAsync(new Empty());
         var filter = Filter.Trim();
+        var driftCount = list.Rules.Count(r => !string.IsNullOrWhiteSpace(r.DriftStatus));
         Rules.Clear();
         foreach (var r in list.Rules)
         {
-            if (HostsGuardOnly && r.Source != "hostsguard")
+            if (DriftOnly)
+            {
+                if (string.IsNullOrWhiteSpace(r.DriftStatus))
+                {
+                    continue;
+                }
+            }
+            else if (HostsGuardOnly && r.Source != "hostsguard")
             {
                 continue;
             }
@@ -235,7 +269,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 !r.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.RemoteAddr.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
-                !r.ServiceName.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                !r.ServiceName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.DriftStatus.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.DriftDetail.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -243,7 +279,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
             Rules.Add(FwRuleViewModel.From(r));
         }
 
-        StatusText = Plural.Of(Rules.Count, "rule");
+        StatusText = driftCount == 0
+            ? Plural.Of(Rules.Count, "rule")
+            : $"{Plural.Of(Rules.Count, "rule")} - {Plural.Of(driftCount, "drift event")}";
         await LoadRuleGroupsCoreAsync();
     }
 

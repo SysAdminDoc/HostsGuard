@@ -1,10 +1,14 @@
 using Dapper;
 using HostsGuard.Core;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace HostsGuard.Data;
 
 public sealed partial class HostsDatabase
 {
+    private const string FirewallSnapshotInitializedKey = "firewall_snapshot_initialized";
+
     // ─── Firewall state (drift tracking) ──────────────────────────────────────
 
     /// <summary>Track a HostsGuard-created rule so drift (deleted-behind-our-back) is detectable.</summary>
@@ -112,6 +116,228 @@ public sealed partial class HostsDatabase
     /// remembers them so they persist in HostsGuard's model, tagged distinctly.
     /// Returns the number of newly-adopted rows.
     /// </summary>
+    /// <summary>
+    /// Snapshot every live Windows Firewall rule, returning changes since the
+    /// prior baseline. The first call seeds silently; later calls report
+    /// added/changed/vanished rules without mutating the live firewall.
+    /// </summary>
+    public IReadOnlyList<FirewallRuleDriftRow> SnapshotFirewallRules(IEnumerable<FwRule> rules, DateTime? observedAt = null)
+    {
+        ArgumentNullException.ThrowIfNull(rules);
+        var now = (observedAt ?? DateTime.Now).ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var live = rules
+            .Where(r => !string.IsNullOrWhiteSpace(r.Name))
+            .GroupBy(r => r.Name, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToDictionary(r => r.Name, StringComparer.Ordinal);
+
+        var diffs = new List<FirewallRuleDriftRow>();
+        lock (_gate)
+        {
+            var initialized = _conn.ExecuteScalar<string>(
+                "SELECT value FROM meta WHERE key=@key",
+                new { key = FirewallSnapshotInitializedKey }) == "1";
+            var existing = _conn.Query<FirewallRuleSnapshotRow>(
+                    """
+                    SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
+                           remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
+                           remote_ports AS RemotePorts, service_name AS ServiceName, hash AS Hash,
+                           present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
+                           changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
+                    FROM firewall_rule_snapshot
+                    """)
+                .ToDictionary(r => r.Name, StringComparer.Ordinal);
+
+            using var tx = _conn.BeginTransaction();
+            foreach (var rule in live.Values)
+            {
+                var hash = HashFirewallRule(rule);
+                if (!existing.TryGetValue(rule.Name, out var old))
+                {
+                    var kind = initialized ? "added" : string.Empty;
+                    var detail = initialized ? $"added {Describe(rule)}" : string.Empty;
+                    _conn.Execute(
+                        """
+                        INSERT INTO firewall_rule_snapshot(
+                            name,direction,action,enabled,remote_addr,protocol,program,source,remote_ports,service_name,
+                            hash,present,first_seen,last_seen,changed_at,change_kind,change_detail)
+                        VALUES(@Name,@Direction,@Action,@Enabled,@RemoteAddr,@Protocol,@Program,@Source,@RemotePorts,@ServiceName,
+                               @Hash,1,@now,@now,@changedAt,@ChangeKind,@ChangeDetail)
+                        """,
+                        SnapshotParams(rule, hash, now, initialized ? now : string.Empty, kind, detail), tx);
+                    if (initialized)
+                    {
+                        diffs.Add(ToDrift(rule, kind, detail));
+                    }
+
+                    continue;
+                }
+
+                if (!old.Present || !string.Equals(old.Hash, hash, StringComparison.Ordinal))
+                {
+                    var kind = old.Present ? "changed" : "added";
+                    var detail = kind == "changed" ? DescribeChanges(old, rule) : $"added {Describe(rule)}";
+                    _conn.Execute(
+                        """
+                        UPDATE firewall_rule_snapshot
+                        SET direction=@Direction, action=@Action, enabled=@Enabled, remote_addr=@RemoteAddr,
+                            protocol=@Protocol, program=@Program, source=@Source, remote_ports=@RemotePorts,
+                            service_name=@ServiceName, hash=@Hash, present=1, last_seen=@now,
+                            changed_at=@changedAt, change_kind=@ChangeKind, change_detail=@ChangeDetail
+                        WHERE name=@Name
+                        """,
+                        SnapshotParams(rule, hash, now, now, kind, detail), tx);
+                    if (initialized)
+                    {
+                        diffs.Add(ToDrift(rule, kind, detail));
+                    }
+                }
+                else
+                {
+                    _conn.Execute(
+                        "UPDATE firewall_rule_snapshot SET present=1, last_seen=@now WHERE name=@Name",
+                        new { rule.Name, now }, tx);
+                }
+            }
+
+            foreach (var old in existing.Values.Where(r => r.Present && !live.ContainsKey(r.Name)))
+            {
+                var detail = $"vanished {Describe(old)}";
+                _conn.Execute(
+                    """
+                    UPDATE firewall_rule_snapshot
+                    SET present=0, changed_at=@now, change_kind='vanished', change_detail=@detail
+                    WHERE name=@Name
+                    """,
+                    new { old.Name, now, detail }, tx);
+                if (initialized)
+                {
+                    diffs.Add(ToDrift(old, "vanished", detail));
+                }
+            }
+
+            _conn.Execute(
+                "INSERT OR REPLACE INTO meta(key,value) VALUES(@key,'1')",
+                new { key = FirewallSnapshotInitializedKey }, tx);
+            tx.Commit();
+        }
+
+        return diffs;
+    }
+
+    public IReadOnlyList<FirewallRuleSnapshotRow> GetFirewallRuleSnapshots()
+    {
+        lock (_gate)
+        {
+            return _conn.Query<FirewallRuleSnapshotRow>(
+                """
+                SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
+                       remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
+                       remote_ports AS RemotePorts, service_name AS ServiceName, hash AS Hash,
+                       present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
+                       changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
+                FROM firewall_rule_snapshot
+                ORDER BY name
+                """).ToList();
+        }
+    }
+
+    private static object SnapshotParams(FwRule rule, string hash, string now, string changedAt, string changeKind, string changeDetail) => new
+    {
+        rule.Name,
+        Direction = Clean(rule.Direction),
+        Action = Clean(rule.Action),
+        Enabled = rule.Enabled ? 1 : 0,
+        RemoteAddr = Clean(rule.RemoteAddr),
+        Protocol = Clean(rule.Protocol),
+        Program = Clean(rule.Program),
+        Source = Clean(rule.Source),
+        RemotePorts = Clean(rule.RemotePorts),
+        ServiceName = Clean(rule.ServiceName),
+        Hash = hash,
+        now,
+        changedAt,
+        ChangeKind = changeKind,
+        ChangeDetail = changeDetail,
+    };
+
+    private static string HashFirewallRule(FwRule rule)
+    {
+        var canonical = string.Join('\n',
+            Clean(rule.Direction),
+            Clean(rule.Action),
+            rule.Enabled ? "1" : "0",
+            Clean(rule.RemoteAddr),
+            Clean(rule.Protocol),
+            Clean(rule.Program),
+            Clean(rule.Source),
+            Clean(rule.RemotePorts),
+            Clean(rule.ServiceName));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static FirewallRuleDriftRow ToDrift(FwRule rule, string kind, string details) => new(
+        rule.Name,
+        kind,
+        Clean(rule.Source),
+        Clean(rule.Direction),
+        Clean(rule.Action),
+        rule.Enabled,
+        Clean(rule.RemoteAddr),
+        Clean(rule.Protocol),
+        Clean(rule.Program),
+        Clean(rule.RemotePorts),
+        Clean(rule.ServiceName),
+        details);
+
+    private static FirewallRuleDriftRow ToDrift(FirewallRuleSnapshotRow row, string kind, string details) => new(
+        row.Name,
+        kind,
+        Clean(row.Source),
+        Clean(row.Direction),
+        Clean(row.Action),
+        row.Enabled,
+        Clean(row.RemoteAddr),
+        Clean(row.Protocol),
+        Clean(row.Program),
+        Clean(row.RemotePorts),
+        Clean(row.ServiceName),
+        details);
+
+    private static string Describe(FwRule rule) =>
+        $"{Clean(rule.Source)} {Clean(rule.Direction)} {Clean(rule.Action)} {(rule.Enabled ? "enabled" : "disabled")} " +
+        $"{Clean(rule.Protocol)} remote={Clean(rule.RemoteAddr)} ports={Clean(rule.RemotePorts)} program={Clean(rule.Program)} service={Clean(rule.ServiceName)}";
+
+    private static string Describe(FirewallRuleSnapshotRow row) =>
+        $"{Clean(row.Source)} {Clean(row.Direction)} {Clean(row.Action)} {(row.Enabled ? "enabled" : "disabled")} " +
+        $"{Clean(row.Protocol)} remote={Clean(row.RemoteAddr)} ports={Clean(row.RemotePorts)} program={Clean(row.Program)} service={Clean(row.ServiceName)}";
+
+    private static string DescribeChanges(FirewallRuleSnapshotRow old, FwRule current)
+    {
+        var changes = new List<string>();
+        Add("direction", old.Direction, current.Direction);
+        Add("action", old.Action, current.Action);
+        Add("enabled", old.Enabled ? "on" : "off", current.Enabled ? "on" : "off");
+        Add("remote", old.RemoteAddr, current.RemoteAddr);
+        Add("protocol", old.Protocol, current.Protocol);
+        Add("program", old.Program, current.Program);
+        Add("ports", old.RemotePorts, current.RemotePorts);
+        Add("service", old.ServiceName, current.ServiceName);
+        return changes.Count == 0 ? $"changed {Describe(current)}" : "changed " + string.Join("; ", changes);
+
+        void Add(string label, string? before, string? after)
+        {
+            before = Clean(before);
+            after = Clean(after);
+            if (!string.Equals(before, after, StringComparison.Ordinal))
+            {
+                changes.Add($"{label}: {before} -> {after}");
+            }
+        }
+    }
+
+    private static string Clean(string? value) => (value ?? string.Empty).Trim();
+
     public int AdoptRules(IEnumerable<(string Name, string Direction, string Action, string RemoteAddr, string Protocol, string Program, bool Enabled)> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);

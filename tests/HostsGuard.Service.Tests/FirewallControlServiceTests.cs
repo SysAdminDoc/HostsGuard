@@ -159,6 +159,37 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Full_firewall_drift_logs_foreign_changes_and_surfaces_vanished_rows()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+        _state.FirewallDrift.CaptureNow(Array.Empty<FwRule>());
+
+        _fw.Rules["Steam Inbound"] = new FwRule("Steam Inbound", "In", "Allow", true, "Any", "TCP", @"C:\Steam\steam.exe", "system", "27015");
+        var added = await fw.ListRulesAsync(new Empty());
+
+        added.Rules.Single(r => r.Name == "Steam Inbound").DriftStatus.Should().Be("added");
+        _state.Db.GetEvents(new EventLogFilter(Action: EventTaxonomy.FwRuleAdded)).Rows
+            .Should().ContainSingle(e => e.Domain == "Steam Inbound");
+
+        _fw.Rules["Steam Inbound"] = _fw.Rules["Steam Inbound"] with { Enabled = false };
+        var changed = await fw.ListRulesAsync(new Empty());
+
+        changed.Rules.Single(r => r.Name == "Steam Inbound").DriftStatus.Should().Be("changed");
+        changed.Rules.Single(r => r.Name == "Steam Inbound").DriftDetail.Should().Contain("enabled: on -> off");
+
+        _fw.Rules.Remove("Steam Inbound");
+        var vanished = await fw.ListRulesAsync(new Empty());
+
+        var row = vanished.Rules.Single(r => r.Name == "Steam Inbound");
+        row.Source.Should().Be("system");
+        row.DriftStatus.Should().Be("vanished");
+        _fw.Rules.Should().NotContainKey("Steam Inbound");
+        _state.Db.GetEvents(new EventLogFilter(Action: EventTaxonomy.FwRuleVanished)).Rows
+            .Should().ContainSingle(e => e.Domain == "Steam Inbound");
+    }
+
+    [Fact]
     public async Task Rebind_updates_program_state_and_identity_for_hg_rules_only()
     {
         var newBinary = Path.Combine(_dir, "moved-app.exe");

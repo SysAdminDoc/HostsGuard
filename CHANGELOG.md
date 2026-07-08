@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.35] - 2026-07-08
+
+### Added
+- Added a report-only full Windows Firewall drift baseline. The service
+  snapshots every rule, logs foreign rule additions/changes/vanishes as
+  firewall events, and surfaces drift status/details on the FW Rules tab.
+
 ## [0.12.34] - 2026-07-08
 
 ### Added

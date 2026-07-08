@@ -134,6 +134,7 @@ public sealed class MenuCommandTests : IAsyncLifetime
         vm.FwActivity.GroupByApp = false;
         vm.FwActivity.ResolveIps = true;
         vm.FwRules.HostsGuardOnly = false;
+        vm.FwRules.DriftOnly = true;
         vm.UiScalePct = 125;
 
         vm.ResetViewCommand.Execute(null);
@@ -145,6 +146,7 @@ public sealed class MenuCommandTests : IAsyncLifetime
         vm.FwActivity.GroupByApp.Should().BeTrue();
         vm.FwActivity.ResolveIps.Should().BeFalse();
         vm.FwRules.HostsGuardOnly.Should().BeTrue();
+        vm.FwRules.DriftOnly.Should().BeFalse();
         vm.UiScalePct.Should().Be(100);
     }
 }

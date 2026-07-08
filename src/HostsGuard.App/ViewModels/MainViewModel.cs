@@ -772,6 +772,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             FwRules.Filter = string.Empty;
             FwRules.HostsGuardOnly = true;
+            FwRules.DriftOnly = false;
         }
 
         UiScalePct = 100;

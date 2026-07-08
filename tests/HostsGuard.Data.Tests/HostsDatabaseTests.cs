@@ -99,6 +99,31 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Firewall_snapshot_seeds_silently_then_reports_add_change_and_vanish()
+    {
+        using var db = new HostsDatabase(DbPath("fw-snapshot.db"));
+        var baseline = new FwRule("Core Networking", "In", "Allow", true, "Any", "TCP", string.Empty, "system", "Any");
+
+        db.SnapshotFirewallRules(new[] { baseline }, new DateTime(2026, 7, 8, 10, 0, 0))
+            .Should().BeEmpty();
+
+        var changed = baseline with { Enabled = false };
+        var added = new FwRule("Steam Installer", "In", "Allow", true, "Any", "TCP", @"C:\Steam\steam.exe", "system", "27015");
+        var diffs = db.SnapshotFirewallRules(new[] { changed, added }, new DateTime(2026, 7, 8, 10, 5, 0));
+
+        diffs.Should().ContainSingle(d => d.Name == "Core Networking" && d.ChangeKind == "changed")
+            .Which.Details.Should().Contain("enabled: on -> off");
+        diffs.Should().ContainSingle(d => d.Name == "Steam Installer" && d.ChangeKind == "added");
+
+        var vanished = db.SnapshotFirewallRules(new[] { changed }, new DateTime(2026, 7, 8, 10, 10, 0));
+
+        vanished.Should().ContainSingle(d => d.Name == "Steam Installer" && d.ChangeKind == "vanished");
+        var snapshot = db.GetFirewallRuleSnapshots().Single(r => r.Name == "Steam Installer");
+        snapshot.Present.Should().BeFalse();
+        snapshot.ChangeDetail.Should().Contain("vanished system In Allow");
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");

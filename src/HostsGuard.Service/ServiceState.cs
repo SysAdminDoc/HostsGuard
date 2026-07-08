@@ -51,6 +51,7 @@ public sealed class ServiceState : IDisposable
             LookupThreat = Threats.Contains,
         };
         SecureRules = new SecureRulesGuard(firewall, db);
+        FirewallDrift = new FirewallDriftMonitor(firewall, db);
         CnameCloak = new CnameCloakGuard(hosts, db);
         Lock = new SettingsLock(DataDir);
         Webhooks = WebhookConfig.Load(DataDir);
@@ -118,6 +119,8 @@ public sealed class ServiceState : IDisposable
     public ConsentBroker Consent { get; }
 
     public SecureRulesGuard SecureRules { get; }
+
+    public FirewallDriftMonitor FirewallDrift { get; }
 
     public CnameCloakGuard CnameCloak { get; }
 
@@ -299,6 +302,7 @@ public sealed class ServiceState : IDisposable
     public void Dispose()
     {
         Intel?.Dispose();
+        FirewallDrift.Dispose();
         SecureRules.Dispose();
         Consent.Dispose();
         GeoIp.Dispose();

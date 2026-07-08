@@ -1796,6 +1796,9 @@
                                     ToolTip="{svc:Loc Key=Xaml_Read_the_machine_s_current_Windows_7e27ca24}" />
                             <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_HostsGuard_rules_only_a5afd2dd}" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
+                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Drift_only_d7e80af4}" Margin="8,0,0,0"
+                                      VerticalAlignment="Center" IsChecked="{Binding DriftOnly}"
+                                      ToolTip="{svc:Loc Key=Xaml_Show_only_firewall_rules_that_changed_7d356f72}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      Tag="Search rules by name, remote address, service, or program"
@@ -1838,6 +1841,13 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="60" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Program_9d68007b}" Binding="{Binding Program}" Width="*" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="110" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="82">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="ToolTip" Value="{Binding DriftDetail}" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Flags_5d728758}" Binding="{Binding Flags}" Width="110">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">

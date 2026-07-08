@@ -24,6 +24,59 @@ public sealed record DnsSightingWrite(string Domain, string Process, string? Rea
 public sealed record FwStateRow(
     string Name, string? Direction, string? Action, string? RemoteAddr, string? Protocol, string? Program);
 
+/// <summary>Current full Windows Firewall rule snapshot row (report-only baseline).</summary>
+public sealed class FirewallRuleSnapshotRow
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string Direction { get; set; } = string.Empty;
+
+    public string Action { get; set; } = string.Empty;
+
+    public bool Enabled { get; set; }
+
+    public string RemoteAddr { get; set; } = string.Empty;
+
+    public string Protocol { get; set; } = string.Empty;
+
+    public string Program { get; set; } = string.Empty;
+
+    public string Source { get; set; } = string.Empty;
+
+    public string RemotePorts { get; set; } = string.Empty;
+
+    public string ServiceName { get; set; } = string.Empty;
+
+    public string Hash { get; set; } = string.Empty;
+
+    public bool Present { get; set; }
+
+    public string FirstSeen { get; set; } = string.Empty;
+
+    public string LastSeen { get; set; } = string.Empty;
+
+    public string ChangedAt { get; set; } = string.Empty;
+
+    public string ChangeKind { get; set; } = string.Empty;
+
+    public string ChangeDetail { get; set; } = string.Empty;
+}
+
+/// <summary>One detected full-firewall baseline change.</summary>
+public sealed record FirewallRuleDriftRow(
+    string Name,
+    string ChangeKind,
+    string Source,
+    string Direction,
+    string Action,
+    bool Enabled,
+    string RemoteAddr,
+    string Protocol,
+    string Program,
+    string RemotePorts,
+    string ServiceName,
+    string Details);
+
 /// <summary>A recorded (historical) connection sighting (NET-070).</summary>
 public sealed record ConnHistoryRow(
     string Ts, string Process, long Pid, string Protocol,
@@ -77,7 +130,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 16;
+    public const int SchemaVersion = 17;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -141,6 +194,13 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS fw_state(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT, protocol TEXT,
                 program TEXT, created TEXT);
+            CREATE TABLE IF NOT EXISTS firewall_rule_snapshot(
+                name TEXT PRIMARY KEY, direction TEXT, action TEXT, enabled INTEGER DEFAULT 0,
+                remote_addr TEXT, protocol TEXT, program TEXT, source TEXT, remote_ports TEXT, service_name TEXT,
+                hash TEXT, present INTEGER DEFAULT 1, first_seen TEXT, last_seen TEXT, changed_at TEXT,
+                change_kind TEXT DEFAULT '', change_detail TEXT DEFAULT '');
+            CREATE INDEX IF NOT EXISTS idx_firewall_rule_snapshot_present ON firewall_rule_snapshot(present);
+            CREATE INDEX IF NOT EXISTS idx_firewall_rule_snapshot_changed ON firewall_rule_snapshot(changed_at);
             CREATE TABLE IF NOT EXISTS profiles(name TEXT PRIMARY KEY, created TEXT);
             CREATE TABLE IF NOT EXISTS profile_rules(
                 id INTEGER PRIMARY KEY, profile TEXT, domain TEXT, status TEXT DEFAULT 'blocked', source TEXT);
