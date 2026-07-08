@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Windows.Data;
 using FluentAssertions;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
+using HostsGuard.Contracts;
 using HostsGuard.Ipc;
 using Xunit;
 
@@ -13,6 +15,18 @@ namespace HostsGuard.App.Tests;
 /// </summary>
 public sealed class HostsActivityGroupingTests
 {
+    private static readonly MethodInfo UpsertMethod =
+        typeof(HostsActivityViewModel).GetMethod("Upsert", BindingFlags.Instance | BindingFlags.NonPublic)
+        ?? throw new MissingMethodException(nameof(HostsActivityViewModel), "Upsert");
+
+    private static readonly FieldInfo HideBlockedField =
+        typeof(HostsActivityViewModel).GetField("_hideBlocked", BindingFlags.Instance | BindingFlags.NonPublic)
+        ?? throw new MissingFieldException(nameof(HostsActivityViewModel), "_hideBlocked");
+
+    private static readonly int MaxRows =
+        (int)(typeof(HostsActivityViewModel).GetField("MaxRows", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.GetRawConstantValue() ?? 1000);
+
     private static HostsActivityViewModel CreateVm() => new(
         new HostsServiceClient(NamedPipeChannel.Create(SessionToken.Generate(), "hg-actgroup-none")));
 
@@ -55,5 +69,61 @@ public sealed class HostsActivityGroupingTests
             .Should().BeEquivalentTo(new[] { "a.example.com", "b.example.com" });
 
         HostsActivityViewModel.SelectedDomains(null).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Live_upsert_index_removes_rows_dropped_by_filters()
+    {
+        var vm = CreateVm();
+        UpsertDns(vm, "ads.example.com", process: "first.exe");
+        vm.Rows.Should().ContainSingle(r => r.Domain == "ads.example.com");
+
+        HideBlockedField.SetValue(vm, true);
+        UpsertDns(vm, "ads.example.com", blocked: true, process: "blocked.exe");
+        vm.Rows.Should().BeEmpty();
+
+        HideBlockedField.SetValue(vm, false);
+        UpsertDns(vm, "ads.example.com", process: "second.exe");
+        vm.Rows.Should().ContainSingle(r =>
+            r.Domain == "ads.example.com" && r.Hits == 1 && r.Process == "second.exe");
+    }
+
+    [Fact]
+    public void Live_upsert_index_removes_evicted_rows()
+    {
+        var vm = CreateVm();
+        var evictedDomain = "domain-0000.example.com";
+        for (var i = 0; i <= MaxRows; i++)
+        {
+            UpsertDns(vm, $"domain-{i:D4}.example.com", process: "burst.exe");
+        }
+
+        vm.Rows.Should().HaveCount(MaxRows);
+        vm.Rows.Should().NotContain(r => r.Domain == evictedDomain);
+
+        UpsertDns(vm, evictedDomain, process: "again.exe");
+        vm.Rows.Should().HaveCount(MaxRows);
+        vm.Rows[0].Domain.Should().Be(evictedDomain);
+        vm.Rows[0].Hits.Should().Be(1);
+        vm.Rows[0].Process.Should().Be("again.exe");
+    }
+
+    private static void UpsertDns(
+        HostsActivityViewModel vm,
+        string domain,
+        bool blocked = false,
+        bool hidden = false,
+        string process = "proc.exe")
+    {
+        UpsertMethod.Invoke(vm, new object[]
+        {
+            new DnsEvent
+            {
+                Domain = domain,
+                Blocked = blocked,
+                Hidden = hidden,
+                Process = process,
+            },
+        });
     }
 }

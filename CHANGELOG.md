@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.29] - 2026-07-08
+
+### Fixed
+- `HostsActivityViewModel.Upsert` now uses a keyed domain index for live DNS
+  events instead of repeated UI-thread linear scans across the 1000-row feed.
+- Added regressions proving the index is cleared for active-filter drops and
+  bounded-feed evictions before the same domain appears again.
+
 ## [0.12.28] - 2026-07-08
 
 ### Fixed

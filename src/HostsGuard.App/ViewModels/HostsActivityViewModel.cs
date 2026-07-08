@@ -27,6 +27,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private CancellationTokenSource? _watchCts;
     private CancellationTokenSource? _filterCts;
     private bool _loading; // suppress refresh/save while applying persisted view flags
+    private readonly Dictionary<string, ActivityRowViewModel> _rowByDomain = new(StringComparer.Ordinal);
 
     /// <summary>Pause after the last filter keystroke before the service round-trip.</summary>
     public static TimeSpan FilterDebounce { get; set; } = TimeSpan.FromMilliseconds(350);
@@ -209,6 +210,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
                 IncludeHidden = ShowHidden,
             });
             Rows.Clear();
+            _rowByDomain.Clear();
             var hidden = 0;
             foreach (var row in list.Rows)
             {
@@ -234,7 +236,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
                     continue;
                 }
 
-                Rows.Add(ActivityRowViewModel.From(row));
+                AddRow(ActivityRowViewModel.From(row));
             }
 
             StatusText = hidden > 0
@@ -351,7 +353,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
     private void Upsert(DnsEvent ev)
     {
-        var existing = Rows.FirstOrDefault(r => r.Domain == ev.Domain);
+        _rowByDomain.TryGetValue(ev.Domain, out var existing);
         var dropForBlockFilter = BlockedOnly ? !ev.Blocked : (HideBlocked && ev.Blocked);
         if (dropForBlockFilter
             || (HideReverseDns && IsReverseDns(ev.Domain))
@@ -363,7 +365,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             // service), so hidden entries never bounce back into the feed.
             if (existing is not null)
             {
-                Rows.Remove(existing);
+                RemoveRow(existing);
             }
 
             return;
@@ -387,7 +389,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
-        Rows.Insert(0, new ActivityRowViewModel
+        var row = new ActivityRowViewModel
         {
             Domain = ev.Domain,
             Root = Core.Domains.GetRoot(ev.Domain),
@@ -396,11 +398,27 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             Hits = 1,
             LastSeen = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             Blocklists = ev.Blocklists.ToList(),
-        });
+        };
+        Rows.Insert(0, row);
+        _rowByDomain[row.Domain] = row;
         while (Rows.Count > MaxRows)
         {
+            var evicted = Rows[^1];
             Rows.RemoveAt(Rows.Count - 1);
+            _rowByDomain.Remove(evicted.Domain);
         }
+    }
+
+    private void AddRow(ActivityRowViewModel row)
+    {
+        Rows.Add(row);
+        _rowByDomain[row.Domain] = row;
+    }
+
+    private void RemoveRow(ActivityRowViewModel row)
+    {
+        Rows.Remove(row);
+        _rowByDomain.Remove(row.Domain);
     }
 
     private void OnUi(Action action)
