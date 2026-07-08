@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.22] - 2026-07-08
+
+### Fixed
+- Added a service-driven SQLite retention sweep that bounds `log`,
+  `resolved_hosts`, `domain_usage`, `app_bandwidth`, and `feed_hourly` under the
+  configured history window while periodically running `PRAGMA optimize` and
+  bounded incremental vacuum maintenance.
+- Existing databases now migrate to `auto_vacuum=INCREMENTAL` without losing
+  data; regression tests cover fake-clock pruning and idempotent no-op sweeps.
+
 ## [0.12.21] - 2026-07-08
 
 ### Fixed

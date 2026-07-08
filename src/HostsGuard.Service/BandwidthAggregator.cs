@@ -9,8 +9,8 @@ namespace HostsGuard.Service;
 /// Flushes drained per-PID byte counters into per-process per-minute DB buckets
 /// (NET-070). PID→name resolution is injectable (and cached) so tests can drive
 /// <see cref="FlushOnce"/> deterministically with a fake source; production
-/// wires a <see cref="BandwidthMonitor"/> and a periodic flush loop. Prunes the
-/// bandwidth table on a coarse cadence so retention holds without a scheduler.
+/// wires a <see cref="BandwidthMonitor"/> and a periodic flush loop. Runs the
+/// database retention sweep on a coarse cadence.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class BandwidthAggregator : IDisposable
@@ -107,7 +107,7 @@ public sealed class BandwidthAggregator : IDisposable
 
         if (++_flushes % PruneEveryFlushes == 0)
         {
-            _db.PruneBandwidth(now);
+            _db.RunRetentionSweep(now);
             _nameCache.Clear(); // PIDs get recycled — don't let stale names stick
         }
     }

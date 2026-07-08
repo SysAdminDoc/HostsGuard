@@ -1,5 +1,6 @@
 using FluentAssertions;
 using HostsGuard.Data;
+using Dapper;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -11,13 +12,15 @@ namespace HostsGuard.Data.Tests;
 public sealed class ConnectionHistoryTests : IDisposable
 {
     private readonly string _dir;
+    private readonly string _path;
     private readonly HostsDatabase _db;
 
     public ConnectionHistoryTests()
     {
         _dir = Path.Combine(Path.GetTempPath(), "hg_hist_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
-        _db = new HostsDatabase(Path.Combine(_dir, "hostsguard.db"));
+        _path = Path.Combine(_dir, "hostsguard.db");
+        _db = new HostsDatabase(_path);
     }
 
     public void Dispose()
@@ -38,6 +41,12 @@ public sealed class ConnectionHistoryTests : IDisposable
         new(ts, process, 100, "TCP", remote, 443, "US", string.Empty);
 
     private static string Iso(DateTime dt) => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Minute(DateTime dt) =>
+        dt.ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Hour(DateTime dt) =>
+        dt.ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
 
     [Fact]
     public void History_records_and_queries_newest_first()
@@ -118,6 +127,103 @@ public sealed class ConnectionHistoryTests : IDisposable
         _db.PruneBandwidth(new DateTime(2026, 7, 2, 12, 0, 0));
         _db.GetBandwidth("2020-01-01T00:00").Should().ContainSingle()
             .Which.Minute.Should().Be("2026-07-02T12:00");
+    }
+
+    [Fact]
+    public void Retention_sweep_bounds_unbounded_tables_and_is_idempotent()
+    {
+        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        var old = now.AddDays(-8);
+        var fresh = now.AddDays(-1);
+        _db.HistoryRetentionDays = 7;
+
+        using (var conn = new SqliteConnection($"Data Source={_path}"))
+        {
+            conn.Open();
+            conn.Execute(
+                """
+                INSERT INTO log(ts,domain,action,process,details,reason) VALUES
+                    (@oldIso,'old-log.example','blocked','old.exe','','manual'),
+                    (@freshIso,'fresh-log.example','blocked','fresh.exe','','manual');
+                INSERT INTO resolved_hosts(ip,host,source,updated) VALUES
+                    ('10.0.0.1','old-host.example','dns',@oldIso),
+                    ('10.0.0.2','fresh-host.example','dns',@freshIso);
+                INSERT INTO domain_usage(domain,process,sent,recv,updated) VALUES
+                    ('old-usage.example','old.exe',1,1,@oldIso),
+                    ('fresh-usage.example','fresh.exe',2,2,@freshIso);
+                INSERT INTO app_bandwidth(process,minute,sent,recv) VALUES
+                    ('old.exe',@oldMinute,1,1),
+                    ('fresh.exe',@freshMinute,2,2);
+                INSERT INTO feed_hourly(root,hour,hits) VALUES
+                    ('old-hour.example',@oldHour,1),
+                    ('fresh-hour.example',@freshHour,2);
+                """,
+                new
+                {
+                    oldIso = Iso(old),
+                    freshIso = Iso(fresh),
+                    oldMinute = Minute(old),
+                    freshMinute = Minute(fresh),
+                    oldHour = Hour(now.AddHours(-72)),
+                    freshHour = Hour(now.AddHours(-1)),
+                });
+        }
+
+        var first = _db.RunRetentionSweep(now, forceMaintenance: true);
+        first.Should().BeEquivalentTo(new
+        {
+            LogRows = 1,
+            ResolvedHosts = 1,
+            DomainUsageRows = 1,
+            BandwidthBuckets = 1,
+            HourlyBuckets = 1,
+            MaintenanceRan = true,
+        });
+
+        var second = _db.RunRetentionSweep(now);
+        second.Should().BeEquivalentTo(new
+        {
+            LogRows = 0,
+            ResolvedHosts = 0,
+            DomainUsageRows = 0,
+            BandwidthBuckets = 0,
+            HourlyBuckets = 0,
+            MaintenanceRan = false,
+        });
+
+        using var verify = new SqliteConnection($"Data Source={_path}");
+        verify.Open();
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM log").Should().Be(1);
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM resolved_hosts").Should().Be(1);
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM domain_usage").Should().Be(1);
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM app_bandwidth").Should().Be(1);
+        verify.ExecuteScalar<long>("SELECT COUNT(*) FROM feed_hourly").Should().Be(1);
+        verify.ExecuteScalar<string>("SELECT domain FROM log").Should().Be("fresh-log.example");
+        verify.ExecuteScalar<string>("SELECT host FROM resolved_hosts").Should().Be("fresh-host.example");
+        verify.ExecuteScalar<string>("SELECT domain FROM domain_usage").Should().Be("fresh-usage.example");
+    }
+
+    [Fact]
+    public void Existing_database_enables_incremental_auto_vacuum_without_data_loss()
+    {
+        var path = Path.Combine(_dir, "existing-vacuum.db");
+        using (var conn = new SqliteConnection($"Data Source={path}"))
+        {
+            conn.Open();
+            conn.Execute("CREATE TABLE legacy(id INTEGER PRIMARY KEY, value TEXT)");
+            conn.Execute("INSERT INTO legacy(value) VALUES('keep')");
+            conn.ExecuteScalar<long>("PRAGMA auto_vacuum").Should().Be(0);
+        }
+
+        using (var db = new HostsDatabase(path))
+        {
+            db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
+        }
+
+        using var verify = new SqliteConnection($"Data Source={path}");
+        verify.Open();
+        verify.ExecuteScalar<long>("PRAGMA auto_vacuum").Should().Be(2);
+        verify.ExecuteScalar<string>("SELECT value FROM legacy").Should().Be("keep");
     }
 
     [Fact]

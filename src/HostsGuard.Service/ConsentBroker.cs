@@ -1036,6 +1036,7 @@ public sealed class ConsentBroker : IDisposable
         }
 
         ReapExpiredOnceRules(nowUtc, startup: false);
+        _db.RunRetentionSweep(nowUtc.ToLocalTime());
     }
 
     private void ReapExpiredOnceRules(DateTime nowUtc, bool startup)

@@ -49,6 +49,15 @@ public sealed record EventLogFilter(
 /// <summary>A page of filtered event-log rows plus the total matching count.</summary>
 public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
 
+/// <summary>Rows deleted by a retention sweep plus whether SQLite maintenance ran.</summary>
+public sealed record RetentionSweepResult(
+    int LogRows,
+    int ResolvedHosts,
+    int DomainUsageRows,
+    int BandwidthBuckets,
+    int HourlyBuckets,
+    bool MaintenanceRan);
+
 /// <summary>A subscribed blocklist source plus source-owned domain count.</summary>
 public sealed record BlocklistSubRow(
     string Name, string Url, string LastRefresh, long DomainCount, bool Enabled, long OwnedDomainCount);
@@ -65,10 +74,13 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 14;
+    public const int SchemaVersion = 15;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
+
+    private const int IncrementalVacuumPages = 256;
+    private static readonly TimeSpan RetentionMaintenanceInterval = TimeSpan.FromHours(6);
 
     private readonly SqliteConnection _conn;
     private readonly object _gate = new();
@@ -89,8 +101,10 @@ public sealed class HostsDatabase : IDisposable
             Cache = SqliteCacheMode.Shared,
         }.ToString());
         _conn.Open();
-        _conn.Execute("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
+        _conn.Execute("PRAGMA busy_timeout=5000;");
         IntegrityCheck();
+        EnsureIncrementalAutoVacuum();
+        _conn.Execute("PRAGMA journal_mode=WAL;");
         Migrate();
     }
 
@@ -161,6 +175,7 @@ public sealed class HostsDatabase : IDisposable
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;
             CREATE TABLE IF NOT EXISTS resolved_hosts(
                 ip TEXT PRIMARY KEY, host TEXT, source TEXT, updated TEXT) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_resolved_hosts_updated ON resolved_hosts(updated);
             CREATE TABLE IF NOT EXISTS user_overrides(
                 kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, created TEXT,
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;
@@ -171,6 +186,7 @@ public sealed class HostsDatabase : IDisposable
                 domain TEXT NOT NULL, process TEXT NOT NULL DEFAULT '',
                 sent INTEGER DEFAULT 0, recv INTEGER DEFAULT 0, updated TEXT,
                 PRIMARY KEY(domain, process)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_domain_usage_updated ON domain_usage(updated);
             CREATE TABLE IF NOT EXISTS rule_groups(
                 grp TEXT NOT NULL, rule_name TEXT NOT NULL,
                 PRIMARY KEY(grp, rule_name)) WITHOUT ROWID;
@@ -190,6 +206,24 @@ public sealed class HostsDatabase : IDisposable
             """);
 
         _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES('schema_version',@v)", new { v = SchemaVersion.ToString() });
+    }
+
+    private void EnsureIncrementalAutoVacuum()
+    {
+        var mode = _conn.ExecuteScalar<long>("PRAGMA auto_vacuum");
+        if (mode == 2)
+        {
+            return;
+        }
+
+        _conn.Execute("PRAGMA auto_vacuum=INCREMENTAL;");
+        _conn.Execute("VACUUM;");
+
+        mode = _conn.ExecuteScalar<long>("PRAGMA auto_vacuum");
+        if (mode != 2)
+        {
+            throw new InvalidOperationException("SQLite incremental auto-vacuum could not be enabled.");
+        }
     }
 
     private void RenameLegacyColumns()
@@ -885,6 +919,77 @@ public sealed class HostsDatabase : IDisposable
         }
     }
 
+    /// <summary>
+    /// Apply retention to all unbounded history tables, then periodically run
+    /// SQLite planner and free-page maintenance. Safe to call from a frequent
+    /// service sweep; deletes are indexed and the heavier work is throttled.
+    /// </summary>
+    public RetentionSweepResult RunRetentionSweep(DateTime now, bool forceMaintenance = false)
+    {
+        var historyCutoff = now.AddDays(-HistoryRetentionDays)
+            .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var bandwidthCutoff = now.AddDays(-HistoryRetentionDays)
+            .ToString("yyyy-MM-ddTHH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        var hourlyCutoff = now.AddHours(-48)
+            .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
+
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            var logRows = _conn.Execute("DELETE FROM log WHERE ts IS NULL OR ts < @cutoff",
+                new { cutoff = historyCutoff }, tx);
+            var resolvedHosts = _conn.Execute(
+                "DELETE FROM resolved_hosts WHERE updated IS NULL OR updated < @cutoff",
+                new { cutoff = historyCutoff }, tx);
+            var domainUsage = _conn.Execute(
+                "DELETE FROM domain_usage WHERE updated IS NULL OR updated < @cutoff",
+                new { cutoff = historyCutoff }, tx);
+            var bandwidthBuckets = _conn.Execute("DELETE FROM app_bandwidth WHERE minute < @cutoff",
+                new { cutoff = bandwidthCutoff }, tx);
+            var hourlyBuckets = _conn.Execute("DELETE FROM feed_hourly WHERE hour < @cutoff",
+                new { cutoff = hourlyCutoff }, tx);
+            tx.Commit();
+
+            var maintenanceRan = ShouldRunRetentionMaintenance(now, forceMaintenance);
+            if (maintenanceRan)
+            {
+                _conn.Execute("PRAGMA optimize;");
+                _conn.Execute($"PRAGMA incremental_vacuum({IncrementalVacuumPages});");
+                SetMetaNoLock("retention_maintenance_at",
+                    now.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            return new RetentionSweepResult(
+                logRows,
+                resolvedHosts,
+                domainUsage,
+                bandwidthBuckets,
+                hourlyBuckets,
+                maintenanceRan);
+        }
+    }
+
+    private bool ShouldRunRetentionMaintenance(DateTime now, bool forceMaintenance)
+    {
+        if (forceMaintenance)
+        {
+            return true;
+        }
+
+        var last = GetMetaNoLock("retention_maintenance_at");
+        if (!DateTime.TryParse(
+                last,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var lastRun))
+        {
+            return true;
+        }
+
+        var elapsed = now - lastRun;
+        return elapsed < TimeSpan.Zero || elapsed >= RetentionMaintenanceInterval;
+    }
+
     // ─── Per-domain data usage (NET-108: DNS → process → bytes) ──────────────
 
     /// <summary>Accumulate bytes attributed to a domain (via a resolved remote IP), keyed by requesting process.</summary>
@@ -1220,7 +1325,7 @@ public sealed class HostsDatabase : IDisposable
     {
         lock (_gate)
         {
-            return _conn.ExecuteScalar<string?>("SELECT value FROM meta WHERE key=@key", new { key });
+            return GetMetaNoLock(key);
         }
     }
 
@@ -1228,9 +1333,15 @@ public sealed class HostsDatabase : IDisposable
     {
         lock (_gate)
         {
-            _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES(@key,@value)", new { key, value });
+            SetMetaNoLock(key, value);
         }
     }
+
+    private string? GetMetaNoLock(string key) =>
+        _conn.ExecuteScalar<string?>("SELECT value FROM meta WHERE key=@key", new { key });
+
+    private void SetMetaNoLock(string key, string value) =>
+        _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES(@key,@value)", new { key, value });
 
     // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
 

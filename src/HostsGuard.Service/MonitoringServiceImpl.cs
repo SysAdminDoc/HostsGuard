@@ -162,7 +162,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         }
 
         _state.Db.HistoryRetentionDays = request.RetentionDays;
-        _state.Db.PruneBandwidth(DateTime.Now);
+        _state.Db.RunRetentionSweep(DateTime.Now, forceMaintenance: true);
         return Task.FromResult(new Ack { Ok = true, Message = $"history retention set to {request.RetentionDays} days" });
     }
 
