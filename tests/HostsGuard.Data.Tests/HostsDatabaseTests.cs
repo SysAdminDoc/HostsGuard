@@ -205,6 +205,30 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Alerts_dedupe_unread_rows_ack_and_honor_type_surface()
+    {
+        using var db = new HostsDatabase(DbPath("alerts.db"));
+
+        var first = db.AddAlert("threat_hit", "critical", "Threat", "198.51.100.66", "first", action: "connect", process: "evil.exe");
+        var second = db.AddAlert("threat_hit", "critical", "Threat", "198.51.100.66", "second", action: "connect", process: "evil.exe");
+        second.Should().Be(first);
+
+        var page = db.GetAlerts(new AlertFilter());
+        page.Rows.Should().ContainSingle(r => r.Id == first && r.Details == "second" && !r.IsRead);
+        page.Unread.Should().Be(1);
+        db.GetAlertTypes().Should().Contain(t => t.Type == "threat_hit" && t.Surface && t.Unread == 1);
+
+        db.SetAlertTypeSurface("threat_hit", false);
+        db.GetAlerts(new AlertFilter()).Rows.Should().BeEmpty();
+        db.GetAlerts(new AlertFilter(SurfaceOnly: false)).Rows.Should().ContainSingle(r => !r.Surfaced);
+
+        db.AckAlerts(new[] { first }).Should().Be(1);
+        db.GetAlerts(new AlertFilter(IncludeRead: true, SurfaceOnly: false)).Rows
+            .Should().ContainSingle(r => r.IsRead);
+        db.GetAlerts(new AlertFilter(SurfaceOnly: false)).Unread.Should().Be(0);
+    }
+
+    [Fact]
     public void Event_ledger_category_filter_pages_in_sql_equivalent_to_taxonomy()
     {
         using var db = new HostsDatabase(DbPath("event-category-sql.db"));

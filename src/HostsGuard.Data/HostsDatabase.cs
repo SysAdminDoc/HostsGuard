@@ -105,6 +105,35 @@ public sealed record EventLogFilter(
 /// <summary>A page of filtered event-log rows plus the total matching count.</summary>
 public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
 
+/// <summary>A stateful operator alert row, distinct from the append-only event ledger.</summary>
+public sealed record AlertRow(
+    long Id,
+    string Created,
+    string Updated,
+    string Type,
+    string Severity,
+    string Title,
+    string Subject,
+    string Details,
+    string Action,
+    string Process,
+    bool IsRead,
+    bool Surfaced);
+
+/// <summary>Filter and paging shape for the stateful alert inbox.</summary>
+public sealed record AlertFilter(
+    int Limit = 200,
+    int Offset = 0,
+    bool IncludeRead = false,
+    bool SurfaceOnly = true,
+    string? Type = null);
+
+/// <summary>A page of filtered alerts plus unread counts.</summary>
+public sealed record AlertPage(IReadOnlyList<AlertRow> Rows, int Total, int Unread);
+
+/// <summary>One alert type's current surfacing mode and unread count.</summary>
+public sealed record AlertTypeRow(string Type, string Label, bool Surface, int Unread);
+
 /// <summary>Rows deleted by a retention sweep plus whether SQLite maintenance ran.</summary>
 public sealed record RetentionSweepResult(
     int LogRows,
@@ -130,7 +159,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 17;
+    public const int SchemaVersion = 18;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -258,6 +287,14 @@ public sealed partial class HostsDatabase : IDisposable
                 grp TEXT NOT NULL, rule_name TEXT NOT NULL,
                 PRIMARY KEY(grp, rule_name)) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS idx_rule_groups_rule ON rule_groups(rule_name);
+            CREATE TABLE IF NOT EXISTS alerts(
+                id INTEGER PRIMARY KEY, created TEXT, updated TEXT, type TEXT, severity TEXT,
+                title TEXT, subject TEXT, details TEXT, action TEXT, process TEXT,
+                source_event_id INTEGER DEFAULT 0, is_read INTEGER DEFAULT 0, surfaced INTEGER DEFAULT 1);
+            CREATE INDEX IF NOT EXISTS idx_alerts_read_created ON alerts(is_read, created);
+            CREATE INDEX IF NOT EXISTS idx_alerts_type_subject ON alerts(type, subject, action, is_read);
+            CREATE TABLE IF NOT EXISTS alert_type_settings(
+                type TEXT PRIMARY KEY, label TEXT, surface INTEGER DEFAULT 1);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.

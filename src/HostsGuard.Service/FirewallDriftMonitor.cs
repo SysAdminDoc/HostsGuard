@@ -59,6 +59,20 @@ public sealed class FirewallDriftMonitor : IDisposable
                     process: diff.Program,
                     details: diff.Details,
                     reason: "firewall");
+                _db.AddAlert(
+                    "firewall_drift",
+                    diff.ChangeKind == "added" ? "info" : "warning",
+                    diff.ChangeKind switch
+                    {
+                        "added" => "Firewall rule appeared",
+                        "changed" => "Firewall rule changed",
+                        "vanished" => "Firewall rule vanished",
+                        _ => "Firewall rule drift",
+                    },
+                    diff.Name,
+                    diff.Details,
+                    action: diff.ChangeKind,
+                    process: diff.Program);
             }
 
             return diffs;

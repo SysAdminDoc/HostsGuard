@@ -29,6 +29,7 @@
     <SolidColorBrush x:Key="Hg.OnDanger" Color="#ffffff" />
     <SolidColorBrush x:Key="Hg.Peach" Color="#c95c17" />
     <SolidColorBrush x:Key="Hg.Yellow" Color="#9a6700" />
+    <SolidColorBrush x:Key="Hg.WarnSoft" Color="#FFF2D7" />
     <SolidColorBrush x:Key="Hg.Mauve" Color="#7b3bd8" />
     <SolidColorBrush x:Key="Hg.Teal" Color="#087d79" />
     <SolidColorBrush x:Key="Hg.Sky" Color="#147bb6" />

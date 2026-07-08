@@ -66,6 +66,8 @@ public sealed class KillSwitchTests : IDisposable
 
         ks.IsEngaged.Should().BeTrue();
         _fw.OutboundBlock.Should().BeTrue();
+        _db.GetAlerts(new AlertFilter(Type: "kill_switch")).Rows
+            .Should().ContainSingle(a => a.Severity == "critical" && a.Action == "engaged");
     }
 
     [Fact]

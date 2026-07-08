@@ -61,6 +61,13 @@ public sealed class NetworkProfileWatcher : IDisposable
         var profile = _state.Db.GetProfileForNetwork(net.Fingerprint);
         if (string.IsNullOrEmpty(profile))
         {
+            _state.Db.AddAlert(
+                "unknown_lan",
+                "warning",
+                "Unknown LAN gateway",
+                string.IsNullOrWhiteSpace(net.Label) ? net.Fingerprint : net.Label,
+                $"Network fingerprint {net.Fingerprint} is not mapped to a saved profile.",
+                action: "unknown_network");
             return;
         }
 

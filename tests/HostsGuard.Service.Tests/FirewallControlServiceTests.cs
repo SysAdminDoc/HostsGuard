@@ -188,6 +188,8 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         added.Rules.Single(r => r.Name == "Steam Inbound").DriftStatus.Should().Be("added");
         _state.Db.GetEvents(new EventLogFilter(Action: EventTaxonomy.FwRuleAdded)).Rows
             .Should().ContainSingle(e => e.Domain == "Steam Inbound");
+        _state.Db.GetAlerts(new AlertFilter(Type: "firewall_drift", SurfaceOnly: false)).Rows
+            .Should().ContainSingle(a => a.Subject == "Steam Inbound" && a.Action == "added");
 
         _fw.Rules["Steam Inbound"] = _fw.Rules["Steam Inbound"] with { Enabled = false };
         var changed = await fw.ListRulesAsync(new Empty());

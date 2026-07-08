@@ -30,6 +30,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "events" => await EventsAsync(args),
     "blocklists" => await BlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
+    "safe-posture" => await SafePostureAsync(),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
     "--version" or "version" => Version(),
@@ -69,6 +70,7 @@ static int Usage()
           HostsGuard.Cli blocklists import <name> <https-url>
           HostsGuard.Cli blocklists disable|enable|remove <name>
           HostsGuard.Cli mode [normal|notify|learning]
+          HostsGuard.Cli safe-posture
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
 
@@ -839,6 +841,68 @@ static async Task<int> ModeAsync(string? requested)
 // NET-054: pre-release smoke — runtime, dependency versions, service
 // reachability, signing status. Exit non-zero only when the binary itself is
 // unhealthy; an absent service is reported but expected on build machines.
+static async Task<int> SafePostureAsync()
+{
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        var failures = 0;
+        var consent = new Consent.ConsentClient(channel);
+        var fw = new FirewallControl.FirewallControlClient(channel);
+        var dns = new DnsControl.DnsControlClient(channel);
+
+        await Apply("filtering mode", () => consent.SetModeAsync(new FilteringMode { Mode = "normal" }).ResponseAsync);
+        await Apply("global outbound", () => fw.SetGlobalModeAsync(new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
+        await Apply("default outbound", () => fw.SetDefaultOutboundAsync(new OutboundRequest { Block = false }).ResponseAsync);
+        await Apply("encrypted DNS firewall blocks", () => fw.UnblockEncryptedDnsAsync(new Empty()).ResponseAsync);
+        await Apply("QUIC firewall block", () => fw.UnblockQuicAsync(new Empty()).ResponseAsync);
+        await Apply("CNAME-cloak reactive blocking", () => dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = false }).ResponseAsync);
+        await Apply("TCP flow teardown", () => fw.SetFlowTeardownAsync(new FlowTeardownRequest { Enabled = false }).ResponseAsync);
+
+        try
+        {
+            var status = await fw.GetKillSwitchAsync(new Empty());
+            await Apply("VPN kill-switch", () => fw.SetKillSwitchAsync(new KillSwitchRequest
+            {
+                Enabled = false,
+                Adapter = status.Adapter,
+            }).ResponseAsync);
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"VPN kill-switch: failed ({ex.Status.Detail})");
+            failures++;
+        }
+
+        Console.WriteLine("hosts-file blocks: left unchanged");
+        return failures == 0 ? 0 : 2;
+
+        async Task Apply(string label, Func<Task<Ack>> action)
+        {
+            try
+            {
+                var ack = await action();
+                Console.WriteLine($"{label}: {ack.Message}");
+                if (!ack.Ok)
+                {
+                    failures++;
+                }
+            }
+            catch (Grpc.Core.RpcException ex)
+            {
+                Console.WriteLine($"{label}: failed ({ex.Status.Detail})");
+                failures++;
+            }
+        }
+    }
+}
+
 static async Task<int> ReleaseSmokeAsync()
 {
     var healthy = true;

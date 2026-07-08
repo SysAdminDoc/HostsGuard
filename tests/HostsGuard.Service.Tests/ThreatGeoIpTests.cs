@@ -80,6 +80,8 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
         _state.PublishConnection(new ConnectionInfo("TCP", "10.0.0.5", 51000, "198.51.100.66", 443, "ESTABLISHED", 1, "evil.exe"));
         sub.Reader.TryRead(out var ev).Should().BeTrue();
         ev!.FwStatus.Should().Be("THREAT");
+        _state.Db.GetAlerts(new AlertFilter(Type: "threat_hit")).Rows
+            .Should().ContainSingle(a => a.Subject == "198.51.100.66" && a.Process == "evil.exe");
     }
 
     [Fact]

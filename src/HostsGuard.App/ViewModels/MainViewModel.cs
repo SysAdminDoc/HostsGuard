@@ -59,6 +59,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private FwActivityViewModel? _fwActivity;
 
     [ObservableProperty]
+    private AlertsViewModel? _alerts;
+
+    [ObservableProperty]
     private FwRulesViewModel? _fwRules;
 
     [ObservableProperty]
@@ -159,6 +162,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Activity = new HostsActivityViewModel(client, _config, _prompt);
             RawHosts = new RawHostsViewModel(client);
             FwActivity = new FwActivityViewModel(client, _confirm, _config, _filePicker);
+            Alerts = new AlertsViewModel(client);
             FwRules = new FwRulesViewModel(client, _confirm, _filePicker, _prompt);
             Tools = new ToolsViewModel(client, _confirm);
             Blocklists = new BlocklistsViewModel(client, _confirm);
@@ -174,6 +178,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await FwActivity.LoadFlowTeardownAsync();
             await FwActivity.LoadConsentHistoryAsync();
             await FwActivity.LoadLearnedAsync();
+            await Alerts.LoadAsync();
             await FwRules.RefreshAsync();
             await Tools.LoadSchedulesAsync();
             await Tools.LoadServicesAsync();
@@ -815,6 +820,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await FwActivity.LoadFlowTeardownAsync();
             await FwActivity.LoadConsentHistoryAsync();
             await FwActivity.LoadLearnedAsync();
+        }
+
+        if (Alerts is not null)
+        {
+            await Alerts.LoadAsync();
         }
 
         if (Tools is not null)

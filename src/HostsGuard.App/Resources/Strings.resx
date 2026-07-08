@@ -290,6 +290,26 @@
   <data name="Xaml_Select_a_connection_29e8cc33" xml:space="preserve"><value>Select a connection</value></data>
   <data name="Xaml_The_inspector_keeps_endpoint_identity_service_59af2ece" xml:space="preserve"><value>The inspector keeps endpoint identity, service attribution, and block actions visible during live triage.</value></data>
   <data name="Xaml_Per_app_activity_217dcab5" xml:space="preserve"><value>Per-app activity</value></data>
+  <data name="Tab_Alerts" xml:space="preserve"><value>Alerts</value></data>
+  <data name="Xaml_Alert_icon_8fd14cc6" xml:space="preserve"><value>!</value></data>
+  <data name="Xaml_Alert_inbox_2be348dd" xml:space="preserve"><value>Alert inbox</value></data>
+  <data name="Xaml_Stateful_low_volume_alerts_for_security_relevant_97175abd" xml:space="preserve"><value>Stateful low-volume alerts for security-relevant changes. Toasts remain separate.</value></data>
+  <data name="Xaml_Unread_alerts_0f4f2d44" xml:space="preserve"><value>Unread alerts</value></data>
+  <data name="Xaml_Surface_only_5f216e59" xml:space="preserve"><value>Surface only</value></data>
+  <data name="Xaml_Show_only_alert_types_configured_to_baa98b18" xml:space="preserve"><value>Show only alert types configured to surface in the inbox</value></data>
+  <data name="Xaml_Include_read_23a80646" xml:space="preserve"><value>Include read</value></data>
+  <data name="Xaml_Include_acknowledged_alerts_c79eea1f" xml:space="preserve"><value>Include acknowledged alerts</value></data>
+  <data name="Xaml_Type_filter_6e3b3ab7" xml:space="preserve"><value>Type filter</value></data>
+  <data name="Xaml_Alert_type_exact_filter_095a0f53" xml:space="preserve"><value>Alert type exact filter</value></data>
+  <data name="Xaml_Acknowledge_selected_01567827" xml:space="preserve"><value>Acknowledge selected</value></data>
+  <data name="Xaml_Acknowledge_all_40e0718f" xml:space="preserve"><value>Acknowledge all</value></data>
+  <data name="Xaml_Low_volume_alerts_cad2ca46" xml:space="preserve"><value>Low-volume alerts</value></data>
+  <data name="Xaml_Alert_type_settings_8e403573" xml:space="preserve"><value>Alert type settings</value></data>
+  <data name="Xaml_Severity_2de3cb85" xml:space="preserve"><value>Severity</value></data>
+  <data name="Xaml_Title_b78a3223" xml:space="preserve"><value>Title</value></data>
+  <data name="Xaml_Type_4f6f5f0b" xml:space="preserve"><value>Type</value></data>
+  <data name="Xaml_Read_d8e2f72f" xml:space="preserve"><value>Read</value></data>
+  <data name="Xaml_Surface_5e1f39da" xml:space="preserve"><value>Surface</value></data>
   <data name="Xaml_Learning_review_e304e7cd" xml:space="preserve"><value>Learning review</value></data>
   <data name="Xaml_Discard_all_5b034df8" xml:space="preserve"><value>Discard all</value></data>
   <data name="Xaml_Remove_every_auto_allow_â_apps_163401e7" xml:space="preserve"><value>Remove every auto-allow â€” apps prompt again next time</value></data>

@@ -54,6 +54,31 @@ catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
     Console.WriteLine($"HostsGuard: category normalization skipped ({ex.Message}).");
 }
 
+using var hostsTamper = new HostsTamperWatch(hosts);
+hostsTamper.ExternalChangeDetected += (_, e) =>
+{
+    db.LogEvent("hosts", "external_tamper", details: $"{e.Path}; sha512={e.Sha512Hex}", reason: "tamper");
+    db.AddAlert(
+        "hosts_tamper",
+        "critical",
+        "Hosts file changed externally",
+        e.Path,
+        $"The hosts file changed outside HostsGuard. SHA-512: {e.Sha512Hex}",
+        action: "external_change");
+};
+hostsTamper.Start();
+if (HostsTamperWatch.CheckRegistryTamper() is { } redirected)
+{
+    db.LogEvent("hosts", "registry_tamper", details: redirected, reason: "tamper");
+    db.AddAlert(
+        "hosts_tamper",
+        "critical",
+        "Hosts registry path changed",
+        "Tcpip DataBasePath",
+        $"The TCP/IP DataBasePath registry value points to '{redirected}'.",
+        action: "registry_redirect");
+}
+
 using var connectionFeed = new ConnectionFeed(state);
 connectionFeed.Start();
 state.ConnectionMonitorActive = true;

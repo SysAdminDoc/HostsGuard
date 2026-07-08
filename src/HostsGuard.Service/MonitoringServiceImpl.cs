@@ -96,6 +96,88 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         return Task.FromResult(list);
     }
 
+    public override Task<AlertList> ListAlerts(AlertRequest request, ServerCallContext context)
+    {
+        var limit = Math.Clamp(request.Limit > 0 ? request.Limit : 200, 1, 2000);
+        var offset = Math.Max(0, request.Offset);
+        var page = _state.Db.GetAlerts(new AlertFilter(
+            Limit: limit,
+            Offset: offset,
+            IncludeRead: request.IncludeRead,
+            SurfaceOnly: !request.IncludeLogOnly,
+            Type: Clean(request.Type)));
+
+        var list = new AlertList
+        {
+            Total = page.Total,
+            Unread = page.Unread,
+        };
+        foreach (var row in page.Rows)
+        {
+            list.Entries.Add(new AlertEntry
+            {
+                Id = row.Id,
+                Created = row.Created,
+                Updated = row.Updated,
+                Type = row.Type,
+                Severity = row.Severity,
+                Title = row.Title,
+                Subject = row.Subject,
+                Details = row.Details,
+                Action = row.Action,
+                Process = row.Process,
+                IsRead = row.IsRead,
+                Surfaced = row.Surfaced,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> AckAlert(AlertAckRequest request, ServerCallContext context)
+    {
+        var changed = _state.Db.AckAlerts(request.Ids, request.All, Clean(request.Type));
+        return Task.FromResult(new Ack { Ok = true, Message = $"acknowledged {changed} alert{(changed == 1 ? string.Empty : "s")}" });
+    }
+
+    public override Task<AlertTypeList> ListAlertTypes(Empty request, ServerCallContext context)
+    {
+        var list = new AlertTypeList();
+        foreach (var row in _state.Db.GetAlertTypes())
+        {
+            list.Types_.Add(new AlertTypeEntry
+            {
+                Type = row.Type,
+                Label = row.Label,
+                Surface = row.Surface,
+                Unread = row.Unread,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> SetAlertType(AlertTypeRequest request, ServerCallContext context)
+    {
+        var type = Clean(request.Type);
+        if (type is null)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "alert type is required",
+                ErrorCode = "hostsguard.error.v1/invalid_alert_type",
+            });
+        }
+
+        _state.Db.SetAlertTypeSurface(type, request.Surface);
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = request.Surface ? $"{type} alerts will surface" : $"{type} alerts are log-only",
+        });
+    }
+
     public override Task<AppBandwidthList> GetAppBandwidth(BandwidthRequest request, ServerCallContext context)
         => Task.FromResult(BuildBandwidth(request, DateTime.Now));
 

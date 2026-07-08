@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.37] - 2026-07-08
+
+### Added
+- Added a stateful in-app alert inbox for low-volume security events: binary
+  identity changes, threat-intel hits, hosts tamper, kill-switch engagement,
+  firewall drift, and unknown network fingerprints. Alerts support unread/read
+  acknowledgement, per-type surface/log-only settings, a left-rail unread
+  badge, and typed monitoring RPCs.
+- Added `HostsGuard.Cli safe-posture` to recover from traffic-breaking posture
+  without changing hosts-file block entries: normal mode, default outbound
+  Allow, encrypted-DNS/QUIC/CNAME reactive blocks off, flow teardown off, and
+  kill-switch off.
+
 ## [0.12.36] - 2026-07-08
 
 ### Added

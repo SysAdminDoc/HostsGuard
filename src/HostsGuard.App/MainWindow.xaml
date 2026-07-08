@@ -354,6 +354,28 @@
 
                                 <Border Style="{StaticResource Hg.RailTile}">
                                     <StackPanel>
+                                        <TextBlock Text="{svc:Loc Key=Xaml_Alert_inbox_2be348dd}" Style="{StaticResource Hg.Kicker}" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                            <TextBlock Text="{svc:Loc Key=Xaml_Alert_icon_8fd14cc6}"
+                                                       Foreground="{DynamicResource Hg.Peach}"
+                                                       FontSize="16"
+                                                       Margin="0,0,8,0"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Alerts.UnreadTitle}"
+                                                       Style="{StaticResource Hg.RailValue}"
+                                                       Foreground="{DynamicResource Hg.Peach}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Alerts.UnreadText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <Button Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding Alerts.RefreshCommand}"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="7,3"
+                                                ToolTip="{svc:Loc Key=Xaml_Stateful_low_volume_alerts_for_security_relevant_97175abd}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Hg.RailTile}">
+                                    <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Quick_actions_e47e8042}" Style="{StaticResource Hg.Kicker}" Margin="0,0,0,8" />
                                         <Button Style="{StaticResource Hg.RailLinkButton}"
                                                 Command="{Binding Tools.FlushDnsCommand}"
@@ -845,6 +867,114 @@
                                                        Style="{StaticResource Hg.EmptyText}" />
                                         </StackPanel>
                                     </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{svc:Loc Key=Xaml_Alert_icon_8fd14cc6}" Style="{StaticResource Hg.MainTabIcon}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_Alerts, Default=Alerts}" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Grid Margin="4" DataContext="{Binding Alerts}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                        Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Acknowledge_all_40e0718f}"
+                                        Command="{Binding AckAllCommand}" Margin="8,0,0,0" />
+                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Acknowledge_selected_01567827}"
+                                        Command="{Binding AckCommand}"
+                                        CommandParameter="{Binding SelectedItem, ElementName=AlertsGrid}"
+                                        Margin="8,0,0,0" />
+                                <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Include_read_23a80646}" Margin="8,0,0,0"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding IncludeRead}"
+                                          ToolTip="{svc:Loc Key=Xaml_Include_acknowledged_alerts_c79eea1f}" />
+                                <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Surface_only_5f216e59}" Margin="8,0,0,0"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding SurfaceOnly}"
+                                          ToolTip="{svc:Loc Key=Xaml_Show_only_alert_types_configured_to_baa98b18}" />
+                                <TextBox Text="{Binding TypeFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource Hg.HintBox}"
+                                         MinWidth="190"
+                                         AutomationProperties.Name="{svc:Loc Key=Xaml_Type_filter_6e3b3ab7}"
+                                         ToolTip="{svc:Loc Key=Xaml_Alert_type_exact_filter_095a0f53}" />
+                            </DockPanel>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+
+                            <DataGrid Grid.Column="0" x:Name="AlertsGrid" ItemsSource="{Binding Alerts}"
+                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Low_volume_alerts_cad2ca46}"
+                                      IsVisibleChanged="OnGridVisible">
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                                        <Setter Property="MinHeight" Value="32" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRead}" Value="True">
+                                                <Setter Property="Opacity" Value="0.62" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                <Setter Property="Background" Value="{DynamicResource Hg.WarnSoft}" />
+                                            </DataTrigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_When_769bb19e}" Binding="{Binding UpdatedText}" Width="118" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Severity_2de3cb85}" Binding="{Binding Severity}" Width="82" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Title_b78a3223}" Binding="{Binding Title}" Width="150" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Subject_8d183dbd}" Binding="{Binding Subject}" Width="1.2*" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Details_dc3decbb}" Binding="{Binding Details}" Width="1.8*" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="1*" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Type_4f6f5f0b}" Binding="{Binding Type}" Width="110" />
+                                    <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Read_d8e2f72f}" Binding="{Binding IsRead}" Width="54" IsReadOnly="True" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <Border Grid.Column="1" Style="{StaticResource Hg.Card}" Margin="10,0,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="{svc:Loc Key=Xaml_Alert_type_settings_8e403573}" FontWeight="SemiBold" />
+                                    <DataGrid Grid.Row="1" ItemsSource="{Binding AlertTypes}" Margin="0,8,0,0"
+                                              AutomationProperties.Name="{svc:Loc Key=Xaml_Alert_type_settings_8e403573}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Type_4f6f5f0b}" Binding="{Binding Label}" Width="*" />
+                                            <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Surface_5e1f39da}" Binding="{Binding Surface}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Unread_alerts_0f4f2d44}" Binding="{Binding Unread}" Width="70" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
                                 </Grid>
                             </Border>
                         </Grid>

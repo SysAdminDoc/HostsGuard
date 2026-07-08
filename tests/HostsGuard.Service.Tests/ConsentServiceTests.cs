@@ -143,6 +143,8 @@ public sealed class ConsentServiceTests : IAsyncLifetime
 
         // Identity no longer matches → the rule doesn't cover it → re-prompted.
         _state.Consent.PendingCount.Should().Be(1);
+        _state.Db.GetAlerts(new AlertFilter(Type: "binary_identity")).Rows
+            .Should().ContainSingle(a => a.Subject == app && a.Action == "identity_mismatch");
     }
 
     [Fact]

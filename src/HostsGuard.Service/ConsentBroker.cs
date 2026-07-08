@@ -519,6 +519,14 @@ public sealed partial class ConsentBroker : IDisposable
             // the check, so it is NOT covered and gets re-prompted.
             if (_identity is { } id && id.Get(r.Name).Count > 0 && !id.MatchesRemembered(r.Name, application))
             {
+                _db.AddAlert(
+                    "binary_identity",
+                    "warning",
+                    "Binary identity changed",
+                    application,
+                    $"Rule {r.Name} no longer matches the remembered signer or hash; the connection will prompt again.",
+                    action: "identity_mismatch",
+                    process: application);
                 continue;
             }
 

@@ -245,9 +245,22 @@ public sealed class ServiceState : IDisposable
 
         var country = GeoIp.Lookup(info.RemoteAddress);
         var host = ResolveKnownHost(info.RemoteAddress);
-        var fwStatus = Threats.Contains(info.RemoteAddress) ? "THREAT"
+        var threat = Threats.Contains(info.RemoteAddress);
+        var fwStatus = threat ? "THREAT"
             : DirectIp.IsDirect(info.RemoteAddress, DateTime.Now) ? "DIRECT-IP"
             : string.Empty;
+        if (threat)
+        {
+            Db.AddAlert(
+                "threat_hit",
+                "critical",
+                "Threat-intel IP contacted",
+                info.RemoteAddress,
+                $"{info.Process} opened {info.Protocol} {info.RemoteAddress}:{info.RemotePort}",
+                action: "threat_connection",
+                process: info.Process);
+        }
+
         if (recordHistory)
         {
             Db.RecordConnection(new ConnHistoryRow(

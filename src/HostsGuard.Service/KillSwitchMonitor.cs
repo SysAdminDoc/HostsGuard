@@ -169,6 +169,13 @@ public sealed class KillSwitchMonitor : IDisposable
         _armed = true;
         SaveState();
         _db.LogEvent("killswitch", "engaged", details: _state.Adapter, reason: "vpn_down");
+        _db.AddAlert(
+            "kill_switch",
+            "critical",
+            "VPN kill-switch engaged",
+            _state.Adapter,
+            $"Default outbound is blocked because '{_state.Adapter}' is down.",
+            action: "engaged");
         AfterEngage?.Invoke();
     }
 

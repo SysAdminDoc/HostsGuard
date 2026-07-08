@@ -86,6 +86,8 @@ public sealed class NetworkProfileWatcherTests : IDisposable
         _watcher.Evaluate();
 
         _applied.Should().BeEmpty();
+        _db.GetAlerts(new AlertFilter(Type: "unknown_lan")).Rows
+            .Should().ContainSingle(a => a.Subject == "Wi-Fi" && a.Action == "unknown_network");
     }
 
     [Fact]

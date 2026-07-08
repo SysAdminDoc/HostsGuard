@@ -158,4 +158,48 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         row.Details.Should().Contain("<REDACTED_URL:").And.Contain("<REDACTED_IP:");
         row.Details.Should().NotContain("api.example.com");
     }
+
+    [Fact]
+    public async Task List_alerts_and_ack_alert_round_trip_stateful_inbox_rows()
+    {
+        var id = _db.AddAlert("threat_hit", "critical", "Threat", "198.51.100.66", "details",
+            action: "connect", process: "evil.exe");
+        var impl = new MonitoringServiceImpl(_state);
+
+        var list = await impl.ListAlerts(new AlertRequest(), null!);
+
+        list.Total.Should().Be(1);
+        list.Unread.Should().Be(1);
+        list.Entries.Should().ContainSingle(e =>
+            e.Id == id &&
+            e.Type == "threat_hit" &&
+            e.Severity == "critical" &&
+            e.Process == "evil.exe" &&
+            !e.IsRead);
+
+        var ackRequest = new AlertAckRequest();
+        ackRequest.Ids.Add(id);
+        var ack = await impl.AckAlert(ackRequest, null!);
+
+        ack.Ok.Should().BeTrue();
+        (await impl.ListAlerts(new AlertRequest(), null!)).Entries.Should().BeEmpty();
+        (await impl.ListAlerts(new AlertRequest { IncludeRead = true }, null!)).Entries
+            .Should().ContainSingle(e => e.Id == id && e.IsRead);
+    }
+
+    [Fact]
+    public async Task Alert_type_surface_controls_default_inbox_visibility()
+    {
+        _db.AddAlert("firewall_drift", "warning", "Rule changed", "Steam Inbound", "enabled changed");
+        var impl = new MonitoringServiceImpl(_state);
+
+        (await impl.SetAlertType(new AlertTypeRequest { Type = "firewall_drift", Surface = false }, null!))
+            .Ok.Should().BeTrue();
+
+        (await impl.ListAlerts(new AlertRequest(), null!)).Entries.Should().BeEmpty();
+        (await impl.ListAlerts(new AlertRequest { IncludeLogOnly = true }, null!)).Entries
+            .Should().ContainSingle(e => e.Type == "firewall_drift" && !e.Surfaced);
+        var types = await impl.ListAlertTypes(new Empty(), null!);
+        types.Types_.Should().Contain(t => t.Type == "firewall_drift" && !t.Surface && t.Unread == 1);
+    }
 }
