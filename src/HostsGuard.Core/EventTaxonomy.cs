@@ -36,6 +36,8 @@ public static class EventTaxonomy
     public const string FwRebound = "fw_rebound";
     public const string LockdownOn = "lockdown_on";
     public const string LockdownOff = "lockdown_off";
+    public const string EnforcementPaused = "enforcement_paused";
+    public const string EnforcementResumed = "enforcement_resumed";
 
     // Consent (WFC parity)
     public const string ConsentAllow = "consent_allow";
@@ -94,7 +96,8 @@ public static class EventTaxonomy
             return Categories.Lists;
         }
 
-        if (a.Contains("profile", StringComparison.Ordinal) || a.Contains("schedule", StringComparison.Ordinal)
+        if (a.StartsWith("enforcement_", StringComparison.Ordinal)
+            || a.Contains("profile", StringComparison.Ordinal) || a.Contains("schedule", StringComparison.Ordinal)
             || a.Contains("lock", StringComparison.Ordinal) || a is "imported")
         {
             return Categories.Policy;

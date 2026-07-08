@@ -540,6 +540,19 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             : "lockdown OFF — outbound allowed by default"));
     }
 
+    public override Task<EnforcementPauseStatus> GetEnforcementPause(Empty request, ServerCallContext context)
+        => Task.FromResult(_state.EnforcementPause.Status());
+
+    public override Task<Ack> PauseEnforcement(EnforcementPauseRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return Task.FromResult(_state.EnforcementPause.Pause(request.Minutes));
+    }
+
     public override async Task<RebindSuggestions> SuggestRebind(RuleNameRequest request, ServerCallContext context)
     {
         var result = new RebindSuggestions();

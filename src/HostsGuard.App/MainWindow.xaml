@@ -87,6 +87,11 @@
                     <MenuItem Header="{svc:Loc Key=Xaml_Global_outbound_90a53e2a}">
                         <MenuItem Header="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}" Tag="block-all" Click="OnTrayGlobalMode" />
                         <MenuItem Header="{svc:Loc Key=Xaml_Allow_all_outbound_4a4d0c05}" Tag="allow-all" Click="OnTrayGlobalMode" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_Pause_enforcement_8c943b55}">
+                            <MenuItem Header="{svc:Loc Key=Xaml_5_minutes_34e17f47}" Tag="5" Click="OnTrayPauseEnforcement" />
+                            <MenuItem Header="{svc:Loc Key=Xaml_15_minutes_899761ff}" Tag="15" Click="OnTrayPauseEnforcement" />
+                            <MenuItem Header="{svc:Loc Key=Xaml_1_hour_f030c3d6}" Tag="60" Click="OnTrayPauseEnforcement" />
+                        </MenuItem>
                     </MenuItem>
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Exit_f83b6fe3}" Click="OnTrayExit" />
@@ -315,17 +320,35 @@
                                                        FontSize="16"
                                                        Margin="0,0,8,0"
                                                        VerticalAlignment="Center" />
-                                            <TextBlock Text="{svc:Loc Key=Xaml_Default_allow_85ced65f}"
+                                            <TextBlock Text="{Binding EnforcementPauseTitle}"
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
-                                        <TextBlock Text="{svc:Loc Key=Xaml_Outbound_2c7807c0}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <TextBlock Text="{Binding EnforcementPauseText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
                                         <Button Content="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}"
                                                 Command="{Binding SetGlobalModeCommand}"
                                                 CommandParameter="block-all"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
                                                 ToolTip="{svc:Loc Key=Xaml_Block_new_outbound_traffic_unless_an_9797ef1d}" />
+                                        <TextBlock Text="{svc:Loc Key=Xaml_Pause_enforcement_8c943b55}" Style="{StaticResource Hg.HelperText}" Margin="0,8,0,4" />
+                                        <WrapPanel>
+                                            <Button Content="{svc:Loc Key=Xaml_5_minutes_34e17f47}"
+                                                    Command="{Binding PauseEnforcementCommand}"
+                                                    CommandParameter="5"
+                                                    Padding="7,3"
+                                                    Margin="0,0,6,6" />
+                                            <Button Content="{svc:Loc Key=Xaml_15_minutes_899761ff}"
+                                                    Command="{Binding PauseEnforcementCommand}"
+                                                    CommandParameter="15"
+                                                    Padding="7,3"
+                                                    Margin="0,0,6,6" />
+                                            <Button Content="{svc:Loc Key=Xaml_1_hour_f030c3d6}"
+                                                    Command="{Binding PauseEnforcementCommand}"
+                                                    CommandParameter="60"
+                                                    Padding="7,3"
+                                                    Margin="0,0,0,6" />
+                                        </WrapPanel>
                                     </StackPanel>
                                 </Border>
 

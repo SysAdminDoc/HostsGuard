@@ -81,6 +81,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _filteringModeText = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    private bool _enforcementPauseActive;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    private bool _enforcementPauseSuspended;
+
+    [ObservableProperty]
+    private string _enforcementPauseText = "Enforcement active.";
+
     /// <summary>Child-process auto-allow (NET-093): direct children inherit a trusted parent's allow.</summary>
     [ObservableProperty]
     private bool _childInherit;
@@ -125,6 +136,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "learning" => "Learning",
         _ => "Normal",
     };
+
+    public string EnforcementPauseTitle => EnforcementPauseActive
+        ? EnforcementPauseSuspended ? "Suspended" : "Paused"
+        : "Active";
 
     [RelayCommand]
     public async Task ConnectAsync()
@@ -173,6 +188,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadKillSwitchAsync();
             await Blocklists.RefreshAsync();
             await LoadFilteringModeAsync();
+            await LoadEnforcementPauseAsync();
             StartDecisionWatch();
             ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
                 + (status.Elevated ? " (elevated)" : string.Empty);
@@ -308,6 +324,49 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var ack = await _client.Firewall.SetGlobalModeAsync(new GlobalModeRequest { Mode = mode });
             ConnectionText = ack.Message;
+            if (FwActivity is not null)
+            {
+                await FwActivity.LoadPostureAsync();
+            }
+        });
+    }
+
+    public async Task LoadEnforcementPauseAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Load enforcement pause", async () =>
+        {
+            var status = await _client.Firewall.GetEnforcementPauseAsync(new Empty());
+            EnforcementPauseActive = status.Active;
+            EnforcementPauseSuspended = status.SuspendedByKillSwitch;
+            EnforcementPauseText = DescribeEnforcementPause(status);
+        });
+    }
+
+    [RelayCommand]
+    public async Task PauseEnforcementAsync(object? minutesValue)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        var minutesText = minutesValue?.ToString() ?? string.Empty;
+        if (!int.TryParse(minutesText, out var minutes))
+        {
+            ConnectionText = "Pause unavailable - invalid duration";
+            return;
+        }
+
+        await RunServiceActionAsync("Pause enforcement", async () =>
+        {
+            var ack = await _client.Firewall.PauseEnforcementAsync(new EnforcementPauseRequest { Minutes = minutes });
+            ConnectionText = ack.Message;
+            await LoadEnforcementPauseAsync();
             if (FwActivity is not null)
             {
                 await FwActivity.LoadPostureAsync();
@@ -771,6 +830,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadKillSwitchAsync();
         }
 
+        await LoadEnforcementPauseAsync();
         ConnectionText = "All visible surfaces refreshed";
     }
 
@@ -835,6 +895,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _ => "Normal - enforce existing policy silently",
         };
         return armed ? $"{label} (default-deny armed)" : label;
+    }
+
+    private static string DescribeEnforcementPause(EnforcementPauseStatus status)
+    {
+        if (!status.Active)
+        {
+            return "Hosts and firewall enforcement active.";
+        }
+
+        var remaining = Math.Max(1, status.MinutesRemaining);
+        var prefix = status.SuspendedByKillSwitch
+            ? "Pause suspended by VPN kill-switch"
+            : "Hosts and outbound enforcement paused";
+        return $"{prefix} - resumes in {remaining} min.";
     }
 
     partial void OnUiScalePctChanged(int value)

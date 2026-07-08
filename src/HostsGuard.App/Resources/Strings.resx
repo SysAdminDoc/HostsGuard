@@ -47,6 +47,8 @@
   <data name="Xaml_Global_outbound_90a53e2a" xml:space="preserve"><value>Global outbound</value></data>
   <data name="Xaml_Block_all_outbound_b110b88e" xml:space="preserve"><value>Block all outbound</value></data>
   <data name="Xaml_Allow_all_outbound_4a4d0c05" xml:space="preserve"><value>Allow all outbound</value></data>
+  <data name="Xaml_Pause_enforcement_8c943b55" xml:space="preserve"><value>Pause enforcement</value></data>
+  <data name="Xaml_5_minutes_34e17f47" xml:space="preserve"><value>5 minutes</value></data>
   <data name="Xaml_Exit_f83b6fe3" xml:space="preserve"><value>Exit</value></data>
   <data name="Xaml_Import_hosts_fileâ_fcc431cd" xml:space="preserve"><value>Import hosts fileâ€¦</value></data>
   <data name="Xaml_Replace_the_live_hosts_file_with_b6081ef3" xml:space="preserve"><value>Replace the live hosts file with a picked file (backs up the current one first)</value></data>

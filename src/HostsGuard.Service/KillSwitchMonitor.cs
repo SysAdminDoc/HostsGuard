@@ -46,6 +46,10 @@ public sealed class KillSwitchMonitor : IDisposable
         _debounce = new System.Threading.Timer(_ => Evaluate(), null, Timeout.Infinite, Timeout.Infinite);
     }
 
+    public Action? BeforeEngage { get; set; }
+
+    public Action? AfterRelease { get; set; }
+
     /// <summary>Whether the kill-switch is turned on (may or may not be engaged right now).</summary>
     public bool Enabled
     {
@@ -157,6 +161,7 @@ public sealed class KillSwitchMonitor : IDisposable
 
         // Capture the real prior posture only once (a restart mid-engagement keeps
         // the original, never the block-all we ourselves applied).
+        BeforeEngage?.Invoke();
         _state.PriorOutboundBlock ??= _fw.GetPosture().ToDictionary(p => p.Name, p => p.OutboundBlock, StringComparer.Ordinal);
         _fw.SetDefaultOutboundBlock(true);
         _armed = true;
@@ -181,6 +186,7 @@ public sealed class KillSwitchMonitor : IDisposable
         _armed = false;
         SaveState();
         _db.LogEvent("killswitch", "released", details: _state.Adapter, reason: "vpn_up");
+        AfterRelease?.Invoke();
     }
 
     private KillSwitchState LoadState()

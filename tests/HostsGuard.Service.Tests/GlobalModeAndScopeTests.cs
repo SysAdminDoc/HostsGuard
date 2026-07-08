@@ -63,6 +63,89 @@ public sealed class GlobalModeAndScopeTests : IDisposable
         ack.ErrorCode.Should().Contain("invalid_mode");
     }
 
+    [Fact]
+    public async Task Pause_enforcement_allows_hosts_and_firewall_then_restores_on_expiry()
+    {
+        _state.Db.AddDomain("ads.example.com", "blocked", "manual");
+        _state.Hosts.Block("ads.example.com").Should().BeTrue();
+        var prior = new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            ["Domain"] = true,
+            ["Private"] = false,
+            ["Public"] = true,
+        };
+        _fw.SetDefaultOutboundBlock(prior);
+
+        var ack = await _impl.PauseEnforcement(new EnforcementPauseRequest { Minutes = 5 }, null!);
+
+        ack.Ok.Should().BeTrue();
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+        _fw.PerProfileBlock.Values.Should().OnlyContain(v => !v);
+
+        var status = await _impl.GetEnforcementPause(new Empty(), null!);
+        status.Active.Should().BeTrue();
+        status.MinutesRemaining.Should().BePositive();
+
+        _state.EnforcementPause.Sweep(DateTime.UtcNow.AddMinutes(6));
+
+        _state.Hosts.GetBlocked().Should().Contain("ads.example.com");
+        _fw.PerProfileBlock.Should().BeEquivalentTo(prior);
+        _state.Db.GetLog().Select(e => e.Action).Should().Contain(new[] { "enforcement_paused", "enforcement_resumed" });
+    }
+
+    [Fact]
+    public async Task Pause_enforcement_rejects_invalid_duration_and_engaged_kill_switch()
+    {
+        var invalid = await _impl.PauseEnforcement(new EnforcementPauseRequest { Minutes = 10 }, null!);
+        invalid.Ok.Should().BeFalse();
+        invalid.ErrorCode.Should().Contain("invalid_duration");
+
+        _state.EnforcementPause.IsKillSwitchEngaged = () => true;
+        var blocked = await _impl.PauseEnforcement(new EnforcementPauseRequest { Minutes = 5 }, null!);
+        blocked.Ok.Should().BeFalse();
+        blocked.ErrorCode.Should().Contain("killswitch_engaged");
+    }
+
+    [Fact]
+    public async Task Kill_switch_suspends_active_pause_without_capturing_permissive_posture()
+    {
+        _state.Db.AddDomain("ads.example.com", "blocked", "manual");
+        _state.Hosts.Block("ads.example.com").Should().BeTrue();
+        var prior = new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            ["Domain"] = true,
+            ["Private"] = false,
+            ["Public"] = false,
+        };
+        _fw.SetDefaultOutboundBlock(prior);
+
+        (await _impl.PauseEnforcement(new EnforcementPauseRequest { Minutes = 15 }, null!)).Ok.Should().BeTrue();
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+        _fw.PerProfileBlock.Values.Should().OnlyContain(v => !v);
+
+        var vpnUp = false;
+        using var killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => vpnUp, _dir)
+        {
+            BeforeEngage = _state.EnforcementPause.SuspendForKillSwitch,
+            AfterRelease = _state.EnforcementPause.TryResumeAfterKillSwitch,
+        };
+
+        killSwitch.Configure(true, "wg").Ok.Should().BeTrue();
+
+        _state.Hosts.GetBlocked().Should().Contain("ads.example.com");
+        _fw.PerProfileBlock.Values.Should().OnlyContain(v => v);
+        (await _impl.GetEnforcementPause(new Empty(), null!)).SuspendedByKillSwitch.Should().BeTrue();
+
+        vpnUp = true;
+        killSwitch.Evaluate();
+
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+        _fw.PerProfileBlock.Values.Should().OnlyContain(v => !v);
+        var status = await _impl.GetEnforcementPause(new Empty(), null!);
+        status.Active.Should().BeTrue();
+        status.SuspendedByKillSwitch.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData("internet", "Out")]
     [InlineData("lan", "Out")]

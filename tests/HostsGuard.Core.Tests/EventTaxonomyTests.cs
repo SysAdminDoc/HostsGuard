@@ -14,6 +14,8 @@ public sealed class EventTaxonomyTests
     [InlineData(EventTaxonomy.PostureRestoredOnStop, EventTaxonomy.Categories.Consent)]
     [InlineData(EventTaxonomy.FwBlocked, EventTaxonomy.Categories.Firewall)]
     [InlineData(EventTaxonomy.LockdownOn, EventTaxonomy.Categories.Firewall)]
+    [InlineData(EventTaxonomy.EnforcementPaused, EventTaxonomy.Categories.Policy)]
+    [InlineData(EventTaxonomy.EnforcementResumed, EventTaxonomy.Categories.Policy)]
     [InlineData(EventTaxonomy.Blocked, EventTaxonomy.Categories.Hosts)]
     [InlineData(EventTaxonomy.BackupRestored, EventTaxonomy.Categories.Hosts)]
     [InlineData(EventTaxonomy.ExclusionAdded, EventTaxonomy.Categories.Defender)]

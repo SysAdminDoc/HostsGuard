@@ -448,6 +448,10 @@ service FirewallControl {
   // all profiles; it never touches the firewall on/off switch.
   rpc GetPosture(Empty) returns (FirewallPosture);
   rpc SetDefaultOutbound(OutboundRequest) returns (Ack);
+  // Timed global pause (NET-149): temporarily remove hosts-file blocks and set
+  // default-outbound Allow, then auto-resume the saved posture at expiry.
+  rpc GetEnforcementPause(Empty) returns (EnforcementPauseStatus);
+  rpc PauseEnforcement(EnforcementPauseRequest) returns (Ack);
   // Secure-Rules tamper-guard: recreate/re-enable HG_ rules changed behind our
   // back. Opt-in; only ever touches HostsGuard's own rules.
   rpc GetSecureRules(Empty) returns (SecureRulesStatus);
@@ -492,6 +496,17 @@ message NetworkAdapterInfo {
 
 message GlobalModeRequest {
   string mode = 1;   // "block-all" | "allow-all"
+}
+
+message EnforcementPauseRequest {
+  int32 minutes = 1; // allowed: 5, 15, or 60
+}
+
+message EnforcementPauseStatus {
+  bool active = 1;
+  int32 minutes_remaining = 2;
+  google.protobuf.Timestamp expires = 3;
+  bool suspended_by_kill_switch = 4;
 }
 
 message AppScopeRequest {

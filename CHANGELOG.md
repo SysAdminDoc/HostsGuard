@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.33] - 2026-07-08
+
+### Added
+- Added a timed global enforcement pause for 5, 15, or 60 minutes from the tray
+  and status rail. The service temporarily clears hosts-file blocks, sets
+  default outbound to Allow, logs pause/resume edges, auto-resumes the saved
+  posture, and suspends safely under the VPN kill-switch.
+
 ## [0.12.32] - 2026-07-08
 
 ### Refactored

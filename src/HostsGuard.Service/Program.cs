@@ -133,6 +133,9 @@ networkWatcher.Start();
 // its persisted enable flag, so Start() is a no-op until the user turns it on.
 using var killSwitch = new KillSwitchMonitor(firewall, db, NetworkAdapters.IsUp, baseDir);
 state.KillSwitch = killSwitch;
+state.EnforcementPause.IsKillSwitchEngaged = () => killSwitch.IsEngaged;
+killSwitch.BeforeEngage = state.EnforcementPause.SuspendForKillSwitch;
+killSwitch.AfterRelease = state.EnforcementPause.TryResumeAfterKillSwitch;
 killSwitch.Start();
 
 // WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.

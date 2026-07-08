@@ -38,6 +38,8 @@ public sealed class ServiceState : IDisposable
         ActivityPersistence = new ActivityPersistenceQueue(db);
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
+        EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
+        EnforcementPause.Resume();
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
@@ -145,6 +147,8 @@ public sealed class ServiceState : IDisposable
     }
 
     public TempAllowScheduler TempAllows { get; }
+
+    public EnforcementPauseCoordinator EnforcementPause { get; }
 
     /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
     public BandwidthAggregator? Bandwidth { get; set; }
@@ -300,6 +304,7 @@ public sealed class ServiceState : IDisposable
         GeoIp.Dispose();
         Lists?.Dispose();
         Schedules.Dispose();
+        EnforcementPause.Dispose();
         TempAllows.Dispose();
         ActivityPersistence.Dispose();
         Ai.Dispose();

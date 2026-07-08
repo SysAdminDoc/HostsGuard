@@ -90,6 +90,7 @@ public sealed class SettingsLockTests : IDisposable
 
         (await consent.SetMode(new FilteringMode { Mode = "notify" }, null!)).ErrorCode.Should().Contain("locked");
         (await firewall.SetGlobalMode(new GlobalModeRequest { Mode = "block-all" }, null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.PauseEnforcement(new EnforcementPauseRequest { Minutes = 5 }, null!)).ErrorCode.Should().Contain("locked");
         (await firewall.DeleteRule(new RuleNameRequest { Name = "HG_Test" }, null!)).ErrorCode.Should().Contain("locked");
 
         // After a timed unlock the same calls proceed (mode actually switches).

@@ -151,6 +151,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnTrayPauseEnforcement(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string minutes } && DataContext is MainViewModel vm)
+        {
+            _ = vm.PauseEnforcementAsync(minutes);
+        }
+    }
+
     /// <summary>
     /// PasswordBox can't bind — copy its value to the VM before the lock command
     /// runs (Click fires before Command), then clear the box so the masked
