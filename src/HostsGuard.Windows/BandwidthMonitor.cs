@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net;
 using System.Runtime.Versioning;
 using Microsoft.Diagnostics.Tracing.Parsers;
 using Microsoft.Diagnostics.Tracing.Session;
@@ -43,11 +44,19 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         public long Recv;
     }
 
+    private sealed record AddressTextCacheEntry(string Text, long ExpiresAtMs);
+
+    private const int AddressTextCacheMaxEntries = 4096;
+    private static readonly long AddressTextCacheTtlMs = (long)TimeSpan.FromMinutes(5).TotalMilliseconds;
+    private static readonly long AddressTextCacheSweepMs = (long)TimeSpan.FromMinutes(1).TotalMilliseconds;
+
     private readonly string _sessionName;
     private TraceEventSession? _session;
     private Thread? _pump;
     private ConcurrentDictionary<int, Counter> _counters = new();
     private ConcurrentDictionary<(int, string), Counter> _endpoints = new();
+    private readonly ConcurrentDictionary<IPAddress, AddressTextCacheEntry> _addressTextCache = new();
+    private long _nextAddressTextSweepMs;
 
     public BandwidthMonitor(string sessionName = "HostsGuardBandwidth") => _sessionName = sessionName;
 
@@ -88,7 +97,7 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         }
     }
 
-    private void Add(int pid, long sent, long recv, System.Net.IPAddress? remote = null)
+    private void Add(int pid, long sent, long recv, IPAddress? remote = null)
     {
         if (pid <= 0)
         {
@@ -111,7 +120,7 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
             return;
         }
 
-        var e = _endpoints.GetOrAdd((pid, remote.ToString()), static _ => new Counter());
+        var e = _endpoints.GetOrAdd((pid, RemoteAddressText(remote)), static _ => new Counter());
         if (sent != 0)
         {
             Interlocked.Add(ref e.Sent, sent);
@@ -120,6 +129,66 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         if (recv != 0)
         {
             Interlocked.Add(ref e.Recv, recv);
+        }
+    }
+
+    private string RemoteAddressText(IPAddress remote)
+    {
+        var now = Environment.TickCount64;
+        if (_addressTextCache.TryGetValue(remote, out var cached) && cached.ExpiresAtMs > now)
+        {
+            return cached.Text;
+        }
+
+        var text = remote.ToString();
+        _addressTextCache[remote] = new AddressTextCacheEntry(text, now + AddressTextCacheTtlMs);
+        if (_addressTextCache.Count > AddressTextCacheMaxEntries)
+        {
+            SweepAddressTextCache(now);
+            TrimAddressTextCache();
+        }
+
+        return text;
+    }
+
+    private void SweepAddressTextCache(long now)
+    {
+        var next = Interlocked.Read(ref _nextAddressTextSweepMs);
+        if (next > now)
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _nextAddressTextSweepMs, now + AddressTextCacheSweepMs, next) != next)
+        {
+            return;
+        }
+
+        foreach (var (address, cached) in _addressTextCache)
+        {
+            if (cached.ExpiresAtMs <= now)
+            {
+                _addressTextCache.TryRemove(address, out _);
+            }
+        }
+    }
+
+    private void TrimAddressTextCache()
+    {
+        var overflow = _addressTextCache.Count - AddressTextCacheMaxEntries;
+        if (overflow <= 0)
+        {
+            return;
+        }
+
+        foreach (var address in _addressTextCache.Keys)
+        {
+            if (overflow-- <= 0)
+            {
+                break;
+            }
+
+            _addressTextCache.TryRemove(address, out _);
         }
     }
 

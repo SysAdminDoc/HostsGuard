@@ -35,12 +35,20 @@ public sealed class DohState
 public sealed class DohIntelligence
 {
     private const string DohWellKnownKey = @"SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DohWellKnownServers";
+    private static readonly TimeSpan DefaultCurrentIpsStatTtl = TimeSpan.FromSeconds(1);
 
     private readonly string _path;
+    private readonly TimeSpan _currentIpsStatTtl;
     private readonly object _gate = new();
 
-    public DohIntelligence(string dataDir)
-        => _path = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "doh_resolvers.json");
+    public DohIntelligence(string dataDir, TimeSpan? currentIpsStatTtl = null)
+    {
+        _path = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "doh_resolvers.json");
+        var ttl = currentIpsStatTtl ?? DefaultCurrentIpsStatTtl;
+        _currentIpsStatTtl = ttl > TimeSpan.Zero
+            ? ttl
+            : TimeSpan.Zero;
+    }
 
     public string FilePath => _path;
 
@@ -72,6 +80,7 @@ public sealed class DohIntelligence
 
     private HashSet<string>? _ipCache;
     private DateTime _ipCacheStamp;
+    private DateTime _ipCacheLastStatUtc;
 
     /// <summary>
     /// Built-in resolver IPs plus any learned/refreshed extras. Cached against
@@ -81,6 +90,13 @@ public sealed class DohIntelligence
     {
         lock (_gate)
         {
+            var now = DateTime.UtcNow;
+            if (_ipCache is not null && now - _ipCacheLastStatUtc < _currentIpsStatTtl)
+            {
+                return _ipCache;
+            }
+
+            _ipCacheLastStatUtc = now;
             var stamp = File.Exists(_path) ? File.GetLastWriteTimeUtc(_path) : DateTime.MinValue;
             if (_ipCache is null || stamp != _ipCacheStamp)
             {
@@ -158,6 +174,9 @@ public sealed class DohIntelligence
             var tmp = _path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(tmp, _path, overwrite: true);
+            _ipCache = null;
+            _ipCacheStamp = DateTime.MinValue;
+            _ipCacheLastStatUtc = DateTime.MinValue;
         }
     }
 

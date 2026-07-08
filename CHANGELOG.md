@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.30] - 2026-07-08
+
+### Fixed
+- `BandwidthMonitor` now caches remote-IP text for a bounded TTL so per-kernel
+  byte events do not repeatedly stringify the same endpoint on the hot path.
+- `DohIntelligence.CurrentIps` now caches state-file stat checks briefly and
+  invalidates immediately on trusted saves/imports, avoiding per-connection file
+  system probes for DoH/DoT categorization.
+
 ## [0.12.29] - 2026-07-08
 
 ### Fixed
