@@ -54,6 +54,7 @@ public static class PolicyPortability
                     Protocol = r.Protocol,
                     Program = r.Program,
                     RemotePorts = r.RemotePorts,
+                    LocalPorts = r.LocalPorts,
                     ServiceName = r.ServiceName,
                 });
             }
@@ -141,6 +142,13 @@ public static class PolicyPortability
                 Adapter = killSwitch.Adapter,
             };
         }
+
+        policy.LanAttackSurface = new PolicyLanAttackSurface
+        {
+            Toggles = state.LanAttackSurface.List()
+                .Select(t => new PolicyLanAttackSurfaceToggle { Key = t.Key, Blocked = t.Blocked })
+                .ToList(),
+        };
 
         var ai = state.Ai.Settings;
         policy.Ai = new PolicyAiSettings
@@ -247,14 +255,24 @@ public static class PolicyPortability
                     r.Program ?? string.Empty,
                     "hostsguard",
                     FwRuleMapper.MapPorts(r.RemotePorts),
-                    FwRuleMapper.MapService(r.ServiceName));
+                    FwRuleMapper.MapService(r.ServiceName),
+                    FwRuleMapper.MapPorts(r.LocalPorts));
                 if (fw.CreateRule(rule))
                 {
                     rulesCreated++;
                 }
 
                 // Track even pre-existing rules so drift detection stays accurate.
-                state.Db.UpsertFwState(rule.Name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol, rule.Program);
+                state.Db.UpsertFwState(
+                    rule.Name,
+                    rule.Direction,
+                    rule.Action,
+                    rule.RemoteAddr,
+                    rule.Protocol,
+                    rule.Program,
+                    rule.RemotePorts,
+                    rule.LocalPorts,
+                    rule.ServiceName);
                 if (rule.Program.Length != 0)
                 {
                     state.Identity?.Remember(rule.Name, rule.Program);
@@ -379,6 +397,7 @@ public static class PolicyPortability
         ApplyConsent(state, policy, summary);
         ApplyDnsPrivacy(state, policy, summary);
         ApplyKillSwitch(state, policy, summary);
+        ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
 
@@ -507,6 +526,31 @@ public static class PolicyPortability
         var adapter = policy.KillSwitch.Adapter ?? string.Empty;
         var ack = killSwitch.Configure(enabled, adapter);
         summary.Add(ack.Ok ? "kill-switch policy" : $"kill-switch skipped ({ack.Message})");
+    }
+
+    private static void ApplyLanAttackSurface(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.LanAttackSurface?.Toggles is not { Count: > 0 } toggles)
+        {
+            return;
+        }
+
+        var applied = 0;
+        foreach (var toggle in toggles)
+        {
+            if (string.IsNullOrWhiteSpace(toggle.Key))
+            {
+                continue;
+            }
+
+            var ack = state.LanAttackSurface.Set(toggle.Key, toggle.Blocked);
+            if (ack.Ok)
+            {
+                applied++;
+            }
+        }
+
+        summary.Add($"{applied} LAN attack-surface toggles");
     }
 
     private static void ApplyAi(ServiceState state, PortablePolicy policy, List<string> summary)

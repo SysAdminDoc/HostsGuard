@@ -915,7 +915,7 @@ public sealed partial class ConsentBroker : IDisposable
             RemotePorts: ports, ServiceName: serviceKey));
         if (created)
         {
-            _db.UpsertFwState(name, direction, action, remote, protocol, application);
+            _db.UpsertFwState(name, direction, action, remote, protocol, application, ports, serviceName: serviceKey);
             _identity?.Remember(name, application);
             if (!permanent)
             {

@@ -27,7 +27,8 @@ public sealed class ServiceState : IDisposable
         IAiCompleter? aiCompleter = null,
         IFlowTerminator? flowTerminator = null,
         Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null,
-        Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null)
+        Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null,
+        ILanAttackSurfaceStore? lanSurfaceStore = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -48,6 +49,10 @@ public sealed class ServiceState : IDisposable
             flowTerminator,
             connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot()));
         DomainFirewall = new DomainFirewallRuleCoordinator(db, firewall, domainResolver);
+        LanAttackSurface = new LanAttackSurfaceCoordinator(
+            db,
+            firewall,
+            lanSurfaceStore ?? NullLanAttackSurfaceStore.Instance);
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
@@ -166,6 +171,8 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>Reactive domain-scoped firewall rules (NET-154).</summary>
     public DomainFirewallRuleCoordinator DomainFirewall { get; }
+
+    public LanAttackSurfaceCoordinator LanAttackSurface { get; }
 
     /// <summary>Per-app byte-counter aggregator (NET-070); wired by the host when ETW is available.</summary>
     public BandwidthAggregator? Bandwidth { get; set; }

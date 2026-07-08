@@ -64,6 +64,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<BlockableServiceViewModel> Services { get; } = new();
 
+    public ObservableCollection<LanAttackSurfaceToggleViewModel> LanAttackSurface { get; } = new();
+
     public static IReadOnlyList<string> ResolverNames { get; } = ResolverPresets.Select(p => p.Name).ToList();
 
     [RelayCommand]
@@ -789,6 +791,40 @@ public sealed partial class ToolsViewModel : ObservableObject
     // ─── Blocked services ─────────────────────────────────────────────────────
 
     [RelayCommand]
+    public async Task LoadLanAttackSurfaceAsync()
+    {
+        await RunServiceActionAsync("Load LAN attack-surface controls", async () =>
+        {
+            var status = await _client.Firewall.GetLanAttackSurfaceAsync(new Empty());
+            LanAttackSurface.Clear();
+            foreach (var toggle in status.Toggles)
+            {
+                LanAttackSurface.Add(LanAttackSurfaceToggleViewModel.From(toggle));
+            }
+        });
+    }
+
+    [RelayCommand]
+    public async Task ToggleLanAttackSurfaceAsync(LanAttackSurfaceToggleViewModel? toggle)
+    {
+        if (toggle is null)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Toggle LAN attack-surface control", async () =>
+        {
+            var ack = await _client.Firewall.SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest
+            {
+                Key = toggle.Key,
+                Blocked = !toggle.Blocked,
+            });
+            StatusText = ack.Message;
+            await LoadLanAttackSurfaceAsync();
+        });
+    }
+
+    [RelayCommand]
     public async Task LoadServicesAsync()
     {
         await RunServiceActionAsync("Load blockable services", async () =>
@@ -1127,4 +1163,38 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     private static Task RunServiceActionAsync(string action, Action<string> setStatus, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, setStatus, work);
+}
+
+public sealed partial class LanAttackSurfaceToggleViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _key = string.Empty;
+
+    [ObservableProperty]
+    private string _label = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
+    [NotifyPropertyChangedFor(nameof(StateText))]
+    private bool _blocked;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StateText))]
+    private string _status = string.Empty;
+
+    [ObservableProperty]
+    private string _breakNote = string.Empty;
+
+    public string ActionText => Blocked ? "Restore" : "Block";
+
+    public string StateText => Status;
+
+    public static LanAttackSurfaceToggleViewModel From(LanAttackSurfaceToggle toggle) => new()
+    {
+        Key = toggle.Key,
+        Label = toggle.Label,
+        Blocked = toggle.Blocked,
+        Status = toggle.Status,
+        BreakNote = toggle.BreakNote,
+    };
 }

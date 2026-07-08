@@ -66,6 +66,16 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private string _serviceName = string.Empty;
 
+    [ObservableProperty]
+    private string _localPorts = string.Empty;
+
+    public string Ports => LocalPorts is not ("" or "Any")
+        ? $"local {LocalPorts}"
+        : RemotePortsForDisplay is "" or "Any" ? "Any" : $"remote {RemotePortsForDisplay}";
+
+    [ObservableProperty]
+    private string _remotePortsForDisplay = string.Empty;
+
     public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty)
         + (Drifted ? "⚠ drifted " : string.Empty)
         + (!string.IsNullOrWhiteSpace(DriftStatus) ? $"{DriftStatus} " : string.Empty)
@@ -97,6 +107,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
             _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
                 || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => "DoH block",
             _ when name.StartsWith("HG_QUIC_", StringComparison.Ordinal) => "QUIC block",
+            _ when name.StartsWith("HG_LAN_", StringComparison.Ordinal) => "LAN hardening",
             _ => "manual",
         };
     }
@@ -120,6 +131,8 @@ public sealed partial class FwRuleViewModel : ObservableObject
         ChangedAt = r.ChangedAt,
         Adopted = r.Adopted,
         ServiceName = r.ServiceName,
+        LocalPorts = r.LocalPorts,
+        RemotePortsForDisplay = r.RemotePorts,
     };
 }
 

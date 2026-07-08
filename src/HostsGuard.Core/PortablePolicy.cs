@@ -50,6 +50,8 @@ public sealed class PortablePolicy
 
     public PolicyKillSwitch? KillSwitch { get; set; }
 
+    public PolicyLanAttackSurface? LanAttackSurface { get; set; }
+
     public PolicyAiSettings? Ai { get; set; }
 
     public List<PolicyAiKnowledge>? AiKnowledge { get; set; }
@@ -97,6 +99,8 @@ public sealed class PortablePolicy
         policy.RuleGroups ??= new();
         policy.BlocklistSubs ??= new();
         policy.AllowlistSubs ??= new();
+        policy.LanAttackSurface ??= new();
+        policy.LanAttackSurface.Toggles ??= new();
         policy.Settings ??= new(StringComparer.Ordinal);
         return policy;
     }
@@ -152,6 +156,8 @@ public sealed class PolicyFirewallRule
     public string Program { get; set; } = string.Empty;
 
     public string RemotePorts { get; set; } = "Any";
+
+    public string LocalPorts { get; set; } = "Any";
 
     public string ServiceName { get; set; } = string.Empty;
 }
@@ -265,6 +271,18 @@ public sealed class PolicyKillSwitch
     public bool? Enabled { get; set; }
 
     public string? Adapter { get; set; }
+}
+
+public sealed class PolicyLanAttackSurface
+{
+    public List<PolicyLanAttackSurfaceToggle> Toggles { get; set; } = new();
+}
+
+public sealed class PolicyLanAttackSurfaceToggle
+{
+    public string Key { get; set; } = string.Empty;
+
+    public bool Blocked { get; set; }
 }
 
 /// <summary>AI settings minus the secret API key.</summary>

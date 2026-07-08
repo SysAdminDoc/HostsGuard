@@ -227,11 +227,21 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             (request.Program ?? string.Empty).Trim(),
             "hostsguard",
             FwRuleMapper.MapPorts(request.RemotePorts),
-            FwRuleMapper.MapService(request.ServiceName));
+            FwRuleMapper.MapService(request.ServiceName),
+            FwRuleMapper.MapPorts(request.LocalPorts));
         var created = fw.CreateRule(rule);
         if (created)
         {
-            _state.Db.UpsertFwState(rule.Name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol, rule.Program);
+            _state.Db.UpsertFwState(
+                rule.Name,
+                rule.Direction,
+                rule.Action,
+                rule.RemoteAddr,
+                rule.Protocol,
+                rule.Program,
+                rule.RemotePorts,
+                rule.LocalPorts,
+                rule.ServiceName);
             if (rule.Program.Length != 0)
             {
                 _state.Identity?.Remember(rule.Name, rule.Program);
@@ -400,6 +410,34 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
     public override Task<Ack> SetFlowTeardown(FlowTeardownRequest request, ServerCallContext context)
         => Task.FromResult(_state.FlowTeardown.SetEnabled(request.Enabled));
 
+    public override Task<LanAttackSurfaceStatus> GetLanAttackSurface(Empty request, ServerCallContext context)
+    {
+        var status = new LanAttackSurfaceStatus();
+        foreach (var toggle in _state.LanAttackSurface.List())
+        {
+            status.Toggles.Add(new LanAttackSurfaceToggle
+            {
+                Key = toggle.Key,
+                Label = toggle.Label,
+                Blocked = toggle.Blocked,
+                Status = toggle.Status,
+                BreakNote = toggle.BreakNote,
+            });
+        }
+
+        return Task.FromResult(status);
+    }
+
+    public override Task<Ack> SetLanAttackSurface(LanAttackSurfaceRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        return Task.FromResult(_state.LanAttackSurface.Set(request.Key, request.Blocked));
+    }
+
     private static FirewallRule ToRule(FwRule rule, FirewallRuleSnapshotRow? snapshot, bool adopted)
     {
         var driftStatus = snapshot?.Present == true ? snapshot.ChangeKind : string.Empty;
@@ -416,6 +454,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             Orphaned = FirewallIdentity.IsOrphaned(rule),
             Drifted = !string.IsNullOrWhiteSpace(driftStatus),
             RemotePorts = rule.RemotePorts,
+            LocalPorts = rule.LocalPorts,
             ServiceName = rule.ServiceName,
             Adopted = adopted,
             DriftStatus = driftStatus,
@@ -438,6 +477,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         Source = snapshot.Source,
         Drifted = true,
         RemotePorts = snapshot.RemotePorts,
+        LocalPorts = snapshot.LocalPorts,
         ServiceName = snapshot.ServiceName,
         DriftStatus = string.IsNullOrWhiteSpace(snapshot.ChangeKind) ? "vanished" : snapshot.ChangeKind,
         DriftDetail = DriftDetail(snapshot),
@@ -510,7 +550,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         {
             if (fw.CreateRule(new FwRule(name, "Out", "Block", true, "Any", proto, string.Empty, "hostsguard", RemotePorts: "853")))
             {
-                _state.Db.UpsertFwState(name, "Out", "Block", "Any", proto, string.Empty);
+                _state.Db.UpsertFwState(name, "Out", "Block", "Any", proto, string.Empty, remotePorts: "853");
                 created.Add(name);
             }
         }
@@ -539,7 +579,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         var created = fw.CreateRule(new FwRule(QuicRuleName, "Out", "Block", true, "Any", "UDP", string.Empty, "hostsguard", RemotePorts: "443"));
         if (created)
         {
-            _state.Db.UpsertFwState(QuicRuleName, "Out", "Block", "Any", "UDP", string.Empty);
+            _state.Db.UpsertFwState(QuicRuleName, "Out", "Block", "Any", "UDP", string.Empty, remotePorts: "443");
             _state.Db.LogEvent("quic", "fw_blocked", details: "QUIC/HTTP3 blocked (outbound UDP/443)", reason: "doh");
         }
 

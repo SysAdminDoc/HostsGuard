@@ -1,6 +1,7 @@
 using FluentAssertions;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
+using HostsGuard.Contracts;
 using HostsGuard.Ipc;
 using Xunit;
 
@@ -50,5 +51,26 @@ public sealed class ToolsViewModelTests
         vm.QuicBlockingActive = true;
 
         raised.Should().BeGreaterThanOrEqualTo(2, "each block toggle re-evaluates the combined state");
+    }
+
+    [Fact]
+    public void Lan_attack_surface_row_exposes_action_and_state_text()
+    {
+        var row = LanAttackSurfaceToggleViewModel.From(new LanAttackSurfaceToggle
+        {
+            Key = "llmnr",
+            Label = "LLMNR",
+            Blocked = false,
+            Status = "Allowed",
+            BreakNote = "Legacy discovery may stop.",
+        });
+
+        row.ActionText.Should().Be("Block");
+        row.StateText.Should().Be("Allowed");
+
+        row.Blocked = true;
+
+        row.ActionText.Should().Be("Restore");
+        row.StateText.Should().Be("Allowed");
     }
 }

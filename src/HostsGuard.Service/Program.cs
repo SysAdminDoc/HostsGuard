@@ -36,7 +36,8 @@ var dns = new DnsConfig();
 using var listFetcher = new HttpListFetcher();
 var defender = new DefenderConfig();
 using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, listFetcher, defender,
-    flowTerminator: new FlowTerminator());
+    flowTerminator: new FlowTerminator(),
+    lanSurfaceStore: new RegistryLanAttackSurfaceStore());
 state.DomainFirewall.StartPeriodic();
 
 // One-time on start: consolidate any legacy per-vendor category sections

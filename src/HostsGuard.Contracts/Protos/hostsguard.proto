@@ -480,6 +480,10 @@ service FirewallControl {
   rpc CloseConnection(FlowCloseRequest) returns (Ack);
   rpc GetFlowTeardown(Empty) returns (FlowTeardownStatus);
   rpc SetFlowTeardown(FlowTeardownRequest) returns (Ack);
+  // LAN attack-surface hardening (NET-155): reversible registry + HG_ firewall
+  // controls for discovery/name-resolution protocols that are noisy on LANs.
+  rpc GetLanAttackSurface(Empty) returns (LanAttackSurfaceStatus);
+  rpc SetLanAttackSurface(LanAttackSurfaceRequest) returns (Ack);
   // VPN-presence kill-switch (NET-119): when the chosen VPN adapter is down,
   // force default-outbound Block on every profile so nothing leaks outside the
   // tunnel; restore the prior posture when it returns. Opt-in, off by default.
@@ -562,6 +566,23 @@ message FlowTeardownStatus {
   bool available = 1;
   bool enabled = 2;
   string limit = 3;         // currently "IPv4 TCP only"
+}
+
+message LanAttackSurfaceRequest {
+  string key = 1;
+  bool blocked = 2;
+}
+
+message LanAttackSurfaceToggle {
+  string key = 1;
+  string label = 2;
+  bool blocked = 3;
+  string status = 4;
+  string break_note = 5;
+}
+
+message LanAttackSurfaceStatus {
+  repeated LanAttackSurfaceToggle toggles = 1;
 }
 
 message DecisionExplainRequest {
@@ -664,6 +685,7 @@ message FirewallRule {
   string first_seen = 16;   // ISO timestamp from the full-firewall baseline
   string last_seen = 17;    // ISO timestamp from the full-firewall baseline
   string changed_at = 18;   // ISO timestamp of latest detected drift
+  string local_ports = 19;  // "Any" or a COM local-port list, used by inbound service blocks
 }
 
 message FirewallRuleList {

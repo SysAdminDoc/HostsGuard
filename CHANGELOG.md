@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.40] - 2026-07-08
+
+### Added
+- Added LAN attack-surface toggles for LLMNR, mDNS, NetBIOS-NS, SSDP/UPnP,
+  WPAD, and inbound SMB. The service applies reversible registry posture where
+  Windows exposes it, creates auditable `HG_LAN_*` firewall rules, shows
+  "what breaks" notes in Tools, and round-trips the posture through portable
+  policy.
+
 ## [0.12.39] - 2026-07-08
 
 ### Added

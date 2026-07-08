@@ -115,6 +115,25 @@ internal sealed class FakeFlowTerminator : IFlowTerminator
     }
 }
 
+internal sealed class FakeLanAttackSurfaceStore : ILanAttackSurfaceStore
+{
+    public HashSet<string> Blocked { get; } = new(StringComparer.Ordinal);
+
+    public bool IsBlocked(string key) => Blocked.Contains(key);
+
+    public void SetBlocked(string key, bool blocked)
+    {
+        if (blocked)
+        {
+            Blocked.Add(key);
+        }
+        else
+        {
+            Blocked.Remove(key);
+        }
+    }
+}
+
 /// <summary>
 /// NET-022 service surface: quick-block, HG_-only mutation guard, custom rule
 /// creation with prefix enforcement, drift + orphan flags, and the live
@@ -128,6 +147,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     private ServiceState _state = null!;
     private FakeFirewallEngine _fw = null!;
     private FakeFlowTerminator _flows = null!;
+    private FakeLanAttackSurfaceStore _lan = null!;
     private List<ConnectionInfo> _connections = null!;
     private Dictionary<string, IReadOnlyList<string>> _domainAnswers = null!;
     private string _pipe = null!;
@@ -142,6 +162,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
 
         _fw = new FakeFirewallEngine();
         _flows = new FakeFlowTerminator();
+        _lan = new FakeLanAttackSurfaceStore();
         _connections = new List<ConnectionInfo>();
         _domainAnswers = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         _state = new ServiceState(
@@ -155,7 +176,8 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
             domainResolver: (domain, _) => Task.FromResult(
                 _domainAnswers.TryGetValue(domain, out var ips)
                     ? ips
-                    : (IReadOnlyList<string>)Array.Empty<string>()));
+                    : (IReadOnlyList<string>)Array.Empty<string>()),
+            lanSurfaceStore: _lan);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.FwTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -549,6 +571,52 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_program");
         _fw.Rules.Should().BeEmpty();
         _state.Db.ListDomainFirewallRules().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task LanAttackSurface_toggle_creates_reversible_registry_and_firewall_controls()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var initial = await fw.GetLanAttackSurfaceAsync(new Empty());
+        initial.Toggles.Should().HaveCount(6);
+        initial.Toggles.Should().Contain(t => t.Key == "mdns" && !t.Blocked && t.BreakNote.Contains("AirPrint", StringComparison.Ordinal));
+
+        var blockMdns = await fw.SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest { Key = "mdns", Blocked = true });
+        blockMdns.Ok.Should().BeTrue();
+        _lan.Blocked.Should().Contain("mdns");
+        _fw.Rules["HG_LAN_MDNS_In"].LocalPorts.Should().Be("5353");
+        _fw.Rules["HG_LAN_MDNS_In"].RemoteAddr.Should().Be("LocalSubnet");
+        _fw.Rules["HG_LAN_MDNS_Out"].RemotePorts.Should().Be("5353");
+        _state.Db.GetFwStateNames().Should().Contain("HG_LAN_MDNS_In");
+        _state.Db.GetFwStateNames().Should().Contain("HG_LAN_MDNS_Out");
+
+        var blockSmb = await fw.SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest { Key = "inbound-smb", Blocked = true });
+        blockSmb.Ok.Should().BeTrue();
+        _fw.Rules["HG_LAN_SMB_In"].Direction.Should().Be("In");
+        _fw.Rules["HG_LAN_SMB_In"].LocalPorts.Should().Be("139,445");
+        _fw.Rules["HG_LAN_SMB_In"].RemoteAddr.Should().Be("Any");
+
+        (await fw.GetLanAttackSurfaceAsync(new Empty())).Toggles
+            .Should().Contain(t => t.Key == "mdns" && t.Blocked && t.Status == "Blocked");
+
+        var unblock = await fw.SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest { Key = "mdns", Blocked = false });
+        unblock.Ok.Should().BeTrue();
+        _lan.Blocked.Should().NotContain("mdns");
+        _fw.Rules.Should().NotContainKey("HG_LAN_MDNS_In");
+        _fw.Rules.Should().NotContainKey("HG_LAN_MDNS_Out");
+    }
+
+    [Fact]
+    public async Task LanAttackSurface_rejects_unknown_toggle()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await Client(channel).SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest { Key = "bogus", Blocked = true });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_lan_surface");
     }
 
     [Fact]

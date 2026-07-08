@@ -37,6 +37,24 @@ public sealed class PolicyPortabilityTests : IDisposable
         return (state, fw);
     }
 
+    private (ServiceState State, FakeFirewallEngine Fw, FakeLanAttackSurfaceStore Lan) NewMachineWithLan()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hg_pol_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        _dirs.Add(dir);
+        var hostsPath = Path.Combine(dir, "hosts");
+        File.WriteAllText(hostsPath, "# hosts\n");
+        var fw = new FakeFirewallEngine();
+        var lan = new FakeLanAttackSurfaceStore();
+        var state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(dir, "hostsguard.db")),
+            firewall: fw,
+            dataDir: dir,
+            lanSurfaceStore: lan);
+        return (state, fw, lan);
+    }
+
     [Fact]
     public void Export_import_reconstructs_every_section_on_a_clean_machine()
     {
@@ -203,6 +221,27 @@ public sealed class PolicyPortabilityTests : IDisposable
         dst.Db.GetDomains(status: "blocked").Count(d => d.Domain == "a.example.com").Should().Be(1);
         dst.Hosts.GetBlocked().Count(d => d == "a.example.com").Should().Be(1);
         dstFw.Rules.Keys.Count(k => k == "HG_Block_1.2.3.4_Out").Should().Be(1);
+    }
+
+    [Fact]
+    public void Export_import_round_trips_lan_attack_surface_toggles()
+    {
+        var (src, _, srcLan) = NewMachineWithLan();
+        src.LanAttackSurface.Set("llmnr", true).Ok.Should().BeTrue();
+        src.LanAttackSurface.Set("inbound-smb", true).Ok.Should().BeTrue();
+        srcLan.Blocked.Should().Contain("llmnr");
+
+        var policy = PortablePolicy.FromJson(PolicyPortability.Export(src).ToJson());
+        policy.LanAttackSurface!.Toggles.Should().Contain(t => t.Key == "llmnr" && t.Blocked);
+        policy.LanAttackSurface.Toggles.Should().Contain(t => t.Key == "inbound-smb" && t.Blocked);
+
+        var (dst, dstFw, dstLan) = NewMachineWithLan();
+        var summary = PolicyPortability.Import(dst, policy);
+
+        summary.Should().Contain(s => s.Contains("LAN attack-surface", StringComparison.Ordinal));
+        dstLan.Blocked.Should().Contain("llmnr");
+        dstFw.Rules["HG_LAN_LLMNR_In"].LocalPorts.Should().Be("5355");
+        dstFw.Rules["HG_LAN_SMB_In"].LocalPorts.Should().Be("139,445");
     }
 
     [Fact]

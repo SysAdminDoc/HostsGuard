@@ -2014,6 +2014,7 @@
                                 <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_On_e0049a66}" Binding="{Binding Enabled}" Width="46" IsReadOnly="True" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" Width="*" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="60" />
+                                <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="86" IsReadOnly="True" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Program_9d68007b}" Binding="{Binding Program}" Width="*" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="110" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="82">
@@ -2346,6 +2347,80 @@
                                                    Style="{StaticResource Hg.SubText}"
                                                    AutomationProperties.LiveSetting="Polite" />
                                     </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="{svc:Loc Key=LanSurface_Title, Default=LAN attack surface}"
+                                                   FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding LoadLanAttackSurfaceCommand}"
+                                                Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=LanSurface_Intro, Default=Reversible one-click controls for chatty LAN discovery and legacy name lookup plus auto-proxy and inbound file sharing.}"
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8" TextWrapping="Wrap" />
+                                    <ItemsControl ItemsSource="{Binding LanAttackSurface}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource Hg.StatusStrip}"
+                                                        Width="335"
+                                                        MinHeight="122"
+                                                        Margin="0,0,8,8">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="*" />
+                                                        </Grid.RowDefinitions>
+                                                        <DockPanel Grid.Row="0" LastChildFill="True">
+                                                            <Button DockPanel.Dock="Right"
+                                                                    Content="{Binding ActionText}"
+                                                                    Command="{Binding DataContext.ToggleLanAttackSurfaceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    AutomationProperties.Name="{Binding Label}">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                        <Setter Property="Padding" Value="10,2" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Blocked}" Value="True">
+                                                                                <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
+                                                                                <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Label}"
+                                                                           FontWeight="SemiBold"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding StateText}"
+                                                                           Style="{StaticResource Hg.DimText}"
+                                                                           Margin="0,2,0,0" />
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                        <TextBlock Grid.Row="1"
+                                                                   Text="{svc:Loc Key=LanSurface_Breaks, Default=What breaks}"
+                                                                   Style="{StaticResource Hg.FieldLabel}"
+                                                                   Margin="0,10,0,2" />
+                                                        <TextBlock Grid.Row="2"
+                                                                   Text="{Binding BreakNote}"
+                                                                   Style="{StaticResource Hg.HelperText}"
+                                                                   TextWrapping="Wrap" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
                             </Border>
 
