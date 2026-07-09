@@ -55,10 +55,12 @@ public sealed partial class ConsentBroker : IDisposable
     private readonly EventBus _bus;
     private readonly string _statePath;
     private readonly object _gate = new();
+    private readonly object _sweepGate = new();
     private readonly Dictionary<string, DateTime> _recent = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (ConnectionDecisionRequest Request, DateTime ExpiresUtc)> _pending = new(StringComparer.Ordinal);
     private readonly List<(string RuleName, DateTime ExpiresUtc)> _onceRules = new();
     private readonly System.Threading.Timer _sweepTimer;
+    private bool _disposed;
 
     private PersistedState _state;
 
@@ -1434,6 +1436,19 @@ public sealed partial class ConsentBroker : IDisposable
     /// <summary>Expire pending prompts (safe action: stays blocked) and reap once-rules.</summary>
     public void Sweep(DateTime nowUtc)
     {
+        lock (_sweepGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            SweepCore(nowUtc);
+        }
+    }
+
+    private void SweepCore(DateTime nowUtc)
+    {
         // NET-101: a time-boxed Learning window auto-reverts to Normal on expiry;
         // the auto-allowed batch stays for review (GetLearned).
         bool autoLock;
@@ -1536,5 +1551,17 @@ public sealed partial class ConsentBroker : IDisposable
         }
     }
 
-    public void Dispose() => _sweepTimer.Dispose();
+    public void Dispose()
+    {
+        lock (_sweepGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _sweepTimer.Dispose();
+        }
+    }
 }

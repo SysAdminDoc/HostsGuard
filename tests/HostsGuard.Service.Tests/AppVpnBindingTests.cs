@@ -129,7 +129,7 @@ public sealed class AppVpnBindingTests : IDisposable
         ];
         var hosts = Path.Combine(_dir, "hosts");
         File.WriteAllText(hosts, "# hosts\n");
-        var state = new ServiceState(new HostsEngine(hosts), _db, firewall: _fw, dataDir: _dir)
+        using var state = new ServiceState(new HostsEngine(hosts), _db, firewall: _fw, dataDir: _dir)
         {
             AppVpnBindings = NewCoordinator(),
         };
@@ -162,7 +162,7 @@ public sealed class AppVpnBindingTests : IDisposable
         var hosts = Path.Combine(_dir, "hosts");
         File.WriteAllText(hosts, "# hosts\n");
         var coordinator = NewCoordinator();
-        var state = new ServiceState(new HostsEngine(hosts), _db, firewall: _fw, dataDir: _dir)
+        using var state = new ServiceState(new HostsEngine(hosts), _db, firewall: _fw, dataDir: _dir)
         {
             AppVpnBindings = coordinator,
         };

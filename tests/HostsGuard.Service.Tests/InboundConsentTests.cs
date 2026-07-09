@@ -100,6 +100,24 @@ public sealed class InboundConsentTests : IDisposable
         reloaded.InboundConsent.Should().BeTrue();
     }
 
+    [Fact]
+    public void Consent_sweep_after_dispose_does_not_touch_closed_database()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hg_consent_disposed_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var dbPath = Path.Combine(dir, "hostsguard.db");
+        var db = new HostsDatabase(dbPath);
+        var broker = new ConsentBroker(db, new EventBus(), null, null, dir);
+
+        broker.Dispose();
+        db.Dispose();
+        SqliteConnection.ClearAllPools();
+        Directory.Delete(dir, true);
+        var staleSweep = () => broker.Sweep(DateTime.UtcNow.AddHours(1));
+
+        staleSweep.Should().NotThrow();
+    }
+
     public void Dispose()
     {
         _state.Dispose();

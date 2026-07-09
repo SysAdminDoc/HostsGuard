@@ -90,7 +90,9 @@ public sealed class WebhookDeliverer : IDisposable
     private readonly int _maxAttempts;
     private readonly TimeSpan _backoffBase;
     private readonly CancellationTokenSource _cts = new();
+    private readonly object _gate = new();
     private Task? _loop;
+    private bool _disposed;
 
     public WebhookDeliverer(
         WebhookConfig config, WebhookSender sender, Action<string>? log = null,
@@ -107,7 +109,16 @@ public sealed class WebhookDeliverer : IDisposable
     public void Start(EventBus bus)
     {
         ArgumentNullException.ThrowIfNull(bus);
-        _loop = Task.Run(() => LoopAsync(bus, _cts.Token));
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_loop is not null)
+            {
+                return;
+            }
+
+            _loop = Task.Run(() => LoopAsync(bus, _cts.Token));
+        }
     }
 
     private async Task LoopAsync(EventBus bus, CancellationToken ct)
@@ -258,21 +269,33 @@ public sealed class WebhookDeliverer : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
-        WaitForLoop();
+        Task? loop;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _cts.Cancel();
+            loop = _loop;
+        }
+
+        WaitForLoop(loop);
         _cts.Dispose();
     }
 
-    private void WaitForLoop()
+    private void WaitForLoop(Task? loop)
     {
-        if (_loop is null)
+        if (loop is null)
         {
             return;
         }
 
         try
         {
-            if (!_loop.Wait(StopTimeout))
+            if (!loop.Wait(StopTimeout))
             {
                 SafeLog("webhook loop did not stop before timeout");
             }

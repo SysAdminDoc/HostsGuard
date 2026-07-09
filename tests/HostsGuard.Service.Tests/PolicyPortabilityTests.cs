@@ -20,6 +20,7 @@ namespace HostsGuard.Service.Tests;
 public sealed class PolicyPortabilityTests : IDisposable
 {
     private readonly List<string> _dirs = new();
+    private readonly List<ServiceState> _states = new();
 
     private (ServiceState State, FakeFirewallEngine Fw) NewMachine()
     {
@@ -34,6 +35,7 @@ public sealed class PolicyPortabilityTests : IDisposable
             new HostsDatabase(Path.Combine(dir, "hostsguard.db")),
             firewall: fw,
             dataDir: dir);
+        _states.Add(state);
         return (state, fw);
     }
 
@@ -52,6 +54,7 @@ public sealed class PolicyPortabilityTests : IDisposable
             firewall: fw,
             dataDir: dir,
             listFetcher: fetcher);
+        _states.Add(state);
         return (state, fw, fetcher);
     }
 
@@ -70,6 +73,7 @@ public sealed class PolicyPortabilityTests : IDisposable
             firewall: fw,
             dataDir: dir,
             lanSurfaceStore: lan);
+        _states.Add(state);
         return (state, fw, lan);
     }
 
@@ -445,6 +449,11 @@ public sealed class PolicyPortabilityTests : IDisposable
 
     public void Dispose()
     {
+        foreach (var state in _states)
+        {
+            state.Dispose();
+        }
+
         SqliteConnection.ClearAllPools();
         foreach (var dir in _dirs)
         {

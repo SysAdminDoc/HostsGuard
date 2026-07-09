@@ -241,6 +241,44 @@ public sealed class WebhooksTests : IDisposable
         logs.Should().Contain(l => l.Contains("webhook loop delivery failed", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task Start_is_idempotent_and_does_not_duplicate_subscribers()
+    {
+        var cfg = new WebhookConfig { Urls = { "https://a.example/hook" } };
+        var calls = 0;
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        WebhookSender sender = (_, _, _, _) =>
+        {
+            Interlocked.Increment(ref calls);
+            delivered.TrySetResult();
+            return Task.FromResult(200);
+        };
+        using var d = new WebhookDeliverer(cfg, sender, log: null, maxAttempts: 1, backoffBase: TimeSpan.Zero);
+        var bus = new EventBus();
+
+        d.Start(bus);
+        d.Start(bus);
+        await Task.Delay(250);
+        bus.Publish(new ActivityEvent { Domain = "once.example.com", Action = "blocked" });
+
+        await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.Delay(250);
+        calls.Should().Be(1);
+    }
+
+    [Fact]
+    public void Dispose_is_idempotent_after_start()
+    {
+        var cfg = new WebhookConfig { Urls = { "https://a.example/hook" } };
+        using var d = new WebhookDeliverer(cfg, (_, _, _, _) => Task.FromResult(200));
+        d.Start(new EventBus());
+
+        d.Dispose();
+        var secondDispose = () => d.Dispose();
+
+        secondDispose.Should().NotThrow();
+    }
+
     private sealed class FailIfCalledHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>

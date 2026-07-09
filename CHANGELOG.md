@@ -19,6 +19,10 @@ All notable changes to HostsGuard are documented in this file.
   failures.
 - Removed WPF menu access-key markers from neutral and Spanish labels so the UI
   follows HostsGuard's no-keyboard-shortcut interaction contract.
+- Made webhook delivery startup/disposal idempotent so duplicate `Start` calls
+  cannot create duplicate event-bus subscriptions or lose the active loop.
+- Guarded the consent broker sweep lifecycle so queued timer callbacks cannot
+  touch SQLite after service shutdown has begun.
 
 ## [0.12.61] - 2026-07-09
 
