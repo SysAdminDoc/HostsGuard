@@ -5,13 +5,13 @@
         xmlns:vm="clr-namespace:HostsGuard.App.ViewModels"
         x:Name="Root"
         Style="{StaticResource Hg.Window}"
-        Title="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}" Height="800" Width="1280"
-        MinHeight="680" MinWidth="1080"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:svc="clr-namespace:HostsGuard.App.Services"
-        mc:Ignorable="d">
+        mc:Ignorable="d"
+        Title="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}" Height="900" Width="1500"
+        MinHeight="760" MinWidth="1180">
     <Window.Resources>
         <svc:PointsTextConverter x:Key="PointsConverter" />
         <svc:SeriesBrushConverter x:Key="SeriesBrush" />
@@ -168,6 +168,80 @@
                 </MenuItem>
             </Menu>
 
+            <Border DockPanel.Dock="Top" Style="{StaticResource Hg.TopBand}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Width="17" Height="17" Stretch="Uniform"
+                              Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 5 8 H 11"
+                              Stroke="{DynamicResource Hg.Dim}"
+                              StrokeThickness="1.7"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Margin="0,0,9,0" />
+                        <TextBlock Text="{svc:Loc Key=TopBand_System}" Style="{StaticResource Hg.SubText}" VerticalAlignment="Center" Margin="0,0,18,0" />
+                        <Path Width="17" Height="17" Stretch="Uniform"
+                              Data="M 8 1 L 14 3.5 V 8 C 14 11 11.5 13 8 15 C 4.5 13 2 11 2 8 V 3.5 Z M 5 8 L 7 10 L 11 5.5"
+                              Stroke="{DynamicResource Hg.Green}"
+                              Fill="Transparent"
+                              StrokeThickness="1.7"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Margin="0,0,8,0" />
+                        <TextBlock Text="{svc:Loc Key=TopBand_SafePosture}" Foreground="{DynamicResource Hg.Green}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0" />
+                        <TextBlock Text="{Binding FilteringModeTitle}" Foreground="{DynamicResource Hg.Green}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource Hg.SafeButton}"
+                                Command="{Binding RestoreSafeNetworkPostureCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}"
+                                AutomationProperties.Name="{svc:Loc Key=TopBand_RestoreSafe}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                      Stroke="{DynamicResource Hg.Green}"
+                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
+                                <TextBlock Text="{svc:Loc Key=TopBand_RestoreSafe}" Margin="8,0,0,0" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource Hg.TopBandButton}"
+                                Command="{Binding Tools.FlushDnsCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                Margin="8,0,0,0"
+                                ToolTip="{svc:Loc Key=Xaml_Flush_DNS_15214212}"
+                                AutomationProperties.Name="{svc:Loc Key=Xaml_Flush_DNS_15214212}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
+                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" Margin="8,0,0,0" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource Hg.TopBandButton}"
+                                Command="{Binding RunDiagnosticsCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                Margin="8,0,0,0"
+                                ToolTip="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}"
+                                AutomationProperties.Name="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}">
+                            <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                  Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5" />
+                        </Button>
+                        <Button Style="{StaticResource Hg.TopBandButton}"
+                                Command="{Binding CheckForUpdatesCommand}"
+                                Margin="8,0,0,0"
+                                ToolTip="{svc:Loc Key=Xaml_Check_for_updates_736b9062}"
+                                AutomationProperties.Name="{svc:Loc Key=Xaml_Check_for_updates_736b9062}">
+                            <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                  Data="M 8 2 V 4 M 8 12 V 14 M 2 8 H 4 M 12 8 H 14 M 4 4 L 5.5 5.5 M 10.5 10.5 L 12 12 M 12 4 L 10.5 5.5 M 5.5 10.5 L 4 12" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- Status bar -->
             <StatusBar DockPanel.Dock="Bottom">
                 <StatusBarItem>
@@ -215,7 +289,7 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="250" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -231,8 +305,10 @@
                                 <StackPanel HorizontalAlignment="Center" Margin="0,4,0,8">
                                     <Border Width="52"
                                             Height="52"
-                                            CornerRadius="12"
-                                            Background="{DynamicResource Hg.Mauve}"
+                                            CornerRadius="10"
+                                            Background="{DynamicResource Hg.SafeSoft}"
+                                            BorderBrush="{DynamicResource Hg.SafeBorder}"
+                                            BorderThickness="1"
                                             Padding="8"
                                             HorizontalAlignment="Center">
                                         <Image Source="pack://application:,,,/HostsGuard.App;component/Assets/icon.ico"
@@ -292,10 +368,10 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                                             <Path Style="{StaticResource Hg.RailGlyphPath}"
                                                   Data="M 8 2 L 14 8 L 8 14 L 2 8 Z"
-                                                  Stroke="{DynamicResource Hg.Mauve}" />
+                                                  Stroke="{DynamicResource Hg.Teal}" />
                                             <TextBlock Text="{Binding FilteringModeTitle}"
                                                        Style="{StaticResource Hg.RailValue}"
-                                                       Foreground="{DynamicResource Hg.Mauve}" />
+                                                       Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding FilteringModeText}"
                                                    Style="{StaticResource Hg.HelperText}"
@@ -321,9 +397,17 @@
                                                        Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding EnforcementPauseText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <Button Content="{svc:Loc Key=TopBand_RestoreSafe}"
+                                                Command="{Binding RestoreSafeNetworkPostureCommand}"
+                                                IsEnabled="{Binding IsConnected}"
+                                                Style="{StaticResource Hg.SafeButton}"
+                                                HorizontalAlignment="Stretch"
+                                                Margin="0,0,0,8"
+                                                ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}" />
                                         <Button Content="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}"
                                                 Command="{Binding SetGlobalModeCommand}"
                                                 CommandParameter="block-all"
+                                                Style="{StaticResource Hg.DangerButton}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
                                                 ToolTip="{svc:Loc Key=Xaml_Block_new_outbound_traffic_unless_an_9797ef1d}" />
@@ -594,7 +678,7 @@
                                             <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
                                         </DataTrigger>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+                                            <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
@@ -961,7 +1045,7 @@
                                                 <Setter Property="Background" Value="{DynamicResource Hg.WarnSoft}" />
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+                                                <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />

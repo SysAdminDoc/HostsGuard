@@ -382,6 +382,85 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
+    [RelayCommand]
+    public async Task RestoreSafeNetworkPostureAsync()
+    {
+        if (_client is null)
+        {
+            ConnectionText = "Safe posture unavailable - service is not connected";
+            return;
+        }
+
+        await RunServiceActionAsync("Restore safe network posture", async () =>
+        {
+            var messages = new List<string>();
+            var failures = 0;
+            async Task Apply(string label, Func<Task<Ack>> action)
+            {
+                try
+                {
+                    var ack = await action();
+                    messages.Add($"{label}: {ack.Message}");
+                    if (!ack.Ok)
+                    {
+                        failures++;
+                    }
+                }
+                catch (RpcException ex)
+                {
+                    messages.Add($"{label}: failed ({ex.Status.Detail})");
+                    failures++;
+                }
+            }
+
+            await Apply("filtering mode", () => _client.Consent.SetModeAsync(
+                new FilteringMode { Mode = "normal" }).ResponseAsync);
+            await Apply("global outbound", () => _client.Firewall.SetGlobalModeAsync(
+                new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
+            await Apply("default outbound", () => _client.Firewall.SetDefaultOutboundAsync(
+                new OutboundRequest { Block = false }).ResponseAsync);
+            await Apply("encrypted DNS blocks", () => _client.Firewall.UnblockEncryptedDnsAsync(
+                new Empty()).ResponseAsync);
+            await Apply("QUIC block", () => _client.Firewall.UnblockQuicAsync(
+                new Empty()).ResponseAsync);
+            await Apply("CNAME-cloak blocking", () => _client.Dns.SetCnameCloakAsync(
+                new CnameCloakRequest { Enabled = false }).ResponseAsync);
+            await Apply("TCP flow teardown", () => _client.Firewall.SetFlowTeardownAsync(
+                new FlowTeardownRequest { Enabled = false }).ResponseAsync);
+
+            try
+            {
+                var killSwitch = await _client.Firewall.GetKillSwitchAsync(new Empty());
+                await Apply("VPN kill-switch", () => _client.Firewall.SetKillSwitchAsync(
+                    new KillSwitchRequest { Enabled = false, Adapter = killSwitch.Adapter }).ResponseAsync);
+            }
+            catch (RpcException ex)
+            {
+                messages.Add($"VPN kill-switch: failed ({ex.Status.Detail})");
+                failures++;
+            }
+
+            await LoadFilteringModeAsync();
+            await LoadEnforcementPauseAsync();
+            if (FwActivity is not null)
+            {
+                await FwActivity.LoadPostureAsync();
+                await FwActivity.LoadFlowTeardownAsync();
+            }
+
+            if (Tools is not null)
+            {
+                await Tools.LoadDohStatusAsync();
+                await Tools.LoadKillSwitchAsync();
+            }
+
+            var outcome = failures == 0
+                ? "Safe network posture restored"
+                : "Safe network posture restored with warnings";
+            ConnectionText = $"{outcome} - hosts-file blocks left unchanged. {string.Join("; ", messages)}";
+        });
+    }
+
     private void StartDecisionWatch()
     {
         if (_decisionCts is not null || _client is null)

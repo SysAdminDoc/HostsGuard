@@ -641,4 +641,8 @@
   <data name="LanSurface_Title" xml:space="preserve"><value>LAN attack surface</value></data>
   <data name="LanSurface_Intro" xml:space="preserve"><value>Reversible one-click controls for chatty LAN discovery and legacy name lookup plus auto-proxy and inbound file sharing.</value></data>
   <data name="LanSurface_Breaks" xml:space="preserve"><value>What breaks</value></data>
+  <data name="TopBand_System" xml:space="preserve"><value>System</value></data>
+  <data name="TopBand_SafePosture" xml:space="preserve"><value>Safe posture</value></data>
+  <data name="TopBand_RestoreSafe" xml:space="preserve"><value>Restore safe network posture</value></data>
+  <data name="TopBand_RestoreSafeTip" xml:space="preserve"><value>Restore Normal filtering, allow default outbound, remove DNS bypass blocks, and leave hosts-file blocks unchanged.</value></data>
 </root>

@@ -6,6 +6,12 @@
 
     <SolidColorBrush x:Key="Hg.Bg" Color="#EEF3F8" />
     <SolidColorBrush x:Key="Hg.Base" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Hg.Panel" Color="#F8FBFE" />
+    <SolidColorBrush x:Key="Hg.PanelAlt" Color="#EAF1F8" />
+    <SolidColorBrush x:Key="Hg.Command" Color="#F3F7FB" />
+    <SolidColorBrush x:Key="Hg.RowHover" Color="#E8F0FA" />
+    <SolidColorBrush x:Key="Hg.SafeSoft" Color="#DFF5F1" />
+    <SolidColorBrush x:Key="Hg.SafeBorder" Color="#7ACAC3" />
     <SolidColorBrush x:Key="Hg.Mantle" Color="#F6F9FC" />
     <SolidColorBrush x:Key="Hg.Crust" Color="#DDE6F0" />
     <SolidColorBrush x:Key="Hg.S0" Color="#C9D5E4" />

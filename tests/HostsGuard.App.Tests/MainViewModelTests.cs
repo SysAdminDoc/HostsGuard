@@ -88,6 +88,16 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Safe_posture_command_reports_unavailable_when_service_is_disconnected()
+    {
+        using var vm = CreateShell();
+
+        await vm.RestoreSafeNetworkPostureCommand.ExecuteAsync(null);
+
+        vm.ConnectionText.Should().Be("Safe posture unavailable - service is not connected");
+    }
+
+    [Fact]
     public async Task Reconnect_recreates_client_after_token_rotation_and_restores_live_feeds()
     {
         using var vm = CreateShell();

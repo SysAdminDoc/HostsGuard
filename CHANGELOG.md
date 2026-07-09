@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.45] - 2026-07-09
+
+### Added
+- Added a WPF "Restore safe network posture" action in the top command band and
+  posture rail. It mirrors `HostsGuard.Cli safe-posture`, restores normal
+  filtering/default outbound/DNS-bypass/kill-switch/flow-teardown posture, and
+  leaves hosts-file blocks unchanged.
+
+### Changed
+- Refined the WPF shell toward a denser premium operations console with a
+  persistent command band, safer posture rail actions, stronger dark/light theme
+  surfaces, tuned table/inspector chrome, and refreshed README screenshots.
+
 ## [0.12.44] - 2026-07-08
 
 ### Added
