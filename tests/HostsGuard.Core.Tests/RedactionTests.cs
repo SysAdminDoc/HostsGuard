@@ -36,6 +36,14 @@ public class RedactionTests
         Redaction.RedactText($"token={token}").Should().Contain("<REDACTED_SECRET>").And.NotContain(token);
     }
 
+    [Fact]
+    public void RedactText_scrubs_windows_paths()
+    {
+        var outp = Redaction.RedactText(@"launched C:\Users\alice\secret app\chrome.exe");
+        outp.Should().Contain("<REDACTED_PATH:");
+        outp.Should().NotContain(@"C:\Users\alice\secret app\chrome.exe");
+    }
+
     [Theory]
     [InlineData("webhook_url", "https://x.example.com/y")]
     [InlineData("service_token", "deadbeefdeadbeef")]

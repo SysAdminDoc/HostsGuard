@@ -338,11 +338,20 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     [Fact]
     public async Task Support_bundle_is_written_and_redacts_public_ips()
     {
-        _state.Db.LogEvent("93.184.216.34", "fw_blocked", details: "remote 93.184.216.34 contacted");
+        _state.Db.RecordConnection(new ConnHistoryRow(DateTime.Now.ToString("o"), @"C:\Users\alice\apps\chrome.exe", 10, "TCP",
+            "93.184.216.34", 443, "US", "blocked", "api.secret.example.com"));
+        _state.Db.LogEvent("api.secret.example.com", "fw_blocked", process: @"C:\Users\alice\apps\chrome.exe",
+            details: @"remote 93.184.216.34 contacted https://api.secret.example.com from C:\Users\alice\apps\chrome.exe");
         using var channel = NamedPipeChannel.Create(_token, _pipe);
 
         var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
-            .ExportSupportBundleAsync(new Empty());
+            .ExportSupportBundleAsync(new SupportBundleRequest
+            {
+                Process = "chrome",
+                Protocol = "tcp",
+                Action = "fw_blocked",
+                Limit = 10,
+            });
 
         ack.Ok.Should().BeTrue();
         File.Exists(ack.Message).Should().BeTrue();
@@ -351,11 +360,27 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         zip.Entries.Select(e => e.Name).Should().Contain(new[]
         {
             "status.json", "events.log", "firewall_rules.tsv", "schedules.tsv",
-            "diagnostics.json", "consent_decisions.tsv",
+            "diagnostics.json", "consent_decisions.tsv", "traffic_profile_manifest.json",
+            "traffic_profile.json", "traffic_profile.csv",
         });
         using var reader = new StreamReader(zip.GetEntry("events.log")!.Open());
         var log = await reader.ReadToEndAsync();
         log.Should().NotContain("93.184.216.34"); // redaction pipeline applied
+
+        using var profileReader = new StreamReader(zip.GetEntry("traffic_profile.json")!.Open());
+        var profile = await profileReader.ReadToEndAsync();
+        profile.Should().Contain("no_payload_guarantee");
+        profile.Should().Contain("tcp.port == 443");
+        profile.Should().Contain("<REDACTED_IP:");
+        profile.Should().Contain("<REDACTED_DOMAIN:");
+        profile.Should().Contain("<REDACTED_PATH:");
+        profile.Should().NotContain("93.184.216.34");
+        profile.Should().NotContain("api.secret.example.com");
+        profile.Should().NotContain(@"C:\Users\alice\apps\chrome.exe");
+
+        using var manifestReader = new StreamReader(zip.GetEntry("traffic_profile_manifest.json")!.Open());
+        var manifest = await manifestReader.ReadToEndAsync();
+        manifest.Should().Contain("packet payloads").And.Contain("traffic_profile.csv");
     }
 
     [Fact]
@@ -367,7 +392,7 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         using var channel = NamedPipeChannel.Create(_token, _pipe);
 
         var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
-            .ExportSupportBundleAsync(new Empty());
+            .ExportSupportBundleAsync(new SupportBundleRequest());
 
         using var zip = ZipFile.OpenRead(ack.Message);
         using var reader = new StreamReader(zip.GetEntry("diagnostics.json")!.Open());

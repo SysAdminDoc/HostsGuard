@@ -32,6 +32,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
+    "traffic-profile" => await TrafficProfileAsync(args),
+    "support-bundle" => await SupportBundleAsync(args),
     "usage" => await UsageAsync(args),
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
@@ -80,6 +82,11 @@ static int Usage()
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
+          HostsGuard.Cli traffic-profile [path.json|path.csv] [--format json|csv] [--limit N]
+                               [--since ISO] [--until ISO] [--process app] [--action name]
+                               [--protocol tcp|udp]
+          HostsGuard.Cli support-bundle [--limit N] [--since ISO] [--until ISO]
+                               [--process app] [--action name] [--protocol tcp|udp]
           HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
           HostsGuard.Cli usage-quota list
           HostsGuard.Cli usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled]
@@ -824,6 +831,191 @@ static async Task<int> EventsAsync(string[] args)
             }
 
             return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static async Task<int> TrafficProfileAsync(string[] args)
+{
+    var request = new TrafficProfileRequest();
+    var exportPath = "traffic_profile.json";
+    var pathSet = false;
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        string value;
+        if (!arg.StartsWith("--", StringComparison.Ordinal) && !pathSet)
+        {
+            exportPath = arg;
+            pathSet = true;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--limit", out value) &&
+            int.TryParse(value, out var limit))
+        {
+            request.Limit = limit;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--since", out value))
+        {
+            request.Since = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--until", out value))
+        {
+            request.Until = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--process", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--app", out value))
+        {
+            request.Process = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--action", out value))
+        {
+            request.Action = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--protocol", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--proto", out value))
+        {
+            request.Protocol = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--format", out value))
+        {
+            request.Format = value;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown traffic-profile option: {arg}");
+        return 1;
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Format))
+    {
+        request.Format = Path.GetExtension(exportPath).Equals(".csv", StringComparison.OrdinalIgnoreCase)
+            ? "csv"
+            : "json";
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var profile = await new Monitoring.MonitoringClient(channel).ExportTrafficProfileAsync(request);
+            try
+            {
+                await File.WriteAllTextAsync(exportPath, profile.Content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"exported redacted {profile.Format} traffic profile to {Path.GetFullPath(exportPath)}");
+            Console.WriteLine($"{profile.ConnectionCount} connections, {profile.EventCount} events; {profile.NoPayloadGuarantee}");
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static async Task<int> SupportBundleAsync(string[] args)
+{
+    var request = new SupportBundleRequest();
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        string value;
+        if (TryReadOptionValue(args, ref i, arg, "--limit", out value) &&
+            int.TryParse(value, out var limit))
+        {
+            request.Limit = limit;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--since", out value))
+        {
+            request.Since = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--until", out value))
+        {
+            request.Until = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--process", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--app", out value))
+        {
+            request.Process = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--action", out value))
+        {
+            request.Action = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--protocol", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--proto", out value))
+        {
+            request.Protocol = value;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown support-bundle option: {arg}");
+        return 1;
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
+                .ExportSupportBundleAsync(request);
+            Console.WriteLine(ack.Message);
+            if (ack.Ok)
+            {
+                Console.WriteLine("traffic_profile.json/csv are redacted metadata only; no packet payloads are captured or exported.");
+            }
+
+            return ack.Ok ? 0 : 2;
         }
         catch (Grpc.Core.RpcException ex)
         {

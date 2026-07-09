@@ -271,6 +271,64 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public async Task Traffic_profile_export_filters_protocol_action_and_redacts_sensitive_metadata()
+    {
+        var now = DateTime.Now;
+        const string token = "abcdef0123456789abcdef0123456789";
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-2).ToString("o"), @"C:\Users\alice\apps\chrome.exe", 10, "TCP",
+            "93.184.216.34", 443, "US", "blocked", "api.secret.example.com"));
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "chrome.exe", 11, "UDP",
+            "10.1.2.3", 53, "US", "allowed", "lan.secret.example.com"));
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "curl.exe", 12, "TCP",
+            "198.51.100.4", 80, "US", "allowed", "other.example.net"));
+        _db.LogEvent("api.secret.example.com", "fw_blocked", process: @"C:\Users\alice\apps\chrome.exe",
+            details: $@"called https://api.secret.example.com/key/{token} from C:\Users\alice\apps\chrome.exe remote 10.1.2.3",
+            reason: "manual");
+        _db.LogEvent("other.example.net", "allowed", process: "curl.exe", details: "not selected");
+        var impl = new MonitoringServiceImpl(_state);
+
+        var profile = await impl.ExportTrafficProfile(new TrafficProfileRequest
+        {
+            Format = "json",
+            Limit = 10,
+            Since = now.AddMinutes(-5).ToString("o"),
+            Until = now.AddMinutes(5).ToString("o"),
+            Process = "chrome",
+            Action = "fw_blocked",
+            Protocol = "tcp",
+        }, null!);
+
+        profile.Format.Should().Be("json");
+        profile.Redacted.Should().BeTrue();
+        profile.ConnectionCount.Should().Be(1);
+        profile.EventCount.Should().Be(1);
+        profile.NoPayloadGuarantee.Should().Contain("no PCAP").And.Contain("packet payloads");
+        profile.Content.Should().Contain("tcp.port == 443");
+        profile.Content.Should().Contain("<REDACTED_IP:");
+        profile.Content.Should().Contain("<REDACTED_DOMAIN:");
+        profile.Content.Should().Contain("<REDACTED_PATH:");
+        profile.Content.Should().NotContain("93.184.216.34");
+        profile.Content.Should().NotContain("10.1.2.3");
+        profile.Content.Should().NotContain("api.secret.example.com");
+        profile.Content.Should().NotContain(@"C:\Users\alice\apps\chrome.exe");
+        profile.Content.Should().NotContain(token);
+        profile.Content.Should().NotContain("other.example.net");
+        profile.Content.Should().NotContain("\"protocol\": \"UDP\"");
+
+        var csv = await impl.ExportTrafficProfile(new TrafficProfileRequest
+        {
+            Format = "csv",
+            Process = "chrome",
+            Protocol = "tcp",
+            Action = "fw_blocked",
+            Limit = 10,
+        }, null!);
+        csv.Format.Should().Be("csv");
+        csv.Content.Should().Contain("WiresharkFilter").And.Contain("tcp.port == 443");
+        csv.Content.Should().NotContain("93.184.216.34");
+    }
+
+    [Fact]
     public async Task List_alerts_and_ack_alert_round_trip_stateful_inbox_rows()
     {
         var id = _db.AddAlert("threat_hit", "critical", "Threat", "198.51.100.66", "details",

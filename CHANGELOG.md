@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.61] - 2026-07-09
+
+### Added
+- Added redacted metadata-only traffic profile exports for support bundles, FW
+  Activity, and `HostsGuard.Cli traffic-profile`, with time/app/action/protocol
+  filters, JSON/CSV output, Wireshark display-filter hints, and an explicit
+  no-payload guarantee.
+- Added `HostsGuard.Cli support-bundle` so filtered support zips can be created
+  from the command line.
+
+### Changed
+- Tightened diagnostics redaction so free-form Windows executable paths are
+  scrubbed before support/profile export.
+
 ## [0.12.60] - 2026-07-09
 
 ### Added

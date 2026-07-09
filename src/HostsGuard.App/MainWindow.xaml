@@ -1950,6 +1950,9 @@
                                         <Button Content="{svc:Loc Key=Xaml_Export_CSV_5755f9ac}" Padding="10,2" Margin="0,0,6,6"
                                                 Command="{Binding ExportHistoryCsvCommand}"
                                                 ToolTip="{svc:Loc Key=Xaml_Save_the_loaded_connection_history_to_91aec34f}" />
+                                        <Button Content="{svc:Loc Key=TrafficProfile_Export}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding ExportTrafficProfileCommand}"
+                                                ToolTip="{svc:Loc Key=TrafficProfile_ExportTip}" />
                                         <Button Content="{svc:Loc Key=Xaml_Set_retention_ab73848f}" Padding="10,2" Margin="0,0,6,6"
                                                 Command="{Binding SaveRetentionCommand}" />
                                         <Button Content="{svc:Loc Key=History_Clear}" Padding="10,2" Margin="0,0,6,6"

@@ -32,7 +32,7 @@ public class SchemaLockTests
           SetTrustedPublishers(PublisherList) returns (Ack)
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics
-          ExportSupportBundle(Empty) returns (Ack)
+          ExportSupportBundle(SupportBundleRequest) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)
           GetStatus(Empty) returns (ServiceStatus)
         service DnsControl
@@ -140,6 +140,7 @@ public class SchemaLockTests
           AckAlert(AlertAckRequest) returns (Ack)
           ClearConnectionHistory(Empty) returns (Ack)
           DeleteUsageQuotaRule(UsageQuotaRule) returns (Ack)
+          ExportTrafficProfile(TrafficProfileRequest) returns (TrafficProfileExport)
           ExportUsageQuotaHistory(UsageQuotaHistoryRequest) returns (UsageQuotaHistoryExport)
           GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
           GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)

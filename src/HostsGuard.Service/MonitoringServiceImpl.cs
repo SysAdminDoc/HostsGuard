@@ -386,6 +386,9 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         return Task.FromResult(new UsageQuotaHistoryExport { Format = format, Content = content });
     }
 
+    public override Task<TrafficProfileExport> ExportTrafficProfile(TrafficProfileRequest request, ServerCallContext context)
+        => Task.FromResult(TrafficProfileExporter.Build(_state, request, DateTime.Now));
+
     public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
     {
         if (request.RetentionDays is < 1 or > 365)

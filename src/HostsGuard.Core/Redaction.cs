@@ -35,6 +35,9 @@ public static partial class Redaction
     [GeneratedRegex(@"\b(?:\d{1,3}\.){3}\d{1,3}\b")]
     private static partial Regex IpTextRegex();
 
+    [GeneratedRegex(@"(?:[A-Za-z]:\\|\\\\)(?:[^\\/:*?""<>|\r\n]+\\)+[^\\/:*?""<>|\r\n]*\.[A-Za-z0-9]{2,8}", RegexOptions.IgnoreCase)]
+    private static partial Regex PathTextRegex();
+
     [GeneratedRegex(@"\b[0-9a-f]{32,}\b", RegexOptions.IgnoreCase)]
     private static partial Regex LongHexRegex();
 
@@ -52,6 +55,7 @@ public static partial class Redaction
     {
         var s = text ?? string.Empty;
         s = UrlRegex().Replace(s, m => Marker("url", m.Value));
+        s = PathTextRegex().Replace(s, m => Marker("path", m.Value));
         s = IpTextRegex().Replace(s, m => LooksLikePublicIp(m.Value) ? Marker("ip", m.Value) : m.Value);
         s = DomainTextRegex().Replace(s, m => Domains.LooksLikeDomain(m.Value.ToLowerInvariant().Trim('.')) ? Marker("domain", m.Value) : m.Value);
         s = LongHexRegex().Replace(s, Markers["secret"]);

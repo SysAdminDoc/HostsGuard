@@ -41,7 +41,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     /// redaction pipeline; the session token and webhook-style secrets never
     /// have a path into the zip.
     /// </summary>
-    public override Task<Ack> ExportSupportBundle(Empty request, ServerCallContext context)
+    public override Task<Ack> ExportSupportBundle(SupportBundleRequest request, ServerCallContext context)
     {
         var dir = Path.Combine(_state.DataDir, "support");
         Directory.CreateDirectory(dir);
@@ -84,6 +84,14 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
                 .Where(l => l.Action.StartsWith("consent_", StringComparison.Ordinal))
                 .Select(l => $"{l.Ts}\t{l.Action}\t{Redaction.RedactText(l.Domain)}\t{Redaction.RedactText(l.Details)}");
             AddEntry(zip, "consent_decisions.tsv", string.Join('\n', decisions));
+
+            // NET-176 protocol-aware metadata profile for Wireshark handoff and
+            // support triage. This is deliberately not PCAP; all endpoint,
+            // domain, URL, secret, and path-like text is redacted before write.
+            var trafficProfile = TrafficProfileExporter.BuildBundle(_state, request, DateTime.Now);
+            AddEntry(zip, "traffic_profile_manifest.json", trafficProfile.Manifest);
+            AddEntry(zip, "traffic_profile.json", trafficProfile.Json);
+            AddEntry(zip, "traffic_profile.csv", trafficProfile.Csv);
         }
 
         _state.Db.LogEvent("support", "bundle_export", details: Path.GetFileName(path));

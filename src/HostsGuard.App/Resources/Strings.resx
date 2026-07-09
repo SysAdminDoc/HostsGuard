@@ -365,6 +365,8 @@
   <data name="Xaml_Load_ddcb77ff" xml:space="preserve"><value>Load</value></data>
   <data name="Xaml_Export_CSV_5755f9ac" xml:space="preserve"><value>Export CSV</value></data>
   <data name="Xaml_Save_the_loaded_connection_history_to_91aec34f" xml:space="preserve"><value>Save the loaded connection history to a CSV file (opens in Excel)</value></data>
+  <data name="TrafficProfile_Export" xml:space="preserve"><value>Export profile</value></data>
+  <data name="TrafficProfile_ExportTip" xml:space="preserve"><value>Save a redacted metadata-only traffic profile with protocol and port hints; no packet payloads are included</value></data>
   <data name="Xaml_Set_retention_ab73848f" xml:space="preserve"><value>Set retention</value></data>
   <data name="Xaml_History_retention_days_5a7034c6" xml:space="preserve"><value>History retention days</value></data>
   <data name="Xaml_History_retention_in_days_1_365_5b9947ca" xml:space="preserve"><value>History retention in days (1-365)</value></data>

@@ -943,6 +943,49 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Export a redacted metadata-only traffic profile for diagnostics/Wireshark handoff.</summary>
+    [RelayCommand]
+    public async Task ExportTrafficProfileAsync()
+    {
+        if (_filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export traffic profile", "traffic_profile.json",
+            "JSON files (*.json)|*.json|CSV files (*.csv)|*.csv");
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        var format = System.IO.Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase)
+            ? "csv"
+            : "json";
+        await RunServiceActionAsync("Export traffic profile", s => HistoryStatus = s, async () =>
+        {
+            var profile = await _client.Monitoring.ExportTrafficProfileAsync(new TrafficProfileRequest
+            {
+                Since = HistorySince ?? string.Empty,
+                Until = HistoryUntil ?? string.Empty,
+                Process = HistoryProcess ?? string.Empty,
+                Protocol = HistoryProtocol ?? string.Empty,
+                Action = EventAction ?? string.Empty,
+                Limit = Math.Clamp(HistoryLimit <= 0 ? 2000 : HistoryLimit, 1, 10_000),
+                Format = format,
+            });
+            try
+            {
+                await System.IO.File.WriteAllTextAsync(path, profile.Content);
+                HistoryStatus = $"Exported redacted {profile.Format} traffic profile ({Plural.Of(profile.ConnectionCount, "connection")}, {Plural.Of(profile.EventCount, "event")}; no packet payloads) to {System.IO.Path.GetFileName(path)}";
+            }
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                HistoryStatus = $"Export failed: {ex.Message}";
+            }
+        });
+    }
+
     /// <summary>Serialize connection-history rows to CSV (RFC-4180 quoting). Pure — unit-tested.</summary>
     public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
     {

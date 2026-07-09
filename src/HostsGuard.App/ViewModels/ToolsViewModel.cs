@@ -540,7 +540,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     {
         await RunServiceActionAsync("Export support bundle", async () =>
         {
-            var ack = await _client.Diagnostics.ExportSupportBundleAsync(new Empty());
+            var ack = await _client.Diagnostics.ExportSupportBundleAsync(new SupportBundleRequest());
             StatusText = ack.Ok ? $"Support bundle: {ack.Message}" : ack.Message;
         });
     }

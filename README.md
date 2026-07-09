@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.60-blue)
+![Version](https://img.shields.io/badge/version-0.12.61-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -92,7 +92,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Quick blocking | Block any remote IP or program, block a resolved site through the hosts file, create a per-app DNS-following `HG_Domain_` firewall rule, or scope-block a program to Internet / LAN / localhost / inbound |
 | Immediate flow close | Right-click an established IPv4 TCP row to close it now; opt in to **Close TCP on block** to close matching IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 teardown is reported unsupported. |
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
-| Connection history | Retention-bounded local traffic explorer with app, domain/host, IP, status, protocol, and time filters, CSV export, clear-history, and 30-day default retention |
+| Connection history | Retention-bounded local traffic explorer with app, domain/host, IP, status, protocol, and time filters, CSV export, redacted traffic-profile export, clear-history, and 30-day default retention |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
 | Data usage rollups | Retention-bounded daily app x domain byte table with sent/received/total filters |
 | Usage budget alerts | Optional local app/domain quota rules warn through the alert inbox when retained usage crosses a byte threshold; reset/export quota history without blocking or shaping traffic |
@@ -145,7 +145,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
 | Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, usage-budget alert rules, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent; optional HTTPS policy subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
-| Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
+| Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, and unknown network fingerprints |
 
@@ -167,6 +167,8 @@ HostsGuard.Cli import-policy [--preview] <path.json>
 HostsGuard.Cli import-policy --restore-checkpoint
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
+HostsGuard.Cli traffic-profile [profile.json|profile.csv] [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
+HostsGuard.Cli support-bundle [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
 HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
 HostsGuard.Cli usage-quota [list|set|delete|reset|export]
 HostsGuard.Cli dns-cache [--limit N] [--search text]
@@ -192,7 +194,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 910 tests, no elevation needed
+dotnet test HostsGuard.sln           # 912 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1 -RequireArtifacts
@@ -203,8 +205,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.60-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.60-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.61-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.61-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

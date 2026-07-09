@@ -25,9 +25,18 @@ service Diagnostics {
   rpc GetStatus(Empty) returns (ServiceStatus);
   // Writes a redacted support bundle zip under the service data dir; the
   // resulting path is returned in Ack.message. Never contains tokens/secrets.
-  rpc ExportSupportBundle(Empty) returns (Ack);
+  rpc ExportSupportBundle(SupportBundleRequest) returns (Ack);
   // Windows Defender integration: exclusion state + hosts-revert heuristic.
   rpc GetDefenderStatus(Empty) returns (DefenderStatus);
+}
+
+message SupportBundleRequest {
+  string since = 1;     // optional ISO-8601 floor for traffic profile rows
+  string until = 2;     // optional ISO-8601 ceiling for traffic profile rows
+  string process = 3;   // optional app/process substring
+  string action = 4;    // optional event action exact match
+  string protocol = 5;  // optional TCP/UDP exact match for connection rows
+  int32 limit = 6;      // 0 = server default, max 10000 connections / 2000 events
 }
 
 message DefenderStatus {
@@ -941,6 +950,10 @@ service Monitoring {
   rpc DeleteUsageQuotaRule(UsageQuotaRule) returns (Ack);
   rpc ResetUsageQuotaHistory(Empty) returns (Ack);
   rpc ExportUsageQuotaHistory(UsageQuotaHistoryRequest) returns (UsageQuotaHistoryExport);
+  // Metadata-only traffic profiles (NET-176): redacted connection/event rows
+  // plus protocol/port summaries and Wireshark display-filter hints. This is
+  // not PCAP and never includes packet payloads.
+  rpc ExportTrafficProfile(TrafficProfileRequest) returns (TrafficProfileExport);
   rpc SetHistorySettings(HistorySettings) returns (Ack);
 }
 
@@ -1130,6 +1143,25 @@ message UsageQuotaHistoryRequest {
 message UsageQuotaHistoryExport {
   string format = 1;
   string content = 2;
+}
+
+message TrafficProfileRequest {
+  string since = 1;     // optional ISO-8601 floor
+  string until = 2;     // optional ISO-8601 ceiling
+  string process = 3;   // optional app/process substring
+  string action = 4;    // optional event action exact match
+  string protocol = 5;  // optional TCP/UDP exact match for connection rows
+  int32 limit = 6;      // 0 = server default, max 10000 connections / 2000 events
+  string format = 7;    // json | csv
+}
+
+message TrafficProfileExport {
+  string format = 1;
+  string content = 2;
+  int32 connection_count = 3;
+  int32 event_count = 4;
+  bool redacted = 5;
+  string no_payload_guarantee = 6;
 }
 
 message DnsEvent {
