@@ -8,6 +8,11 @@ All notable changes to HostsGuard are documented in this file.
 - Added shared confirmation guardrails to Hosts Activity block, allow, unblock,
   root-block, and temporary-allow commands so feed actions cannot write hosts
   entries without an explicit operator decision.
+- Made bulk hosts-file block/allow operations commit database state only after
+  the hosts-file reconcile succeeds, preserving state consistency when antivirus
+  or another process is holding the hosts file.
+- Logged a bounded domain preview for bulk hosts-file events and preserved the
+  caller source when blocking a root domain from Hosts Activity.
 
 ## [0.12.62] - 2026-07-09
 

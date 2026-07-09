@@ -77,6 +77,67 @@ public sealed class BulkBlockAllowTests : IDisposable
         _state.Hosts.GetBlocked().Should().Contain("ads.example.com"); // still blocked
     }
 
+    [Fact]
+    public async Task BlockMany_keeps_database_unchanged_when_hosts_file_is_held()
+    {
+        using var hold = new FileStream(Path.Combine(_dir, "hosts"), FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var result = await _hosts.BlockMany(Req("locked.example.com"), Ctx);
+
+        result.Ok.Should().BeFalse();
+        result.ErrorCode.Should().Be("hostsguard.error.v1/hosts_locked");
+        _state.Hosts.GetBlocked().Should().NotContain("locked.example.com");
+        _state.Db.GetDomainStatus("locked.example.com").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AllowMany_keeps_database_unchanged_when_hosts_file_is_held()
+    {
+        await _hosts.BlockMany(Req("keep-blocked.example.com"), Ctx);
+        using var hold = new FileStream(Path.Combine(_dir, "hosts"), FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        var result = await _hosts.AllowMany(Req("keep-blocked.example.com"), Ctx);
+
+        result.Ok.Should().BeFalse();
+        result.ErrorCode.Should().Be("hostsguard.error.v1/hosts_locked");
+        _state.Db.GetDomainStatus("keep-blocked.example.com").Should().Be("blocked");
+        _state.Hosts.GetBlocked().Should().Contain("keep-blocked.example.com");
+    }
+
+    [Fact]
+    public async Task BlockMany_preserves_allowlist_wins_during_reconcile()
+    {
+        _state.Db.AddDomain("keep-allowed.example.com", "whitelisted", "manual");
+
+        var result = await _hosts.BlockMany(Req("keep-allowed.example.com", "new-block.example.com"), Ctx);
+
+        result.Ok.Should().BeTrue();
+        _state.Db.GetDomainStatus("keep-allowed.example.com").Should().Be("whitelisted");
+        _state.Hosts.GetBlocked().Should().NotContain("keep-allowed.example.com");
+        _state.Hosts.GetBlocked().Should().Contain("new-block.example.com");
+    }
+
+    [Fact]
+    public async Task BlockMany_logs_a_bounded_domain_preview_for_auditability()
+    {
+        await _hosts.BlockMany(Req("ads.example.com", "track.example.com"), Ctx);
+
+        var ev = _state.Db.GetLog(1).Should().ContainSingle().Subject;
+        ev.Action.Should().Be("block_many");
+        ev.Details.Should().Contain("2 domains");
+        ev.Details.Should().Contain("ads.example.com");
+        ev.Details.Should().Contain("track.example.com");
+    }
+
+    [Fact]
+    public async Task BlockRoot_uses_the_request_source_for_provenance()
+    {
+        await _hosts.BlockRoot(new DomainRequest { Domain = "cdn.example.com", Source = "feed" }, Ctx);
+
+        _state.Db.GetDomains(status: "blocked")
+            .Should().ContainSingle(r => r.Domain == "example.com" && r.Source == "feed");
+    }
+
     public void Dispose()
     {
         _state.Dispose();

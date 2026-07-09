@@ -109,10 +109,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         var root = Domains.GetRoot(d);
+        var source = string.IsNullOrEmpty(request.Source) ? "manual" : request.Source;
         return GuardHostsWrite(() =>
         {
             _state.Hosts.Block(root);
-            _state.Db.AddDomain(root, "blocked", "manual", reason: request.Reason);
+            _state.Db.AddDomain(root, "blocked", source, reason: request.Reason);
             _state.Db.SetCategoryIfEmpty(root, DomainCategories.Lookup(root));
             return Ok($"blocked root {root}");
         });
@@ -131,20 +132,45 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         var source = string.IsNullOrEmpty(request.Source) ? "manual" : request.Source;
+        var currentRows = _state.Db.GetDomains();
+        var currentStatus = currentRows.ToDictionary(r => r.Domain, r => r.Status, StringComparer.Ordinal);
+        var blocked = currentRows
+            .Where(r => string.Equals(r.Status, "blocked", StringComparison.Ordinal))
+            .Select(r => r.Domain)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var d in valid)
+        {
+            if (!currentStatus.TryGetValue(d, out var status)
+                || !string.Equals(status, "whitelisted", StringComparison.Ordinal))
+            {
+                blocked.Add(d);
+            }
+        }
+
+        // ONE hosts-file write for the whole batch. Commit DB state only after
+        // the file write succeeds so a held hosts file cannot create DB/file drift.
+        var write = GuardBulkWrite(() =>
+        {
+            var (added, target) = _state.Hosts.Reconcile(blocked);
+            return new BulkResult { Ok = true, Applied = added, Total = valid.Count, Message = $"blocked {valid.Count} domains (+{added} new)" };
+        });
+        if (!write.Ok)
+        {
+            return Task.FromResult(write);
+        }
+
         _state.Db.AddDomainsBulk(valid.Select(d => (d, "blocked", source)));
         foreach (var d in valid)
         {
             _state.Db.SetCategoryIfEmpty(d, DomainCategories.Lookup(d));
         }
 
-        // ONE hosts-file write for the whole batch via reconcile to the DB set.
-        var blocked = _state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
-        return Task.FromResult(GuardBulkWrite(() =>
-        {
-            var (added, target) = _state.Hosts.Reconcile(blocked);
-            _state.Db.LogEvent("hosts", "block_many", details: $"{valid.Count} domains (+{added} to {target})", reason: request.Reason);
-            return new BulkResult { Ok = true, Applied = added, Total = valid.Count, Message = $"blocked {valid.Count} domains (+{added} new)" };
-        }));
+        _state.Db.LogEvent(
+            "hosts",
+            "block_many",
+            details: BulkDetails(valid, write.Applied, blocked.Count),
+            reason: request.Reason);
+        return Task.FromResult(write);
     }
 
     public override Task<BulkResult> AllowMany(BulkDomainsRequest request, ServerCallContext context)
@@ -166,19 +192,42 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         var source = string.IsNullOrEmpty(request.Source) ? "manual" : request.Source;
+        var validSet = valid.ToHashSet(StringComparer.Ordinal);
+        var blocked = _state.Db.GetDomains(status: "blocked")
+            .Select(r => r.Domain)
+            .Where(d => !validSet.Contains(d))
+            .ToList();
+        var write = GuardBulkWrite(() =>
+        {
+            _state.Hosts.Reconcile(blocked);
+            return new BulkResult { Ok = true, Applied = valid.Count, Total = valid.Count, Message = $"allowed {valid.Count} domains" };
+        });
+        if (!write.Ok)
+        {
+            return Task.FromResult(write);
+        }
+
         foreach (var d in valid)
         {
             _state.Db.AddDomain(d, "whitelisted", source, reason: request.Reason);
         }
 
-        // Reconcile once: the now-whitelisted domains fall out of the blocked set.
-        var blocked = _state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
-        return Task.FromResult(GuardBulkWrite(() =>
+        _state.Db.LogEvent("hosts", "allow_many", details: BulkDetails(valid), reason: request.Reason);
+        return Task.FromResult(write);
+    }
+
+    private static string BulkDetails(IReadOnlyList<string> domains, int added = -1, int target = -1)
+    {
+        var preview = string.Join(", ", domains.Take(10));
+        if (domains.Count > 10)
         {
-            _state.Hosts.Reconcile(blocked);
-            _state.Db.LogEvent("hosts", "allow_many", details: $"{valid.Count} domains", reason: request.Reason);
-            return new BulkResult { Ok = true, Applied = valid.Count, Total = valid.Count, Message = $"allowed {valid.Count} domains" };
-        }));
+            preview += $", and {domains.Count - 10} more";
+        }
+
+        var counts = added >= 0 && target >= 0
+            ? $"{domains.Count} domains (+{added} to {target})"
+            : $"{domains.Count} domains";
+        return preview.Length == 0 ? counts : $"{counts}: {preview}";
     }
 
     /// <summary>Run one bulk hosts-file write, mapping an AV lock to a typed hosts_locked result.</summary>
