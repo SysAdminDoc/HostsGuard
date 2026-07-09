@@ -131,6 +131,44 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Covering_rule_checks_reuse_one_cached_snapshot_across_a_burst()
+    {
+        _state.Consent.SetMode("notify");
+        var app = WriteExe("burst.exe");
+        var before = _fw.ListRulesCalls;
+        var now = DateTime.UtcNow;
+
+        // Three blocked events outside the dedup window each run the
+        // covering-rule check; the COM-expensive enumeration must run once.
+        _state.Consent.OnBlocked(Blocked(app, now));
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(10)));
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(20)));
+
+        (_fw.ListRulesCalls - before).Should().Be(1);
+    }
+
+    [Fact]
+    public void A_fresh_decision_is_visible_to_covering_rule_checks_immediately()
+    {
+        _state.Consent.SetMode("notify");
+        var app = WriteExe("decided.exe");
+        var now = DateTime.UtcNow;
+
+        _state.Consent.OnBlocked(Blocked(app, now)); // primes the rule cache (no rule yet)
+        _state.Consent.PendingCount.Should().Be(1);
+
+        _state.Consent.Decide(new ConnectionDecision { Application = app, Verdict = "allow", Duration = "always" })
+            .Ok.Should().BeTrue();
+
+        // The decision's rule write invalidated the cache, so a follow-up
+        // blocked event inside the TTL sees the new rule and never re-prompts.
+        // (The original id-less pending stays until its timeout — the point is
+        // that no SECOND prompt appears.)
+        _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(10)));
+        _state.Consent.PendingCount.Should().Be(1);
+    }
+
+    [Fact]
     public void Apps_with_a_covering_rule_are_never_reprompted()
     {
         _state.Consent.SetMode("notify");

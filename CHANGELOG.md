@@ -4,6 +4,14 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Freed the native linked-list returned by the Windows DNS cache snapshot API so
+  every resolver-cache view no longer leaks dnsapi-heap memory, and the walk now
+  covers the full list even past the display limit.
+- Cached the firewall rule snapshot used by consent covering-rule checks with a
+  short TTL (invalidated on the broker's own rule writes), replacing a full COM
+  rule enumeration on every blocked-connection event in Notify/Learning mode.
+
 ## [0.12.63] - 2026-07-09
 
 ### Security

@@ -62,6 +62,14 @@ public sealed partial class ConsentBroker : IDisposable
     private readonly System.Threading.Timer _sweepTimer;
     private bool _disposed;
 
+    // Covering-rule cache: the COM rule enumeration is expensive, and Notify/
+    // Learning mode runs HasCoveringRule on EVERY blocked event. A short TTL
+    // collapses event bursts; the broker's own rule writes invalidate eagerly.
+    private static readonly TimeSpan RuleCacheTtl = TimeSpan.FromSeconds(5);
+    private readonly object _ruleCacheGate = new();
+    private IReadOnlyList<FwRule>? _cachedRules;
+    private DateTime _rulesCachedAtUtc = DateTime.MinValue;
+
     private PersistedState _state;
 
     /// <summary>
@@ -546,7 +554,7 @@ public sealed partial class ConsentBroker : IDisposable
             var ports = rule.RemotePort > 0 && protocol is "TCP" or "UDP"
                 ? rule.RemotePort.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 : "Any";
-            if (fw.CreateRule(new FwRule(
+            if (CreateRuleTracked(fw, new FwRule(
                     rule.RuleName,
                     rule.Direction,
                     "Allow",
@@ -618,7 +626,7 @@ public sealed partial class ConsentBroker : IDisposable
 
         foreach (var rule in expired.Where(r => r.RuleName.Length != 0))
         {
-            fw.DeleteRule(rule.RuleName);
+            DeleteRuleTracked(fw, rule.RuleName);
             _db.RemoveFwState(rule.RuleName);
         }
     }
@@ -658,6 +666,50 @@ public sealed partial class ConsentBroker : IDisposable
         }
     }
 
+    /// <summary>Rule snapshot for covering-rule checks: TTL-cached, invalidated on our own writes.</summary>
+    private IReadOnlyList<FwRule> CachedRules(IFirewallEngine fw)
+    {
+        lock (_ruleCacheGate)
+        {
+            if (_cachedRules is not null && DateTime.UtcNow - _rulesCachedAtUtc < RuleCacheTtl)
+            {
+                return _cachedRules;
+            }
+        }
+
+        var rules = fw.ListRules();
+        lock (_ruleCacheGate)
+        {
+            _cachedRules = rules;
+            _rulesCachedAtUtc = DateTime.UtcNow;
+        }
+
+        return rules;
+    }
+
+    private void InvalidateRuleCache()
+    {
+        lock (_ruleCacheGate)
+        {
+            _cachedRules = null;
+            _rulesCachedAtUtc = DateTime.MinValue;
+        }
+    }
+
+    private bool CreateRuleTracked(IFirewallEngine fw, FwRule rule)
+    {
+        var created = fw.CreateRule(rule);
+        InvalidateRuleCache();
+        return created;
+    }
+
+    private bool DeleteRuleTracked(IFirewallEngine fw, string name)
+    {
+        var deleted = fw.DeleteRule(name);
+        InvalidateRuleCache();
+        return deleted;
+    }
+
     private bool HasCoveringRule(string application, string direction, string? serviceKey = null, string? requireAction = null)
     {
         if (_firewall is not { } fw)
@@ -665,7 +717,7 @@ public sealed partial class ConsentBroker : IDisposable
             return false;
         }
 
-        foreach (var r in fw.ListRules())
+        foreach (var r in CachedRules(fw))
         {
             if (r.Source != "hostsguard" || !r.Enabled || r.Direction != direction || r.Program.Length == 0)
             {
@@ -723,7 +775,7 @@ public sealed partial class ConsentBroker : IDisposable
     {
         var name = $"{LearnPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
         if (_firewall is { } fw &&
-            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+            CreateRuleTracked(fw, new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
         {
             _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
             _identity?.Remember(name, blocked.Application);
@@ -764,7 +816,7 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         var name = $"{ChildPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}_{Guid.NewGuid().ToString("N")[..8]}";
-        if (fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+        if (CreateRuleTracked(fw, new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
         {
             _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
             _identity?.Remember(name, blocked.Application);
@@ -852,7 +904,7 @@ public sealed partial class ConsentBroker : IDisposable
     {
         var name = $"{PublisherPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
         if (_firewall is { } fw && !fw.RuleExists(name) &&
-            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+            CreateRuleTracked(fw, new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
         {
             _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
             _identity?.Remember(name, blocked.Application);
@@ -934,7 +986,7 @@ public sealed partial class ConsentBroker : IDisposable
     {
         var name = $"{FolderPrefix}{Path.GetFileNameWithoutExtension(blocked.Application)}_{blocked.Direction}";
         if (_firewall is { } fw && !fw.RuleExists(name) &&
-            fw.CreateRule(new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
+            CreateRuleTracked(fw, new FwRule(name, blocked.Direction, "Allow", true, "Any", "Any", blocked.Application, "hostsguard")))
         {
             _db.UpsertFwState(name, blocked.Direction, "Allow", "Any", "Any", blocked.Application);
             _identity?.Remember(name, blocked.Application);
@@ -961,7 +1013,7 @@ public sealed partial class ConsentBroker : IDisposable
             return;
         }
 
-        if (fw.CreateRule(new FwRule(name, direction, "Allow", true, "Any", "Any", application, "hostsguard")))
+        if (CreateRuleTracked(fw, new FwRule(name, direction, "Allow", true, "Any", "Any", application, "hostsguard")))
         {
             _db.UpsertFwState(name, direction, "Allow", "Any", "Any", application);
             _db.LogEvent(application, "consent_baseline", details: $"{direction}|Any|Any|permanent", reason: "consent",
@@ -992,7 +1044,7 @@ public sealed partial class ConsentBroker : IDisposable
 
             var name = $"{BasePrefix}{Path.GetFileNameWithoutExtension(entry.FileName)}_Out";
             if (fw.RuleExists(name) ||
-                !fw.CreateRule(new FwRule(name, "Out", "Allow", true, "Any", "Any", path, "hostsguard")))
+                !CreateRuleTracked(fw, new FwRule(name, "Out", "Allow", true, "Any", "Any", path, "hostsguard")))
             {
                 continue;
             }
@@ -1113,7 +1165,7 @@ public sealed partial class ConsentBroker : IDisposable
             ? $"{ConsentPrefix}{action}_{stem}_{direction}"
             : $"{OncePrefix}{action}_{stem}_{direction}_{Guid.NewGuid().ToString("N")[..8]}";
 
-        var created = fw.CreateRule(new FwRule(name, direction, action, true, remote, protocol, application, "hostsguard",
+        var created = CreateRuleTracked(fw, new FwRule(name, direction, action, true, remote, protocol, application, "hostsguard",
             RemotePorts: ports, ServiceName: serviceKey));
         if (created)
         {
@@ -1237,7 +1289,7 @@ public sealed partial class ConsentBroker : IDisposable
 
         foreach (var oldName in obsoleteNames)
         {
-            fw.DeleteRule(oldName);
+            DeleteRuleTracked(fw, oldName);
             _db.RemoveFwState(oldName);
         }
 
@@ -1250,7 +1302,7 @@ public sealed partial class ConsentBroker : IDisposable
             }
             else
             {
-                written = fw.CreateRule(new FwRule(
+                written = CreateRuleTracked(fw, new FwRule(
                     ruleName,
                     direction,
                     action,
@@ -1389,7 +1441,7 @@ public sealed partial class ConsentBroker : IDisposable
                 continue;
             }
 
-            if (fw.CreateRule(new FwRule(name, direction, action, true, "Any", "Any", application, "hostsguard")))
+            if (CreateRuleTracked(fw, new FwRule(name, direction, action, true, "Any", "Any", application, "hostsguard")))
             {
                 _db.UpsertFwState(name, direction, action, "Any", "Any", application);
                 _identity?.Remember(name, application);
@@ -1506,7 +1558,7 @@ public sealed partial class ConsentBroker : IDisposable
                 r.Name.StartsWith(OncePrefix, StringComparison.Ordinal) ||
                 r.Name.StartsWith(ChildPrefix, StringComparison.Ordinal)))
             {
-                fw.DeleteRule(rule.Name);
+                DeleteRuleTracked(fw, rule.Name);
                 _db.RemoveFwState(rule.Name);
             }
 
@@ -1533,7 +1585,7 @@ public sealed partial class ConsentBroker : IDisposable
 
         foreach (var name in due)
         {
-            fw.DeleteRule(name);
+            DeleteRuleTracked(fw, name);
             _db.RemoveFwState(name);
             _db.LogEvent(name, "consent_once_reaped", reason: "consent");
         }

@@ -52,6 +52,12 @@ public sealed class DnsConfig : IDnsConfig
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DnsGetCacheDataTable(out IntPtr cacheTable);
 
+    [DllImport("dnsapi.dll", SetLastError = false)]
+    private static extern void DnsFree(IntPtr data, int freeType);
+
+    /// <summary><c>DnsFreeFlat</c> — free a flat dnsapi-heap allocation.</summary>
+    private const int DnsFreeFlat = 0;
+
     [StructLayout(LayoutKind.Sequential)]
     private readonly struct DnsCacheEntryNative
     {
@@ -79,22 +85,33 @@ public sealed class DnsConfig : IDnsConfig
             return Array.Empty<DnsCacheRecord>();
         }
 
+        // Walk the WHOLE list even past the collection cap: every node (and its
+        // dnsapi-heap name string) must be freed or each snapshot leaks natively.
         var entries = new List<DnsCacheRecord>();
         var current = table;
         var walked = 0;
-        while (current != IntPtr.Zero && entries.Count < max && walked++ < 20_000)
+        while (current != IntPtr.Zero && walked++ < 20_000)
         {
             var native = Marshal.PtrToStructure<DnsCacheEntryNative>(current);
-            var name = Marshal.PtrToStringUni(native.Name)?.TrimEnd('.') ?? string.Empty;
-            var type = FormatDnsType(native.Type);
-            if (name.Length != 0 &&
-                (needle.Length == 0 ||
-                 name.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
-                 type.Contains(needle, StringComparison.OrdinalIgnoreCase)))
+            if (entries.Count < max)
             {
-                entries.Add(new DnsCacheRecord(name, type, native.DataLength, native.Flags));
+                var name = Marshal.PtrToStringUni(native.Name)?.TrimEnd('.') ?? string.Empty;
+                var type = FormatDnsType(native.Type);
+                if (name.Length != 0 &&
+                    (needle.Length == 0 ||
+                     name.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                     type.Contains(needle, StringComparison.OrdinalIgnoreCase)))
+                {
+                    entries.Add(new DnsCacheRecord(name, type, native.DataLength, native.Flags));
+                }
             }
 
+            if (native.Name != IntPtr.Zero)
+            {
+                DnsFree(native.Name, DnsFreeFlat);
+            }
+
+            DnsFree(current, DnsFreeFlat);
             current = native.Next;
         }
 

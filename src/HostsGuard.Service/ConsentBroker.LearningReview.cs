@@ -64,7 +64,7 @@ public sealed partial class ConsentBroker
                 continue;
             }
 
-            fw.DeleteRule(learned.Name);
+            DeleteRuleTracked(fw, learned.Name);
             _db.RemoveFwState(learned.Name);
             if (verdict == "discard")
             {
@@ -82,7 +82,7 @@ public sealed partial class ConsentBroker
 
             var name = $"{ConsentPrefix}{ruleAction}_{stem}_{learned.Direction}";
             if (!fw.RuleExists(name) &&
-                fw.CreateRule(learned with { Name = name, Action = ruleAction }))
+                CreateRuleTracked(fw, learned with { Name = name, Action = ruleAction }))
             {
                 _db.UpsertFwState(name, learned.Direction, ruleAction, learned.RemoteAddr, learned.Protocol, learned.Program);
                 _identity?.Remember(name, learned.Program);

@@ -18,7 +18,13 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public List<FwAppPackage> Packages { get; } = new();
 
-    public IReadOnlyList<FwRule> ListRules() => Rules.Values.ToList();
+    public int ListRulesCalls { get; private set; }
+
+    public IReadOnlyList<FwRule> ListRules()
+    {
+        ListRulesCalls++;
+        return Rules.Values.ToList();
+    }
 
     public IReadOnlyList<FwAppPackage> ListPackages() => Packages.ToList();
 
