@@ -142,6 +142,30 @@ static void PrintServiceUnavailable(string detail)
     => Console.Error.WriteLine(
         $"Couldn't reach HostsGuardSvc. Start or restart the service, then retry. Details: {detail}");
 
+static int PrintRpcFailure(Grpc.Core.RpcException ex)
+{
+    if (ex.StatusCode is Grpc.Core.StatusCode.Unavailable or Grpc.Core.StatusCode.DeadlineExceeded
+        or Grpc.Core.StatusCode.Cancelled or Grpc.Core.StatusCode.Unauthenticated)
+    {
+        PrintServiceUnavailable(ex.Status.Detail);
+        return 3;
+    }
+
+    if (ex.StatusCode is Grpc.Core.StatusCode.Unimplemented)
+    {
+        Console.Error.WriteLine("HostsGuardSvc is older than this CLI and does not support this command. "
+            + "Install the matching HostsGuard service or restart HostsGuardSvc after updating, then retry.");
+        return 2;
+    }
+
+    var detail = ex.Status.Detail;
+    Console.Error.WriteLine(detail.Length != 0 && detail != "Exception was thrown by handler."
+        ? $"HostsGuardSvc rejected the command ({ex.StatusCode}): {detail}"
+        : $"HostsGuardSvc hit an internal error while handling this command ({ex.StatusCode}). "
+          + "The service is still running; export a support bundle for details.");
+    return 2;
+}
+
 static async Task<int> StatusAsync()
 {
     var (channel, error) = Connect();
@@ -166,8 +190,7 @@ static async Task<int> StatusAsync()
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -203,8 +226,7 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -246,8 +268,7 @@ static async Task<int> ExplainAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -396,8 +417,7 @@ static async Task<int> ProgramOpAsync(string[] args, bool block)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -455,8 +475,7 @@ static async Task<int> ListPackagesAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -524,8 +543,7 @@ static async Task<int> PackageOpAsync(string[] args, string action)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -571,8 +589,7 @@ static async Task<int> ExportAsync(string path)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -607,8 +624,7 @@ static async Task<int> ExportPolicyAsync(string path)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -672,8 +688,7 @@ static async Task<int> ImportPolicyAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -834,8 +849,7 @@ static async Task<int> EventsAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -940,8 +954,7 @@ static async Task<int> TrafficProfileAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1019,8 +1032,7 @@ static async Task<int> SupportBundleAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1124,8 +1136,7 @@ static async Task<int> UsageAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1157,8 +1168,7 @@ static async Task<int> UsageQuotaAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
         catch (IOException ex)
         {
@@ -1493,8 +1503,7 @@ static async Task<int> DnsCacheAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1525,8 +1534,7 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1704,8 +1712,7 @@ static async Task<int> BlocklistsAsync(string[] args)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1780,8 +1787,7 @@ static async Task<int> ModeAsync(string? requested)
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }
@@ -1915,8 +1921,7 @@ static async Task<int> SafePostureSmokeAsync()
         }
         catch (Grpc.Core.RpcException ex)
         {
-            PrintServiceUnavailable(ex.Status.Detail);
-            return 3;
+            return PrintRpcFailure(ex);
         }
     }
 }

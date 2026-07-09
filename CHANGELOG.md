@@ -14,6 +14,9 @@ All notable changes to HostsGuard are documented in this file.
   reusing the same second-resolution filename.
 - Fixed support-bundle export on fresh databases with an empty event log by
   using the resilient event-ledger row mapper for diagnostic log reads.
+- Improved GUI and CLI service-failure messaging so app/service version
+  mismatches and handler errors are not mislabeled as unreachable service
+  failures.
 
 ## [0.12.61] - 2026-07-09
 

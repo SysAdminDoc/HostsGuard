@@ -36,6 +36,12 @@ public static class ServiceErrors
         {
             if (e is RpcException rpc)
             {
+                if (rpc.StatusCode is StatusCode.Unimplemented)
+                {
+                    return "The HostsGuard service is older than this app and does not support this action. "
+                           + "Reinstall HostsGuard or restart HostsGuardSvc after updating, then try again.";
+                }
+
                 return rpc.Status.Detail.Length != 0 && rpc.Status.Detail != "Exception was thrown by handler."
                     ? $"The HostsGuard service reported an error: {rpc.Status.Detail}"
                     : "The HostsGuard service hit an internal error handling this action. "

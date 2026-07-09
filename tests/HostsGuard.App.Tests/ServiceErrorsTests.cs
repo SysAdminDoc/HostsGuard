@@ -45,6 +45,14 @@ public sealed class ServiceErrorsTests
     }
 
     [Fact]
+    public void Describe_explains_app_service_version_mismatch()
+    {
+        ServiceErrors.Describe(Rpc(StatusCode.Unimplemented, "unknown method"))
+            .Should().Contain("older than this app")
+            .And.Contain("restart HostsGuardSvc");
+    }
+
+    [Fact]
     public void DescribeActionFailure_keeps_the_failed_action_in_the_status_line()
     {
         ServiceErrors.DescribeActionFailure("Block domain", Rpc(StatusCode.Unavailable))
