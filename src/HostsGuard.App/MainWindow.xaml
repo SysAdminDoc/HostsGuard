@@ -1016,10 +1016,10 @@
                                                 <Setter Property="Opacity" Value="0.62" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Severity}" Value="critical">
-                                                <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
+                                                <Setter Property="Background" Value="{DynamicResource Hg.DangerRow}" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Severity}" Value="warning">
-                                                <Setter Property="Background" Value="{DynamicResource Hg.WarnSoft}" />
+                                                <Setter Property="Background" Value="{DynamicResource Hg.WarnRow}" />
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
@@ -1032,7 +1032,21 @@
                                 </DataGrid.RowStyle>
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{svc:Loc Key=Xaml_When_769bb19e}" Binding="{Binding UpdatedText}" Width="118" />
-                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Severity_2de3cb85}" Binding="{Binding Severity}" Width="82" />
+                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Severity_2de3cb85}" Binding="{Binding Severity}" Width="82">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Severity}" Value="warning">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Hg.Yellow}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Severity}" Value="critical">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
                                     <DataGridTextColumn Header="{svc:Loc Key=Xaml_Title_b78a3223}" Binding="{Binding Title}" Width="150" />
                                     <DataGridTextColumn Header="{svc:Loc Key=Xaml_Subject_8d183dbd}" Binding="{Binding Subject}" Width="1.2*" />
                                     <DataGridTextColumn Header="{svc:Loc Key=Xaml_Details_dc3decbb}" Binding="{Binding Details}" Width="1.8*" />
@@ -1090,7 +1104,9 @@
                             <TextBlock Text="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}" />
                         </StackPanel>
                     </TabItem.Header>
-                    <TabControl Margin="0,4,0,0">
+                    <TabControl Margin="0,4,0,0"
+                                Style="{StaticResource Hg.PrimaryTabs}"
+                                ItemContainerStyle="{StaticResource Hg.SecondaryTabItem}">
                         <TabItem Header="{svc:Loc Key=Tab_ManagedDomains, Default=Managed Domains}">
                             <Grid Margin="4" DataContext="{Binding Hosts}">
                                 <Grid.RowDefinitions>

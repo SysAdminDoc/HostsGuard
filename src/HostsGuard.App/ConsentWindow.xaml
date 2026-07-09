@@ -10,25 +10,53 @@
         AutomationProperties.Name="{svc:Loc Key=Xaml_HostsGuard_connection_consent_prompt_370e8956}"
         Background="{DynamicResource Hg.Base}"
         Foreground="{DynamicResource Hg.Text}">
-    <Border BorderBrush="{DynamicResource Hg.S1}" BorderThickness="1"
-            Background="{DynamicResource Hg.Base}">
-        <StackPanel Margin="20,16,20,16">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Connection_blocked_c2c1ee6c}" FontSize="17" FontWeight="SemiBold"
-                           Foreground="{DynamicResource Hg.Red}" />
-                <TextBlock DockPanel.Dock="Right" x:Name="Countdown" HorizontalAlignment="Right"
+    <Border Style="{StaticResource Hg.DialogFrame}">
+        <StackPanel Margin="22,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Style="{StaticResource Hg.DialogIcon}"
+                        Background="{DynamicResource Hg.DangerSoft}"
+                        BorderBrush="{DynamicResource Hg.DangerBorder}">
+                    <Viewbox Stretch="Uniform">
+                        <Path Data="M 12 2 L 22 21 H 2 Z M 12 8 V 13 M 12 17 H 12"
+                              Stroke="{DynamicResource Hg.Red}"
+                              Fill="Transparent"
+                              StrokeThickness="2"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </Viewbox>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{svc:Loc Key=Xaml_Connection_blocked_c2c1ee6c}"
+                               Style="{StaticResource Hg.DialogTitle}"
+                               Foreground="{DynamicResource Hg.Red}" />
+                    <TextBlock Text="{svc:Loc Key=Xaml_Review_the_process_destination_and_rule_625c4e34}"
+                               Style="{StaticResource Hg.HelperText}"
+                               Margin="0,3,0,0" />
+                </StackPanel>
+                <TextBlock Grid.Column="2"
+                           x:Name="Countdown"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Top"
                            Foreground="{DynamicResource Hg.Dim}"
                            AutomationProperties.LiveSetting="Polite" />
-            </DockPanel>
-            <TextBlock Text="{svc:Loc Key=Xaml_Review_the_process_destination_and_rule_625c4e34}"
-                       Style="{StaticResource Hg.HelperText}" Margin="0,4,0,0" />
+            </Grid>
 
-            <Border x:Name="ThreatBanner" Visibility="Collapsed" Margin="0,10,0,0" Padding="8,5"
-                    Background="{DynamicResource Hg.Danger2}" CornerRadius="4"
+            <Border x:Name="ThreatBanner" Visibility="Collapsed" Margin="0,12,0,0" Padding="10,7"
+                    Background="{DynamicResource Hg.DangerSoft}"
+                    BorderBrush="{DynamicResource Hg.DangerBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6"
                     AutomationProperties.LiveSetting="Assertive">
                 <TextBlock Text="{svc:Loc Key=Xaml_âš_This_remote_address_is_on_7025ed5c}"
                            AutomationProperties.Name="{svc:Loc Key=Xaml_Warning_this_remote_address_is_on_2674dcd5}"
-                           Foreground="{DynamicResource Hg.OnDanger}" FontWeight="SemiBold" />
+                           Foreground="{DynamicResource Hg.Red}" FontWeight="SemiBold" />
             </Border>
 
             <DockPanel Margin="0,10,0,2" LastChildFill="False">
@@ -36,7 +64,7 @@
                 <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center">
                     <Hyperlink x:Name="LookupLink" Click="OnLookup"
                                AutomationProperties.Name="{svc:Loc Key=Xaml_Look_up_this_process_reputation_online_e5312c55}"
-                               Foreground="{DynamicResource Hg.Mauve}">
+                               Foreground="{DynamicResource Hg.Blue}">
                         <Run Text="{svc:Loc Key=Xaml_Look_up_reputation_51bc5c1e}" />
                     </Hyperlink>
                 </TextBlock>

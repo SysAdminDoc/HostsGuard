@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using HostsGuard.Contracts;
 
 namespace HostsGuard.App.Services;
 
@@ -98,6 +99,9 @@ internal static class VisualSmokeRunner
             result.Failures.Add($"Only {tabs.Items.Count} tabs rendered; expected {TabNames.Length}.");
         }
 
+        await CaptureDialogsAsync(window, outputDir, theme, settleMs, result, cancellationToken)
+            .ConfigureAwait(true);
+
         WriteResult(outputDir, result);
         return result.Failures.Count == 0 ? 0 : 2;
     }
@@ -123,6 +127,73 @@ internal static class VisualSmokeRunner
     {
         return (int)Math.Round(window.ActualWidth) == expectedWidth
             && (int)Math.Round(window.ActualHeight) == expectedHeight;
+    }
+
+    private static async Task CaptureDialogsAsync(
+        Window owner,
+        string outputDir,
+        string theme,
+        int settleMs,
+        VisualSmokeResult result,
+        CancellationToken cancellationToken)
+    {
+        var dialogs = new (string Name, Window Window)[]
+        {
+            ("Confirmation", new ConfirmDialog(
+                "Block all outbound traffic?",
+                "New outbound connections will be blocked until you restore the safe network posture.")),
+            ("Input", new InputDialog(
+                "Assign rule group",
+                "Enter a group name for the selected firewall rules.",
+                "Browsers")),
+            ("Connection consent", new ConsentWindow(new ConnectionDecisionRequest
+            {
+                Id = "visual-smoke",
+                Application = @"C:\Program Files\Browser\browser.exe",
+                Direction = "Out",
+                RemoteAddress = "203.0.113.9",
+                RemotePort = 443,
+                Protocol = "TCP",
+                ProcessId = 4711,
+                Signer = "Verified Software Publisher",
+                Country = "United States",
+            })),
+        };
+
+        foreach (var (name, dialog) in dialogs)
+        {
+            try
+            {
+                dialog.Owner = owner;
+                dialog.WindowStartupLocation = WindowStartupLocation.Manual;
+                dialog.Left = -32000;
+                dialog.Top = -32000;
+                dialog.ShowActivated = false;
+                dialog.ShowInTaskbar = false;
+                dialog.Topmost = false;
+                dialog.Show();
+                await WaitForLayoutAsync(dialog, Math.Min(settleMs, 250), cancellationToken)
+                    .ConfigureAwait(true);
+
+                var fileName = $"{theme}-dialog-{Slug(name)}.png";
+                var path = Path.Combine(outputDir, fileName);
+                _ = Capture(dialog, path, 0, Math.Min(90, (int)dialog.ActualHeight));
+                result.DialogCaptures.Add(new VisualSmokeDialogCapture
+                {
+                    Dialog = name,
+                    Path = path,
+                    ActualSize = $"{Math.Round(dialog.ActualWidth)}x{Math.Round(dialog.ActualHeight)}",
+                });
+            }
+            catch (Exception ex)
+            {
+                result.Failures.Add($"Could not render the {name} dialog: {ex.Message}");
+            }
+            finally
+            {
+                dialog.Close();
+            }
+        }
     }
 
     private static IEnumerable<string> FindUnexpectedHorizontalScrollbars(Window window, string tabName)
@@ -256,6 +327,8 @@ internal static class VisualSmokeRunner
 
         public List<VisualSmokeCapture> Captures { get; } = [];
 
+        public List<VisualSmokeDialogCapture> DialogCaptures { get; } = [];
+
         public List<string> Failures { get; init; } = [];
     }
 
@@ -266,5 +339,14 @@ internal static class VisualSmokeRunner
         public string Path { get; init; } = "";
 
         public double ChromeLuminance { get; init; }
+    }
+
+    private sealed class VisualSmokeDialogCapture
+    {
+        public string Dialog { get; init; } = "";
+
+        public string Path { get; init; } = "";
+
+        public string ActualSize { get; init; } = "";
     }
 }

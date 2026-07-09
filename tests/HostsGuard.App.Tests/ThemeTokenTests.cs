@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Markup;
+using System.Xml.Linq;
 using FluentAssertions;
 using Xunit;
 
@@ -98,5 +99,22 @@ public sealed class ThemeTokenTests
     {
         var styles = LoadDictionary(Path.Combine("Themes", "Styles.xaml"));
         styles.Keys.Cast<object>().Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Keyboard_focus_does_not_replace_semantic_button_backgrounds()
+    {
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var document = XDocument.Load(Path.Combine(AppDir, "Themes", "Styles.xaml"));
+        var buttonStyle = document.Descendants(presentation + "Style")
+            .Single(element => (string?)element.Attribute("TargetType") == "Button"
+                && element.Attribute(xaml + "Key") is null);
+
+        buttonStyle.Descendants(presentation + "Trigger")
+            .Where(trigger => (string?)trigger.Attribute("Property") == "IsKeyboardFocused")
+            .SelectMany(trigger => trigger.Elements(presentation + "Setter"))
+            .Should().NotContain(setter => (string?)setter.Attribute("Property") == "Background",
+                "the template focus ring already exposes focus and allow/block actions must retain their meaning");
     }
 }

@@ -168,6 +168,33 @@
         <Setter Property="Margin" Value="0,3,0,0" />
     </Style>
 
+    <Style x:Key="Hg.DialogFrame" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Hg.Panel}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="Hg.DialogIcon" TargetType="Border">
+        <Setter Property="Width" Value="42" />
+        <Setter Property="Height" Value="42" />
+        <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+
+    <Style x:Key="Hg.DialogTitle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style x:Key="Hg.MetricTile" TargetType="Border" BasedOn="{StaticResource Hg.RailTile}">
         <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
@@ -377,6 +404,59 @@
         </Setter>
     </Style>
 
+    <Style x:Key="Hg.SecondaryTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid Margin="0,0,6,0">
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="6"
+                                Margin="0,2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12,8,12,9">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <Rectangle x:Name="ActiveIndicator"
+                                   Height="2"
+                                   Margin="10,0"
+                                   VerticalAlignment="Bottom"
+                                   Fill="{DynamicResource Hg.Teal}"
+                                   Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Command}" />
+                            <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="False" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Command}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="Hg.RailGlyphPath" TargetType="Path" BasedOn="{StaticResource Hg.MainTabIconPath}">
         <Setter Property="Width" Value="15" />
         <Setter Property="Height" Value="15" />
@@ -443,9 +523,6 @@
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource Hg.S1}" />
-            </Trigger>
-            <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.S1}" />
             </Trigger>
         </Style.Triggers>

@@ -10,10 +10,8 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         AutomationProperties.Name="{svc:Loc Key=Xaml_HostsGuard_input_cfced166}">
-    <Border BorderBrush="{DynamicResource Hg.S1}"
-            BorderThickness="1"
-            Background="{DynamicResource Hg.Base}">
-        <Grid Margin="20">
+    <Border Style="{StaticResource Hg.DialogFrame}">
+        <Grid Margin="22">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -24,16 +22,21 @@
 
             <DockPanel Grid.Row="0">
                 <Border DockPanel.Dock="Left"
-                        Width="6"
-                        Height="28"
-                        CornerRadius="4"
-                        Background="{DynamicResource Hg.Mauve}"
-                        Margin="0,0,10,0" />
+                        Style="{StaticResource Hg.DialogIcon}"
+                        Background="{DynamicResource Hg.SafeSoft}"
+                        BorderBrush="{DynamicResource Hg.SafeBorder}">
+                    <Viewbox Stretch="Uniform">
+                        <Path Data="M 4 20 L 8 19 L 20 7 L 17 4 L 5 16 Z M 14.5 6.5 L 17.5 9.5 M 4 20 H 20"
+                              Stroke="{DynamicResource Hg.Teal}"
+                              Fill="Transparent"
+                              StrokeThickness="2"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </Viewbox>
+                </Border>
                 <TextBlock x:Name="TitleText"
-                           FontSize="17"
-                           FontWeight="SemiBold"
-                           TextWrapping="Wrap"
-                           VerticalAlignment="Center" />
+                           Style="{StaticResource Hg.DialogTitle}" />
             </DockPanel>
 
             <TextBlock Grid.Row="1"
