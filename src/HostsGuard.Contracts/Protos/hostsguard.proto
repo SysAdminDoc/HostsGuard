@@ -756,18 +756,20 @@ message DohBlockRequest {
 
 service DnsControl {
   rpc FlushCache(Empty) returns (Ack);
-  rpc SetResolver(ResolverRequest) returns (Ack);
-  rpc Inspect(DomainRequest) returns (DnsInspectResult);
+  rpc FlushCacheEntry(DnsCacheEntryRequest) returns (Ack);
   // DoH resolver intelligence (doh_resolvers.json): status + gated refresh.
   rpc GetDohStatus(Empty) returns (DohStatus);
+  rpc Inspect(DomainRequest) returns (DnsInspectResult);
+  rpc ListCache(DnsCacheRequest) returns (DnsCacheList);
   rpc RefreshDohIntelligence(DohRefreshRequest) returns (Ack);
-  // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
-  // blocked tracker (uses the ETW resolution chain; opt-in).
-  rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
   // Reverse-resolve remote IPs the forward-DNS cache didn't cover (PTR), and
   // persist every result so future connections to the same IP show the host
   // automatically. Returns the resolved (address, host) pairs.
   rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult);
+  // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
+  // blocked tracker (uses the ETW resolution chain; opt-in).
+  rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
+  rpc SetResolver(ResolverRequest) returns (Ack);
   // TLS SNI capture (NET-109): recover hostnames for HTTPS connections resolved
   // over DoH by reading the ClientHello SNI (driver-free raw socket). Opt-in;
   // ECH-encrypted SNI is noted as unavailable.
@@ -780,6 +782,28 @@ message SniCaptureRequest {
 
 message CnameCloakRequest {
   bool enabled = 1;
+}
+
+message DnsCacheRequest {
+  int32 limit = 1;     // 0 = server default (500), max 2000
+  string search = 2;   // substring match on cached name or DNS type
+}
+
+message DnsCacheEntryRequest {
+  string name = 1;     // exact cache entry name to flush
+}
+
+message DnsCacheEntry {
+  string name = 1;
+  string type = 2;     // A / AAAA / CNAME / PTR / numeric fallback
+  int32 data_length = 3;
+  uint32 flags = 4;
+}
+
+message DnsCacheList {
+  repeated DnsCacheEntry entries = 1;
+  bool available = 2;
+  string message = 3;
 }
 
 message ResolveHostsRequest {

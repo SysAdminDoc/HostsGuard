@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.44] - 2026-07-08
+
+### Added
+- Added a Windows DNS resolver-cache viewer and targeted cache-entry flush. The
+  service now lists `DnsGetCacheDataTable` rows, exposes `DnsControl.ListCache`
+  and `FlushCacheEntry`, adds the Tools-tab cache table, and provides
+  `HostsGuard.Cli dns-cache` / `dns-flush-entry`.
+
 ## [0.12.43] - 2026-07-08
 
 ### Added

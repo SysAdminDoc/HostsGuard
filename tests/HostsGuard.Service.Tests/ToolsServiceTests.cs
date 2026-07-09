@@ -15,12 +15,33 @@ internal sealed class FakeDnsConfig : IDnsConfig
 {
     public int Flushes { get; private set; }
 
+    public List<string> EntryFlushes { get; } = new();
+
+    public List<DnsCacheRecord> CacheEntries { get; } = new();
+
     public List<IReadOnlyList<string>> ResolverSets { get; } = new();
 
     public bool FlushCache()
     {
         Flushes++;
         return true;
+    }
+
+    public bool FlushCacheEntry(string name)
+    {
+        EntryFlushes.Add(name);
+        return true;
+    }
+
+    public IReadOnlyList<DnsCacheRecord> GetCacheEntries(int limit, string? search)
+    {
+        var needle = (search ?? string.Empty).Trim();
+        return CacheEntries
+            .Where(e => needle.Length == 0 ||
+                        e.Name.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                        e.Type.Contains(needle, StringComparison.OrdinalIgnoreCase))
+            .Take(limit)
+            .ToList();
     }
 
     public IReadOnlyList<string> SetResolvers(IReadOnlyList<string> servers)
@@ -90,6 +111,43 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         var bad = new ResolverRequest();
         bad.Servers.Add("dns.example.com");
         (await dns.SetResolverAsync(bad)).ErrorCode.Should().Be("hostsguard.error.v1/invalid_resolver");
+    }
+
+    [Fact]
+    public async Task Dns_cache_listing_and_targeted_flush_round_trip()
+    {
+        _dns.CacheEntries.Add(new DnsCacheRecord("ads.example.com", "A", 4, 8));
+        _dns.CacheEntries.Add(new DnsCacheRecord("cdn.example.net", "AAAA", 16, 0));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var dns = new DnsControl.DnsControlClient(channel);
+
+        var list = await dns.ListCacheAsync(new DnsCacheRequest { Limit = 10, Search = "ads" });
+
+        list.Available.Should().BeTrue();
+        list.Entries.Should().ContainSingle();
+        list.Entries[0].Name.Should().Be("ads.example.com");
+        list.Entries[0].Type.Should().Be("A");
+        list.Entries[0].DataLength.Should().Be(4);
+        list.Entries[0].Flags.Should().Be(8);
+
+        var ack = await dns.FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = "ADS.EXAMPLE.COM." });
+
+        ack.Ok.Should().BeTrue();
+        _dns.EntryFlushes.Should().Equal("ads.example.com");
+        _state.Db.GetLog().Should().Contain(e => e.Domain == "ads.example.com" && e.Action == "cache_entry_flush");
+    }
+
+    [Fact]
+    public async Task Dns_cache_entry_flush_rejects_invalid_names()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var dns = new DnsControl.DnsControlClient(channel);
+
+        var ack = await dns.FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = "bad name" });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_cache_entry");
+        _dns.EntryFlushes.Should().BeEmpty();
     }
 
     [Fact]

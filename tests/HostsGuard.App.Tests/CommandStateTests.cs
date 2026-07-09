@@ -58,16 +58,19 @@ public sealed class CommandStateTests
         vm.SwitchProfileCommand.CanExecute(null).Should().BeFalse();
         vm.DeleteProfileCommand.CanExecute(null).Should().BeFalse();
         vm.RestoreBackupCommand.CanExecute(null).Should().BeFalse();
+        vm.FlushDnsCacheEntryCommand.CanExecute(null).Should().BeFalse();
 
         vm.InspectDomain = "example.com";
         vm.NewProfileName = "Home";
         vm.SelectedProfile = "Home";
         vm.SelectedBackup = new BackupRowViewModel { FileName = "hosts.bak", Created = "now" };
+        vm.SelectedDnsCacheEntry = new DnsCacheEntryViewModel { Name = "ads.example.com", Type = "A" };
 
         vm.InspectCommand.CanExecute(null).Should().BeTrue();
         vm.SaveProfileCommand.CanExecute(null).Should().BeTrue();
         vm.SwitchProfileCommand.CanExecute(null).Should().BeTrue();
         vm.DeleteProfileCommand.CanExecute(null).Should().BeTrue();
         vm.RestoreBackupCommand.CanExecute(null).Should().BeTrue();
+        vm.FlushDnsCacheEntryCommand.CanExecute(null).Should().BeTrue();
     }
 }

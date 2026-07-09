@@ -37,8 +37,10 @@ public class SchemaLockTests
           GetStatus(Empty) returns (ServiceStatus)
         service DnsControl
           FlushCache(Empty) returns (Ack)
+          FlushCacheEntry(DnsCacheEntryRequest) returns (Ack)
           GetDohStatus(Empty) returns (DohStatus)
           Inspect(DomainRequest) returns (DnsInspectResult)
+          ListCache(DnsCacheRequest) returns (DnsCacheList)
           RefreshDohIntelligence(DohRefreshRequest) returns (Ack)
           ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult)
           SetCnameCloak(CnameCloakRequest) returns (Ack)

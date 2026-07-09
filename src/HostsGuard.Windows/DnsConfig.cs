@@ -7,11 +7,20 @@ using Microsoft.Win32;
 
 namespace HostsGuard.Windows;
 
+/// <summary>One row from the Windows DNS client resolver cache.</summary>
+public sealed record DnsCacheRecord(string Name, string Type, int DataLength, uint Flags);
+
 /// <summary>DNS cache flush + resolver switching, interface-first for testability.</summary>
 public interface IDnsConfig
 {
     /// <summary>Flush the Windows DNS client cache. Returns false if the API refused.</summary>
     bool FlushCache();
+
+    /// <summary>Flush one Windows DNS client cache entry by name.</summary>
+    bool FlushCacheEntry(string name);
+
+    /// <summary>Snapshot the Windows DNS client resolver cache.</summary>
+    IReadOnlyList<DnsCacheRecord> GetCacheEntries(int limit, string? search);
 
     /// <summary>
     /// Set static DNS servers on all connected physical adapters (registry
@@ -35,7 +44,81 @@ public sealed class DnsConfig : IDnsConfig
     [DllImport("dnsapi.dll", SetLastError = false)]
     private static extern uint DnsFlushResolverCache();
 
+    [DllImport("dnsapi.dll", EntryPoint = "DnsFlushResolverCacheEntry_W", CharSet = CharSet.Unicode, SetLastError = false)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DnsFlushResolverCacheEntry(string name);
+
+    [DllImport("dnsapi.dll", EntryPoint = "DnsGetCacheDataTable", SetLastError = false)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DnsGetCacheDataTable(out IntPtr cacheTable);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct DnsCacheEntryNative
+    {
+        public readonly IntPtr Next;
+        public readonly IntPtr Name;
+        public readonly ushort Type;
+        public readonly ushort DataLength;
+        public readonly uint Flags;
+    }
+
     public bool FlushCache() => DnsFlushResolverCache() != 0;
+
+    public bool FlushCacheEntry(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return DnsFlushResolverCacheEntry(name);
+    }
+
+    public IReadOnlyList<DnsCacheRecord> GetCacheEntries(int limit, string? search)
+    {
+        var max = limit <= 0 ? 500 : Math.Clamp(limit, 1, 5_000);
+        var needle = (search ?? string.Empty).Trim();
+        if (!DnsGetCacheDataTable(out var table) || table == IntPtr.Zero)
+        {
+            return Array.Empty<DnsCacheRecord>();
+        }
+
+        var entries = new List<DnsCacheRecord>();
+        var current = table;
+        var walked = 0;
+        while (current != IntPtr.Zero && entries.Count < max && walked++ < 20_000)
+        {
+            var native = Marshal.PtrToStructure<DnsCacheEntryNative>(current);
+            var name = Marshal.PtrToStringUni(native.Name)?.TrimEnd('.') ?? string.Empty;
+            var type = FormatDnsType(native.Type);
+            if (name.Length != 0 &&
+                (needle.Length == 0 ||
+                 name.Contains(needle, StringComparison.OrdinalIgnoreCase) ||
+                 type.Contains(needle, StringComparison.OrdinalIgnoreCase)))
+            {
+                entries.Add(new DnsCacheRecord(name, type, native.DataLength, native.Flags));
+            }
+
+            current = native.Next;
+        }
+
+        return entries;
+    }
+
+    private static string FormatDnsType(ushort type) => type switch
+    {
+        1 => "A",
+        2 => "NS",
+        5 => "CNAME",
+        6 => "SOA",
+        12 => "PTR",
+        15 => "MX",
+        16 => "TXT",
+        28 => "AAAA",
+        33 => "SRV",
+        43 => "DS",
+        48 => "DNSKEY",
+        52 => "TLSA",
+        64 => "SVCB",
+        65 => "HTTPS",
+        _ => type.ToString(System.Globalization.CultureInfo.InvariantCulture),
+    };
 
     public IReadOnlyList<string> SetResolvers(IReadOnlyList<string> servers)
     {

@@ -443,6 +443,24 @@
   <data name="Xaml_Enter_a_domain_to_resolve_and_bdf20a48" xml:space="preserve"><value>Enter a domain to resolve and check</value></data>
   <data name="Xaml_Domain_to_inspect_ea69d8b4" xml:space="preserve"><value>Domain to inspect</value></data>
   <data name="Xaml_Domain_to_resolve_and_check_block_be2f0bc0" xml:space="preserve"><value>Domain to resolve and check block state</value></data>
+  <data name="DnsCache_Title" xml:space="preserve"><value>Windows resolver cache</value></data>
+  <data name="DnsCache_Help" xml:space="preserve"><value>List cached names from the Windows DNS Client and flush only the selected entry when a newly blocked host still resolves.</value></data>
+  <data name="DnsCache_Load" xml:space="preserve"><value>Load cache</value></data>
+  <data name="DnsCache_LoadName" xml:space="preserve"><value>Load Windows DNS resolver cache</value></data>
+  <data name="DnsCache_LoadTip" xml:space="preserve"><value>Read cached DNS names from the Windows DNS Client service.</value></data>
+  <data name="DnsCache_FlushSelected" xml:space="preserve"><value>Flush selected</value></data>
+  <data name="DnsCache_FlushSelectedName" xml:space="preserve"><value>Flush selected DNS cache entry</value></data>
+  <data name="DnsCache_FlushSelectedTip" xml:space="preserve"><value>Remove only the selected cached DNS name instead of flushing the whole cache.</value></data>
+  <data name="DnsCache_SearchHint" xml:space="preserve"><value>Search cached name or type</value></data>
+  <data name="DnsCache_SearchName" xml:space="preserve"><value>DNS cache search</value></data>
+  <data name="DnsCache_SearchTip" xml:space="preserve"><value>Filter cached entries by name or record type.</value></data>
+  <data name="DnsCache_LimitName" xml:space="preserve"><value>DNS cache row limit</value></data>
+  <data name="DnsCache_LimitTip" xml:space="preserve"><value>Maximum number of cache rows to display, clamped from 1 to 2000.</value></data>
+  <data name="DnsCache_TableName" xml:space="preserve"><value>Windows DNS resolver cache entries</value></data>
+  <data name="DnsCache_ColumnName" xml:space="preserve"><value>Name</value></data>
+  <data name="DnsCache_ColumnType" xml:space="preserve"><value>Type</value></data>
+  <data name="DnsCache_ColumnDataLength" xml:space="preserve"><value>Data</value></data>
+  <data name="DnsCache_ColumnFlags" xml:space="preserve"><value>Flags</value></data>
   <data name="Xaml_Close_DNS_bypass_b36af939" xml:space="preserve"><value>Close DNS bypass</value></data>
   <data name="Xaml_Browsers_using_their_own_Secure_DNS_97632c3b" xml:space="preserve"><value>Browsers using their own Secure DNS (DoH) resolve ad/tracker domains past the OS resolver, so they never appear in the feed and the hosts file cannot block them. Turn this on to force browser DNS back onto the OS resolver - then everything shows up and is blockable.</value></data>
   <data name="Xaml_See_everything_â_force_browser_DNS_11a79a3d" xml:space="preserve"><value>See everything - force browser DNS to the OS resolver</value></data>

@@ -67,6 +67,38 @@ public sealed partial class BackupRowViewModel : ObservableObject
     public string Label => $"{FileName} — {Created} ({SizeBytes / 1024.0:0.#} KB)";
 }
 
+/// <summary>Row VM for one Windows DNS resolver-cache entry.</summary>
+public sealed partial class DnsCacheEntryViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private string _type = string.Empty;
+
+    [ObservableProperty]
+    private int _dataLength;
+
+    [ObservableProperty]
+    private uint _flags;
+
+    public string DataLengthText => DataLength == 0
+        ? "-"
+        : $"{DataLength} B";
+
+    public string FlagsText => Flags == 0
+        ? "0"
+        : "0x" + Flags.ToString("X8", System.Globalization.CultureInfo.InvariantCulture);
+
+    public static DnsCacheEntryViewModel From(DnsCacheEntry entry) => new()
+    {
+        Name = entry.Name,
+        Type = entry.Type,
+        DataLength = entry.DataLength,
+        Flags = entry.Flags,
+    };
+}
+
 /// <summary>Row VM for the AI-knowledge review panel (NET-107).</summary>
 public sealed partial class KnowledgeEntryViewModel : ObservableObject
 {

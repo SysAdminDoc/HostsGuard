@@ -29,6 +29,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
     "usage" => await UsageAsync(args),
+    "dns-cache" => await DnsCacheAsync(args),
+    "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "blocklists" => await BlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "safe-posture" => await SafePostureAsync(),
@@ -67,6 +69,8 @@ static int Usage()
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
           HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
+          HostsGuard.Cli dns-cache [--limit N] [--search text]
+          HostsGuard.Cli dns-flush-entry <cached-name>
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
@@ -735,6 +739,101 @@ static async Task<int> UsageAsync(string[] args)
             }
 
             return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static async Task<int> DnsCacheAsync(string[] args)
+{
+    var request = new DnsCacheRequest { Limit = 500 };
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--limit", out var value))
+        {
+            if (!int.TryParse(value, out var limit))
+            {
+                Console.Error.WriteLine("Invalid --limit value.");
+                return 1;
+            }
+
+            request.Limit = limit;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--search", out value))
+        {
+            request.Search = value;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown dns-cache option: {arg}");
+        return 1;
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var list = await new DnsControl.DnsControlClient(channel).ListCacheAsync(request);
+            if (!list.Available)
+            {
+                Console.Error.WriteLine(list.Message);
+                return 2;
+            }
+
+            Console.WriteLine($"dns-cache: {list.Entries.Count} rows");
+            Console.WriteLine("name\ttype\tdata\tflags");
+            foreach (var e in list.Entries)
+            {
+                Console.WriteLine($"{e.Name}\t{e.Type}\t{e.DataLength}\t0x{e.Flags:X8}");
+            }
+
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static async Task<int> DnsFlushEntryAsync(string[] args)
+{
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Missing cached DNS name.");
+        return Usage();
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var ack = await new DnsControl.DnsControlClient(channel)
+                .FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = args[1] });
+            Console.WriteLine(ack.Message);
+            return ack.Ok ? 0 : 2;
         }
         catch (Grpc.Core.RpcException ex)
         {

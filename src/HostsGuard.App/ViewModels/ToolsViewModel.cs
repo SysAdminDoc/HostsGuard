@@ -64,6 +64,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<BlockableServiceViewModel> Services { get; } = new();
 
+    public ObservableCollection<DnsCacheEntryViewModel> DnsCacheEntries { get; } = new();
+
     public ObservableCollection<LanAttackSurfaceToggleViewModel> LanAttackSurface { get; } = new();
 
     public ObservableCollection<AppVpnBindingRowViewModel> AppVpnBindings { get; } = new();
@@ -81,6 +83,67 @@ public sealed partial class ToolsViewModel : ObservableObject
     }
 
     // ─── Settings lock (NET-079) ─────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string _dnsCacheSearch = string.Empty;
+
+    [ObservableProperty]
+    private int _dnsCacheLimit = 500;
+
+    [ObservableProperty]
+    private string _dnsCacheStatusText = "Load DNS cache entries to verify what Windows is still resolving locally.";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(FlushDnsCacheEntryCommand))]
+    private DnsCacheEntryViewModel? _selectedDnsCacheEntry;
+
+    [RelayCommand]
+    public async Task LoadDnsCacheAsync()
+    {
+        await RunServiceActionAsync("Load DNS cache", s => DnsCacheStatusText = s, LoadDnsCacheCoreAsync);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanFlushDnsCacheEntry))]
+    public async Task FlushDnsCacheEntryAsync()
+    {
+        if (SelectedDnsCacheEntry is not { } row)
+        {
+            DnsCacheStatusText = "Select a cached DNS entry first.";
+            return;
+        }
+
+        await RunServiceActionAsync("Flush DNS cache entry", s => DnsCacheStatusText = s, async () =>
+        {
+            var ack = await _client.Dns.FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = row.Name });
+            StatusText = ack.Message;
+            DnsCacheStatusText = ack.Message;
+            if (ack.Ok)
+            {
+                await LoadDnsCacheCoreAsync();
+            }
+        });
+    }
+
+    private bool CanFlushDnsCacheEntry() => SelectedDnsCacheEntry is not null;
+
+    private async Task LoadDnsCacheCoreAsync()
+    {
+        DnsCacheLimit = Math.Clamp(DnsCacheLimit, 1, 2_000);
+        var list = await _client.Dns.ListCacheAsync(new DnsCacheRequest
+        {
+            Limit = DnsCacheLimit,
+            Search = DnsCacheSearch.Trim(),
+        });
+
+        DnsCacheEntries.Clear();
+        foreach (var entry in list.Entries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            DnsCacheEntries.Add(DnsCacheEntryViewModel.From(entry));
+        }
+
+        SelectedDnsCacheEntry = DnsCacheEntries.FirstOrDefault();
+        DnsCacheStatusText = list.Message;
+    }
 
     [RelayCommand]
     public async Task LoadLockStateAsync()

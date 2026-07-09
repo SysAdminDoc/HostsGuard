@@ -12,6 +12,9 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 {
+    private const int DefaultDnsCacheLimit = 500;
+    private const int MaxDnsCacheLimit = 2_000;
+
     private readonly ServiceState _state;
 
     public DnsControlServiceImpl(ServiceState state) => _state = state;
@@ -26,6 +29,72 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         return Task.FromResult(dns.FlushCache()
             ? Ok("DNS cache flushed")
             : Error("flush_failed", "DnsFlushResolverCache refused"));
+    }
+
+    public override Task<Ack> FlushCacheEntry(DnsCacheEntryRequest request, ServerCallContext context)
+    {
+        if (_state.Dns is not { } dns)
+        {
+            return Task.FromResult(Error("dns_unavailable", "DNS engine is not attached to this service instance"));
+        }
+
+        var name = NormalizeCacheEntryName(request.Name);
+        if (!IsValidCacheEntryName(name))
+        {
+            return Task.FromResult(Error("invalid_cache_entry", "DNS cache entry name is empty or invalid"));
+        }
+
+        try
+        {
+            if (!dns.FlushCacheEntry(name))
+            {
+                return Task.FromResult(Error("cache_entry_flush_failed", $"DNS cache entry was not flushed: {name}"));
+            }
+        }
+        catch (Exception ex) when (IsDnsCacheApiException(ex))
+        {
+            return Task.FromResult(Error("dns_cache_unavailable", $"Targeted DNS cache flush is unavailable: {ex.GetType().Name}"));
+        }
+
+        _state.Db.LogEvent(name, "cache_entry_flush", process: "dns", details: "targeted resolver-cache flush");
+        return Task.FromResult(Ok($"DNS cache entry flushed: {name}"));
+    }
+
+    public override Task<DnsCacheList> ListCache(DnsCacheRequest request, ServerCallContext context)
+    {
+        var result = new DnsCacheList();
+        if (_state.Dns is not { } dns)
+        {
+            result.Available = false;
+            result.Message = "DNS engine is not attached to this service instance";
+            return Task.FromResult(result);
+        }
+
+        var limit = request.Limit <= 0 ? DefaultDnsCacheLimit : Math.Clamp(request.Limit, 1, MaxDnsCacheLimit);
+        var search = (request.Search ?? string.Empty).Trim();
+        try
+        {
+            foreach (var row in dns.GetCacheEntries(limit, search))
+            {
+                result.Entries.Add(new DnsCacheEntry
+                {
+                    Name = row.Name,
+                    Type = row.Type,
+                    DataLength = row.DataLength,
+                    Flags = row.Flags,
+                });
+            }
+
+            result.Available = true;
+            result.Message = $"{result.Entries.Count} DNS cache entries";
+            return Task.FromResult(result);
+        }
+        catch (Exception ex) when (IsDnsCacheApiException(ex))
+        {
+            result.Available = false;
+            result.Message = $"DNS cache listing is unavailable: {ex.GetType().Name}";
+            return Task.FromResult(result);
+        }
     }
 
     public override Task<Ack> SetResolver(ResolverRequest request, ServerCallContext context)
@@ -224,6 +293,17 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
         return result;
     }
+
+    private static string NormalizeCacheEntryName(string? name)
+        => (name ?? string.Empty).Trim().TrimEnd('.').ToLowerInvariant();
+
+    private static bool IsValidCacheEntryName(string name)
+        => name.Length is > 0 and <= 255 &&
+           !name.Any(c => char.IsControl(c) || char.IsWhiteSpace(c) || c is '\\' or '/');
+
+    private static bool IsDnsCacheApiException(Exception ex)
+        => ex is EntryPointNotFoundException or DllNotFoundException or InvalidOperationException
+            or UnauthorizedAccessException;
 
     /// <summary>Reverse-DNS an IP with a hard timeout; "" when it has no PTR name.</summary>
     private static async Task<string> ReverseLookupAsync(string ip, CancellationToken ct)
