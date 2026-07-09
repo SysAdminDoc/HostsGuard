@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.48] - 2026-07-09
+
+### Added
+- Added portable-policy import preview/diff counts shared by WPF and
+  `HostsGuard.Cli import-policy --preview`, plus pre-import policy checkpoints
+  and restore actions through WPF and `HostsGuard.Cli import-policy --restore-checkpoint`.
+
+### Changed
+- Policy import confirmations now show added/changed/removed counts before
+  applying broad domain, firewall, DNS, schedule, profile, and subscription
+  changes.
+
 ## [0.12.47] - 2026-07-09
 
 ### Added

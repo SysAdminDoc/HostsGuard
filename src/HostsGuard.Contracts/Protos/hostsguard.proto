@@ -1296,7 +1296,9 @@ service Policy {
   // settings lock, network profiles, and allow/blocklist subscriptions. Import
   // reconstructs the policy on a clean machine; the round-trip is idempotent.
   rpc ExportPolicy(Empty) returns (PolicyDocument);
+  rpc PreviewPolicyImport(ImportPolicyRequest) returns (ImportPolicyResult);
   rpc ImportPolicy(ImportPolicyRequest) returns (ImportPolicyResult);
+  rpc RestorePolicyCheckpoint(Empty) returns (ImportPolicyResult);
 }
 
 message PolicyDocument {
@@ -1306,6 +1308,7 @@ message PolicyDocument {
 message ImportPolicyRequest {
   string json = 1;
   bool merge = 2;    // reserved; import currently reconstructs (idempotent merge)
+  bool preview = 3;  // compute diff only; no mutation or checkpoint
 }
 
 message ImportPolicyResult {
@@ -1313,6 +1316,11 @@ message ImportPolicyResult {
   string message = 2;
   string error_code = 3;
   repeated string summary = 4;   // per-section applied counts (human-readable)
+  bool preview = 5;
+  int64 added = 6;
+  int64 changed = 7;
+  int64 removed = 8;
+  int64 checkpoint_id = 9;
 }
 
 message CurrentNetwork {

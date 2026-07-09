@@ -284,10 +284,24 @@ public sealed class PolicyPortabilityTests : IDisposable
             try
             {
                 using var dstChannel = NamedPipeChannel.Create(dstToken, dstPipe);
-                var result = await new Policy.PolicyClient(dstChannel).ImportPolicyAsync(new ImportPolicyRequest { Json = doc.Json });
+                var dstPolicy = new Policy.PolicyClient(dstChannel);
+                var preview = await dstPolicy.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = doc.Json, Preview = true });
+                preview.Ok.Should().BeTrue();
+                preview.Preview.Should().BeTrue();
+                preview.Added.Should().BeGreaterThan(0);
+                preview.Summary.Should().Contain(s => s.StartsWith("domains:", StringComparison.Ordinal));
+
+                var result = await dstPolicy.ImportPolicyAsync(new ImportPolicyRequest { Json = doc.Json });
                 result.Ok.Should().BeTrue();
+                result.CheckpointId.Should().BeGreaterThan(0);
                 result.Summary.Should().NotBeEmpty();
                 dst.Db.GetDomainStatus("rpc.example.com").Should().Be("blocked");
+
+                var restore = await dstPolicy.RestorePolicyCheckpointAsync(new Empty());
+                restore.Ok.Should().BeTrue();
+                restore.CheckpointId.Should().Be(result.CheckpointId);
+                dst.Db.GetDomainStatus("rpc.example.com").Should().BeNull();
+                dst.Hosts.GetBlocked().Should().NotContain("rpc.example.com");
             }
             finally
             {

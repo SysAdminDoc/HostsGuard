@@ -65,7 +65,8 @@ static int Usage()
                               [--process name] [--port n] [--proto tcp|udp] [--direction out|in]
           HostsGuard.Cli export [path.json]
           HostsGuard.Cli export-policy [path.json]
-          HostsGuard.Cli import-policy <path.json>
+          HostsGuard.Cli import-policy [--preview] <path.json>
+          HostsGuard.Cli import-policy --restore-checkpoint
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
@@ -458,20 +459,8 @@ static async Task<int> ImportPolicyAsync(string[] args)
 {
     if (args.Length < 2)
     {
-        Console.Error.WriteLine("Missing policy file. Usage: import-policy <path.json>");
+        Console.Error.WriteLine("Missing policy file. Usage: import-policy [--preview] <path.json>");
         return Usage();
-    }
-
-    var path = args[1];
-    string json;
-    try
-    {
-        json = await File.ReadAllTextAsync(path);
-    }
-    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-    {
-        Console.Error.WriteLine($"Couldn't read '{path}': {ex.Message}");
-        return 2;
     }
 
     var (channel, error) = Connect();
@@ -485,14 +474,42 @@ static async Task<int> ImportPolicyAsync(string[] args)
     {
         try
         {
-            var result = await new Policy.PolicyClient(channel).ImportPolicyAsync(new ImportPolicyRequest { Json = json });
-            Console.WriteLine(result.Message);
-            foreach (var line in result.Summary)
+            var client = new Policy.PolicyClient(channel);
+            if (args[1].Equals("--restore-checkpoint", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"  {line}");
+                return PrintPolicyImportResult(await client.RestorePolicyCheckpointAsync(new Empty()));
             }
 
-            return result.Ok ? 0 : 2;
+            var preview = false;
+            var pathIndex = 1;
+            if (args[1].Equals("--preview", StringComparison.OrdinalIgnoreCase))
+            {
+                preview = true;
+                pathIndex = 2;
+            }
+
+            if (args.Length <= pathIndex)
+            {
+                Console.Error.WriteLine("Missing policy file. Usage: import-policy [--preview] <path.json>");
+                return 1;
+            }
+
+            var path = args[pathIndex];
+            string json;
+            try
+            {
+                json = await File.ReadAllTextAsync(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't read '{path}': {ex.Message}");
+                return 2;
+            }
+
+            var result = preview
+                ? await client.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = json, Preview = true })
+                : await client.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
+            return PrintPolicyImportResult(result);
         }
         catch (Grpc.Core.RpcException ex)
         {
@@ -500,6 +517,25 @@ static async Task<int> ImportPolicyAsync(string[] args)
             return 3;
         }
     }
+}
+
+static int PrintPolicyImportResult(ImportPolicyResult result)
+{
+    Console.WriteLine(result.Message);
+    Console.WriteLine($"  added:      {result.Added}");
+    Console.WriteLine($"  changed:    {result.Changed}");
+    Console.WriteLine($"  removed:    {result.Removed}");
+    if (result.CheckpointId != 0)
+    {
+        Console.WriteLine($"  checkpoint: {result.CheckpointId}");
+    }
+
+    foreach (var line in result.Summary)
+    {
+        Console.WriteLine($"  {line}");
+    }
+
+    return result.Ok ? 0 : 2;
 }
 
 static async Task<int> EventsAsync(string[] args)

@@ -328,6 +328,25 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         return Task.FromResult(new PolicyDocument { Json = policy.ToJson() });
     }
 
+    public override Task<ImportPolicyResult> PreviewPolicyImport(ImportPolicyRequest request, ServerCallContext context)
+    {
+        var (policy, error) = ReadPortablePolicy(request.Json ?? string.Empty);
+        if (error is not null)
+        {
+            return Task.FromResult(error);
+        }
+
+        var preview = PolicyPortability.PreviewImport(_state, policy!);
+        return Task.FromResult(ToImportResult(
+            ok: true,
+            message: $"policy preview: +{preview.Added}, ~{preview.Changed}, -{preview.Removed}",
+            summary: preview.Summary,
+            preview: true,
+            added: preview.Added,
+            changed: preview.Changed,
+            removed: preview.Removed));
+    }
+
     public override Task<ImportPolicyResult> ImportPolicy(ImportPolicyRequest request, ServerCallContext context)
     {
         // A policy import is a broad mutation — respect the settings lock, and it
@@ -337,29 +356,113 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
         }
 
-        Core.PortablePolicy policy;
-        try
+        var (policy, error) = ReadPortablePolicy(request.Json ?? string.Empty);
+        if (error is not null)
         {
-            policy = Core.PortablePolicy.FromJson(request.Json ?? string.Empty);
+            return Task.FromResult(error);
         }
-        catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException or ArgumentException)
+
+        var preview = PolicyPortability.PreviewImport(_state, policy!);
+        if (request.Preview)
+        {
+            return Task.FromResult(ToImportResult(
+                ok: true,
+                message: $"policy preview: +{preview.Added}, ~{preview.Changed}, -{preview.Removed}",
+                summary: preview.Summary,
+                preview: true,
+                added: preview.Added,
+                changed: preview.Changed,
+                removed: preview.Removed));
+        }
+
+        var checkpointJson = PolicyPortability.Export(_state).ToJson();
+        var checkpointId = _state.Db.CreatePolicyImportCheckpoint(checkpointJson, preview.Summary);
+        var summary = PolicyPortability.Import(_state, policy!);
+        return Task.FromResult(ToImportResult(
+            ok: true,
+            message: $"policy imported ({policy!.Domains.Count} domains); checkpoint {checkpointId}",
+            summary: summary,
+            added: preview.Added,
+            changed: preview.Changed,
+            removed: preview.Removed,
+            checkpointId: checkpointId));
+    }
+
+    public override Task<ImportPolicyResult> RestorePolicyCheckpoint(Empty request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
+        var checkpoint = _state.Db.GetLatestPolicyImportCheckpoint();
+        if (checkpoint is null)
         {
             return Task.FromResult(new ImportPolicyResult
             {
                 Ok = false,
-                Message = $"could not read the policy document: {ex.Message}",
-                ErrorCode = "hostsguard.error.v1/invalid_policy",
+                Message = "no policy import checkpoint is available",
+                ErrorCode = "hostsguard.error.v1/no_checkpoint",
             });
         }
 
-        var summary = PolicyPortability.Import(_state, policy);
-        var result = new ImportPolicyResult { Ok = true, Message = $"policy imported ({policy.Domains.Count} domains)" };
-        result.Summary.AddRange(summary);
-        return Task.FromResult(result);
+        var (policy, error) = ReadPortablePolicy(checkpoint.Json);
+        if (error is not null)
+        {
+            error.Message = $"checkpoint {checkpoint.Id} could not be read: {error.Message}";
+            return Task.FromResult(error);
+        }
+
+        var current = PolicyPortability.Export(_state);
+        var currentPreview = PolicyPortability.PreviewImport(_state, current);
+        _state.Db.CreatePolicyImportCheckpoint(current.ToJson(), currentPreview.Summary);
+        var summary = PolicyPortability.Restore(_state, policy!);
+        return Task.FromResult(ToImportResult(
+            ok: true,
+            message: $"policy checkpoint {checkpoint.Id} restored",
+            summary: summary,
+            checkpointId: checkpoint.Id));
     }
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 
     private static Ack Error(string code, string message) =>
         new() { Ok = false, Message = message, ErrorCode = $"hostsguard.error.v1/{code}" };
+
+    private static (Core.PortablePolicy? Policy, ImportPolicyResult? Error) ReadPortablePolicy(string json)
+    {
+        try
+        {
+            return (Core.PortablePolicy.FromJson(json), null);
+        }
+        catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException or ArgumentException)
+        {
+            return (null, new ImportPolicyResult
+            {
+                Ok = false,
+                Message = $"could not read the policy document: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/invalid_policy",
+            });
+        }
+    }
+
+    private static ImportPolicyResult ToImportResult(
+        bool ok,
+        string message,
+        IEnumerable<string> summary,
+        bool preview = false,
+        long added = 0,
+        long changed = 0,
+        long removed = 0,
+        long checkpointId = 0) => new()
+        {
+            Ok = ok,
+            Message = message,
+            Preview = preview,
+            Added = added,
+            Changed = changed,
+            Removed = removed,
+            CheckpointId = checkpointId,
+            Summary = { summary },
+        };
 }

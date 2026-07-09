@@ -645,4 +645,6 @@
   <data name="TopBand_SafePosture" xml:space="preserve"><value>Safe posture</value></data>
   <data name="TopBand_RestoreSafe" xml:space="preserve"><value>Restore safe network posture</value></data>
   <data name="TopBand_RestoreSafeTip" xml:space="preserve"><value>Restore Normal filtering, allow default outbound, remove DNS bypass blocks, and leave hosts-file blocks unchanged.</value></data>
+  <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restore policy checkpoint</value></data>
+  <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restore the latest policy state captured before an import</value></data>
 </root>

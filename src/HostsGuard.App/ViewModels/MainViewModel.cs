@@ -784,12 +784,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (!_confirm.Confirm("Import policy",
-            $"Reconstruct domains, firewall rules, schedules, profiles, locks and subscriptions from {Path.GetFileName(path)}? Existing policy is merged, not wiped."))
-        {
-            return;
-        }
-
         string json;
         try
         {
@@ -803,8 +797,53 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         await RunServiceActionAsync("Import policy", async () =>
         {
+            var preview = await _client.Policy.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = json, Preview = true });
+            if (!preview.Ok)
+            {
+                ConnectionText = preview.Message;
+                return;
+            }
+
+            var previewText = $"{preview.Message}\n\n" + string.Join("\n", preview.Summary.Take(8));
+            if (!_confirm.Confirm("Import policy", previewText + "\n\nCreate a restore checkpoint and apply this policy?"))
+            {
+                ConnectionText = "Policy import cancelled after preview";
+                return;
+            }
+
             var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
-            ConnectionText = result.Ok ? $"Policy imported - {string.Join("; ", result.Summary)}" : result.Message;
+            ConnectionText = result.Ok
+                ? $"Policy imported - checkpoint {result.CheckpointId}; {string.Join("; ", result.Summary)}"
+                : result.Message;
+            if (result.Ok)
+            {
+                await RefreshAllAsync();
+                if (RawHosts is not null)
+                {
+                    await RawHosts.LoadAsync();
+                }
+            }
+        });
+    }
+
+    [RelayCommand]
+    public async Task RestorePolicyCheckpointAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Restore policy checkpoint", async () =>
+        {
+            if (!_confirm.Confirm("Restore policy checkpoint",
+                "Restore the latest policy-import checkpoint and reconcile domains, firewall rules, schedules, profiles, and subscriptions?"))
+            {
+                return;
+            }
+
+            var result = await _client.Policy.RestorePolicyCheckpointAsync(new Empty());
+            ConnectionText = result.Ok ? $"Policy checkpoint restored - {string.Join("; ", result.Summary)}" : result.Message;
             if (result.Ok)
             {
                 await RefreshAllAsync();

@@ -159,6 +159,8 @@ public class SchemaLockTests
           ImportPolicy(ImportPolicyRequest) returns (ImportPolicyResult)
           ListProfiles(Empty) returns (ProfileList)
           ListServices(Empty) returns (ServiceStates)
+          PreviewPolicyImport(ImportPolicyRequest) returns (ImportPolicyResult)
+          RestorePolicyCheckpoint(Empty) returns (ImportPolicyResult)
           SaveProfile(ProfileRequest) returns (Ack)
           SetHostsProtection(HostsProtectionRequest) returns (Ack)
           SetLock(LockRequest) returns (Ack)

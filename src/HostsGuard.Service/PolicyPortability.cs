@@ -13,6 +13,8 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public static class PolicyPortability
 {
+    public sealed record PolicyImportPreview(IReadOnlyList<string> Summary, long Added, long Changed, long Removed);
+
     /// <summary>Snapshot the machine's whole policy into a portable document.</summary>
     public static PortablePolicy Export(ServiceState state)
     {
@@ -213,6 +215,102 @@ public static class PolicyPortability
 
     /// <summary>Meta keys carried in a portable policy (reconstructable settings).</summary>
     private static readonly string[] PortableMetaKeys = { "active_profile", "history_retention_days", "flow_teardown_enabled" };
+
+    public static PolicyImportPreview PreviewImport(ServiceState state, PortablePolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(policy);
+        var summary = new List<string>();
+        long added = 0;
+        long changed = 0;
+        long removed = 0;
+
+        var currentDomains = state.Db.GetDomains()
+            .ToDictionary(d => d.Domain, StringComparer.Ordinal);
+        var desiredDomains = policy.Domains
+            .Where(d => !string.IsNullOrWhiteSpace(d.Domain))
+            .GroupBy(d => d.Domain.ToLowerInvariant(), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Last(), StringComparer.Ordinal);
+        var domainAdded = desiredDomains.Keys.Count(d => !currentDomains.ContainsKey(d));
+        var domainChanged = desiredDomains.Count(kv =>
+            currentDomains.TryGetValue(kv.Key, out var current) &&
+            (!string.Equals(current.Status, kv.Value.Status, StringComparison.Ordinal) ||
+             !string.Equals(current.Source ?? string.Empty, kv.Value.Source ?? string.Empty, StringComparison.Ordinal) ||
+             !string.Equals(current.Reason ?? string.Empty, kv.Value.Reason ?? string.Empty, StringComparison.Ordinal) ||
+             !string.Equals(current.Category ?? string.Empty, kv.Value.Category ?? string.Empty, StringComparison.Ordinal) ||
+             !string.Equals(current.Notes ?? string.Empty, kv.Value.Notes ?? string.Empty, StringComparison.Ordinal)));
+        added += domainAdded;
+        changed += domainChanged;
+        summary.Add($"domains: +{domainAdded}, ~{domainChanged}, -0 (merge)");
+
+        if (state.Firewall is { } fw)
+        {
+            var currentRules = fw.ListRules().Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+                .ToDictionary(r => r.Name, StringComparer.Ordinal);
+            var desiredRules = policy.FirewallRules.Where(r => !string.IsNullOrWhiteSpace(r.Name))
+                .GroupBy(r => r.Name, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Last(), StringComparer.Ordinal);
+            var ruleAdded = desiredRules.Keys.Count(r => !currentRules.ContainsKey(r));
+            var ruleChanged = desiredRules.Count(kv =>
+                currentRules.TryGetValue(kv.Key, out var current) &&
+                (!string.Equals(current.Action, FwRuleMapper.MapAction(kv.Value.Action), StringComparison.Ordinal) ||
+                 current.Enabled != kv.Value.Enabled ||
+                 !string.Equals(current.RemoteAddr, string.IsNullOrWhiteSpace(kv.Value.RemoteAddr) ? "Any" : kv.Value.RemoteAddr, StringComparison.Ordinal) ||
+                 !string.Equals(current.Program, kv.Value.Program ?? string.Empty, StringComparison.Ordinal)));
+            added += ruleAdded;
+            changed += ruleChanged;
+            summary.Add($"firewall rules: +{ruleAdded}, ~{ruleChanged}, -0 (merge)");
+        }
+        else if (policy.FirewallRules.Count != 0)
+        {
+            summary.Add($"firewall rules: {policy.FirewallRules.Count} skipped (engine unavailable)");
+        }
+
+        var currentSchedules = state.Db.GetSchedules()
+            .Select(s => $"{s.Target}|{s.Days}|{s.Start}|{s.End}")
+            .ToHashSet(StringComparer.Ordinal);
+        var desiredSchedules = policy.Schedules
+            .Select(s => $"{s.Target}|{s.Days}|{s.Start}|{s.End}")
+            .ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("schedules", currentSchedules, desiredSchedules, summary, ref added, ref removed);
+
+        var currentProfiles = state.Db.ListProfiles().ToHashSet(StringComparer.Ordinal);
+        var desiredProfiles = policy.Profiles.Select(p => p.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("profiles", currentProfiles, desiredProfiles, summary, ref added, ref removed, removeMissing: false);
+
+        var currentBlocklists = state.Db.GetBlocklistSubs().Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+        var desiredBlocklists = policy.BlocklistSubs.Select(s => s.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("blocklist subscriptions", currentBlocklists, desiredBlocklists, summary, ref added, ref removed, removeMissing: false);
+
+        var currentAllow = state.Db.GetAllowlistSubs().ToHashSet(StringComparer.Ordinal);
+        var desiredAllow = policy.AllowlistSubs.Where(u => !string.IsNullOrWhiteSpace(u)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("allowlist subscriptions", currentAllow, desiredAllow, summary, ref added, ref removed);
+
+        var currentNetworks = state.Db.GetNetworkProfiles().Select(n => n.Fingerprint).ToHashSet(StringComparer.Ordinal);
+        var desiredNetworks = policy.NetworkProfiles.Select(n => n.Fingerprint).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("network profiles", currentNetworks, desiredNetworks, summary, ref added, ref removed, removeMissing: false);
+
+        var currentGroups = state.Db.GetRuleGroups().Select(g => g.Group).ToHashSet(StringComparer.Ordinal);
+        var desiredGroups = policy.RuleGroups.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("rule groups", currentGroups, desiredGroups, summary, ref added, ref removed, removeMissing: false);
+
+        var postureChanged =
+            policy.Lock is not null ||
+            policy.Consent is not null ||
+            policy.DnsPrivacy is not null ||
+            policy.KillSwitch is not null ||
+            policy.AppVpnBindings.Count != 0 ||
+            policy.LanAttackSurface is not null ||
+            policy.Ai is not null ||
+            policy.Webhooks is not null;
+        if (postureChanged)
+        {
+            changed++;
+            summary.Add("posture/settings: ~1");
+        }
+
+        return new PolicyImportPreview(summary, added, changed, removed);
+    }
 
     /// <summary>
     /// Apply an imported policy, reconstructing every section. Idempotent: applying
@@ -426,6 +524,156 @@ public static class PolicyPortability
 
         state.Db.LogEvent("policy", "imported", details:
             $"{policy.Domains.Count} domains, {policy.FirewallRules.Count} fw rules, {policy.Profiles.Count} profiles", reason: "manual");
+        return summary;
+    }
+
+    public static IReadOnlyList<string> Restore(ServiceState state, PortablePolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(policy);
+        var summary = new List<string>();
+
+        state.Db.ReplaceDomains(policy.Domains
+            .Where(d => !string.IsNullOrWhiteSpace(d.Domain))
+            .Select(d => (d.Domain, d.Status, (string?)d.Source)));
+        foreach (var d in policy.Domains)
+        {
+            if (string.IsNullOrWhiteSpace(d.Domain))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(d.Category))
+            {
+                state.Db.SetCategory(d.Domain, d.Category);
+            }
+
+            if (!string.IsNullOrWhiteSpace(d.Notes))
+            {
+                state.Db.SetNotes(d.Domain, d.Notes);
+            }
+        }
+
+        var blocked = state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
+        var (added, target) = state.Hosts.Reconcile(blocked);
+        summary.Add($"{policy.Domains.Count} domains restored ({target} blocked, +{added} hosts reconcile)");
+
+        state.Db.SetSchedules(policy.Schedules.Select(s => (s.Target, s.Days, s.Start, s.End)));
+        state.Schedules.Kick();
+        summary.Add($"{policy.Schedules.Count} schedules restored");
+
+        if (state.Firewall is { } fw)
+        {
+            var desiredRules = policy.FirewallRules
+                .Where(r => !string.IsNullOrWhiteSpace(r.Name))
+                .Select(r => r.Name)
+                .ToHashSet(StringComparer.Ordinal);
+            var removedRules = 0;
+            foreach (var existing in fw.ListRules()
+                         .Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)
+                             && !desiredRules.Contains(r.Name))
+                         .ToList())
+            {
+                if (fw.DeleteRule(existing.Name))
+                {
+                    removedRules++;
+                }
+
+                state.Db.RemoveFwState(existing.Name);
+            }
+
+            var createdRules = 0;
+            foreach (var r in policy.FirewallRules)
+            {
+                if (string.IsNullOrWhiteSpace(r.Name) ||
+                    !r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var rule = new FwRule(
+                    r.Name,
+                    FwRuleMapper.MapDirection(r.Direction),
+                    FwRuleMapper.MapAction(r.Action),
+                    r.Enabled,
+                    string.IsNullOrWhiteSpace(r.RemoteAddr) ? "Any" : r.RemoteAddr,
+                    FwRuleMapper.MapProtocol(r.Protocol),
+                    r.Program ?? string.Empty,
+                    "hostsguard",
+                    FwRuleMapper.MapPorts(r.RemotePorts),
+                    FwRuleMapper.MapService(r.ServiceName),
+                    FwRuleMapper.MapPorts(r.LocalPorts),
+                    FwRuleMapper.MapInterfaces(r.Interfaces));
+                if (fw.CreateRule(rule))
+                {
+                    createdRules++;
+                }
+
+                state.Db.UpsertFwState(
+                    rule.Name,
+                    rule.Direction,
+                    rule.Action,
+                    rule.RemoteAddr,
+                    rule.Protocol,
+                    rule.Program,
+                    rule.RemotePorts,
+                    rule.LocalPorts,
+                    rule.ServiceName,
+                    rule.Interfaces);
+            }
+
+            summary.Add($"{policy.FirewallRules.Count} firewall rules restored (+{createdRules}, -{removedRules})");
+        }
+
+        foreach (var name in state.Db.ListProfiles().Where(n => !policy.Profiles.Any(p => p.Name == n)).ToList())
+        {
+            state.Db.DeleteProfile(name);
+        }
+
+        foreach (var p in policy.Profiles)
+        {
+            if (!string.IsNullOrWhiteSpace(p.Name))
+            {
+                state.Db.ImportProfile(p.Name, p.Rules.Select(r => (r.Domain, r.Status, (string?)r.Source)));
+            }
+        }
+
+        summary.Add($"{policy.Profiles.Count} profiles restored");
+
+        foreach (var current in state.Db.GetBlocklistSubs().Where(s => policy.BlocklistSubs.All(p => p.Name != s.Name)).ToList())
+        {
+            state.Db.RemoveBlocklistSub(current.Name);
+        }
+
+        foreach (var b in policy.BlocklistSubs)
+        {
+            if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
+            {
+                state.Db.UpsertBlocklistSub(b.Name, b.Url, 0);
+            }
+        }
+
+        state.Db.SetAllowlistSubs(policy.AllowlistSubs.Where(u => !string.IsNullOrWhiteSpace(u)));
+        summary.Add($"{policy.BlocklistSubs.Count} blocklist + {policy.AllowlistSubs.Count} allowlist subscriptions restored");
+
+        ApplyConsent(state, policy, summary);
+        ApplyDnsPrivacy(state, policy, summary);
+        ApplyKillSwitch(state, policy, summary);
+        ApplyAppVpnBindings(state, policy, summary);
+        ApplyLanAttackSurface(state, policy, summary);
+        ApplyAi(state, policy, summary);
+        ApplyWebhooks(state, policy, summary);
+
+        foreach (var (key, value) in policy.Settings)
+        {
+            if (PortableMetaKeys.Contains(key, StringComparer.Ordinal))
+            {
+                state.Db.SetMeta(key, value);
+            }
+        }
+
+        state.Db.LogEvent("policy", "checkpoint_restored", details:
+            $"{policy.Domains.Count} domains, {policy.Profiles.Count} profiles", reason: "manual");
         return summary;
     }
 
@@ -681,6 +929,22 @@ public static class PolicyPortability
 
     private static string NonEmpty(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static void AddSetDiff(
+        string label,
+        IReadOnlySet<string> current,
+        IReadOnlySet<string> desired,
+        List<string> summary,
+        ref long added,
+        ref long removed,
+        bool removeMissing = true)
+    {
+        var add = desired.Count(item => !current.Contains(item));
+        var remove = removeMissing ? current.Count(item => !desired.Contains(item)) : 0;
+        added += add;
+        removed += remove;
+        summary.Add($"{label}: +{add}, ~0, -{remove}{(removeMissing ? string.Empty : " (merge)")}");
+    }
 
     private static string AppVersion() =>
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()

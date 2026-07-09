@@ -28,4 +28,6 @@
   <data name="Menu_View" xml:space="preserve"><value>_Ver</value></data>
   <data name="Menu_Help" xml:space="preserve"><value>A_yuda</value></data>
   <data name="Menu_Language" xml:space="preserve"><value>Idioma</value></data>
+  <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restaurar punto de control de politica</value></data>
+  <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restaura el ultimo estado de politica capturado antes de una importacion</value></data>
 </root>

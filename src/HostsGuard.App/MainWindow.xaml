@@ -117,6 +117,8 @@
                               ToolTip="{svc:Loc Key=Xaml_Save_the_whole_policy_â_domains_f8586b5d}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Import_policy_JSON_â_f74619f8}" Command="{Binding ImportPolicyCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Reconstruct_the_policy_from_an_exported_d0d84c0e}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Restore_policy_checkpoint_74b7d23a, Default=Restore policy checkpoint}" Command="{Binding RestorePolicyCheckpointCommand}"
+                              ToolTip="{svc:Loc Key=Xaml_Restore_the_latest_policy_state_captured_74b7d23a, Default=Restore the latest policy state captured before an import}" />
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Save_hosts_file_d57ecafc}" Command="{Binding RawHosts.SaveCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Write_unsaved_Raw_Editor_changes_to_bdb2f9f1}" />

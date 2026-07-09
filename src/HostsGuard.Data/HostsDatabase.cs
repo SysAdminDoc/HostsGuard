@@ -218,6 +218,9 @@ public sealed record BlocklistCheckpointRow(
 /// <summary>Result of restoring a blocklist refresh checkpoint.</summary>
 public sealed record BlocklistCheckpointRestore(long CheckpointId, long Restored, long Removed, long Preserved);
 
+/// <summary>Checkpoint captured immediately before a broad portable-policy import.</summary>
+public sealed record PolicyImportCheckpointRow(long Id, string Created, string Json, string Summary);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -227,7 +230,7 @@ public sealed record BlocklistCheckpointRestore(long CheckpointId, long Restored
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 23;
+    public const int SchemaVersion = 24;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -392,6 +395,8 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_alerts_type_subject ON alerts(type, subject, action, is_read);
             CREATE TABLE IF NOT EXISTS alert_type_settings(
                 type TEXT PRIMARY KEY, label TEXT, surface INTEGER DEFAULT 1);
+            CREATE TABLE IF NOT EXISTS policy_import_checkpoints(
+                id INTEGER PRIMARY KEY, created TEXT, json TEXT NOT NULL, summary TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.

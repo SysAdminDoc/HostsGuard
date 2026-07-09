@@ -200,6 +200,37 @@ public sealed partial class HostsDatabase
     private void SetMetaNoLock(string key, string value) =>
         _conn.Execute("INSERT OR REPLACE INTO meta(key,value) VALUES(@key,@value)", new { key, value });
 
+    public long CreatePolicyImportCheckpoint(string json, IEnumerable<string> summary)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        ArgumentNullException.ThrowIfNull(summary);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<long>(
+                """
+                INSERT INTO policy_import_checkpoints(created,json,summary)
+                VALUES(@now,@json,@summary);
+                SELECT last_insert_rowid();
+                """,
+                new { now, json, summary = string.Join("\n", summary) });
+        }
+    }
+
+    public PolicyImportCheckpointRow? GetLatestPolicyImportCheckpoint()
+    {
+        lock (_gate)
+        {
+            return _conn.QuerySingleOrDefault<PolicyImportCheckpointRow>(
+                """
+                SELECT id AS Id, COALESCE(created,'') AS Created, json AS Json, COALESCE(summary,'') AS Summary
+                FROM policy_import_checkpoints
+                ORDER BY id DESC
+                LIMIT 1
+                """);
+        }
+    }
+
     // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
 
     public void UpsertBlocklistSub(
