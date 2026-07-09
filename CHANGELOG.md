@@ -39,6 +39,18 @@ All notable changes to HostsGuard are documented in this file.
 - Added error logging to the domain-firewall periodic refresh so failures in DNS
   resolution or rule application are surfaced in the event ledger instead of
   being silently swallowed.
+- Fixed `DomainPurpose` label-prefix matching for "ocsp." and "stun." entries so
+  domains containing the substring in the middle of a label (e.g.
+  "notocsp.example.com") no longer receive a false purpose label.
+- Made `Domains.GetRoot` return consistent lowercase for 2-label domains,
+  matching the lowered output already produced for 3+ label domains.
+- Made `Unblock` short-circuit when no block lines were removed, avoiding
+  unnecessary file rewrites and tamper-watch churn.
+- Moved the self-change hash recording in `AtomicWrite` after the successful
+  `File.Move` so a failed swap cannot register a phantom hash that suppresses
+  a future tamper alert for identical content written by an external actor.
+- Added periodic PID-to-process-name cache eviction in the connection monitor
+  so recycled PIDs do not carry stale names after long service uptime.
 
 ## [0.12.62] - 2026-07-09
 
