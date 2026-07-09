@@ -1534,27 +1534,13 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
 static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
 {
     var sb = new System.Text.StringBuilder();
-    sb.Append("When,Category,Action,Reason,Domain,Process,Details\r\n");
+    CsvExport.AppendRow(sb, "When", "Category", "Action", "Reason", "Domain", "Process", "Details");
     foreach (var e in rows)
     {
-        sb.Append(Csv(e.Ts)).Append(',')
-          .Append(Csv(e.Category)).Append(',')
-          .Append(Csv(e.Action)).Append(',')
-          .Append(Csv(e.Reason)).Append(',')
-          .Append(Csv(e.Domain)).Append(',')
-          .Append(Csv(e.Process)).Append(',')
-          .Append(Csv(e.Details)).Append("\r\n");
+        CsvExport.AppendRow(sb, e.Ts, e.Category, e.Action, e.Reason, e.Domain, e.Process, e.Details);
     }
 
     return sb.ToString();
-
-    static string Csv(string? value)
-    {
-        value ??= string.Empty;
-        return value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
-            ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
-            : value;
-    }
 }
 
 static string FormatBytes(long bytes)

@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+### Security
+- Hardened all CSV exports against spreadsheet formula injection while
+  preserving RFC-4180 quoting for event, connection-history, usage-quota, and
+  traffic-profile exports.
+
 ## [0.12.61] - 2026-07-09
 
 ### Added

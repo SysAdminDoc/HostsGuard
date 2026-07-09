@@ -216,11 +216,11 @@ internal static class TrafficProfileExporter
     private static string BuildCsv(TrafficProfileSnapshot snapshot)
     {
         var sb = new StringBuilder();
-        AppendCsvRow(sb, "Kind", "When", "Protocol", "Process", "PID", "Host", "Remote", "Port",
+        CsvExport.AppendRow(sb, "Kind", "When", "Protocol", "Process", "PID", "Host", "Remote", "Port",
             "Country", "Firewall", "Action", "Reason", "Category", "Details", "WiresharkFilter");
         foreach (var c in snapshot.Connections)
         {
-            AppendCsvRow(sb,
+            CsvExport.AppendRow(sb,
                 "connection",
                 c.Ts,
                 c.Protocol,
@@ -240,7 +240,7 @@ internal static class TrafficProfileExporter
 
         foreach (var e in snapshot.Events)
         {
-            AppendCsvRow(sb,
+            CsvExport.AppendRow(sb,
                 "event",
                 e.Ts,
                 string.Empty,
@@ -308,29 +308,6 @@ internal static class TrafficProfileExporter
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static string Csv(string? value)
-    {
-        value ??= string.Empty;
-        return value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
-            ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
-            : value;
-    }
-
-    private static void AppendCsvRow(StringBuilder sb, params string?[] columns)
-    {
-        for (var i = 0; i < columns.Length; i++)
-        {
-            if (i != 0)
-            {
-                sb.Append(',');
-            }
-
-            sb.Append(Csv(columns[i]));
-        }
-
-        sb.Append("\r\n");
-    }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

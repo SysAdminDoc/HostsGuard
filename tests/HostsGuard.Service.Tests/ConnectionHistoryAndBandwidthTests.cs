@@ -158,7 +158,8 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     public async Task Usage_quota_rpc_validates_lists_resets_exports_and_deletes_rules()
     {
         var now = new DateTime(2026, 7, 8, 12, 0, 0);
-        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 100, 50);
+        const string process = "=chrome.exe";
+        _db.AddUsageRollup("cdn.example.com", process, now, 100, 50);
         var impl = new MonitoringServiceImpl(_state);
 
         (await impl.SetUsageQuotaRule(new UsageQuotaRule
@@ -173,7 +174,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         var saved = await impl.SetUsageQuotaRule(new UsageQuotaRule
         {
             Scope = "app",
-            Match = "chrome.exe",
+            Match = process,
             LimitBytes = 120,
             WindowDays = 30,
             Enabled = true,
@@ -183,18 +184,18 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         var rules = impl.BuildUsageQuotaRules(now);
         var rule = rules.Rules.Should().ContainSingle().Subject;
         rule.Scope.Should().Be("app");
-        rule.Match.Should().Be("chrome.exe");
+        rule.Match.Should().Be(process);
         rule.UsedBytes.Should().Be(150);
 
         var export = await impl.ExportUsageQuotaHistory(new UsageQuotaHistoryRequest
         {
             Days = 2,
             Scope = "app",
-            Match = "chrome.exe",
+            Match = process,
             Format = "csv",
         }, null!);
         export.Format.Should().Be("csv");
-        export.Content.Should().Contain("Day,Scope,Match,Sent,Received,Total").And.Contain("chrome.exe");
+        export.Content.Should().Contain("Day,Scope,Match,Sent,Received,Total").And.Contain("'=chrome.exe");
 
         (await impl.ResetUsageQuotaHistory(new Empty(), null!)).Ok.Should().BeTrue();
         (await impl.DeleteUsageQuotaRule(new UsageQuotaRule { Id = rule.Id }, null!)).Ok.Should().BeTrue();
@@ -275,14 +276,14 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     {
         var now = DateTime.Now;
         const string token = "abcdef0123456789abcdef0123456789";
-        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-2).ToString("o"), @"C:\Users\alice\apps\chrome.exe", 10, "TCP",
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-2).ToString("o"), @"C:\Users\alice\apps\=chrome.exe", 10, "TCP",
             "93.184.216.34", 443, "US", "blocked", "api.secret.example.com"));
         _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "chrome.exe", 11, "UDP",
             "10.1.2.3", 53, "US", "allowed", "lan.secret.example.com"));
         _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "curl.exe", 12, "TCP",
             "198.51.100.4", 80, "US", "allowed", "other.example.net"));
-        _db.LogEvent("api.secret.example.com", "fw_blocked", process: @"C:\Users\alice\apps\chrome.exe",
-            details: $@"called https://api.secret.example.com/key/{token} from C:\Users\alice\apps\chrome.exe remote 10.1.2.3",
+        _db.LogEvent("api.secret.example.com", "fw_blocked", process: @"C:\Users\alice\apps\=chrome.exe",
+            details: $@"called https://api.secret.example.com/key/{token} from C:\Users\alice\apps\=chrome.exe remote 10.1.2.3",
             reason: "manual");
         _db.LogEvent("other.example.net", "allowed", process: "curl.exe", details: "not selected");
         var impl = new MonitoringServiceImpl(_state);
@@ -310,7 +311,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         profile.Content.Should().NotContain("93.184.216.34");
         profile.Content.Should().NotContain("10.1.2.3");
         profile.Content.Should().NotContain("api.secret.example.com");
-        profile.Content.Should().NotContain(@"C:\Users\alice\apps\chrome.exe");
+        profile.Content.Should().NotContain(@"C:\Users\alice\apps\=chrome.exe");
         profile.Content.Should().NotContain(token);
         profile.Content.Should().NotContain("other.example.net");
         profile.Content.Should().NotContain("\"protocol\": \"UDP\"");
@@ -325,6 +326,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         }, null!);
         csv.Format.Should().Be("csv");
         csv.Content.Should().Contain("WiresharkFilter").And.Contain("tcp.port == 443");
+        csv.Content.Should().Contain("'=chrome.exe");
         csv.Content.Should().NotContain("93.184.216.34");
     }
 

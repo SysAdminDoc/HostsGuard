@@ -434,26 +434,20 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     private static string BuildUsageQuotaHistoryCsv(IEnumerable<UsageQuotaHistoryRow> rows)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append("Day,Scope,Match,Sent,Received,Total\r\n");
+        CsvExport.AppendRow(sb, "Day", "Scope", "Match", "Sent", "Received", "Total");
         foreach (var r in rows)
         {
-            sb.Append(Csv(r.Day)).Append(',')
-              .Append(Csv(r.Scope)).Append(',')
-              .Append(Csv(r.Match)).Append(',')
-              .Append(r.Sent.ToString(CultureInfo.InvariantCulture)).Append(',')
-              .Append(r.Recv.ToString(CultureInfo.InvariantCulture)).Append(',')
-              .Append((r.Sent + r.Recv).ToString(CultureInfo.InvariantCulture)).Append("\r\n");
+            CsvExport.AppendRow(
+                sb,
+                r.Day,
+                r.Scope,
+                r.Match,
+                r.Sent.ToString(CultureInfo.InvariantCulture),
+                r.Recv.ToString(CultureInfo.InvariantCulture),
+                (r.Sent + r.Recv).ToString(CultureInfo.InvariantCulture));
         }
 
         return sb.ToString();
-
-        static string Csv(string? value)
-        {
-            value ??= string.Empty;
-            return value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
-                ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
-                : value;
-        }
     }
 
     private static string NormalizeQuotaScope(string? scope)

@@ -114,6 +114,11 @@ public sealed class BandwidthViewTests
                 Ts = "2026-07-03T10:01:00", Process = "Some App, Inc", Pid = 7, Protocol = "UDP",
                 Host = "resolver.example.net", RemoteAddr = "198.51.100.4", RemotePort = 53, Country = "", FwStatus = "blocked",
             },
+            new HistoryRowViewModel
+            {
+                Ts = "2026-07-03T10:02:00", Process = "=calc.exe", Pid = 8, Protocol = "TCP",
+                Host = "  @example.net", RemoteAddr = "203.0.113.10", RemotePort = 443, Country = "US", FwStatus = "+allowed",
+            },
         };
 
         var csv = FwActivityViewModel.BuildHistoryCsv(rows);
@@ -123,5 +128,6 @@ public sealed class BandwidthViewTests
         lines[1].Should().Be("2026-07-03T10:00:00,chrome,42,TCP,cdn.example.com,203.0.113.9,443,US,allowed");
         // The process name with a comma is quoted so it stays one column.
         lines[2].Should().Contain("\"Some App, Inc\"");
+        lines[3].Should().Be("2026-07-03T10:02:00,'=calc.exe,8,TCP,'  @example.net,203.0.113.10,443,US,'+allowed");
     }
 }

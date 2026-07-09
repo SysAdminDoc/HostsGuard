@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Runtime.Versioning;
 using System.Windows.Data;
@@ -8,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using Grpc.Core;
 using HostsGuard.App.Services;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 
 namespace HostsGuard.App.ViewModels;
 
@@ -990,29 +992,23 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append("When,Process,PID,Protocol,Host,Remote,Port,Country,Firewall\r\n");
+        CsvExport.AppendRow(sb, "When", "Process", "PID", "Protocol", "Host", "Remote", "Port", "Country", "Firewall");
         foreach (var r in rows)
         {
-            sb.Append(Csv(r.Ts)).Append(',')
-              .Append(Csv(r.Process)).Append(',')
-              .Append(r.Pid).Append(',')
-              .Append(Csv(r.Protocol)).Append(',')
-              .Append(Csv(r.Host)).Append(',')
-              .Append(Csv(r.RemoteAddr)).Append(',')
-              .Append(r.RemotePort).Append(',')
-              .Append(Csv(r.Country)).Append(',')
-              .Append(Csv(r.FwStatus)).Append("\r\n");
+            CsvExport.AppendRow(
+                sb,
+                r.Ts,
+                r.Process,
+                r.Pid.ToString(CultureInfo.InvariantCulture),
+                r.Protocol,
+                r.Host,
+                r.RemoteAddr,
+                r.RemotePort.ToString(CultureInfo.InvariantCulture),
+                r.Country,
+                r.FwStatus);
         }
 
         return sb.ToString();
-
-        static string Csv(string? v)
-        {
-            v ??= string.Empty;
-            return v.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
-                ? "\"" + v.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
-                : v;
-        }
     }
 
     public async Task LoadBandwidthAsync()
