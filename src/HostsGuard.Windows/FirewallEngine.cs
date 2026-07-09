@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.CSharp.RuntimeBinder;
 using HostsGuard.Core;
 
 namespace HostsGuard.Windows;
@@ -42,10 +43,14 @@ public sealed class FirewallEngine : IFirewallEngine
     {
         var policy = CreatePolicy();
         var rules = new List<FwRule>();
+        var packages = ListPackages()
+            .ToDictionary(p => p.PackageSid, StringComparer.OrdinalIgnoreCase);
         foreach (var comRule in policy.Rules)
         {
             try
             {
+                string packageSid = SafeLocalAppPackageId(comRule);
+                packages.TryGetValue(packageSid, out var package);
                 rules.Add(FwRuleMapper.FromValues(
                     (string?)comRule.Name,
                     (int)comRule.Direction,
@@ -57,7 +62,12 @@ public sealed class FirewallEngine : IFirewallEngine
                     SafeRemotePorts(comRule),
                     SafeServiceName(comRule),
                     SafeLocalPorts(comRule),
-                    SafeInterfaces(comRule)));
+                    SafeInterfaces(comRule),
+                    package?.PackageFamilyName,
+                    packageSid,
+                    package?.DisplayName,
+                    package?.PackageFullName,
+                    package?.Binaries));
             }
             catch (COMException)
             {
@@ -66,6 +76,18 @@ public sealed class FirewallEngine : IFirewallEngine
         }
 
         return rules;
+    }
+
+    public IReadOnlyList<FwAppPackage> ListPackages()
+    {
+        try
+        {
+            return AppContainerPackages.List();
+        }
+        catch (Exception ex) when (ex is COMException or System.ComponentModel.Win32Exception or EntryPointNotFoundException or DllNotFoundException)
+        {
+            return Array.Empty<FwAppPackage>();
+        }
     }
 
     /// <summary>Create a rule. Returns false if a rule with the same name already exists.</summary>
@@ -101,6 +123,11 @@ public sealed class FirewallEngine : IFirewallEngine
         if (rule.RemotePorts is not ("" or "Any") && rule.Protocol is "TCP" or "UDP")
         {
             com.RemotePorts = rule.RemotePorts;
+        }
+
+        if (rule.PackageSid.Length != 0)
+        {
+            com.LocalAppPackageId = rule.PackageSid;
         }
 
         if (rule.Program.Length != 0)
@@ -327,6 +354,18 @@ public sealed class FirewallEngine : IFirewallEngine
         catch (COMException)
         {
             return "Any";
+        }
+    }
+
+    private static string SafeLocalAppPackageId(dynamic comRule)
+    {
+        try
+        {
+            return (string?)comRule.LocalAppPackageId ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+        {
+            return string.Empty;
         }
     }
 }

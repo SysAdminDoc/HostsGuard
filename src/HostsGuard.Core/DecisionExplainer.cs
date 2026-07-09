@@ -16,7 +16,9 @@ public sealed record DecisionInput(
     string Process,
     string Direction,
     string Signer,
-    string Service);
+    string Service,
+    string PackageFamilyName = "",
+    string PackageSid = "");
 
 public sealed record DecisionPolicyFacts(
     string? DomainStatus,
@@ -320,7 +322,29 @@ public static class DecisionExplainer
             return false;
         }
 
+        if (!PackageMatches(rule, input))
+        {
+            return false;
+        }
+
         return ProgramMatches(rule.Program, rule.Source, input.ProgramPath, input.Process);
+    }
+
+    private static bool PackageMatches(FwRule rule, DecisionInput input)
+    {
+        var ruleFamily = (rule.PackageFamilyName ?? string.Empty).Trim();
+        var ruleSid = (rule.PackageSid ?? string.Empty).Trim();
+        if (ruleFamily.Length == 0 && ruleSid.Length == 0)
+        {
+            return true;
+        }
+
+        var requestFamily = (input.PackageFamilyName ?? string.Empty).Trim();
+        var requestSid = (input.PackageSid ?? string.Empty).Trim();
+        return (ruleFamily.Length != 0 && requestFamily.Length != 0 &&
+                string.Equals(ruleFamily, requestFamily, StringComparison.OrdinalIgnoreCase)) ||
+               (ruleSid.Length != 0 && requestSid.Length != 0 &&
+                string.Equals(ruleSid, requestSid, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool ProtocolMatches(string ruleProtocol, string protocol)
@@ -525,7 +549,9 @@ public static class DecisionExplainer
 
     private static string DescribeRule(FwRule rule)
     {
-        var program = string.IsNullOrWhiteSpace(rule.Program) ? "any program" : Path.GetFileName(rule.Program);
+        var program = !string.IsNullOrWhiteSpace(rule.PackageFamilyName)
+            ? $"package {DisplayPackage(rule)}"
+            : string.IsNullOrWhiteSpace(rule.Program) ? "any program" : Path.GetFileName(rule.Program);
         var remote = string.IsNullOrWhiteSpace(rule.RemoteAddr) ? "Any" : rule.RemoteAddr;
         var ports = string.IsNullOrWhiteSpace(rule.RemotePorts) ? "Any" : rule.RemotePorts;
         var interfaces = string.IsNullOrWhiteSpace(rule.Interfaces) || rule.Interfaces == "Any"
@@ -533,6 +559,11 @@ public static class DecisionExplainer
             : $" interfaces={rule.Interfaces}";
         return $"{rule.Action} {rule.Direction} {rule.Protocol} {program} -> {remote}:{ports}{interfaces}";
     }
+
+    private static string DisplayPackage(FwRule rule)
+        => string.IsNullOrWhiteSpace(rule.PackageDisplayName)
+            ? rule.PackageFamilyName
+            : $"{rule.PackageDisplayName} ({rule.PackageFamilyName})";
 
     private static string DescribeDomainRule(DomainFirewallRuleFact rule)
     {

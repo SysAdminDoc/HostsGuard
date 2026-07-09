@@ -217,6 +217,20 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Error("invalid_address", $"'{remote}' is not a valid IP/CIDR/range list"));
         }
 
+        var program = (request.Program ?? string.Empty).Trim();
+        var packageFamily = (request.PackageFamilyName ?? string.Empty).Trim();
+        var packageSid = (request.PackageSid ?? string.Empty).Trim();
+        if (program.Length != 0 && (packageFamily.Length != 0 || packageSid.Length != 0))
+        {
+            return Task.FromResult(Error("ambiguous_target", "use either a program path or a package family name, not both"));
+        }
+
+        var package = ResolvePackage(fw, packageFamily, packageSid);
+        if ((packageFamily.Length != 0 || packageSid.Length != 0) && package is null)
+        {
+            return Task.FromResult(Error("package_not_found", $"package '{(packageFamily.Length == 0 ? packageSid : packageFamily)}' was not found on this machine"));
+        }
+
         var rule = new FwRule(
             name,
             FwRuleMapper.MapDirection(request.Direction),
@@ -224,12 +238,17 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             request.Enabled,
             remote.Length == 0 ? "Any" : remote,
             FwRuleMapper.MapProtocol(request.Protocol),
-            (request.Program ?? string.Empty).Trim(),
+            program,
             "hostsguard",
             FwRuleMapper.MapPorts(request.RemotePorts),
             FwRuleMapper.MapService(request.ServiceName),
             FwRuleMapper.MapPorts(request.LocalPorts),
-            FwRuleMapper.MapInterfaces(request.Interfaces));
+            FwRuleMapper.MapInterfaces(request.Interfaces),
+            package?.PackageFamilyName ?? string.Empty,
+            package?.PackageSid ?? string.Empty,
+            package?.DisplayName ?? string.Empty,
+            package?.PackageFullName ?? string.Empty,
+            package?.Binaries ?? string.Empty);
         var created = fw.CreateRule(rule);
         if (created)
         {
@@ -243,7 +262,12 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
                 rule.RemotePorts,
                 rule.LocalPorts,
                 rule.ServiceName,
-                rule.Interfaces);
+                rule.Interfaces,
+                rule.PackageFamilyName,
+                rule.PackageSid,
+                rule.PackageDisplayName,
+                rule.PackageFullName,
+                rule.PackageBinaries);
             if (rule.Program.Length != 0)
             {
                 _state.Identity?.Remember(rule.Name, rule.Program);
@@ -351,6 +375,29 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             : Error("not_found", $"{name} does not exist"));
     }
 
+    public override Task<AppPackageList> ListAppPackages(Empty request, ServerCallContext context)
+    {
+        var result = new AppPackageList();
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(result);
+        }
+
+        foreach (var package in fw.ListPackages())
+        {
+            result.Packages.Add(new AppPackage
+            {
+                PackageFamilyName = package.PackageFamilyName,
+                PackageSid = package.PackageSid,
+                DisplayName = package.DisplayName,
+                PackageFullName = package.PackageFullName,
+                Binaries = package.Binaries,
+            });
+        }
+
+        return Task.FromResult(result);
+    }
+
     public override Task<FirewallRuleList> ListRules(Empty request, ServerCallContext context)
     {
         var list = new FirewallRuleList();
@@ -377,20 +424,25 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         }
 
         // Tracked rules missing live = drift (deleted behind our back).
-        foreach (var name in _state.Db.GetFwStateNames().Where(n => !liveNames.Contains(n)))
+        foreach (var tracked in _state.Db.GetFwState().Where(n => !liveNames.Contains(n.Name)))
         {
-            if (list.Rules.Any(r => string.Equals(r.Name, name, StringComparison.Ordinal)))
+            if (list.Rules.Any(r => string.Equals(r.Name, tracked.Name, StringComparison.Ordinal)))
             {
                 continue;
             }
 
             list.Rules.Add(new FirewallRule
             {
-                Name = name,
+                Name = tracked.Name,
                 Source = "hostsguard",
                 Drifted = true,
                 DriftStatus = "missing",
                 DriftDetail = "tracked HostsGuard rule is missing from Windows Firewall",
+                PackageFamilyName = tracked.PackageFamilyName ?? string.Empty,
+                PackageSid = tracked.PackageSid ?? string.Empty,
+                PackageDisplayName = tracked.PackageDisplayName ?? string.Empty,
+                PackageFullName = tracked.PackageFullName ?? string.Empty,
+                PackageBinaries = tracked.PackageBinaries ?? string.Empty,
             });
         }
 
@@ -464,6 +516,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             LocalPorts = rule.LocalPorts,
             ServiceName = rule.ServiceName,
             Interfaces = rule.Interfaces,
+            PackageFamilyName = rule.PackageFamilyName,
+            PackageSid = rule.PackageSid,
+            PackageDisplayName = rule.PackageDisplayName,
+            PackageFullName = rule.PackageFullName,
+            PackageBinaries = rule.PackageBinaries,
             Adopted = adopted,
             DriftStatus = driftStatus,
             DriftDetail = DriftDetail(snapshot),
@@ -488,6 +545,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         LocalPorts = snapshot.LocalPorts,
         ServiceName = snapshot.ServiceName,
         Interfaces = snapshot.Interfaces,
+        PackageFamilyName = snapshot.PackageFamilyName,
+        PackageSid = snapshot.PackageSid,
+        PackageDisplayName = snapshot.PackageDisplayName,
+        PackageFullName = snapshot.PackageFullName,
+        PackageBinaries = snapshot.PackageBinaries,
         DriftStatus = string.IsNullOrWhiteSpace(snapshot.ChangeKind) ? "vanished" : snapshot.ChangeKind,
         DriftDetail = DriftDetail(snapshot),
         FirstSeen = snapshot.FirstSeen,
@@ -1057,7 +1119,30 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             process,
             string.IsNullOrWhiteSpace(request.Direction) ? "Out" : request.Direction.Trim(),
             signer,
-            (request.Service ?? string.Empty).Trim());
+            (request.Service ?? string.Empty).Trim(),
+            (request.PackageFamilyName ?? string.Empty).Trim(),
+            (request.PackageSid ?? string.Empty).Trim());
+    }
+
+    private static FwAppPackage? ResolvePackage(IFirewallEngine fw, string packageFamilyName, string packageSid)
+    {
+        if (packageFamilyName.Length == 0 && packageSid.Length == 0)
+        {
+            return null;
+        }
+
+        var packages = fw.ListPackages();
+        var found = packages.FirstOrDefault(p =>
+            (packageFamilyName.Length != 0 && string.Equals(p.PackageFamilyName, packageFamilyName, StringComparison.OrdinalIgnoreCase)) ||
+            (packageSid.Length != 0 && string.Equals(p.PackageSid, packageSid, StringComparison.OrdinalIgnoreCase)));
+        if (found is not null)
+        {
+            return found;
+        }
+
+        return packageSid.StartsWith("S-1-", StringComparison.OrdinalIgnoreCase)
+            ? new FwAppPackage(packageFamilyName, packageSid, string.Empty, string.Empty, string.Empty)
+            : null;
     }
 
     private static bool LooksLikePath(string target) =>

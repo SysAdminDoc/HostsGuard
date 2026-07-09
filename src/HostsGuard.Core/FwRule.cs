@@ -15,7 +15,20 @@ public sealed record FwRule(
     string RemotePorts = "Any",
     string ServiceName = "", // SCM short name — scopes the rule to one service (NET-073)
     string LocalPorts = "Any",
-    string Interfaces = "Any");
+    string Interfaces = "Any",
+    string PackageFamilyName = "",
+    string PackageSid = "",
+    string PackageDisplayName = "",
+    string PackageFullName = "",
+    string PackageBinaries = "");
+
+/// <summary>Installed app-container/MSIX package identity for firewall rule authoring.</summary>
+public sealed record FwAppPackage(
+    string PackageFamilyName,
+    string PackageSid,
+    string DisplayName,
+    string PackageFullName,
+    string Binaries);
 
 /// <summary>
 /// Shape-tolerant mapping of raw firewall-rule scalar values into <see cref="FwRule"/>.
@@ -39,7 +52,12 @@ public static class FwRuleMapper
         object? remotePorts = null,
         string? serviceName = null,
         object? localPorts = null,
-        object? interfaces = null)
+        object? interfaces = null,
+        string? packageFamilyName = null,
+        string? packageSid = null,
+        string? packageDisplayName = null,
+        string? packageFullName = null,
+        object? packageBinaries = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -54,7 +72,12 @@ public static class FwRuleMapper
             RemotePorts: MapPorts(remotePorts),
             ServiceName: MapService(serviceName),
             LocalPorts: MapPorts(localPorts),
-            Interfaces: MapInterfaces(interfaces));
+            Interfaces: MapInterfaces(interfaces),
+            PackageFamilyName: MapPackage(packageFamilyName),
+            PackageSid: MapPackage(packageSid),
+            PackageDisplayName: MapPackage(packageDisplayName),
+            PackageFullName: MapPackage(packageFullName),
+            PackageBinaries: MapPackageList(packageBinaries));
     }
 
     /// <summary>Normalize the COM serviceName value ("*" means any/none for our model).</summary>
@@ -91,6 +114,46 @@ public static class FwRuleMapper
 
         joined = joined.Trim();
         return joined is "" or "*" or "Any" or "any" ? "Any" : joined;
+    }
+
+    public static string MapPackage(string? v)
+        => (v ?? string.Empty).Trim();
+
+    public static string MapPackageList(object? v)
+    {
+        if (v is null)
+        {
+            return string.Empty;
+        }
+
+        if (v is string s)
+        {
+            return s.Trim();
+        }
+
+        if (v is IEnumerable en and not string)
+        {
+            return string.Join(';', en.Cast<object?>()
+                .Select(x => x?.ToString()?.Trim() ?? string.Empty)
+                .Where(x => x.Length != 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+        }
+
+        return v.ToString()?.Trim() ?? string.Empty;
+    }
+
+    public static string RuleToken(string value)
+    {
+        var token = new string((value ?? string.Empty)
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '_')
+            .ToArray())
+            .Trim('_');
+        while (token.Contains("__", StringComparison.Ordinal))
+        {
+            token = token.Replace("__", "_", StringComparison.Ordinal);
+        }
+
+        return token.Length == 0 ? "package" : token;
     }
 
     public static string MapDirection(object? v)

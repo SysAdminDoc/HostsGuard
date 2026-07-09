@@ -158,6 +158,16 @@ public sealed class PolicyFirewallRule
 
     public string Program { get; set; } = string.Empty;
 
+    public string PackageFamilyName { get; set; } = string.Empty;
+
+    public string PackageSid { get; set; } = string.Empty;
+
+    public string PackageDisplayName { get; set; } = string.Empty;
+
+    public string PackageFullName { get; set; } = string.Empty;
+
+    public string PackageBinaries { get; set; } = string.Empty;
+
     public string RemotePorts { get; set; } = "Any";
 
     public string LocalPorts { get; set; } = "Any";

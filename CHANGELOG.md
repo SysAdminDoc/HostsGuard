@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.50] - 2026-07-09
+
+### Added
+- Added UWP/MSIX app-container package discovery and package-scoped Windows
+  Firewall rule authoring in the service, WPF Firewall Rules tab, and
+  `HostsGuard.Cli firewall-packages|block-package|allow-package|unblock-package`.
+- Added portable-policy, drift, secure-rule, and decision-explainer support for
+  package-family/SID firewall rules.
+
 ## [0.12.49] - 2026-07-09
 
 ### Added

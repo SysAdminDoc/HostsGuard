@@ -13,6 +13,7 @@ public class RuleOriginTests
     [InlineData("HG_Base_svchost_Out", "hostsguard", false, "baseline")]
     [InlineData("HG_Child_child_Out_abc", "hostsguard", false, "child-allow")]
     [InlineData("HG_Once_Allow_x_Out_123", "hostsguard", false, "temporary")]
+    [InlineData("HG_Package_Block_Contoso_Out", "hostsguard", false, "package")]
     [InlineData("HG_Scope_Internet_app", "hostsguard", false, "app-scope")]
     [InlineData("HG_DoH_IPs", "hostsguard", false, "DoH block")]
     [InlineData("HG_QUIC_UDP443", "hostsguard", false, "QUIC block")]

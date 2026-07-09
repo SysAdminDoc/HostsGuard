@@ -23,6 +23,10 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
     "block-app" => await ProgramOpAsync(args, block: true),
     "unblock-app" => await ProgramOpAsync(args, block: false),
+    "firewall-packages" or "packages" => await ListPackagesAsync(args),
+    "block-package" => await PackageOpAsync(args, "Block"),
+    "allow-package" => await PackageOpAsync(args, "Allow"),
+    "unblock-package" => await PackageOpAsync(args, "Delete"),
     "explain" => await ExplainAsync(args),
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
@@ -61,8 +65,13 @@ static int Usage()
           HostsGuard.Cli unblock <domain>
           HostsGuard.Cli block-app <exe-path> [out|in]
           HostsGuard.Cli unblock-app <exe-path> [out|in]
+          HostsGuard.Cli firewall-packages [--search text]
+          HostsGuard.Cli block-package <package-family-name|sid> [out|in]
+          HostsGuard.Cli allow-package <package-family-name|sid> [out|in]
+          HostsGuard.Cli unblock-package <package-family-name|sid> [out|in]
           HostsGuard.Cli explain <domain|ip|process|exe> [--domain d] [--ip a] [--program path]
-                              [--process name] [--port n] [--proto tcp|udp] [--direction out|in]
+                              [--package pfn] [--package-sid sid] [--process name]
+                              [--port n] [--proto tcp|udp] [--direction out|in]
           HostsGuard.Cli export [path.json]
           HostsGuard.Cli export-policy [path.json]
           HostsGuard.Cli import-policy [--preview] <path.json>
@@ -262,6 +271,13 @@ static DecisionExplainRequest BuildExplainRequest(string[] args)
                 }
 
                 break;
+            case "--package":
+            case "--pfn":
+                request.PackageFamilyName = value;
+                break;
+            case "--package-sid":
+                request.PackageSid = value;
+                break;
             case "--process":
             case "--app":
                 request.Process = value;
@@ -372,6 +388,136 @@ static async Task<int> ProgramOpAsync(string[] args, bool block)
         }
     }
 }
+
+static async Task<int> ListPackagesAsync(string[] args)
+{
+    var search = string.Empty;
+    for (var i = 1; i < args.Length; i++)
+    {
+        if (args[i] is "--search" or "-s")
+        {
+            search = i + 1 < args.Length ? args[++i] : string.Empty;
+        }
+        else if (search.Length == 0)
+        {
+            search = args[i];
+        }
+    }
+
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var list = await new FirewallControl.FirewallControlClient(channel).ListAppPackagesAsync(new Empty());
+            var rows = list.Packages
+                .Where(p => search.Length == 0 ||
+                    p.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    p.PackageFamilyName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    p.PackageSid.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    p.PackageFullName.Contains(search, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => string.IsNullOrWhiteSpace(p.DisplayName) ? p.PackageFamilyName : p.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var package in rows)
+            {
+                var label = string.IsNullOrWhiteSpace(package.DisplayName) ? package.PackageFamilyName : package.DisplayName;
+                Console.WriteLine($"{label}");
+                Console.WriteLine($"  pfn: {package.PackageFamilyName}");
+                Console.WriteLine($"  sid: {package.PackageSid}");
+                if (!string.IsNullOrWhiteSpace(package.PackageFullName))
+                {
+                    Console.WriteLine($"  full: {package.PackageFullName}");
+                }
+            }
+
+            Console.WriteLine($"{rows.Count} package(s)");
+            return 0;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static async Task<int> PackageOpAsync(string[] args, string action)
+{
+    if (args.Length < 2 || string.IsNullOrWhiteSpace(args[1]))
+    {
+        Console.Error.WriteLine("Missing package family name or package SID.");
+        return Usage();
+    }
+
+    var package = args[1].Trim();
+    var dir = args.Length > 2 && args[2].Trim().ToLowerInvariant() is "in" or "inbound" ? "In" : "Out";
+    var token = FwRuleMapper.RuleToken(package);
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var fw = new FirewallControl.FirewallControlClient(channel);
+            if (action == "Delete")
+            {
+                var deleted = 0;
+                foreach (var ruleName in new[] { $"HG_Package_Block_{token}_{dir}", $"HG_Package_Allow_{token}_{dir}" })
+                {
+                    var ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = ruleName });
+                    if (ack.Ok)
+                    {
+                        deleted++;
+                    }
+                }
+
+                Console.WriteLine(deleted == 0 ? "No matching package rule was removed." : $"Removed {deleted} package rule(s).");
+                return deleted == 0 ? 2 : 0;
+            }
+
+            var request = new FirewallRule
+            {
+                Name = $"HG_Package_{action}_{token}_{dir}",
+                Direction = dir,
+                Action = action,
+                Enabled = true,
+                RemoteAddr = "Any",
+                Protocol = "Any",
+            };
+            if (IsPackageSid(package))
+            {
+                request.PackageSid = package;
+            }
+            else
+            {
+                request.PackageFamilyName = package;
+            }
+
+            var create = await fw.CreateRuleAsync(request);
+            Console.WriteLine(create.Message);
+            return create.Ok ? 0 : 2;
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+    }
+}
+
+static bool IsPackageSid(string value) => value.Trim().StartsWith("S-1-", StringComparison.OrdinalIgnoreCase);
 
 static async Task<int> ExportAsync(string path)
 {

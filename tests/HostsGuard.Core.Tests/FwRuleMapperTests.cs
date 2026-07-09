@@ -65,12 +65,31 @@ public class FwRuleMapperTests
     }
 
     [Fact]
+    public void Package_list_valued_is_joined_and_deduped()
+    {
+        FwRuleMapper.MapPackageList(new[] { @"C:\A\a.exe", @"C:\B\b.exe", @"c:\a\a.exe" })
+            .Should().Be(@"C:\A\a.exe;C:\B\b.exe");
+        FwRuleMapper.RuleToken("Contoso.Reader_123abc").Should().Be("Contoso_Reader_123abc");
+        FwRuleMapper.RuleToken("   ").Should().Be("package");
+    }
+
+    [Fact]
     public void FromValues_full_rule_and_source_by_prefix()
     {
         var hg = FwRuleMapper.FromValues("HG_Block_x", 2, 0, 1, new[] { "1.1.1.1", "8.8.8.8" }, 6, @"C:\a.exe",
-            interfaces: new[] { "Ethernet" });
+            interfaces: new[] { "Ethernet" },
+            packageFamilyName: " Contoso.Reader_123abc ",
+            packageSid: " S-1-15-2-123 ",
+            packageDisplayName: " Contoso Reader ",
+            packageFullName: " Contoso.Reader_1.0.0.0_x64__123abc ",
+            packageBinaries: new[] { @"C:\Packages\reader.exe" });
         hg.Should().Be(new FwRule("HG_Block_x", "Out", "Block", true, "1.1.1.1,8.8.8.8", "TCP", @"C:\a.exe", "hostsguard",
-            Interfaces: "Ethernet"));
+            Interfaces: "Ethernet",
+            PackageFamilyName: "Contoso.Reader_123abc",
+            PackageSid: "S-1-15-2-123",
+            PackageDisplayName: "Contoso Reader",
+            PackageFullName: "Contoso.Reader_1.0.0.0_x64__123abc",
+            PackageBinaries: @"C:\Packages\reader.exe"));
 
         var sys = FwRuleMapper.FromValues("SomeSystemRule", 1, 1, 0, "Any", 256, "");
         sys.Direction.Should().Be("In");

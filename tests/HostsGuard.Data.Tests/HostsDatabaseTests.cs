@@ -155,6 +155,55 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Firewall_state_and_snapshot_preserve_package_identity()
+    {
+        using var db = new HostsDatabase(DbPath("fw-packages.db"));
+        var rule = new FwRule(
+            "HG_Package_Block_Contoso_Out",
+            "Out",
+            "Block",
+            true,
+            "Any",
+            "Any",
+            string.Empty,
+            "hostsguard",
+            PackageFamilyName: "Contoso.Reader_123abc",
+            PackageSid: "S-1-15-2-123",
+            PackageDisplayName: "Contoso Reader",
+            PackageFullName: "Contoso.Reader_1.0.0.0_x64__123abc",
+            PackageBinaries: @"C:\Program Files\WindowsApps\Contoso.Reader\reader.exe");
+
+        db.UpsertFwState(
+            rule.Name,
+            rule.Direction,
+            rule.Action,
+            rule.RemoteAddr,
+            rule.Protocol,
+            rule.Program,
+            rule.RemotePorts,
+            rule.LocalPorts,
+            rule.ServiceName,
+            rule.Interfaces,
+            rule.PackageFamilyName,
+            rule.PackageSid,
+            rule.PackageDisplayName,
+            rule.PackageFullName,
+            rule.PackageBinaries);
+
+        db.GetFwState().Should().ContainSingle(r =>
+            r.PackageFamilyName == "Contoso.Reader_123abc" &&
+            r.PackageSid == "S-1-15-2-123" &&
+            r.PackageDisplayName == "Contoso Reader");
+
+        db.SnapshotFirewallRules(new[] { rule }, new DateTime(2026, 7, 8, 12, 0, 0)).Should().BeEmpty();
+        var changed = rule with { PackageDisplayName = "Contoso Reader Preview" };
+        db.SnapshotFirewallRules(new[] { changed }, new DateTime(2026, 7, 8, 12, 5, 0))
+            .Should().ContainSingle(d =>
+                d.PackageFamilyName == "Contoso.Reader_123abc" &&
+                d.Details.Contains("package display: Contoso Reader -> Contoso Reader Preview", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");

@@ -319,6 +319,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         public IReadOnlyList<FwRule> ListRules() => Rules.Values.ToList();
 
+        public IReadOnlyList<FwAppPackage> ListPackages() => Array.Empty<FwAppPackage>();
+
         public bool CreateRule(FwRule rule)
         {
             if (Rules.ContainsKey(rule.Name))

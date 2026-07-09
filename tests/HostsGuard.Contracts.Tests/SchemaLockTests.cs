@@ -67,6 +67,7 @@ public class SchemaLockTests
           GetLanAttackSurface(Empty) returns (LanAttackSurfaceStatus)
           GetPosture(Empty) returns (FirewallPosture)
           GetSecureRules(Empty) returns (SecureRulesStatus)
+          ListAppPackages(Empty) returns (AppPackageList)
           ListDomainFirewallRules(Empty) returns (DomainFirewallRuleList)
           ListRuleGroups(Empty) returns (RuleGroupList)
           ListRules(Empty) returns (FirewallRuleList)

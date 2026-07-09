@@ -35,6 +35,21 @@ public sealed partial class FwRuleViewModel : ObservableObject
     private string _program = string.Empty;
 
     [ObservableProperty]
+    private string _packageFamilyName = string.Empty;
+
+    [ObservableProperty]
+    private string _packageSid = string.Empty;
+
+    [ObservableProperty]
+    private string _packageDisplayName = string.Empty;
+
+    [ObservableProperty]
+    private string _packageFullName = string.Empty;
+
+    [ObservableProperty]
+    private string _packageBinaries = string.Empty;
+
+    [ObservableProperty]
     private string _source = string.Empty;
 
     [ObservableProperty]
@@ -76,6 +91,23 @@ public sealed partial class FwRuleViewModel : ObservableObject
         ? $"local {LocalPorts}"
         : RemotePortsForDisplay is "" or "Any" ? "Any" : $"remote {RemotePortsForDisplay}";
 
+    public string TargetKind => PackageFamilyName.Length != 0 || PackageSid.Length != 0
+        ? "package"
+        : Program.Length != 0 ? "program" : "global";
+
+    public string PackageLabel => PackageDisplayName.Length != 0 && PackageFamilyName.Length != 0
+        ? $"{PackageDisplayName} ({PackageFamilyName})"
+        : PackageDisplayName.Length != 0 ? PackageDisplayName :
+        PackageFamilyName.Length != 0 ? PackageFamilyName :
+        PackageSid.Length != 0 ? PackageSid : string.Empty;
+
+    public string Target => TargetKind switch
+    {
+        "package" => PackageLabel,
+        "program" => Program,
+        _ => "All programs",
+    };
+
     [ObservableProperty]
     private string _remotePortsForDisplay = string.Empty;
 
@@ -106,6 +138,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
             _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => "child-allow",
             _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => "temporary",
             _ when name.StartsWith("HG_Domain_", StringComparison.Ordinal) => "domain",
+            _ when name.StartsWith("HG_Package_", StringComparison.Ordinal) => "package",
             _ when name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) => "app VPN",
             _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => "app-scope",
             _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
@@ -125,6 +158,11 @@ public sealed partial class FwRuleViewModel : ObservableObject
         RemoteAddr = r.RemoteAddr,
         Protocol = r.Protocol,
         Program = r.Program,
+        PackageFamilyName = r.PackageFamilyName,
+        PackageSid = r.PackageSid,
+        PackageDisplayName = r.PackageDisplayName,
+        PackageFullName = r.PackageFullName,
+        PackageBinaries = r.PackageBinaries,
         Source = r.Source,
         Orphaned = r.Orphaned,
         Drifted = r.Drifted,
@@ -138,6 +176,37 @@ public sealed partial class FwRuleViewModel : ObservableObject
         LocalPorts = r.LocalPorts,
         Interfaces = r.Interfaces,
         RemotePortsForDisplay = r.RemotePorts,
+    };
+}
+
+public sealed partial class AppPackageViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _packageFamilyName = string.Empty;
+
+    [ObservableProperty]
+    private string _packageSid = string.Empty;
+
+    [ObservableProperty]
+    private string _displayName = string.Empty;
+
+    [ObservableProperty]
+    private string _packageFullName = string.Empty;
+
+    [ObservableProperty]
+    private string _binaries = string.Empty;
+
+    public string Label => DisplayName.Length != 0 && PackageFamilyName.Length != 0
+        ? $"{DisplayName} ({PackageFamilyName})"
+        : PackageFamilyName.Length != 0 ? PackageFamilyName : PackageSid;
+
+    public static AppPackageViewModel From(AppPackage package) => new()
+    {
+        PackageFamilyName = package.PackageFamilyName,
+        PackageSid = package.PackageSid,
+        DisplayName = package.DisplayName,
+        PackageFullName = package.PackageFullName,
+        Binaries = package.Binaries,
     };
 }
 
@@ -207,6 +276,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [ObservableProperty]
     private string _newRuleProgram = string.Empty;
 
+    [ObservableProperty]
+    private string _newRulePackageFamily = string.Empty;
+
     public FwRulesViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -216,6 +288,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
     }
 
     public ObservableCollection<FwRuleViewModel> Rules { get; } = new();
+
+    public ObservableCollection<AppPackageViewModel> AppPackages { get; } = new();
 
     /// <summary>Named rule groups (NET-103) with enable/disable toggles.</summary>
     public ObservableCollection<RuleGroupViewModel> RuleGroups { get; } = new();
@@ -266,6 +340,14 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
     private async Task RefreshCoreAsync()
     {
+        var packages = await _client.Firewall.ListAppPackagesAsync(new Empty());
+        AppPackages.Clear();
+        foreach (var package in packages.Packages
+            .OrderBy(p => string.IsNullOrWhiteSpace(p.DisplayName) ? p.PackageFamilyName : p.DisplayName, StringComparer.OrdinalIgnoreCase))
+        {
+            AppPackages.Add(AppPackageViewModel.From(package));
+        }
+
         var list = await _client.Firewall.ListRulesAsync(new Empty());
         var filter = Filter.Trim();
         var driftCount = list.Rules.Count(r => !string.IsNullOrWhiteSpace(r.DriftStatus));
@@ -288,6 +370,10 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 !r.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.RemoteAddr.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.PackageFamilyName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.PackageSid.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.PackageDisplayName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.PackageFullName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.ServiceName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.Interfaces.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.DriftStatus.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
@@ -528,6 +614,12 @@ public sealed partial class FwRulesViewModel : ObservableObject
     {
         await RunServiceActionAsync("Create firewall rule", async () =>
         {
+            if (!string.IsNullOrWhiteSpace(NewRuleProgram) && !string.IsNullOrWhiteSpace(NewRulePackageFamily))
+            {
+                StatusText = "Choose either a program path or a package, not both";
+                return;
+            }
+
             var ack = await _client.Firewall.CreateRuleAsync(new FirewallRule
             {
                 Name = NewRuleName.Trim(),
@@ -536,6 +628,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 Protocol = NewRuleProtocol,
                 RemoteAddr = NewRuleRemoteAddr.Trim(),
                 Program = NewRuleProgram.Trim(),
+                PackageFamilyName = NewRulePackageFamily.Trim(),
                 Enabled = true,
             });
             StatusText = ack.Message;
@@ -544,6 +637,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 NewRuleName = string.Empty;
                 NewRuleRemoteAddr = string.Empty;
                 NewRuleProgram = string.Empty;
+                NewRulePackageFamily = string.Empty;
                 await RefreshCoreAsync();
             }
         });

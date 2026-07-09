@@ -451,6 +451,8 @@ service FirewallControl {
   // decision chain for a selected row or manually entered domain/IP/process.
   rpc ExplainDecision(DecisionExplainRequest) returns (DecisionExplanation);
   rpc SetRuleEnabled(RuleEnabledRequest) returns (Ack);
+  // AppContainer/MSIX package inventory for package-family firewall rules.
+  rpc ListAppPackages(Empty) returns (AppPackageList);
   rpc ListRules(Empty) returns (FirewallRuleList);
   rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
   rpc UnblockEncryptedDns(Empty) returns (Ack);
@@ -633,6 +635,8 @@ message DecisionExplainRequest {
   string direction = 8;    // "Out" | "In"; empty = Out
   string signer = 9;       // optional Authenticode subject for publisher trust
   string service = 10;     // SCM service key/display when known
+  string package_family_name = 11; // MSIX/UWP package family name when known
+  string package_sid = 12;         // app-container SID when known
 }
 
 message DecisionStep {
@@ -724,10 +728,27 @@ message FirewallRule {
   string changed_at = 18;   // ISO timestamp of latest detected drift
   string local_ports = 19;  // "Any" or a COM local-port list, used by inbound service blocks
   string interfaces = 20;   // "Any" or comma-separated Windows interface aliases
+  string package_family_name = 21; // MSIX/UWP package family name when this is a package rule
+  string package_sid = 22;         // app-container SID used by INetFwRule3.LocalAppPackageId
+  string package_display_name = 23;
+  string package_full_name = 24;
+  string package_binaries = 25;    // semicolon-separated binary paths returned by NetworkIsolation
 }
 
 message FirewallRuleList {
   repeated FirewallRule rules = 1;
+}
+
+message AppPackage {
+  string package_family_name = 1;
+  string package_sid = 2;
+  string display_name = 3;
+  string package_full_name = 4;
+  string binaries = 5;
+}
+
+message AppPackageList {
+  repeated AppPackage packages = 1;
 }
 
 message AdoptResult {

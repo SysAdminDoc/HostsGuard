@@ -24,6 +24,11 @@
   <data name="Tab_ManagedDomains" xml:space="preserve"><value>Dominios gestionados</value></data>
   <data name="Tab_Blocklists" xml:space="preserve"><value>Listas de bloqueo</value></data>
   <data name="Tab_RawEditor" xml:space="preserve"><value>Editor sin formato</value></data>
+  <data name="FwRules_TargetKind" xml:space="preserve"><value>Tipo</value></data>
+  <data name="FwRules_Target" xml:space="preserve"><value>Destino</value></data>
+  <data name="FwRules_Package" xml:space="preserve"><value>Paquete</value></data>
+  <data name="FwRules_NewRulePackage" xml:space="preserve"><value>Paquete de la nueva regla de firewall</value></data>
+  <data name="FwRules_PackageTip" xml:space="preserve"><value>Nombre de familia del paquete MSIX o SID del paquete opcional. Use paquete o programa, no ambos.</value></data>
   <data name="Menu_File" xml:space="preserve"><value>_Archivo</value></data>
   <data name="Menu_View" xml:space="preserve"><value>_Ver</value></data>
   <data name="Menu_Help" xml:space="preserve"><value>A_yuda</value></data>

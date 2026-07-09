@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.49-blue)
+![Version](https://img.shields.io/badge/version-0.12.50-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -115,8 +115,9 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 
 | Feature | Description |
 |---------|-------------|
-| Full rule viewer | All Windows Firewall rules with name, direction, action, protocol, address, program, interface aliases, and report-only drift status |
+| Full rule viewer | All Windows Firewall rules with name, direction, action, protocol, address, target kind, executable/package target, interface aliases, and report-only drift status |
 | `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable, including DNS-following `HG_Domain_` per-app rules, `HG_LAN_*` attack-surface hardening rules, and `HG_VPNBind_*` interface-scoped app rules |
+| UWP/MSIX package rules | Lists installed app-container packages and creates package-scoped allow/block rules by package family name or package SID, without changing hosts-file blocking defaults |
 | Full-firewall drift baseline | Snapshots every Windows Firewall rule and ledgers when foreign rules appear, change, or vanish without auto-reverting non-HostsGuard rules |
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back (only HostsGuard's own rules — your other configuration is never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
@@ -154,6 +155,10 @@ HostsGuard.Cli status
 HostsGuard.Cli block <domain> [reason]
 HostsGuard.Cli allow <domain> [reason]
 HostsGuard.Cli unblock <domain>
+HostsGuard.Cli firewall-packages [--search text]
+HostsGuard.Cli block-package <package-family-name|sid> [out|in]
+HostsGuard.Cli allow-package <package-family-name|sid> [out|in]
+HostsGuard.Cli unblock-package <package-family-name|sid> [out|in]
 HostsGuard.Cli explain <domain|ip|process|exe> [--program path] [--port N] [--proto tcp|udp]
 HostsGuard.Cli export [path.json]
 HostsGuard.Cli export-policy [path.json]
@@ -185,7 +190,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 873 tests, no elevation needed
+dotnet test HostsGuard.sln           # 880 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1 -RequireArtifacts
@@ -196,8 +201,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.49-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.49-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.50-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.50-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

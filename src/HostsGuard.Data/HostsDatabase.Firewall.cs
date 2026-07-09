@@ -22,7 +22,12 @@ public sealed partial class HostsDatabase
         string remotePorts = "Any",
         string localPorts = "Any",
         string serviceName = "",
-        string interfaces = "Any")
+        string interfaces = "Any",
+        string packageFamilyName = "",
+        string packageSid = "",
+        string packageDisplayName = "",
+        string packageFullName = "",
+        string packageBinaries = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
@@ -30,11 +35,32 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT OR REPLACE INTO fw_state(name,direction,action,remote_addr,protocol,program,remote_ports,local_ports,service_name,interfaces,created)
+                INSERT OR REPLACE INTO fw_state(
+                    name,direction,action,remote_addr,protocol,program,remote_ports,local_ports,service_name,interfaces,
+                    package_family_name,package_sid,package_display_name,package_full_name,package_binaries,created)
                 VALUES(@name,@direction,@action,@remoteAddr,@protocol,@program,@remotePorts,@localPorts,@serviceName,@interfaces,
+                       @packageFamilyName,@packageSid,@packageDisplayName,@packageFullName,@packageBinaries,
                        COALESCE((SELECT created FROM fw_state WHERE name=@name),@now))
                 """,
-                new { name, direction, action, remoteAddr, protocol, program, remotePorts, localPorts, serviceName, interfaces, now });
+                new
+                {
+                    name,
+                    direction,
+                    action,
+                    remoteAddr,
+                    protocol,
+                    program,
+                    remotePorts,
+                    localPorts,
+                    serviceName,
+                    interfaces,
+                    packageFamilyName,
+                    packageSid,
+                    packageDisplayName,
+                    packageFullName,
+                    packageBinaries,
+                    now,
+                });
         }
     }
 
@@ -114,7 +140,9 @@ public sealed partial class HostsDatabase
                 SELECT name AS Name, direction AS Direction, action AS Action,
                        remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program,
                        remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
-                       interfaces AS Interfaces
+                       interfaces AS Interfaces, package_family_name AS PackageFamilyName,
+                       package_sid AS PackageSid, package_display_name AS PackageDisplayName,
+                       package_full_name AS PackageFullName, package_binaries AS PackageBinaries
                 FROM fw_state
                 """).ToList();
         }
@@ -154,7 +182,9 @@ public sealed partial class HostsDatabase
                     SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
                            remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
                            remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
-                           interfaces AS Interfaces, hash AS Hash,
+                           interfaces AS Interfaces, package_family_name AS PackageFamilyName,
+                           package_sid AS PackageSid, package_display_name AS PackageDisplayName,
+                           package_full_name AS PackageFullName, package_binaries AS PackageBinaries, hash AS Hash,
                            present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
                            changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
                     FROM firewall_rule_snapshot
@@ -173,8 +203,10 @@ public sealed partial class HostsDatabase
                         """
                         INSERT INTO firewall_rule_snapshot(
                             name,direction,action,enabled,remote_addr,protocol,program,source,remote_ports,local_ports,service_name,interfaces,
+                            package_family_name,package_sid,package_display_name,package_full_name,package_binaries,
                             hash,present,first_seen,last_seen,changed_at,change_kind,change_detail)
                         VALUES(@Name,@Direction,@Action,@Enabled,@RemoteAddr,@Protocol,@Program,@Source,@RemotePorts,@LocalPorts,@ServiceName,@Interfaces,
+                               @PackageFamilyName,@PackageSid,@PackageDisplayName,@PackageFullName,@PackageBinaries,
                                @Hash,1,@now,@now,@changedAt,@ChangeKind,@ChangeDetail)
                         """,
                         SnapshotParams(rule, hash, now, initialized ? now : string.Empty, kind, detail), tx);
@@ -196,6 +228,9 @@ public sealed partial class HostsDatabase
                         SET direction=@Direction, action=@Action, enabled=@Enabled, remote_addr=@RemoteAddr,
                             protocol=@Protocol, program=@Program, source=@Source, remote_ports=@RemotePorts,
                             local_ports=@LocalPorts, service_name=@ServiceName, interfaces=@Interfaces,
+                            package_family_name=@PackageFamilyName, package_sid=@PackageSid,
+                            package_display_name=@PackageDisplayName, package_full_name=@PackageFullName,
+                            package_binaries=@PackageBinaries,
                             hash=@Hash, present=1, last_seen=@now,
                             changed_at=@changedAt, change_kind=@ChangeKind, change_detail=@ChangeDetail
                         WHERE name=@Name
@@ -248,7 +283,9 @@ public sealed partial class HostsDatabase
                 SELECT name AS Name, direction AS Direction, action AS Action, enabled AS Enabled,
                        remote_addr AS RemoteAddr, protocol AS Protocol, program AS Program, source AS Source,
                        remote_ports AS RemotePorts, local_ports AS LocalPorts, service_name AS ServiceName,
-                       interfaces AS Interfaces, hash AS Hash,
+                       interfaces AS Interfaces, package_family_name AS PackageFamilyName,
+                       package_sid AS PackageSid, package_display_name AS PackageDisplayName,
+                       package_full_name AS PackageFullName, package_binaries AS PackageBinaries, hash AS Hash,
                        present AS Present, first_seen AS FirstSeen, last_seen AS LastSeen,
                        changed_at AS ChangedAt, change_kind AS ChangeKind, change_detail AS ChangeDetail
                 FROM firewall_rule_snapshot
@@ -271,6 +308,11 @@ public sealed partial class HostsDatabase
         LocalPorts = Clean(rule.LocalPorts),
         ServiceName = Clean(rule.ServiceName),
         Interfaces = Clean(rule.Interfaces),
+        PackageFamilyName = Clean(rule.PackageFamilyName),
+        PackageSid = Clean(rule.PackageSid),
+        PackageDisplayName = Clean(rule.PackageDisplayName),
+        PackageFullName = Clean(rule.PackageFullName),
+        PackageBinaries = Clean(rule.PackageBinaries),
         Hash = hash,
         now,
         changedAt,
@@ -291,7 +333,12 @@ public sealed partial class HostsDatabase
             Clean(rule.RemotePorts),
             Clean(rule.LocalPorts),
             Clean(rule.ServiceName),
-            Clean(rule.Interfaces));
+            Clean(rule.Interfaces),
+            Clean(rule.PackageFamilyName),
+            Clean(rule.PackageSid),
+            Clean(rule.PackageDisplayName),
+            Clean(rule.PackageFullName),
+            Clean(rule.PackageBinaries));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -309,6 +356,11 @@ public sealed partial class HostsDatabase
         Clean(rule.LocalPorts),
         Clean(rule.ServiceName),
         Clean(rule.Interfaces),
+        Clean(rule.PackageFamilyName),
+        Clean(rule.PackageSid),
+        Clean(rule.PackageDisplayName),
+        Clean(rule.PackageFullName),
+        Clean(rule.PackageBinaries),
         details);
 
     private static FirewallRuleDriftRow ToDrift(FirewallRuleSnapshotRow row, string kind, string details) => new(
@@ -325,15 +377,20 @@ public sealed partial class HostsDatabase
         Clean(row.LocalPorts),
         Clean(row.ServiceName),
         Clean(row.Interfaces),
+        Clean(row.PackageFamilyName),
+        Clean(row.PackageSid),
+        Clean(row.PackageDisplayName),
+        Clean(row.PackageFullName),
+        Clean(row.PackageBinaries),
         details);
 
     private static string Describe(FwRule rule) =>
         $"{Clean(rule.Source)} {Clean(rule.Direction)} {Clean(rule.Action)} {(rule.Enabled ? "enabled" : "disabled")} " +
-        $"{Clean(rule.Protocol)} remote={Clean(rule.RemoteAddr)} remotePorts={Clean(rule.RemotePorts)} localPorts={Clean(rule.LocalPorts)} program={Clean(rule.Program)} service={Clean(rule.ServiceName)} interfaces={Clean(rule.Interfaces)}";
+        $"{Clean(rule.Protocol)} remote={Clean(rule.RemoteAddr)} remotePorts={Clean(rule.RemotePorts)} localPorts={Clean(rule.LocalPorts)} program={Clean(rule.Program)} service={Clean(rule.ServiceName)} interfaces={Clean(rule.Interfaces)} package={Clean(rule.PackageFamilyName)}";
 
     private static string Describe(FirewallRuleSnapshotRow row) =>
         $"{Clean(row.Source)} {Clean(row.Direction)} {Clean(row.Action)} {(row.Enabled ? "enabled" : "disabled")} " +
-        $"{Clean(row.Protocol)} remote={Clean(row.RemoteAddr)} remotePorts={Clean(row.RemotePorts)} localPorts={Clean(row.LocalPorts)} program={Clean(row.Program)} service={Clean(row.ServiceName)} interfaces={Clean(row.Interfaces)}";
+        $"{Clean(row.Protocol)} remote={Clean(row.RemoteAddr)} remotePorts={Clean(row.RemotePorts)} localPorts={Clean(row.LocalPorts)} program={Clean(row.Program)} service={Clean(row.ServiceName)} interfaces={Clean(row.Interfaces)} package={Clean(row.PackageFamilyName)}";
 
     private static string DescribeChanges(FirewallRuleSnapshotRow old, FwRule current)
     {
@@ -348,6 +405,11 @@ public sealed partial class HostsDatabase
         Add("local ports", old.LocalPorts, current.LocalPorts);
         Add("service", old.ServiceName, current.ServiceName);
         Add("interfaces", old.Interfaces, current.Interfaces);
+        Add("package family", old.PackageFamilyName, current.PackageFamilyName);
+        Add("package sid", old.PackageSid, current.PackageSid);
+        Add("package display", old.PackageDisplayName, current.PackageDisplayName);
+        Add("package full name", old.PackageFullName, current.PackageFullName);
+        Add("package binaries", old.PackageBinaries, current.PackageBinaries);
         return changes.Count == 0 ? $"changed {Describe(current)}" : "changed " + string.Join("; ", changes);
 
         void Add(string label, string? before, string? after)

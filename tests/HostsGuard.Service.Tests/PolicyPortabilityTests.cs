@@ -77,6 +77,22 @@ public sealed class PolicyPortabilityTests : IDisposable
             Protocol = "Any",
             Program = @"C:\evil\evil.exe",
         }, TestContext());
+        srcFw.Packages.Add(new FwAppPackage(
+            "Contoso.Reader_123abc",
+            "S-1-15-2-123",
+            "Contoso Reader",
+            "Contoso.Reader_1.0.0.0_x64__123abc",
+            @"C:\Program Files\WindowsApps\Contoso.Reader\reader.exe"));
+        new FirewallControlServiceImpl(src).CreateRule(new FirewallRule
+        {
+            Name = "HG_Package_Block_Contoso_Reader_Out",
+            Direction = "Out",
+            Action = "Block",
+            Enabled = true,
+            RemoteAddr = "Any",
+            Protocol = "Any",
+            PackageFamilyName = "Contoso.Reader_123abc",
+        }, TestContext());
         src.Db.UpsertDomainFirewallRule(
             "api.example.com",
             @"C:\Browser\browser.exe",
@@ -100,6 +116,11 @@ public sealed class PolicyPortabilityTests : IDisposable
         var policy = PortablePolicy.FromJson(json);
         policy.Version.Should().Be(PortablePolicy.CurrentVersion);
         policy.FirewallRules.Should().NotContain(r => r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal));
+        policy.FirewallRules.Should().ContainSingle(r =>
+            r.Name == "HG_Package_Block_Contoso_Reader_Out" &&
+            r.PackageFamilyName == "Contoso.Reader_123abc" &&
+            r.PackageSid == "S-1-15-2-123" &&
+            r.PackageDisplayName == "Contoso Reader");
         policy.DomainFirewallRules.Should().ContainSingle(r => r.Domain == "api.example.com");
 
         // Import onto a fresh, empty machine.
@@ -114,6 +135,9 @@ public sealed class PolicyPortabilityTests : IDisposable
 
         dstFw.Rules.Should().ContainKey("HG_BlockApp_evil_Out");
         dstFw.Rules["HG_BlockApp_evil_Out"].Program.Should().Be(@"C:\evil\evil.exe");
+        dstFw.Rules.Should().ContainKey("HG_Package_Block_Contoso_Reader_Out");
+        dstFw.Rules["HG_Package_Block_Contoso_Reader_Out"].Program.Should().BeEmpty();
+        dstFw.Rules["HG_Package_Block_Contoso_Reader_Out"].PackageSid.Should().Be("S-1-15-2-123");
         dst.Db.ListDomainFirewallRules().Should().ContainSingle(r =>
             r.RuleName == "HG_Domain_api_example_com_ABCDEF123456" &&
             r.Program == @"C:\Browser\browser.exe" &&

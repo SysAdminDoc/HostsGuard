@@ -56,6 +56,11 @@ public static class PolicyPortability
                     RemoteAddr = r.RemoteAddr,
                     Protocol = r.Protocol,
                     Program = r.Program,
+                    PackageFamilyName = r.PackageFamilyName,
+                    PackageSid = r.PackageSid,
+                    PackageDisplayName = r.PackageDisplayName,
+                    PackageFullName = r.PackageFullName,
+                    PackageBinaries = r.PackageBinaries,
                     RemotePorts = r.RemotePorts,
                     LocalPorts = r.LocalPorts,
                     ServiceName = r.ServiceName,
@@ -256,7 +261,9 @@ public static class PolicyPortability
                 (!string.Equals(current.Action, FwRuleMapper.MapAction(kv.Value.Action), StringComparison.Ordinal) ||
                  current.Enabled != kv.Value.Enabled ||
                  !string.Equals(current.RemoteAddr, string.IsNullOrWhiteSpace(kv.Value.RemoteAddr) ? "Any" : kv.Value.RemoteAddr, StringComparison.Ordinal) ||
-                 !string.Equals(current.Program, kv.Value.Program ?? string.Empty, StringComparison.Ordinal)));
+                 !string.Equals(current.Program, kv.Value.Program ?? string.Empty, StringComparison.Ordinal) ||
+                 !string.Equals(current.PackageFamilyName, kv.Value.PackageFamilyName ?? string.Empty, StringComparison.Ordinal) ||
+                 !string.Equals(current.PackageSid, kv.Value.PackageSid ?? string.Empty, StringComparison.Ordinal)));
             added += ruleAdded;
             changed += ruleChanged;
             summary.Add($"firewall rules: +{ruleAdded}, ~{ruleChanged}, -0 (merge)");
@@ -354,19 +361,7 @@ public static class PolicyPortability
                     continue;
                 }
 
-                var rule = new FwRule(
-                    r.Name,
-                    FwRuleMapper.MapDirection(r.Direction),
-                    FwRuleMapper.MapAction(r.Action),
-                    r.Enabled,
-                    string.IsNullOrWhiteSpace(r.RemoteAddr) ? "Any" : r.RemoteAddr,
-                    FwRuleMapper.MapProtocol(r.Protocol),
-                    r.Program ?? string.Empty,
-                    "hostsguard",
-                    FwRuleMapper.MapPorts(r.RemotePorts),
-                    FwRuleMapper.MapService(r.ServiceName),
-                    FwRuleMapper.MapPorts(r.LocalPorts),
-                    FwRuleMapper.MapInterfaces(r.Interfaces));
+                var rule = ToFirewallRule(r);
                 if (fw.CreateRule(rule))
                 {
                     rulesCreated++;
@@ -383,7 +378,12 @@ public static class PolicyPortability
                     rule.RemotePorts,
                     rule.LocalPorts,
                     rule.ServiceName,
-                    rule.Interfaces);
+                    rule.Interfaces,
+                    rule.PackageFamilyName,
+                    rule.PackageSid,
+                    rule.PackageDisplayName,
+                    rule.PackageFullName,
+                    rule.PackageBinaries);
                 if (rule.Program.Length != 0)
                 {
                     state.Identity?.Remember(rule.Name, rule.Program);
@@ -591,19 +591,7 @@ public static class PolicyPortability
                     continue;
                 }
 
-                var rule = new FwRule(
-                    r.Name,
-                    FwRuleMapper.MapDirection(r.Direction),
-                    FwRuleMapper.MapAction(r.Action),
-                    r.Enabled,
-                    string.IsNullOrWhiteSpace(r.RemoteAddr) ? "Any" : r.RemoteAddr,
-                    FwRuleMapper.MapProtocol(r.Protocol),
-                    r.Program ?? string.Empty,
-                    "hostsguard",
-                    FwRuleMapper.MapPorts(r.RemotePorts),
-                    FwRuleMapper.MapService(r.ServiceName),
-                    FwRuleMapper.MapPorts(r.LocalPorts),
-                    FwRuleMapper.MapInterfaces(r.Interfaces));
+                var rule = ToFirewallRule(r);
                 if (fw.CreateRule(rule))
                 {
                     createdRules++;
@@ -619,7 +607,12 @@ public static class PolicyPortability
                     rule.RemotePorts,
                     rule.LocalPorts,
                     rule.ServiceName,
-                    rule.Interfaces);
+                    rule.Interfaces,
+                    rule.PackageFamilyName,
+                    rule.PackageSid,
+                    rule.PackageDisplayName,
+                    rule.PackageFullName,
+                    rule.PackageBinaries);
             }
 
             summary.Add($"{policy.FirewallRules.Count} firewall rules restored (+{createdRules}, -{removedRules})");
@@ -929,6 +922,25 @@ public static class PolicyPortability
 
     private static string NonEmpty(string? value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static FwRule ToFirewallRule(PolicyFirewallRule r) => new(
+        r.Name,
+        FwRuleMapper.MapDirection(r.Direction),
+        FwRuleMapper.MapAction(r.Action),
+        r.Enabled,
+        string.IsNullOrWhiteSpace(r.RemoteAddr) ? "Any" : r.RemoteAddr,
+        FwRuleMapper.MapProtocol(r.Protocol),
+        r.Program ?? string.Empty,
+        "hostsguard",
+        FwRuleMapper.MapPorts(r.RemotePorts),
+        FwRuleMapper.MapService(r.ServiceName),
+        FwRuleMapper.MapPorts(r.LocalPorts),
+        FwRuleMapper.MapInterfaces(r.Interfaces),
+        r.PackageFamilyName ?? string.Empty,
+        r.PackageSid ?? string.Empty,
+        r.PackageDisplayName ?? string.Empty,
+        r.PackageFullName ?? string.Empty,
+        r.PackageBinaries ?? string.Empty);
 
     private static void AddSetDiff(
         string label,

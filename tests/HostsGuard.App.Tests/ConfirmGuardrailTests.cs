@@ -34,6 +34,8 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
 
         public IReadOnlyList<Core.FwRule> ListRules() => Rules.Values.ToList();
 
+        public IReadOnlyList<Core.FwAppPackage> ListPackages() => Array.Empty<Core.FwAppPackage>();
+
         public bool CreateRule(Core.FwRule rule)
         {
             if (Rules.ContainsKey(rule.Name))

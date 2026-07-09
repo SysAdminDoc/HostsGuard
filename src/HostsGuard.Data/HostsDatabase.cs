@@ -31,7 +31,12 @@ public sealed record FwStateRow(
     string? RemotePorts,
     string? LocalPorts,
     string? ServiceName,
-    string? Interfaces);
+    string? Interfaces,
+    string? PackageFamilyName,
+    string? PackageSid,
+    string? PackageDisplayName,
+    string? PackageFullName,
+    string? PackageBinaries);
 
 /// <summary>An opt-in app-to-adapter policy (NET-157).</summary>
 public sealed record AppVpnBindingRow(
@@ -79,6 +84,16 @@ public sealed class FirewallRuleSnapshotRow
 
     public string Interfaces { get; set; } = string.Empty;
 
+    public string PackageFamilyName { get; set; } = string.Empty;
+
+    public string PackageSid { get; set; } = string.Empty;
+
+    public string PackageDisplayName { get; set; } = string.Empty;
+
+    public string PackageFullName { get; set; } = string.Empty;
+
+    public string PackageBinaries { get; set; } = string.Empty;
+
     public string Hash { get; set; } = string.Empty;
 
     public bool Present { get; set; }
@@ -109,6 +124,11 @@ public sealed record FirewallRuleDriftRow(
     string LocalPorts,
     string ServiceName,
     string Interfaces,
+    string PackageFamilyName,
+    string PackageSid,
+    string PackageDisplayName,
+    string PackageFullName,
+    string PackageBinaries,
     string Details);
 
 /// <summary>A recorded (historical) connection sighting (NET-070).</summary>
@@ -230,7 +250,7 @@ public sealed record PolicyImportCheckpointRow(long Id, string Created, string J
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 24;
+    public const int SchemaVersion = 25;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -293,7 +313,9 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen);
             CREATE TABLE IF NOT EXISTS fw_state(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, remote_addr TEXT, protocol TEXT,
-                program TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, interfaces TEXT, created TEXT);
+                program TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, interfaces TEXT,
+                package_family_name TEXT, package_sid TEXT, package_display_name TEXT,
+                package_full_name TEXT, package_binaries TEXT, created TEXT);
             CREATE TABLE IF NOT EXISTS app_vpn_bindings(
                 program TEXT PRIMARY KEY, adapter TEXT NOT NULL, rule_name TEXT NOT NULL,
                 created TEXT, updated TEXT);
@@ -306,6 +328,7 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS firewall_rule_snapshot(
                 name TEXT PRIMARY KEY, direction TEXT, action TEXT, enabled INTEGER DEFAULT 0,
                 remote_addr TEXT, protocol TEXT, program TEXT, source TEXT, remote_ports TEXT, local_ports TEXT, service_name TEXT, interfaces TEXT,
+                package_family_name TEXT, package_sid TEXT, package_display_name TEXT, package_full_name TEXT, package_binaries TEXT,
                 hash TEXT, present INTEGER DEFAULT 1, first_seen TEXT, last_seen TEXT, changed_at TEXT,
                 change_kind TEXT DEFAULT '', change_detail TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_firewall_rule_snapshot_present ON firewall_rule_snapshot(present);
@@ -417,8 +440,18 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("fw_state", "local_ports", "TEXT");
         AddColumnIfMissing("fw_state", "service_name", "TEXT");
         AddColumnIfMissing("fw_state", "interfaces", "TEXT");
+        AddColumnIfMissing("fw_state", "package_family_name", "TEXT");
+        AddColumnIfMissing("fw_state", "package_sid", "TEXT");
+        AddColumnIfMissing("fw_state", "package_display_name", "TEXT");
+        AddColumnIfMissing("fw_state", "package_full_name", "TEXT");
+        AddColumnIfMissing("fw_state", "package_binaries", "TEXT");
         AddColumnIfMissing("firewall_rule_snapshot", "local_ports", "TEXT");
         AddColumnIfMissing("firewall_rule_snapshot", "interfaces", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "package_family_name", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "package_sid", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "package_display_name", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "package_full_name", "TEXT");
+        AddColumnIfMissing("firewall_rule_snapshot", "package_binaries", "TEXT");
         _conn.Execute(
             """
             INSERT OR IGNORE INTO blocklist_domain_sources(source, domain)

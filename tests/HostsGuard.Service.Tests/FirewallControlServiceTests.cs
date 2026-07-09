@@ -16,7 +16,11 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 {
     public Dictionary<string, FwRule> Rules { get; } = new(StringComparer.Ordinal);
 
+    public List<FwAppPackage> Packages { get; } = new();
+
     public IReadOnlyList<FwRule> ListRules() => Rules.Values.ToList();
+
+    public IReadOnlyList<FwAppPackage> ListPackages() => Packages.ToList();
 
     public bool CreateRule(FwRule rule)
     {
@@ -382,6 +386,86 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
 
         ack.Ok.Should().BeTrue();
         _fw.Rules.Should().ContainKey("HG_MyRule");
+    }
+
+    [Fact]
+    public async Task ListAppPackages_returns_package_identity_metadata()
+    {
+        _fw.Packages.Add(new FwAppPackage(
+            "Contoso.Reader_123abc",
+            "S-1-15-2-123",
+            "Contoso Reader",
+            "Contoso.Reader_1.0.0.0_x64__123abc",
+            @"C:\Program Files\WindowsApps\Contoso.Reader\reader.exe"));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var list = await Client(channel).ListAppPackagesAsync(new Empty());
+
+        list.Packages.Should().ContainSingle(p =>
+            p.PackageFamilyName == "Contoso.Reader_123abc" &&
+            p.PackageSid == "S-1-15-2-123" &&
+            p.DisplayName == "Contoso Reader" &&
+            p.PackageFullName.Contains("Contoso.Reader", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Custom_rule_can_target_msix_package_family()
+    {
+        _fw.Packages.Add(new FwAppPackage(
+            "Contoso.Reader_123abc",
+            "S-1-15-2-123",
+            "Contoso Reader",
+            "Contoso.Reader_1.0.0.0_x64__123abc",
+            @"C:\Program Files\WindowsApps\Contoso.Reader\reader.exe"));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await Client(channel).CreateRuleAsync(new FirewallRule
+        {
+            Name = "ReaderPackageBlock",
+            Direction = "Out",
+            Action = "Block",
+            RemoteAddr = "Any",
+            Protocol = "TCP",
+            PackageFamilyName = "Contoso.Reader_123abc",
+            Enabled = true,
+        });
+
+        ack.Ok.Should().BeTrue();
+        _fw.Rules.Should().ContainKey("HG_ReaderPackageBlock");
+        _fw.Rules["HG_ReaderPackageBlock"].Program.Should().BeEmpty();
+        _fw.Rules["HG_ReaderPackageBlock"].PackageSid.Should().Be("S-1-15-2-123");
+        _fw.Rules["HG_ReaderPackageBlock"].PackageDisplayName.Should().Be("Contoso Reader");
+        _state.Db.GetFwState().Should().ContainSingle(r =>
+            r.Name == "HG_ReaderPackageBlock" &&
+            r.PackageFamilyName == "Contoso.Reader_123abc" &&
+            r.PackageSid == "S-1-15-2-123");
+
+        var list = await Client(channel).ListRulesAsync(new Empty());
+        list.Rules.Should().ContainSingle(r =>
+            r.Name == "HG_ReaderPackageBlock" &&
+            r.PackageFamilyName == "Contoso.Reader_123abc" &&
+            r.PackageSid == "S-1-15-2-123" &&
+            r.PackageDisplayName == "Contoso Reader");
+    }
+
+    [Fact]
+    public async Task Custom_rule_rejects_program_and_package_target_together()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var ack = await Client(channel).CreateRuleAsync(new FirewallRule
+        {
+            Name = "Ambiguous",
+            Direction = "Out",
+            Action = "Block",
+            Program = Path.Combine(_dir, "app.exe"),
+            PackageFamilyName = "Contoso.Reader_123abc",
+            Enabled = true,
+        });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/ambiguous_target");
+        _fw.Rules.Should().BeEmpty();
     }
 
     [Fact]

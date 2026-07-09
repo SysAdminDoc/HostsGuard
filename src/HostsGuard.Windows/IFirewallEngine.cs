@@ -11,6 +11,8 @@ public interface IFirewallEngine
 {
     IReadOnlyList<FwRule> ListRules();
 
+    IReadOnlyList<FwAppPackage> ListPackages();
+
     bool CreateRule(FwRule rule);
 
     bool DeleteRule(string name);

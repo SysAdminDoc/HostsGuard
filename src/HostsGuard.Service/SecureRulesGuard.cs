@@ -102,7 +102,12 @@ public sealed class SecureRulesGuard : IDisposable
                     string.IsNullOrEmpty(tracked.RemotePorts) ? "Any" : tracked.RemotePorts,
                     tracked.ServiceName ?? string.Empty,
                     string.IsNullOrEmpty(tracked.LocalPorts) ? "Any" : tracked.LocalPorts,
-                    string.IsNullOrEmpty(tracked.Interfaces) ? "Any" : tracked.Interfaces);
+                    string.IsNullOrEmpty(tracked.Interfaces) ? "Any" : tracked.Interfaces,
+                    tracked.PackageFamilyName ?? string.Empty,
+                    tracked.PackageSid ?? string.Empty,
+                    tracked.PackageDisplayName ?? string.Empty,
+                    tracked.PackageFullName ?? string.Empty,
+                    tracked.PackageBinaries ?? string.Empty);
                 if (fw.CreateRule(rule))
                 {
                     reverts++;
