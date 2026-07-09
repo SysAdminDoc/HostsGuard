@@ -203,6 +203,7 @@ public sealed class PolicyPortabilityTests : IDisposable
         fw.BlockEncryptedDns(new DohBlockRequest(), TestContext());
         srcKillSwitch.Configure(true, "WireGuard");
         src.AppVpnBindings.Set(@"C:\Apps\sync.exe", "WireGuard", enabled: true);
+        src.Db.UpsertUsageQuotaRule("app", "sync.exe", 1073741824, 14, enabled: true);
         src.FlowTeardown.Enabled = true;
 
         src.Ai.SaveSettings("sk-secret", "test-model", "https://api.example.test", enabled: true);
@@ -221,6 +222,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         policy.Ai!.ApiKeyConfigured.Should().BeTrue();
         policy.Webhooks!.SecretConfigured.Should().BeTrue();
         policy.AppVpnBindings.Should().ContainSingle(b => b.Program == @"C:\Apps\sync.exe" && b.Adapter == "WireGuard");
+        policy.UsageQuotas.Should().ContainSingle(q =>
+            q.Scope == "app" && q.Match == "sync.exe" && q.LimitBytes == 1073741824 && q.WindowDays == 14 && q.Enabled);
 
         var (dst, dstFw) = NewMachine();
         using var dstKillSwitch = new KillSwitchMonitor(dstFw, dst.Db, _ => true, dst.DataDir);
@@ -249,6 +252,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         dst.KillSwitch.Adapter.Should().Be("WireGuard");
         dst.Db.ListAppVpnBindings().Should().ContainSingle(b => b.Program == @"C:\Apps\sync.exe" && b.Adapter == "WireGuard");
         dstFw.Rules.Values.Should().Contain(r => r.Name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) && r.Interfaces == "Ethernet");
+        dst.Db.GetUsageQuotaRules().Should().ContainSingle(q =>
+            q.Scope == "app" && q.Match == "sync.exe" && q.LimitBytes == 1073741824 && q.WindowDays == 14 && q.Enabled);
         dst.FlowTeardown.Enabled.Should().BeTrue();
 
         dst.Ai.Settings.Should().Be(new AiSettings(string.Empty, "test-model", "https://api.example.test", true));

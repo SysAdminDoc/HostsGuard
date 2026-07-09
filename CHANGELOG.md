@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.60] - 2026-07-09
+
+### Added
+- Added optional app/domain usage-budget alert rules backed by retained daily
+  usage rollups, with `usage_budget` alert inbox entries when thresholds are
+  crossed.
+- Added WPF Firewall Activity controls and `HostsGuard.Cli usage-quota`
+  list/set/delete/reset/export commands for quota rules and quota history.
+- Added portable-policy round-trip and regression coverage for usage-budget
+  rules without introducing traffic shaping or default blocking.
+
 ## [0.12.59] - 2026-07-09
 
 ### Changed

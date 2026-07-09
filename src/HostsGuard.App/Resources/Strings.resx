@@ -664,6 +664,32 @@
   <data name="UsageRollups_Sent" xml:space="preserve"><value>Sent</value></data>
   <data name="UsageRollups_Received" xml:space="preserve"><value>Received</value></data>
   <data name="UsageRollups_Total" xml:space="preserve"><value>Total</value></data>
+  <data name="UsageQuota_Title" xml:space="preserve"><value>Usage budget alerts</value></data>
+  <data name="UsageQuota_Load" xml:space="preserve"><value>Load quotas</value></data>
+  <data name="UsageQuota_Save" xml:space="preserve"><value>Save quota</value></data>
+  <data name="UsageQuota_Reset" xml:space="preserve"><value>Reset alerts</value></data>
+  <data name="UsageQuota_Export" xml:space="preserve"><value>Export history</value></data>
+  <data name="UsageQuota_ScopeHint" xml:space="preserve"><value>app/domain</value></data>
+  <data name="UsageQuota_ScopeName" xml:space="preserve"><value>Usage quota scope</value></data>
+  <data name="UsageQuota_MatchHint" xml:space="preserve"><value>process or domain</value></data>
+  <data name="UsageQuota_MatchName" xml:space="preserve"><value>Usage quota app or domain match</value></data>
+  <data name="UsageQuota_LimitHint" xml:space="preserve"><value>1GB</value></data>
+  <data name="UsageQuota_LimitName" xml:space="preserve"><value>Usage quota byte limit</value></data>
+  <data name="UsageQuota_WindowName" xml:space="preserve"><value>Usage quota window days</value></data>
+  <data name="UsageQuota_WindowTip" xml:space="preserve"><value>Quota window in days (1-365)</value></data>
+  <data name="UsageQuota_Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="UsageQuota_EnabledName" xml:space="preserve"><value>Usage quota enabled</value></data>
+  <data name="UsageQuota_TableName" xml:space="preserve"><value>Usage budget alert rules table</value></data>
+  <data name="UsageQuota_Scope" xml:space="preserve"><value>Scope</value></data>
+  <data name="UsageQuota_Match" xml:space="preserve"><value>Match</value></data>
+  <data name="UsageQuota_EnabledShort" xml:space="preserve"><value>On</value></data>
+  <data name="UsageQuota_Window" xml:space="preserve"><value>Days</value></data>
+  <data name="UsageQuota_Used" xml:space="preserve"><value>Used</value></data>
+  <data name="UsageQuota_Limit" xml:space="preserve"><value>Limit</value></data>
+  <data name="UsageQuota_Percent" xml:space="preserve"><value>%</value></data>
+  <data name="UsageQuota_LastAlert" xml:space="preserve"><value>Last alert</value></data>
+  <data name="UsageQuota_Actions" xml:space="preserve"><value>Actions</value></data>
+  <data name="UsageQuota_Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="FwRules_Ports" xml:space="preserve"><value>Ports</value></data>
   <data name="LanSurface_Title" xml:space="preserve"><value>LAN attack surface</value></data>
   <data name="LanSurface_Intro" xml:space="preserve"><value>Reversible one-click controls for chatty LAN discovery and legacy name lookup plus auto-proxy and inbound file sharing.</value></data>

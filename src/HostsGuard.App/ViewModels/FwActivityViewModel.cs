@@ -641,6 +641,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<UsageRollupRowViewModel> UsageRows { get; } = new();
 
+    public ObservableCollection<UsageQuotaRuleViewModel> UsageQuotaRules { get; } = new();
+
     public ObservableCollection<TimelineSeriesViewModel> Bandwidth { get; } = new();
 
     public static IReadOnlyList<string> EventCategories { get; } = new[]
@@ -745,6 +747,24 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _usageStatus = "Click Load usage to show daily app/domain data.";
 
     [ObservableProperty]
+    private string _usageQuotaScope = "app";
+
+    [ObservableProperty]
+    private string _usageQuotaMatch = string.Empty;
+
+    [ObservableProperty]
+    private string _usageQuotaLimitText = "1GB";
+
+    [ObservableProperty]
+    private int _usageQuotaWindowDays = 30;
+
+    [ObservableProperty]
+    private bool _usageQuotaEnabled = true;
+
+    [ObservableProperty]
+    private string _usageQuotaStatus = "Click Load quotas to show usage-budget alerts.";
+
+    [ObservableProperty]
     private int _retentionDays = 30;
 
     [RelayCommand]
@@ -790,6 +810,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} shown of {Plural.Of(history.Total, "match")} - offset {history.Offset} - retained {Plural.Of(RetentionDays, "day")}";
             await LoadBandwidthAsync();
             await LoadUsageAsync();
+            await LoadUsageQuotasAsync();
         });
     }
 
@@ -993,6 +1014,130 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         });
     }
 
+    [RelayCommand]
+    public async Task LoadUsageQuotasAsync()
+    {
+        await RunServiceActionAsync("Load usage quotas", s => UsageQuotaStatus = s, async () =>
+        {
+            var list = await _client.Monitoring.GetUsageQuotaRulesAsync(new Empty());
+            UsageQuotaRules.Clear();
+            foreach (var rule in list.Rules)
+            {
+                UsageQuotaRules.Add(new UsageQuotaRuleViewModel
+                {
+                    Id = rule.Id,
+                    Scope = rule.Scope,
+                    Match = rule.Match,
+                    LimitBytes = rule.LimitBytes,
+                    WindowDays = rule.WindowDays,
+                    Enabled = rule.Enabled,
+                    UsedBytes = rule.UsedBytes,
+                    LastAlertedBytes = rule.LastAlertedBytes,
+                    LastAlertedAt = rule.LastAlertedAt,
+                });
+            }
+
+            UsageQuotaStatus = $"{Plural.Of(UsageQuotaRules.Count, "usage quota")} loaded";
+        });
+    }
+
+    [RelayCommand]
+    public async Task SaveUsageQuotaAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UsageQuotaScope) || string.IsNullOrWhiteSpace(UsageQuotaMatch))
+        {
+            UsageQuotaStatus = "Enter app/domain scope and match before saving.";
+            return;
+        }
+
+        if (!TryParseBytes(UsageQuotaLimitText, out var limitBytes))
+        {
+            UsageQuotaStatus = "Enter a positive quota limit such as 500MB or 1GB.";
+            return;
+        }
+
+        await RunServiceActionAsync("Save usage quota", s => UsageQuotaStatus = s, async () =>
+        {
+            UsageQuotaWindowDays = Math.Clamp(UsageQuotaWindowDays <= 0 ? 30 : UsageQuotaWindowDays, 1, 365);
+            var ack = await _client.Monitoring.SetUsageQuotaRuleAsync(new UsageQuotaRule
+            {
+                Scope = UsageQuotaScope,
+                Match = UsageQuotaMatch,
+                LimitBytes = limitBytes,
+                WindowDays = UsageQuotaWindowDays,
+                Enabled = UsageQuotaEnabled,
+            });
+            UsageQuotaStatus = ack.Message;
+            await LoadUsageQuotasAsync();
+        });
+    }
+
+    [RelayCommand]
+    public async Task DeleteUsageQuotaAsync(UsageQuotaRuleViewModel? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!_confirm.Confirm("Delete usage quota",
+            $"Remove the {row.Scope} quota for {row.Match}? Existing usage rollups are unchanged."))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Delete usage quota", s => UsageQuotaStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.DeleteUsageQuotaRuleAsync(new UsageQuotaRule { Id = row.Id });
+            UsageQuotaStatus = ack.Message;
+            await LoadUsageQuotasAsync();
+        });
+    }
+
+    [RelayCommand]
+    public async Task ResetUsageQuotaHistoryAsync()
+    {
+        if (!_confirm.Confirm("Reset usage quota history",
+            "Clear quota alert cursors so thresholds can alert again? Daily usage rollups remain intact."))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Reset usage quota history", s => UsageQuotaStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.ResetUsageQuotaHistoryAsync(new Empty());
+            UsageQuotaStatus = ack.Message;
+            await LoadUsageQuotasAsync();
+        });
+    }
+
+    [RelayCommand]
+    public async Task ExportUsageQuotaHistoryAsync()
+    {
+        if (_filePicker is null)
+        {
+            return;
+        }
+
+        var path = _filePicker.SaveFile("Export usage quota history (CSV)", "usage_quota_history.csv",
+            "CSV files (*.csv)|*.csv|JSON files (*.json)|*.json");
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Export usage quota history", s => UsageQuotaStatus = s, async () =>
+        {
+            var export = await _client.Monitoring.ExportUsageQuotaHistoryAsync(new UsageQuotaHistoryRequest
+            {
+                Days = Math.Clamp(UsageDays <= 0 ? 30 : UsageDays, 1, 365),
+                Format = path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "json" : "csv",
+            });
+            await System.IO.File.WriteAllTextAsync(path, export.Content);
+            UsageQuotaStatus = $"Exported usage quota history to {System.IO.Path.GetFileName(path)}";
+        });
+    }
+
     /// <summary>Rebuild the bandwidth polylines from a fetched series list (pure; testable).</summary>
     public void BuildBandwidthSeries(AppBandwidthList list)
     {
@@ -1051,6 +1196,58 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
 
         return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
+    }
+
+    public static bool TryParseBytes(string text, out long bytes)
+    {
+        bytes = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var value = text.Trim();
+        var numberEnd = value.Length;
+        while (numberEnd > 0 && char.IsLetter(value[numberEnd - 1]))
+        {
+            numberEnd--;
+        }
+
+        if (numberEnd <= 0)
+        {
+            return false;
+        }
+
+        var unit = value[numberEnd..].Trim().ToUpperInvariant();
+        var numberText = value[..numberEnd].Trim();
+        if (!decimal.TryParse(numberText, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var parsed) || parsed <= 0)
+        {
+            return false;
+        }
+
+        var multiplier = unit switch
+        {
+            "" or "B" => 1m,
+            "K" or "KB" => 1024m,
+            "M" or "MB" => 1024m * 1024m,
+            "G" or "GB" => 1024m * 1024m * 1024m,
+            "T" or "TB" => 1024m * 1024m * 1024m * 1024m,
+            _ => 0m,
+        };
+        if (multiplier <= 0)
+        {
+            return false;
+        }
+
+        var total = parsed * multiplier;
+        if (total > long.MaxValue)
+        {
+            return false;
+        }
+
+        bytes = (long)Math.Ceiling(total);
+        return bytes > 0;
     }
 
     // ─── Consent history (WFCP-021): recent prompts with re-decide ───────────

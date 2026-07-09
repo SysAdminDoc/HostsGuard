@@ -52,6 +52,8 @@ public sealed class PortablePolicy
 
     public List<PolicyAppVpnBinding> AppVpnBindings { get; set; } = new();
 
+    public List<PolicyUsageQuota>? UsageQuotas { get; set; }
+
     public PolicyLanAttackSurface? LanAttackSurface { get; set; }
 
     public PolicyAiSettings? Ai { get; set; }
@@ -294,6 +296,20 @@ public sealed class PolicyAppVpnBinding
     public string Program { get; set; } = string.Empty;
 
     public string Adapter { get; set; } = string.Empty;
+}
+
+/// <summary>Alert-only local usage-budget rule; no shaping or blocking posture.</summary>
+public sealed class PolicyUsageQuota
+{
+    public string Scope { get; set; } = string.Empty;
+
+    public string Match { get; set; } = string.Empty;
+
+    public long LimitBytes { get; set; }
+
+    public int WindowDays { get; set; } = 30;
+
+    public bool Enabled { get; set; } = true;
 }
 
 public sealed class PolicyLanAttackSurface

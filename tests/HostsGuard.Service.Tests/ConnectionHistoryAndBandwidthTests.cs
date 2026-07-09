@@ -155,6 +155,53 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public async Task Usage_quota_rpc_validates_lists_resets_exports_and_deletes_rules()
+    {
+        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 100, 50);
+        var impl = new MonitoringServiceImpl(_state);
+
+        (await impl.SetUsageQuotaRule(new UsageQuotaRule
+        {
+            Scope = "app",
+            Match = "chrome.exe",
+            LimitBytes = 0,
+            WindowDays = 30,
+            Enabled = true,
+        }, null!)).Ok.Should().BeFalse();
+
+        var saved = await impl.SetUsageQuotaRule(new UsageQuotaRule
+        {
+            Scope = "app",
+            Match = "chrome.exe",
+            LimitBytes = 120,
+            WindowDays = 30,
+            Enabled = true,
+        }, null!);
+        saved.Ok.Should().BeTrue();
+
+        var rules = impl.BuildUsageQuotaRules(now);
+        var rule = rules.Rules.Should().ContainSingle().Subject;
+        rule.Scope.Should().Be("app");
+        rule.Match.Should().Be("chrome.exe");
+        rule.UsedBytes.Should().Be(150);
+
+        var export = await impl.ExportUsageQuotaHistory(new UsageQuotaHistoryRequest
+        {
+            Days = 2,
+            Scope = "app",
+            Match = "chrome.exe",
+            Format = "csv",
+        }, null!);
+        export.Format.Should().Be("csv");
+        export.Content.Should().Contain("Day,Scope,Match,Sent,Received,Total").And.Contain("chrome.exe");
+
+        (await impl.ResetUsageQuotaHistory(new Empty(), null!)).Ok.Should().BeTrue();
+        (await impl.DeleteUsageQuotaRule(new UsageQuotaRule { Id = rule.Id }, null!)).Ok.Should().BeTrue();
+        impl.BuildUsageQuotaRules(now).Rules.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task History_rpc_filters_pages_and_clears_rows()
     {
         var now = DateTime.Now;

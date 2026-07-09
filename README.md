@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.59-blue)
+![Version](https://img.shields.io/badge/version-0.12.60-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -95,6 +95,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Connection history | Retention-bounded local traffic explorer with app, domain/host, IP, status, protocol, and time filters, CSV export, clear-history, and 30-day default retention |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
 | Data usage rollups | Retention-bounded daily app x domain byte table with sent/received/total filters |
+| Usage budget alerts | Optional local app/domain quota rules warn through the alert inbox when retained usage crosses a byte threshold; reset/export quota history without blocking or shaping traffic |
 | Explain / look up connection | Right-click a connection to show the ordered hosts/firewall/trust/profile/kill-switch decision chain, or look it up on VirusTotal, who.is, Google, and AbuseIPDB |
 | Learning review | Batch-promote, reverse, or discard Learning-mode auto-decisions |
 
@@ -142,7 +143,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
-| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent; optional HTTPS policy subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply |
+| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, usage-budget alert rules, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent; optional HTTPS policy subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
@@ -167,6 +168,7 @@ HostsGuard.Cli import-policy --restore-checkpoint
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
+HostsGuard.Cli usage-quota [list|set|delete|reset|export]
 HostsGuard.Cli dns-cache [--limit N] [--search text]
 HostsGuard.Cli dns-flush-entry <cached-name>
 HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove|rollback]
@@ -190,7 +192,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 902 tests, no elevation needed
+dotnet test HostsGuard.sln           # 910 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1 -RequireArtifacts
@@ -201,8 +203,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.59-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.59-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.60-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.60-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

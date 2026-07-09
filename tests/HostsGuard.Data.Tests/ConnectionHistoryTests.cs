@@ -213,6 +213,34 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
+    public void Usage_quota_rules_evaluate_reset_delete_and_export_history()
+    {
+        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        _db.AddUsageRollup("cdn.example.com", "chrome.exe", now, 100, 50);
+        _db.AddUsageRollup("api.example.com", "chrome.exe", now.AddDays(-1), 25, 25);
+        _db.AddUsageRollup("cdn.example.com", "edge.exe", now, 5, 5);
+
+        var appRule = _db.UpsertUsageQuotaRule("process", "chrome.exe", 180, 2, enabled: true);
+        _db.UpsertUsageQuotaRule("domain", "CDN.Example.Com.", 500, 1, enabled: false);
+
+        _db.GetUsageQuotaRules().Should().HaveCount(2);
+        var appEval = _db.EvaluateUsageQuotas(now).Should().ContainSingle(e => e.Rule.Id == appRule.Id).Subject;
+        appEval.UsedBytes.Should().Be(200);
+        appEval.Triggered.Should().BeTrue();
+
+        _db.EvaluateUsageQuotas(now, triggeredOnly: true).Should().ContainSingle(e => e.Rule.Id == appRule.Id);
+        _db.MarkUsageQuotaAlerted(appRule.Id, appEval.UsedBytes, now);
+        _db.EvaluateUsageQuotas(now, triggeredOnly: true).Should().BeEmpty();
+        _db.ResetUsageQuotaHistory().Should().Be(2);
+        _db.EvaluateUsageQuotas(now, triggeredOnly: true).Should().ContainSingle(e => e.Rule.Id == appRule.Id);
+
+        _db.GetUsageQuotaHistory(now.AddDays(-1), "app", "chrome.exe").Should().Contain(r =>
+            r.Day == "2026-07-08" && r.Scope == "app" && r.Match == "chrome.exe" && r.Sent == 100 && r.Recv == 50);
+        _db.DeleteUsageQuotaRule(appRule.Id).Should().Be(1);
+        _db.GetUsageQuotaRules().Should().ContainSingle(r => r.Scope == "domain" && r.Match == "cdn.example.com" && !r.Enabled);
+    }
+
+    [Fact]
     public void Retention_sweep_bounds_unbounded_tables_and_is_idempotent()
     {
         var now = new DateTime(2026, 7, 8, 12, 0, 0);

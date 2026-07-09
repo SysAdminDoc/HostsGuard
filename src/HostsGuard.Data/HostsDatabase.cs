@@ -161,6 +161,25 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// <summary>A per-day per-process per-domain data-usage rollup (NET-158).</summary>
 public sealed record UsageRollupRow(string Day, string Process, string Domain, long Sent, long Recv);
 
+/// <summary>An alert-only app/domain usage budget rule.</summary>
+public sealed record UsageQuotaRuleRow(
+    long Id,
+    string Scope,
+    string Match,
+    long LimitBytes,
+    int WindowDays,
+    bool Enabled,
+    long LastAlertedBytes,
+    string LastAlertedAt,
+    string Created,
+    string Updated);
+
+/// <summary>A quota rule evaluated against retained daily usage.</summary>
+public sealed record UsageQuotaEvaluation(UsageQuotaRuleRow Rule, long UsedBytes, bool Triggered);
+
+/// <summary>A per-day usage row matched by an app/domain quota export.</summary>
+public sealed record UsageQuotaHistoryRow(string Day, string Scope, string Match, long Sent, long Recv);
+
 /// <summary>A raw append-only ledger row.</summary>
 public sealed record LogEventRow(
     string Ts,
@@ -331,7 +350,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 28;
+    public const int SchemaVersion = 29;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -490,6 +509,19 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_usage_daily_day ON usage_daily(day);
             CREATE INDEX IF NOT EXISTS idx_usage_daily_process ON usage_daily(process);
             CREATE INDEX IF NOT EXISTS idx_usage_daily_domain ON usage_daily(domain);
+            CREATE TABLE IF NOT EXISTS usage_quota_rules(
+                id INTEGER PRIMARY KEY,
+                scope TEXT NOT NULL,
+                match TEXT NOT NULL,
+                limit_bytes INTEGER NOT NULL,
+                window_days INTEGER NOT NULL DEFAULT 30,
+                enabled INTEGER DEFAULT 1,
+                last_alerted_bytes INTEGER DEFAULT 0,
+                last_alerted_at TEXT DEFAULT '',
+                created TEXT,
+                updated TEXT,
+                UNIQUE(scope, match));
+            CREATE INDEX IF NOT EXISTS idx_usage_quota_rules_scope_match ON usage_quota_rules(scope, match);
             CREATE TABLE IF NOT EXISTS rule_groups(
                 grp TEXT NOT NULL, rule_name TEXT NOT NULL,
                 PRIMARY KEY(grp, rule_name)) WITHOUT ROWID;

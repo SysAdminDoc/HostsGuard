@@ -88,6 +88,33 @@ public sealed class DomainBandwidthTests : IDisposable
             .Which.Should().BeEquivalentTo(new { Sent = 100L, Recv = 300L });
     }
 
+    [Fact]
+    public void Usage_quota_alerts_fire_once_until_reset()
+    {
+        var source = new FakeEndpointSource();
+        using var agg = new HostsGuard.Service.BandwidthAggregator(
+            _db, source, resolveProcess: _ => "chrome.exe", resolveHost: _ => "cdn.example.com");
+        _db.UpsertUsageQuotaRule("app", "chrome.exe", 100, 1, enabled: true);
+
+        source.Endpoints[(1, "203.0.113.1")] = (70, 40);
+        agg.FlushOnce(new DateTime(2026, 7, 4, 12, 0, 0));
+        var first = _db.GetAlerts(new AlertFilter(Type: "usage_budget", SurfaceOnly: false)).Rows
+            .Should().ContainSingle().Subject;
+        first.Subject.Should().Be("app:chrome.exe");
+
+        source.Endpoints[(1, "203.0.113.1")] = (1, 1);
+        agg.FlushOnce(new DateTime(2026, 7, 4, 12, 1, 0));
+        _db.GetAlerts(new AlertFilter(Type: "usage_budget", SurfaceOnly: false)).Rows.Should().ContainSingle();
+
+        _db.AckAlerts(new[] { first.Id }).Should().Be(1);
+        _db.ResetUsageQuotaHistory();
+        source.Endpoints[(1, "203.0.113.1")] = (1, 1);
+        agg.FlushOnce(new DateTime(2026, 7, 4, 12, 2, 0));
+
+        _db.GetAlerts(new AlertFilter(Type: "usage_budget", SurfaceOnly: false)).Rows
+            .Should().ContainSingle(a => a.Id != first.Id && !a.IsRead);
+    }
+
     public void Dispose()
     {
         _db.Dispose();

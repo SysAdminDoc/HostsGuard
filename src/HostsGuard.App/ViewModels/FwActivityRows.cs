@@ -257,6 +257,52 @@ public sealed partial class UsageRollupRowViewModel : ObservableObject
     public string TotalText => FwActivityViewModel.FormatBytes(Total);
 }
 
+/// <summary>Row VM for an alert-only app/domain usage quota.</summary>
+public sealed partial class UsageQuotaRuleViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private long _id;
+
+    [ObservableProperty]
+    private string _scope = string.Empty;
+
+    [ObservableProperty]
+    private string _match = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LimitText))]
+    private long _limitBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UsedText))]
+    [NotifyPropertyChangedFor(nameof(PercentText))]
+    private long _usedBytes;
+
+    [ObservableProperty]
+    private int _windowDays;
+
+    [ObservableProperty]
+    private bool _enabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastAlertedText))]
+    private long _lastAlertedBytes;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastAlertedText))]
+    private string _lastAlertedAt = string.Empty;
+
+    public string LimitText => FwActivityViewModel.FormatBytes(LimitBytes);
+
+    public string UsedText => FwActivityViewModel.FormatBytes(UsedBytes);
+
+    public string PercentText => LimitBytes <= 0 ? string.Empty : $"{Math.Min(999, UsedBytes * 100.0 / LimitBytes):0.#}%";
+
+    public string LastAlertedText => string.IsNullOrWhiteSpace(LastAlertedAt)
+        ? string.Empty
+        : $"{TimeText.Compact(LastAlertedAt)} at {FwActivityViewModel.FormatBytes(LastAlertedBytes)}";
+}
+
 /// <summary>One ordered factor from the rule decision simulator.</summary>
 public sealed partial class DecisionStepViewModel : ObservableObject
 {

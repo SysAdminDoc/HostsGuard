@@ -71,6 +71,34 @@ public sealed class BandwidthViewTests
         row.TotalText.Should().Be("2.5 KB");
     }
 
+    [Theory]
+    [InlineData("1024", 1024)]
+    [InlineData("1KB", 1024)]
+    [InlineData("1.5MB", 1572864)]
+    [InlineData("1GB", 1073741824)]
+    public void Usage_quota_byte_parser_accepts_common_units(string text, long expected)
+    {
+        FwActivityViewModel.TryParseBytes(text, out var bytes).Should().BeTrue();
+        bytes.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Usage_quota_row_formats_budget_state()
+    {
+        var row = new UsageQuotaRuleViewModel
+        {
+            LimitBytes = 1024 * 1024,
+            UsedBytes = 512 * 1024,
+            LastAlertedBytes = 512 * 1024,
+            LastAlertedAt = "2026-07-08T12:00:00.0000000Z",
+        };
+
+        row.LimitText.Should().Be("1 MB");
+        row.UsedText.Should().Be("512 KB");
+        row.PercentText.Should().Be("50%");
+        row.LastAlertedText.Should().Contain("512 KB");
+    }
+
     [Fact]
     public void History_csv_has_a_header_and_rfc4180_quotes_fields_with_commas()
     {

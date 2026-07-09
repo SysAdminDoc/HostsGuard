@@ -2143,6 +2143,66 @@
                                     </DataGrid>
 
                                     <DockPanel LastChildFill="False" Margin="0,10,0,0">
+                                        <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=UsageQuota_Title}" FontWeight="SemiBold" />
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding UsageQuotaStatus}"
+                                                   Style="{StaticResource Hg.DimText}" />
+                                    </DockPanel>
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <Button Content="{svc:Loc Key=UsageQuota_Load}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding LoadUsageQuotasCommand}" />
+                                        <Button Content="{svc:Loc Key=UsageQuota_Save}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding SaveUsageQuotaCommand}" />
+                                        <Button Content="{svc:Loc Key=UsageQuota_Reset}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding ResetUsageQuotaHistoryCommand}" />
+                                        <Button Content="{svc:Loc Key=UsageQuota_Export}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding ExportUsageQuotaHistoryCommand}" />
+                                        <TextBox Width="72" Margin="0,0,6,6"
+                                                 Text="{Binding UsageQuotaScope, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=UsageQuota_ScopeHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=UsageQuota_ScopeName}" />
+                                        <TextBox Width="150" Margin="0,0,6,6"
+                                                 Text="{Binding UsageQuotaMatch, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=UsageQuota_MatchHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=UsageQuota_MatchName}" />
+                                        <TextBox Width="86" Margin="0,0,6,6"
+                                                 Text="{Binding UsageQuotaLimitText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=UsageQuota_LimitHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=UsageQuota_LimitName}" />
+                                        <TextBox Width="54" Margin="0,0,6,6"
+                                                 Text="{Binding UsageQuotaWindowDays, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="{svc:Loc Key=UsageQuota_WindowName}"
+                                                 ToolTip="{svc:Loc Key=UsageQuota_WindowTip}" />
+                                        <CheckBox Content="{svc:Loc Key=UsageQuota_Enabled}" Margin="0,2,6,6"
+                                                  IsChecked="{Binding UsageQuotaEnabled}"
+                                                  AutomationProperties.Name="{svc:Loc Key=UsageQuota_EnabledName}" />
+                                    </WrapPanel>
+                                    <DataGrid ItemsSource="{Binding UsageQuotaRules}" MaxHeight="170" Margin="0,2,0,0"
+                                              AutomationProperties.Name="{svc:Loc Key=UsageQuota_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Scope}" Binding="{Binding Scope}" Width="74" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Match}" Binding="{Binding Match}" Width="1.4*" />
+                                            <DataGridCheckBoxColumn Header="{svc:Loc Key=UsageQuota_EnabledShort}" Binding="{Binding Enabled}" Width="70" IsReadOnly="True" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Window}" Binding="{Binding WindowDays}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Used}" Binding="{Binding UsedText}" Width="86" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Limit}" Binding="{Binding LimitText}" Width="86" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Percent}" Binding="{Binding PercentText}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_LastAlert}" Binding="{Binding LastAlertedText}" Width="1.2*" />
+                                            <DataGridTemplateColumn Header="{svc:Loc Key=UsageQuota_Actions}" Width="82">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{svc:Loc Key=UsageQuota_Delete}" Padding="8,1"
+                                                                Command="{Binding DataContext.DeleteUsageQuotaCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <DockPanel LastChildFill="False" Margin="0,10,0,0">
                                         <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Per_app_bandwidth_cbf1f3bd}" FontWeight="SemiBold" />
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding BandwidthStatus}"
                                                    Style="{StaticResource Hg.DimText}" />

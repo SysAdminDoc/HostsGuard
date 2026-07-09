@@ -33,6 +33,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
     "usage" => await UsageAsync(args),
+    "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "blocklists" => await BlocklistsAsync(args),
@@ -80,6 +81,11 @@ static int Usage()
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
           HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
+          HostsGuard.Cli usage-quota list
+          HostsGuard.Cli usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled]
+          HostsGuard.Cli usage-quota delete --id N
+          HostsGuard.Cli usage-quota reset
+          HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-flush-entry <cached-name>
           HostsGuard.Cli blocklists [list|stats|refresh]
@@ -932,6 +938,312 @@ static async Task<int> UsageAsync(string[] args)
     }
 }
 
+static async Task<int> UsageQuotaAsync(string[] args)
+{
+    var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        var client = new Monitoring.MonitoringClient(channel);
+        try
+        {
+            return subcommand switch
+            {
+                "list" => await UsageQuotaListAsync(client),
+                "set" => await UsageQuotaSetAsync(client, args),
+                "delete" or "remove" => await UsageQuotaDeleteAsync(client, args),
+                "reset" => await UsageQuotaResetAsync(client),
+                "export" => await UsageQuotaExportAsync(client, args),
+                _ => UsageQuotaHelp(subcommand),
+            };
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
+        }
+        catch (IOException ex)
+        {
+            Console.Error.WriteLine($"File error: {ex.Message}");
+            return 2;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.Error.WriteLine($"File error: {ex.Message}");
+            return 2;
+        }
+    }
+}
+
+static async Task<int> UsageQuotaListAsync(Monitoring.MonitoringClient client)
+{
+    var list = await client.GetUsageQuotaRulesAsync(new Empty());
+    Console.WriteLine($"usage quotas: {list.Rules.Count} rule{(list.Rules.Count == 1 ? string.Empty : "s")}");
+    Console.WriteLine("id\tscope\tmatch\tenabled\twindow\tused\tlimit\tlast_alerted");
+    foreach (var rule in list.Rules.OrderBy(r => r.Scope, StringComparer.OrdinalIgnoreCase)
+                 .ThenBy(r => r.Match, StringComparer.OrdinalIgnoreCase))
+    {
+        Console.WriteLine($"{rule.Id}\t{rule.Scope}\t{rule.Match}\t{rule.Enabled}\t{rule.WindowDays}d\t{FormatBytes(rule.UsedBytes)}\t{FormatBytes(rule.LimitBytes)}\t{rule.LastAlertedAt}");
+    }
+
+    return 0;
+}
+
+static async Task<int> UsageQuotaSetAsync(Monitoring.MonitoringClient client, string[] args)
+{
+    var scope = string.Empty;
+    var match = string.Empty;
+    long limitBytes = 0;
+    var days = 30;
+    var enabled = true;
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--scope", out var value))
+        {
+            scope = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--match", out value))
+        {
+            match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--app", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            scope = "app";
+            match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--domain", out value))
+        {
+            scope = "domain";
+            match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--limit", out value))
+        {
+            if (!TryParseBytes(value, out limitBytes))
+            {
+                Console.Error.WriteLine("Invalid --limit value. Use bytes or KB/MB/GB/TB, e.g. 750MB.");
+                return 1;
+            }
+
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--days", out value))
+        {
+            if (!int.TryParse(value, out days))
+            {
+                Console.Error.WriteLine("Invalid --days value.");
+                return 1;
+            }
+
+            continue;
+        }
+
+        if (string.Equals(arg, "--disabled", StringComparison.OrdinalIgnoreCase))
+        {
+            enabled = false;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown usage-quota set option: {arg}");
+        return 1;
+    }
+
+    if (scope.Length == 0 || match.Length == 0 || limitBytes <= 0)
+    {
+        Console.Error.WriteLine("Usage: usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled]");
+        return 1;
+    }
+
+    var ack = await client.SetUsageQuotaRuleAsync(new UsageQuotaRule
+    {
+        Scope = scope,
+        Match = match,
+        LimitBytes = limitBytes,
+        WindowDays = days,
+        Enabled = enabled,
+    });
+    Console.WriteLine(ack.Message);
+    return ack.Ok ? 0 : 2;
+}
+
+static async Task<int> UsageQuotaDeleteAsync(Monitoring.MonitoringClient client, string[] args)
+{
+    var request = new UsageQuotaRule();
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--id", out var value))
+        {
+            if (!long.TryParse(value, out var id))
+            {
+                Console.Error.WriteLine("Invalid --id value.");
+                return 1;
+            }
+
+            request.Id = id;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--scope", out value))
+        {
+            request.Scope = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--match", out value))
+        {
+            request.Match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--app", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            request.Scope = "app";
+            request.Match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--domain", out value))
+        {
+            request.Scope = "domain";
+            request.Match = value;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown usage-quota delete option: {arg}");
+        return 1;
+    }
+
+    if (request.Id <= 0 && (request.Scope.Length == 0 || request.Match.Length == 0))
+    {
+        Console.Error.WriteLine("Usage: usage-quota delete --id N");
+        return 1;
+    }
+
+    var ack = await client.DeleteUsageQuotaRuleAsync(request);
+    Console.WriteLine(ack.Message);
+    return ack.Ok ? 0 : 2;
+}
+
+static async Task<int> UsageQuotaResetAsync(Monitoring.MonitoringClient client)
+{
+    var ack = await client.ResetUsageQuotaHistoryAsync(new Empty());
+    Console.WriteLine(ack.Message);
+    return ack.Ok ? 0 : 2;
+}
+
+static async Task<int> UsageQuotaExportAsync(Monitoring.MonitoringClient client, string[] args)
+{
+    var request = new UsageQuotaHistoryRequest { Days = 30, Format = "csv" };
+    var path = string.Empty;
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--days", out var value))
+        {
+            if (!int.TryParse(value, out var days))
+            {
+                Console.Error.WriteLine("Invalid --days value.");
+                return 1;
+            }
+
+            request.Days = days;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--scope", out value))
+        {
+            request.Scope = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--match", out value))
+        {
+            request.Match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--app", out value) ||
+            TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            request.Scope = "app";
+            request.Match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--domain", out value))
+        {
+            request.Scope = "domain";
+            request.Match = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--format", out value))
+        {
+            request.Format = value;
+            continue;
+        }
+
+        if (!arg.StartsWith("-", StringComparison.Ordinal) && path.Length == 0)
+        {
+            path = arg;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown usage-quota export option: {arg}");
+        return 1;
+    }
+
+    if (path.Length == 0)
+    {
+        path = string.Equals(request.Format, "json", StringComparison.OrdinalIgnoreCase)
+            ? "usage_quota_history.json"
+            : "usage_quota_history.csv";
+    }
+
+    if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+    {
+        request.Format = "json";
+    }
+
+    var export = await client.ExportUsageQuotaHistoryAsync(request);
+    if (path == "-")
+    {
+        Console.Write(export.Content);
+    }
+    else
+    {
+        await File.WriteAllTextAsync(path, export.Content);
+        Console.WriteLine($"exported usage quota history to {path}");
+    }
+
+    return 0;
+}
+
+static int UsageQuotaHelp(string subcommand)
+{
+    Console.Error.WriteLine($"Unknown usage-quota command: {subcommand}");
+    Console.Error.WriteLine("Usage: usage-quota list|set|delete|reset|export");
+    return 1;
+}
+
 static async Task<int> DnsCacheAsync(string[] args)
 {
     var request = new DnsCacheRequest { Limit = 500 };
@@ -1065,6 +1377,59 @@ static string FormatBytes(long bytes)
     }
 
     return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
+}
+
+static bool TryParseBytes(string text, out long bytes)
+{
+    bytes = 0;
+    if (string.IsNullOrWhiteSpace(text))
+    {
+        return false;
+    }
+
+    var value = text.Trim();
+    var unit = string.Empty;
+    var numberEnd = value.Length;
+    while (numberEnd > 0 && char.IsLetter(value[numberEnd - 1]))
+    {
+        numberEnd--;
+    }
+
+    if (numberEnd <= 0)
+    {
+        return false;
+    }
+
+    unit = value[numberEnd..].Trim().ToUpperInvariant();
+    var numberText = value[..numberEnd].Trim();
+    if (!decimal.TryParse(numberText, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var parsed) || parsed <= 0)
+    {
+        return false;
+    }
+
+    var multiplier = unit switch
+    {
+        "" or "B" => 1m,
+        "K" or "KB" => 1024m,
+        "M" or "MB" => 1024m * 1024m,
+        "G" or "GB" => 1024m * 1024m * 1024m,
+        "T" or "TB" => 1024m * 1024m * 1024m * 1024m,
+        _ => 0m,
+    };
+    if (multiplier <= 0)
+    {
+        return false;
+    }
+
+    var total = parsed * multiplier;
+    if (total > long.MaxValue)
+    {
+        return false;
+    }
+
+    bytes = (long)Math.Ceiling(total);
+    return bytes > 0;
 }
 
 static async Task<int> BlocklistsAsync(string[] args)

@@ -15,7 +15,10 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.59: dependency hygiene transitive deferrals now report source
+    <!-- 0.12.60: optional usage-budget alerts add local app/domain quota
+         rules, alert inbox integration, CLI/WPF controls, export/reset, and
+         portable-policy round-trip without packet shaping or default blocking.
+         0.12.59: dependency hygiene transitive deferrals now report source
          owner, observed version drift, rationale, and revisit trigger.
          0.12.58: blocklist parsing now has hosts-format edge-case fixtures
          and rejects adblock filter syntax instead of importing cosmetic rules.
@@ -174,7 +177,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.59</Version>
+    <Version>0.12.60</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

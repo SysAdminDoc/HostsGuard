@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -291,6 +292,100 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         return list;
     }
 
+    public override Task<UsageQuotaRuleList> GetUsageQuotaRules(Empty request, ServerCallContext context)
+        => Task.FromResult(BuildUsageQuotaRules(DateTime.Now));
+
+    public UsageQuotaRuleList BuildUsageQuotaRules(DateTime now)
+    {
+        var list = new UsageQuotaRuleList();
+        foreach (var row in _state.Db.GetUsageQuotaRules())
+        {
+            list.Rules.Add(ToContract(row, _state.Db.GetUsageBytesForQuota(row.Scope, row.Match, row.WindowDays, now)));
+        }
+
+        return list;
+    }
+
+    public override Task<Ack> SetUsageQuotaRule(UsageQuotaRule request, ServerCallContext context)
+    {
+        var scope = NormalizeQuotaScope(request.Scope);
+        var match = Clean(request.Match);
+        if (scope.Length == 0 || match is null)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "usage quota requires scope app|domain and a non-empty match",
+                ErrorCode = "hostsguard.error.v1/invalid_usage_quota",
+            });
+        }
+
+        if (request.LimitBytes <= 0)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "usage quota limit must be greater than zero bytes",
+                ErrorCode = "hostsguard.error.v1/invalid_usage_quota",
+            });
+        }
+
+        if (request.WindowDays is < 1 or > 365)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "usage quota window must be 1-365 days",
+                ErrorCode = "hostsguard.error.v1/invalid_usage_quota",
+            });
+        }
+
+        var rule = _state.Db.UpsertUsageQuotaRule(scope, match, request.LimitBytes, request.WindowDays, request.Enabled);
+        _state.Db.LogEvent(rule.Match, "usage_quota_saved", process: scope == "app" ? rule.Match : string.Empty,
+            details: $"{rule.Scope} quota {FormatBytes(rule.LimitBytes)} over {rule.WindowDays} day{(rule.WindowDays == 1 ? string.Empty : "s")} ({(rule.Enabled ? "enabled" : "disabled")})",
+            reason: "usage_budget");
+        return Task.FromResult(new Ack { Ok = true, Message = $"usage quota saved for {rule.Scope} {rule.Match}" });
+    }
+
+    public override Task<Ack> DeleteUsageQuotaRule(UsageQuotaRule request, ServerCallContext context)
+    {
+        var removed = _state.Db.DeleteUsageQuotaRule(request.Id, request.Scope, request.Match);
+        if (removed == 0)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "usage quota rule not found",
+                ErrorCode = "hostsguard.error.v1/not_found",
+            });
+        }
+
+        _state.Db.LogEvent("usage_quota", "usage_quota_deleted", details: $"{removed} quota rule removed", reason: "usage_budget");
+        return Task.FromResult(new Ack { Ok = true, Message = $"removed {removed} usage quota rule{(removed == 1 ? string.Empty : "s")}" });
+    }
+
+    public override Task<Ack> ResetUsageQuotaHistory(Empty request, ServerCallContext context)
+    {
+        var changed = _state.Db.ResetUsageQuotaHistory();
+        _state.Db.LogEvent("usage_quota", "usage_quota_reset", details: $"{changed} quota alert cursor(s) reset", reason: "usage_budget");
+        return Task.FromResult(new Ack { Ok = true, Message = $"reset {changed} usage quota alert cursor{(changed == 1 ? string.Empty : "s")}" });
+    }
+
+    public override Task<UsageQuotaHistoryExport> ExportUsageQuotaHistory(UsageQuotaHistoryRequest request, ServerCallContext context)
+    {
+        var days = Math.Clamp(request.Days > 0 ? request.Days : 30, 1, 365);
+        var format = Clean(request.Format)?.ToLowerInvariant();
+        if (format is not ("json" or "csv"))
+        {
+            format = "csv";
+        }
+
+        var since = DateTime.Now.Date.AddDays(-(days - 1));
+        var rows = _state.Db.GetUsageQuotaHistory(since, request.Scope, request.Match);
+        var content = format == "json" ? BuildUsageQuotaHistoryJson(rows) : BuildUsageQuotaHistoryCsv(rows);
+        return Task.FromResult(new UsageQuotaHistoryExport { Format = format, Content = content });
+    }
+
     public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
     {
         if (request.RetentionDays is < 1 or > 365)
@@ -306,6 +401,81 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         _state.Db.HistoryRetentionDays = request.RetentionDays;
         _state.Db.RunRetentionSweep(DateTime.Now, forceMaintenance: true);
         return Task.FromResult(new Ack { Ok = true, Message = $"history retention set to {request.RetentionDays} days" });
+    }
+
+    private static UsageQuotaRule ToContract(UsageQuotaRuleRow row, long usedBytes)
+        => new()
+        {
+            Id = row.Id,
+            Scope = row.Scope,
+            Match = row.Match,
+            LimitBytes = row.LimitBytes,
+            WindowDays = row.WindowDays,
+            Enabled = row.Enabled,
+            UsedBytes = usedBytes,
+            LastAlertedBytes = row.LastAlertedBytes,
+            LastAlertedAt = row.LastAlertedAt,
+        };
+
+    private static string BuildUsageQuotaHistoryJson(IEnumerable<UsageQuotaHistoryRow> rows)
+        => JsonSerializer.Serialize(rows.Select(r => new
+        {
+            day = r.Day,
+            scope = r.Scope,
+            match = r.Match,
+            sent = r.Sent,
+            received = r.Recv,
+            total = r.Sent + r.Recv,
+        }), new JsonSerializerOptions { WriteIndented = true });
+
+    private static string BuildUsageQuotaHistoryCsv(IEnumerable<UsageQuotaHistoryRow> rows)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("Day,Scope,Match,Sent,Received,Total\r\n");
+        foreach (var r in rows)
+        {
+            sb.Append(Csv(r.Day)).Append(',')
+              .Append(Csv(r.Scope)).Append(',')
+              .Append(Csv(r.Match)).Append(',')
+              .Append(r.Sent.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(r.Recv.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append((r.Sent + r.Recv).ToString(CultureInfo.InvariantCulture)).Append("\r\n");
+        }
+
+        return sb.ToString();
+
+        static string Csv(string? value)
+        {
+            value ??= string.Empty;
+            return value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0
+                ? "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\""
+                : value;
+        }
+    }
+
+    private static string NormalizeQuotaScope(string? scope)
+    {
+        var clean = (scope ?? string.Empty).Trim().ToLowerInvariant();
+        return clean switch
+        {
+            "app" or "process" => "app",
+            "domain" or "host" => "domain",
+            _ => string.Empty,
+        };
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double value = Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return string.Create(CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
     }
 
     private async Task Pump<T>(IServerStreamWriter<T> stream, ServerCallContext context)

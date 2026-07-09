@@ -161,6 +161,17 @@ public static class PolicyPortability
             });
         }
 
+        policy.UsageQuotas = state.Db.GetUsageQuotaRules()
+            .Select(r => new PolicyUsageQuota
+            {
+                Scope = r.Scope,
+                Match = r.Match,
+                LimitBytes = r.LimitBytes,
+                WindowDays = r.WindowDays,
+                Enabled = r.Enabled,
+            })
+            .ToList();
+
         policy.LanAttackSurface = new PolicyLanAttackSurface
         {
             Toggles = state.LanAttackSurface.List()
@@ -301,12 +312,34 @@ public static class PolicyPortability
         var desiredGroups = policy.RuleGroups.Select(g => g.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
         AddSetDiff("rule groups", currentGroups, desiredGroups, summary, ref added, ref removed, removeMissing: false);
 
+        if (policy.UsageQuotas is { } quotas)
+        {
+            var currentQuotas = state.Db.GetUsageQuotaRules()
+                .ToDictionary(q => $"{q.Scope}|{q.Match}", StringComparer.Ordinal);
+            var desiredQuotas = quotas
+                .Where(q => !string.IsNullOrWhiteSpace(q.Scope) && !string.IsNullOrWhiteSpace(q.Match))
+                .GroupBy(q => $"{q.Scope.Trim().ToLowerInvariant()}|{q.Match.Trim()}", StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Last(), StringComparer.Ordinal);
+            var quotaAdded = desiredQuotas.Keys.Count(q => !currentQuotas.ContainsKey(q));
+            var quotaChanged = desiredQuotas.Count(kv =>
+                currentQuotas.TryGetValue(kv.Key, out var current) &&
+                (current.LimitBytes != kv.Value.LimitBytes ||
+                 current.WindowDays != kv.Value.WindowDays ||
+                 current.Enabled != kv.Value.Enabled));
+            var quotaRemoved = currentQuotas.Keys.Count(q => !desiredQuotas.ContainsKey(q));
+            added += quotaAdded;
+            changed += quotaChanged;
+            removed += quotaRemoved;
+            summary.Add($"usage quotas: +{quotaAdded}, ~{quotaChanged}, -{quotaRemoved}");
+        }
+
         var postureChanged =
             policy.Lock is not null ||
             policy.Consent is not null ||
             policy.DnsPrivacy is not null ||
             policy.KillSwitch is not null ||
             policy.AppVpnBindings.Count != 0 ||
+            policy.UsageQuotas is { Count: > 0 } ||
             policy.LanAttackSurface is not null ||
             policy.Ai is not null ||
             policy.Webhooks is not null;
@@ -509,6 +542,7 @@ public static class PolicyPortability
         ApplyDnsPrivacy(state, policy, summary);
         ApplyKillSwitch(state, policy, summary);
         ApplyAppVpnBindings(state, policy, summary);
+        ApplyUsageQuotas(state, policy, summary);
         ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
@@ -653,6 +687,7 @@ public static class PolicyPortability
         ApplyDnsPrivacy(state, policy, summary);
         ApplyKillSwitch(state, policy, summary);
         ApplyAppVpnBindings(state, policy, summary);
+        ApplyUsageQuotas(state, policy, summary);
         ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
@@ -812,6 +847,22 @@ public static class PolicyPortability
         }
 
         summary.Add($"{policy.AppVpnBindings.Count} app VPN bindings ({applied} applied)");
+    }
+
+    private static void ApplyUsageQuotas(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.UsageQuotas is not { } quotas)
+        {
+            return;
+        }
+
+        state.Db.ReplaceUsageQuotaRules(quotas.Select(q => (
+            q.Scope,
+            q.Match,
+            q.LimitBytes,
+            q.WindowDays,
+            q.Enabled)));
+        summary.Add($"{quotas.Count} usage quota rule{(quotas.Count == 1 ? string.Empty : "s")}");
     }
 
     private static void ApplyLanAttackSurface(ServiceState state, PortablePolicy policy, List<string> summary)

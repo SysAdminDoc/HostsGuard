@@ -94,6 +94,7 @@ public sealed class BandwidthAggregator : IDisposable
 
         // NET-108: attribute per-(PID, remote-IP) bytes to the resolved domain so
         // the feed can show per-domain data volume and its requesting process.
+        var usageChanged = false;
         if (_resolveHost is { } resolveHost)
         {
             foreach (var (key, bytes) in _source.DrainByEndpoint())
@@ -107,13 +108,41 @@ public sealed class BandwidthAggregator : IDisposable
                 var process = _nameCache.GetOrAdd(key.Pid, _resolve);
                 _db.AddDomainUsage(domain, process, bytes.Sent, bytes.Recv);
                 _db.AddUsageRollup(domain, process, now.Date, bytes.Sent, bytes.Recv);
+                usageChanged = true;
             }
+        }
+
+        if (usageChanged)
+        {
+            EmitUsageBudgetAlerts(now);
         }
 
         if (++_flushes % PruneEveryFlushes == 0)
         {
             _db.RunRetentionSweep(now);
             _nameCache.Clear(); // PIDs get recycled — don't let stale names stick
+        }
+    }
+
+    private void EmitUsageBudgetAlerts(DateTime now)
+    {
+        foreach (var evaluation in _db.EvaluateUsageQuotas(now, triggeredOnly: true))
+        {
+            var rule = evaluation.Rule;
+            var subject = $"{rule.Scope}:{rule.Match}";
+            var details = $"{rule.Match} used {FormatBytes(evaluation.UsedBytes)} of {FormatBytes(rule.LimitBytes)} over {rule.WindowDays} day{(rule.WindowDays == 1 ? string.Empty : "s")}.";
+            _db.AddAlert(
+                "usage_budget",
+                "warning",
+                "Usage budget reached",
+                subject,
+                details,
+                action: "usage_quota",
+                process: rule.Scope == "app" ? rule.Match : string.Empty);
+            _db.LogEvent(rule.Match, "usage_budget_alert", process: rule.Scope == "app" ? rule.Match : string.Empty,
+                details: $"{rule.Scope} quota {FormatBytes(rule.LimitBytes)} reached with {FormatBytes(evaluation.UsedBytes)} used",
+                reason: "usage_budget");
+            _db.MarkUsageQuotaAlerted(rule.Id, evaluation.UsedBytes, now);
         }
     }
 
@@ -128,6 +157,20 @@ public sealed class BandwidthAggregator : IDisposable
         {
             return "(exited)";
         }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double value = Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
     }
 
     public void Dispose()

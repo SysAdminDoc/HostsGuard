@@ -934,6 +934,13 @@ service Monitoring {
   // Daily app x domain byte rollups (NET-158), persisted under the history
   // retention window for GlassWire-style usage review.
   rpc GetUsageRollups(UsageRollupRequest) returns (UsageRollupList);
+  // Optional local usage-budget alerts (NET-175). These are alert-only: they do
+  // not shape, block, or alter firewall/hosts posture.
+  rpc GetUsageQuotaRules(Empty) returns (UsageQuotaRuleList);
+  rpc SetUsageQuotaRule(UsageQuotaRule) returns (Ack);
+  rpc DeleteUsageQuotaRule(UsageQuotaRule) returns (Ack);
+  rpc ResetUsageQuotaHistory(Empty) returns (Ack);
+  rpc ExportUsageQuotaHistory(UsageQuotaHistoryRequest) returns (UsageQuotaHistoryExport);
   rpc SetHistorySettings(HistorySettings) returns (Ack);
 }
 
@@ -1095,6 +1102,34 @@ message UsageRollupEntry {
 message UsageRollupList {
   repeated UsageRollupEntry entries = 1;
   int32 retention_days = 2;
+}
+
+message UsageQuotaRule {
+  int64 id = 1;
+  string scope = 2;       // app | domain
+  string match = 3;       // process name or exact domain
+  int64 limit_bytes = 4;
+  int32 window_days = 5;  // 1..365
+  bool enabled = 6;
+  int64 used_bytes = 7;   // current usage in the rule window
+  int64 last_alerted_bytes = 8;
+  string last_alerted_at = 9;
+}
+
+message UsageQuotaRuleList {
+  repeated UsageQuotaRule rules = 1;
+}
+
+message UsageQuotaHistoryRequest {
+  int32 days = 1;      // 0 = server default (30), max 365
+  string scope = 2;    // optional app | domain
+  string match = 3;    // optional exact process/domain within scope
+  string format = 4;   // csv | json
+}
+
+message UsageQuotaHistoryExport {
+  string format = 1;
+  string content = 2;
 }
 
 message DnsEvent {

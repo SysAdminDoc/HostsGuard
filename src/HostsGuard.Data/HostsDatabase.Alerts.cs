@@ -13,6 +13,7 @@ public sealed partial class HostsDatabase
         ("firewall_drift", "Firewall drift", true),
         ("wfp_external_filter", "External WFP blocks", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
+        ("usage_budget", "Usage budget alerts", true),
     };
 
     public long AddAlert(
