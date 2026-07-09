@@ -4,6 +4,8 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+## [0.12.64] - 2026-07-09
+
 ### Fixed
 - Freed the native linked-list returned by the Windows DNS cache snapshot API so
   every resolver-cache view no longer leaks dnsapi-heap memory, and the walk now
