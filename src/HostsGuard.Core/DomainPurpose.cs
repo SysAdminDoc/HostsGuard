@@ -338,7 +338,7 @@ public static class DomainPurpose
         {
             var isMatch = d.Equals(suffix, StringComparison.Ordinal) ||
                 d.EndsWith("." + suffix, StringComparison.Ordinal) ||
-                (suffix.EndsWith('.') && d.Contains(suffix, StringComparison.Ordinal)); // e.g. "ocsp."
+                (suffix.EndsWith('.') && IsLabelPrefixMatch(d, suffix));
             if (isMatch && suffix.Length > bestLen)
             {
                 best = purpose;
@@ -347,5 +347,11 @@ public static class DomainPurpose
         }
 
         return best;
+    }
+
+    private static bool IsLabelPrefixMatch(string domain, string labelPrefix)
+    {
+        var idx = domain.IndexOf(labelPrefix, StringComparison.Ordinal);
+        return idx >= 0 && (idx == 0 || domain[idx - 1] == '.');
     }
 }

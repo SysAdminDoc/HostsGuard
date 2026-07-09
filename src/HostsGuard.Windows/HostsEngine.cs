@@ -161,6 +161,11 @@ public sealed class HostsEngine
                 kept.Add(l);
             }
 
+            if (kept.Count == _lines.Count)
+            {
+                return false;
+            }
+
             AtomicWrite(Join(kept));
             _blocked.Remove(d);
             _lines = kept;

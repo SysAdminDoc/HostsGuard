@@ -68,9 +68,8 @@ public static partial class Domains
         && !Ignored.Contains(d);
 
     /// <summary>
-    /// Registrable ("root") domain. Mirrors the Python contract: returns the input
-    /// unchanged for a two-label name; otherwise the lowercased registrable domain,
-    /// honoring the multi-label public-suffix set.
+    /// Registrable ("root") domain, lowercased. Honors the multi-label
+    /// public-suffix set (co.uk, com.au, etc.).
     /// </summary>
     public static string GetRoot(string d)
     {
@@ -78,7 +77,7 @@ public static partial class Domains
         var parts = d.ToLowerInvariant().Split('.');
         if (parts.Length <= 2)
         {
-            return d;
+            return d.ToLowerInvariant();
         }
 
         var t2 = string.Join('.', parts[^2..]);
