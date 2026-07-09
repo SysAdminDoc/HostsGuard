@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.59] - 2026-07-09
+
+### Changed
+- Made dependency hygiene transitive deferrals source-backed: the ratchet now
+  prints each owning package/version, observed resolved-to-latest drift, reason,
+  and revisit trigger while continuing to fail vulnerable, direct-outdated, or
+  undeferred transitive packages.
+
 ## [0.12.58] - 2026-07-09
 
 ### Changed

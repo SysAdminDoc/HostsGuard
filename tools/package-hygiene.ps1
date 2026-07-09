@@ -7,17 +7,65 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+
+function New-TransitiveDeferral {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Owner,
+        [Parameter(Mandatory = $true)]
+        [string]$Reason,
+        [Parameter(Mandatory = $true)]
+        [string]$Revisit
+    )
+
+    [pscustomobject]@{
+        Owner   = $Owner
+        Reason  = $Reason
+        Revisit = $Revisit
+    }
+}
+
 $deferredTransitive = @{
-    "Microsoft.Diagnostics.NETCore.Client" = "Transitive through Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4; the direct TraceEvent package is current, so avoid graph surgery unless a CVE or upstream release requires it."
-    "Microsoft.Extensions.DependencyInjection" = "Transitive through TraceEvent's Microsoft.Extensions 6.x graph; owned direct Microsoft.Extensions references are pinned to 10.0.9 where the app/service owns them."
-    "Microsoft.Extensions.DependencyInjection.Abstractions" = "Transitive through TraceEvent/grpc/UI support packages; owned direct Microsoft.Extensions references are pinned to 10.0.9 where the app/service owns them."
-    "Microsoft.Extensions.Logging" = "Transitive through TraceEvent's Microsoft.Extensions 6.x graph; direct lifting is deferred until TraceEvent updates or a vulnerability appears."
-    "Microsoft.Extensions.Logging.Abstractions" = "Transitive through TraceEvent/UI support packages; owned direct Microsoft.Extensions references are pinned to 10.0.9 where the app/service owns them."
-    "Microsoft.Extensions.Options" = "Transitive through TraceEvent's Microsoft.Extensions 6.x graph; direct lifting is deferred until TraceEvent updates or a vulnerability appears."
-    "Microsoft.Extensions.Primitives" = "Transitive through TraceEvent's Microsoft.Extensions 6.x graph; direct lifting is deferred until TraceEvent updates or a vulnerability appears."
-    "Newtonsoft.Json" = "Test-only transitive through xUnit runner support; direct xUnit packages are current and the vulnerability ratchet remains clean."
-    "SourceGear.sqlite3" = "Transitive through SQLitePCLRaw.bundle_e_sqlite3 3.0.3; the direct bundle package is current and CVE-clean, so wait for the bundle to expose the newer native payload."
-    "xunit.analyzers" = "Test-only transitive through xunit 2.9.3; keep direct xUnit packages current and defer analyzer policy changes to a focused warnings sweep."
+    "Microsoft.Diagnostics.NETCore.Client" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
+        -Reason "Direct TraceEvent is current; adding an override would be graph surgery for a helper client TraceEvent owns." `
+        -Revisit "Upgrade when TraceEvent ships a newer dependency graph or this package receives a CVE."
+    "Microsoft.Extensions.DependencyInjection" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
+        -Reason "TraceEvent still carries the Microsoft.Extensions 6.x graph; HostsGuard-owned DI references are pinned directly to 10.0.9." `
+        -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions or a vulnerability requires direct override."
+    "Microsoft.Extensions.DependencyInjection.Abstractions" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4 / Grpc.Net.Client 2.80.0 / Hardcodet.NotifyIcon.Wpf 2.0.1" `
+        -Reason "Multiple supported packages own this abstraction transitively; HostsGuard-owned Microsoft.Extensions references are pinned directly to 10.0.9." `
+        -Revisit "Upgrade when owning packages lift the abstraction or a vulnerability requires direct override."
+    "Microsoft.Extensions.Logging" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
+        -Reason "TraceEvent owns the older logging dependency; direct lifting would not change HostsGuard logging APIs." `
+        -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions.Logging or a vulnerability appears."
+    "Microsoft.Extensions.Logging.Abstractions" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4 / Grpc.Net.Client 2.80.0 / Hardcodet.NotifyIcon.Wpf 2.0.1" `
+        -Reason "The app/service-owned Microsoft.Extensions references are already pinned to 10.0.9; remaining drift is dependency-owned." `
+        -Revisit "Upgrade when owning packages lift the abstraction or a vulnerability appears."
+    "Microsoft.Extensions.Options" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
+        -Reason "TraceEvent owns the older options dependency; direct lifting would add override-only package references." `
+        -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions.Options or a vulnerability appears."
+    "Microsoft.Extensions.Primitives" = New-TransitiveDeferral `
+        -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
+        -Reason "TraceEvent owns the older primitives dependency; direct lifting would add override-only package references." `
+        -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions.Primitives or a vulnerability appears."
+    "Newtonsoft.Json" = New-TransitiveDeferral `
+        -Owner "xunit.runner.visualstudio 3.1.5" `
+        -Reason "Test-runner-only transitive package; production projects do not reference Newtonsoft.Json and the vulnerability ratchet is clean." `
+        -Revisit "Upgrade when xUnit runner lifts Newtonsoft.Json or a test-only vulnerability appears."
+    "SourceGear.sqlite3" = New-TransitiveDeferral `
+        -Owner "SQLitePCLRaw.bundle_e_sqlite3 3.0.3" `
+        -Reason "Direct SQLitePCLRaw bundle is current and CVE-clean; the native SourceGear payload version is controlled by the bundle." `
+        -Revisit "Upgrade when SQLitePCLRaw.bundle_e_sqlite3 exposes a newer native payload or a SQLite CVE appears."
+    "xunit.analyzers" = New-TransitiveDeferral `
+        -Owner "xunit 2.9.3" `
+        -Reason "Test-analyzer-only transitive package; changing analyzer policy can introduce warnings-as-errors churn unrelated to runtime hygiene." `
+        -Revisit "Upgrade during a focused analyzer sweep or when xUnit lifts the analyzer."
 }
 
 function Invoke-DotNetJson {
@@ -127,6 +175,22 @@ function Write-Rows {
     }
 }
 
+function Format-ObservedVersions {
+    param(
+        [object[]]$Rows
+    )
+
+    $versions = @($Rows | ForEach-Object {
+            if ([string]::IsNullOrWhiteSpace($_.LatestVersion)) {
+                $_.ResolvedVersion
+            }
+            else {
+                "$($_.ResolvedVersion) -> $($_.LatestVersion)"
+            }
+        } | Sort-Object -Unique)
+    return $versions -join ", "
+}
+
 Push-Location $repoRoot
 try {
     $vulnerableReport = Invoke-DotNetJson @("list", $Solution, "package", "--vulnerable", "--include-transitive", "--format", "json", "--output-version", "1")
@@ -163,7 +227,11 @@ try {
     if ($outdatedTransitive.Count -gt 0) {
         Write-Host "Deferred outdated transitive packages:"
         foreach ($id in ($outdatedTransitive.Id | Sort-Object -Unique)) {
-            Write-Host ("  {0}: {1}" -f $id, $deferredTransitive[$id])
+            $deferral = $deferredTransitive[$id]
+            $rows = @($outdatedTransitive | Where-Object { $_.Id -eq $id })
+            $observed = Format-ObservedVersions $rows
+            Write-Host ("  {0}: owner {1}; observed {2}; reason: {3}; revisit: {4}" -f `
+                    $id, $deferral.Owner, $observed, $deferral.Reason, $deferral.Revisit)
         }
     }
     else {
