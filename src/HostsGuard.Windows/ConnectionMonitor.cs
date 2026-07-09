@@ -36,10 +36,16 @@ public sealed class ConnectionMonitor
     };
 
     private readonly ConcurrentDictionary<int, string> _procCache = new();
+    private int _snapshots;
 
     /// <summary>Snapshot all TCP connections (IPv4 + IPv6) with owning process.</summary>
     public IReadOnlyList<ConnectionInfo> Snapshot()
     {
+        if (++_snapshots % 30 == 0)
+        {
+            _procCache.Clear();
+        }
+
         var list = new List<ConnectionInfo>();
         list.AddRange(SnapshotTcp4());
         list.AddRange(SnapshotTcp6());

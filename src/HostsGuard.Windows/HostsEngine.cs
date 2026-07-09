@@ -511,16 +511,13 @@ public sealed class HostsEngine
         {
             var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
             File.WriteAllBytes(tmp, bytes);
-            RecordSelf(bytes);
 
-            // Antivirus briefly holds the hosts file open to scan it after
-            // every change, so a rapid follow-up write hits a sharing
-            // violation. Retry the swap for ~1s before surfacing the failure.
             for (var attempt = 0; ; attempt++)
             {
                 try
                 {
                     File.Move(tmp, _hostsPath, overwrite: true);
+                    RecordSelf(bytes);
                     return;
                 }
                 catch (Exception ex) when (attempt < 7 && ex is IOException or UnauthorizedAccessException)
