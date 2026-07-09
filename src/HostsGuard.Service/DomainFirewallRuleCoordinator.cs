@@ -43,7 +43,7 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
         }
 
         var every = interval ?? DefaultRefreshInterval;
-        _timer = new Timer(_ => _ = RefreshAllAsync(CancellationToken.None), null, every, every);
+        _timer = new Timer(_ => SafeRefreshAll(), null, every, every);
     }
 
     public IReadOnlyList<DomainFirewallRuleRow> List() => _db.ListDomainFirewallRules();
@@ -156,6 +156,24 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
             lock (_gate)
             {
                 _refreshing = false;
+            }
+        }
+    }
+
+    private async void SafeRefreshAll()
+    {
+        try
+        {
+            await RefreshAllAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            try
+            {
+                _db.LogEvent("domain_firewall", "refresh_error", details: $"{ex.GetType().Name}: {ex.Message}");
+            }
+            catch (Exception)
+            {
             }
         }
     }

@@ -287,9 +287,16 @@ public sealed class EnforcementPauseCoordinator : IDisposable
 
     private void SaveStateNoLock()
     {
-        var tmp = _statePath + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
-        File.Move(tmp, _statePath, overwrite: true);
+        try
+        {
+            var tmp = _statePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
+            File.Move(tmp, _statePath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _db.LogEvent("enforcement", "enforcement_pause_state_save_failed", details: ex.Message, reason: "io_error");
+        }
     }
 
     private static Ack Error(string code, string message) => new()

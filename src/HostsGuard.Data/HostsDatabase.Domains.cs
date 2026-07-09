@@ -409,7 +409,7 @@ public sealed partial class HostsDatabase
         var p = new DynamicParameters();
         if (!string.IsNullOrEmpty(status)) { sql += " AND status=@status"; p.Add("status", status); }
         if (!string.IsNullOrEmpty(source)) { sql += " AND source=@source"; p.Add("source", source); }
-        if (!string.IsNullOrEmpty(search)) { sql += " AND domain LIKE @search"; p.Add("search", $"%{search}%"); }
+        if (!string.IsNullOrEmpty(search)) { sql += " AND domain LIKE @search ESCAPE '\\'"; p.Add("search", $"%{EscapeLike(search)}%"); }
         sql += " ORDER BY modified DESC";
         lock (_gate)
         {

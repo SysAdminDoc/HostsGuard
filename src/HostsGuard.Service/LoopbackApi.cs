@@ -436,6 +436,20 @@ public sealed class LoopbackApi : IDisposable
             // already closed
         }
 
+        if (_loop is { } loop)
+        {
+            try
+            {
+                loop.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException or ObjectDisposedException))
+            {
+            }
+            catch (AggregateException)
+            {
+            }
+        }
+
         _cts.Dispose();
     }
 }

@@ -178,7 +178,9 @@ public sealed class AiCategorizer : IDisposable
                 ["endpoint"] = next.Endpoint,
                 ["enabled"] = next.Enabled,
             };
-            File.WriteAllText(_configPath, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            var tmp = _configPath + ".tmp";
+            File.WriteAllText(tmp, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            File.Move(tmp, _configPath, overwrite: true);
         }
     }
 

@@ -469,4 +469,41 @@ public sealed class HostsDatabaseTests : IDisposable
         stats.Blocked.Should().Be(2);
         stats.Whitelisted.Should().Be(1);
     }
+
+    [Fact]
+    public void GetDomains_search_escapes_like_wildcards()
+    {
+        using var db = new HostsDatabase(DbPath("like-escape.db"));
+        db.AddDomain("_dmarc.example.com", "blocked", "manual");
+        db.AddDomain("xdmarcxexample.com", "blocked", "manual");
+
+        var results = db.GetDomains(search: "_dmarc");
+        results.Should().ContainSingle(r => r.Domain == "_dmarc.example.com");
+    }
+
+    [Fact]
+    public void GetUsageRollups_search_escapes_like_wildcards()
+    {
+        using var db = new HostsDatabase(DbPath("rollup-escape.db"));
+        var day = DateTime.Now.Date;
+        db.AddUsageRollup("test.com", "my_app", day, 100, 200);
+        db.AddUsageRollup("test.com", "myXapp", day, 100, 200);
+
+        var results = db.GetUsageRollups(day, process: "my_app");
+        results.Should().ContainSingle(r => r.Process == "my_app");
+    }
+
+    [Fact]
+    public void GetTempAllows_skips_malformed_date_entries()
+    {
+        using var db = new HostsDatabase(DbPath("temp-malformed.db"));
+        var future = DateTime.UtcNow.AddHours(1).ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        using var conn = new SqliteConnection($"Data Source={DbPath("temp-malformed.db")}");
+        conn.Open();
+        conn.Execute("INSERT INTO temp_allows(domain, expires) VALUES('good.com', @f)", new { f = future });
+        conn.Execute("INSERT INTO temp_allows(domain, expires) VALUES('bad.com', 'not-a-date')");
+
+        var allows = db.GetTempAllows();
+        allows.Should().ContainSingle(a => a.Domain == "good.com");
+    }
 }

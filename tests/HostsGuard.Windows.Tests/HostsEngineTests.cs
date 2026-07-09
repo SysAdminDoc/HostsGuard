@@ -89,6 +89,17 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public void Unblock_preserves_non_sink_address_mappings()
+    {
+        File.WriteAllText(_hosts, "192.168.1.5 intranet.local\n0.0.0.0 intranet.local\n");
+        var e = New();
+        e.Unblock("intranet.local");
+        var lines = e.GetLines();
+        lines.Should().Contain(l => l.Contains("192.168.1.5 intranet.local"));
+        lines.Should().NotContain(l => l.Contains("0.0.0.0 intranet.local"));
+    }
+
+    [Fact]
     public void OrganizeByCategory_appends_to_an_existing_section_and_creates_missing_ones()
     {
         File.WriteAllText(_hosts, "# Google Ads\n0.0.0.0 ad.doubleclick.net\n\n# HostsGuard\n0.0.0.0 pagead2.googlesyndication.com\n0.0.0.0 telemetry.microsoft.com\n");

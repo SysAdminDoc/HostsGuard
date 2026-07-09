@@ -90,9 +90,16 @@ public sealed partial class ConsentBroker
     private void SaveState()
     {
         _state.OnceRules = _onceRules.Select(r => new OnceRule { Name = r.RuleName, ExpiresUtc = r.ExpiresUtc }).ToList();
-        var tmp = _statePath + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
-        File.Move(tmp, _statePath, overwrite: true);
+        try
+        {
+            var tmp = _statePath + ".tmp";
+            File.WriteAllText(tmp, JsonSerializer.Serialize(_state));
+            File.Move(tmp, _statePath, overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _db.LogEvent("consent", "consent_state_save_failed", details: ex.Message, reason: "io_error");
+        }
     }
 
 }

@@ -328,20 +328,20 @@ public sealed partial class HostsDatabase
         p.Add("since", sinceDay.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
         if (!string.IsNullOrWhiteSpace(search))
         {
-            sql += " AND (domain LIKE @search OR process LIKE @search)";
-            p.Add("search", $"%{search.Trim()}%");
+            sql += " AND (domain LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\')";
+            p.Add("search", $"%{EscapeLike(search.Trim())}%");
         }
 
         if (!string.IsNullOrWhiteSpace(process))
         {
-            sql += " AND process LIKE @process";
-            p.Add("process", $"%{process.Trim()}%");
+            sql += " AND process LIKE @process ESCAPE '\\'";
+            p.Add("process", $"%{EscapeLike(process.Trim())}%");
         }
 
         if (!string.IsNullOrWhiteSpace(domain))
         {
-            sql += " AND domain LIKE @domain";
-            p.Add("domain", $"%{domain.Trim().ToLowerInvariant()}%");
+            sql += " AND domain LIKE @domain ESCAPE '\\'";
+            p.Add("domain", $"%{EscapeLike(domain.Trim().ToLowerInvariant())}%");
         }
 
         sql += " ORDER BY (sent+recv) DESC, day DESC, process COLLATE NOCASE, domain COLLATE NOCASE LIMIT @limit";

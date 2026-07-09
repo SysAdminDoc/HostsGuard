@@ -4,6 +4,16 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+## [0.12.63] - 2026-07-09
+
+### Security
+- Fixed `Unblock` removing non-sink-address hosts-file lines (e.g. legitimate
+  `192.168.x.x` mappings) instead of only `0.0.0.0`/`127.0.0.1`/`::`/`::1`
+  block entries.
+- Fixed LIKE wildcard injection in managed-domain search and usage-rollup
+  filters so underscore and percent characters in search terms match literally
+  instead of acting as SQL wildcards.
+
 ### Fixed
 - Added shared confirmation guardrails to Hosts Activity block, allow, unblock,
   root-block, and temporary-allow commands so feed actions cannot write hosts
@@ -15,6 +25,20 @@ All notable changes to HostsGuard are documented in this file.
   caller source when blocking a root domain from Hosts Activity.
 - Localized the consent prompt reputation hyperlink and added an i18n guard for
   nested XAML text so interactive prompt copy cannot bypass resource coverage.
+- Guarded enforcement-pause and consent-broker state persistence against I/O
+  exceptions so a transient file-system failure cannot crash the service timer
+  callbacks or leave enforcement in an inconsistent state.
+- Made the loopback API disposal wait for the request-serving loop to exit
+  before releasing the cancellation token, preventing a race on shutdown.
+- Made AI categorizer config saves atomic via write-to-temp-then-rename,
+  matching the crash-safe pattern used by every other config writer.
+- Made `SetHostsProtection(Enabled=false)` return an explicit error instead of
+  silently succeeding while actually hardening the DACL again.
+- Made `GetTempAllows` skip rows with malformed expiry dates instead of crashing
+  the entire temp-allow system on one corrupt database row.
+- Added error logging to the domain-firewall periodic refresh so failures in DNS
+  resolution or rule application are surfaced in the event ledger instead of
+  being silently swallowed.
 
 ## [0.12.62] - 2026-07-09
 

@@ -257,28 +257,23 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             return Task.FromResult(gate);
         }
 
+        if (!request.Enabled)
+        {
+            return Task.FromResult(Error("acl_relax_unsupported",
+                "relaxing hosts-file write protection is not supported — the DACL stays locked to SYSTEM and Administrators for safety"));
+        }
+
         try
         {
-            if (request.Enabled)
-            {
-                Windows.HostsAcl.Harden(Windows.HostsEngine.DefaultHostsPath);
-            }
-            else
-            {
-                // Relaxing re-grants the default (inherited) DACL by removing our
-                // protection; callers rarely need this, but the toggle is symmetric.
-                Windows.HostsAcl.Harden(Windows.HostsEngine.DefaultHostsPath);
-            }
+            Windows.HostsAcl.Harden(Windows.HostsEngine.DefaultHostsPath);
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
         {
             return Task.FromResult(Error("acl", $"could not update hosts protection: {ex.Message}"));
         }
 
-        _state.Db.LogEvent("hosts", "write_protection", details: request.Enabled ? "enabled" : "enabled (relax unsupported)", reason: "lock");
-        return Task.FromResult(Ok(request.Enabled
-            ? "hosts file protected — only SYSTEM and Administrators can write it"
-            : "hosts file protection remains enforced (relaxing is not supported for safety)"));
+        _state.Db.LogEvent("hosts", "write_protection", details: "enabled", reason: "lock");
+        return Task.FromResult(Ok("hosts file protected — only SYSTEM and Administrators can write it"));
     }
 
     // ─── Automatic network-profile switching (NET-083) ───────────────────────

@@ -31,6 +31,8 @@ public sealed partial class HostsDatabase
         lock (_gate)
         {
             return _conn.Query<(string, string)>("SELECT domain, expires FROM temp_allows")
+                .Where(r => DateTime.TryParse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out _))
                 .Select(r => (r.Item1, DateTime.Parse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal)))
                 .ToList();

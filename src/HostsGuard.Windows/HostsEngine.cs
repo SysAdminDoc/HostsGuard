@@ -151,7 +151,9 @@ public sealed class HostsEngine
                 }
 
                 var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2 && parts.Skip(1).Any(p => p.ToLowerInvariant().Trim() == d))
+                if (parts.Length >= 2
+                    && parts[0] is "0.0.0.0" or "127.0.0.1" or "::" or "::1"
+                    && parts.Skip(1).Any(p => p.ToLowerInvariant().Trim() == d))
                 {
                     continue;
                 }
