@@ -23,6 +23,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private readonly HostsServiceClient _client;
     private readonly AppConfigStore? _config;
     private readonly IPrompt? _prompt;
+    private readonly IConfirm? _confirm;
     private readonly SynchronizationContext? _ui;
     private CancellationTokenSource? _watchCts;
     private CancellationTokenSource? _filterCts;
@@ -56,11 +57,16 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     private string _statusText = "Ready";
 
-    public HostsActivityViewModel(HostsServiceClient client, AppConfigStore? config = null, IPrompt? prompt = null)
+    public HostsActivityViewModel(
+        HostsServiceClient client,
+        AppConfigStore? config = null,
+        IPrompt? prompt = null,
+        IConfirm? confirm = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _config = config;
         _prompt = prompt;
+        _confirm = confirm;
         _ui = SynchronizationContext.Current;
 
         // Restore the persisted view toggles without triggering a refresh/save.
@@ -453,6 +459,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
+        if (!ConfirmHostsChange(
+            "Block domain",
+            $"Add {domain} to the hosts-file block list? Existing hosts-file blocks stay unchanged."))
+        {
+            return;
+        }
+
         await RunServiceActionAsync("Block domain", async () =>
         {
             var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "feed" });
@@ -465,6 +478,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     public async Task AllowAsync(string domain)
     {
         if (NoSelection(domain))
+        {
+            return;
+        }
+
+        if (!ConfirmHostsChange(
+            "Allow domain",
+            $"Allow {domain} and remove any current hosts-file block for it? Future blocklist imports will keep respecting this allowlist entry."))
         {
             return;
         }
@@ -488,6 +508,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     {
         var domains = SelectedDomains(selected);
         if (domains.Count == 0)
+        {
+            return;
+        }
+
+        if (!ConfirmHostsChange(
+            "Block selected domains",
+            $"Add {FormatDomains(domains)} to the hosts-file block list? Existing hosts-file blocks stay unchanged."))
         {
             return;
         }
@@ -520,6 +547,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
+        if (!ConfirmHostsChange(
+            "Unblock selected domains",
+            $"Remove {FormatDomains(domains)} from the hosts file so they resolve normally again?"))
+        {
+            return;
+        }
+
         await RunServiceActionAsync("Unblock selected domains", async () =>
         {
             var removed = 0;
@@ -545,6 +579,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     {
         var domains = SelectedDomains(selected);
         if (domains.Count == 0)
+        {
+            return;
+        }
+
+        if (!ConfirmHostsChange(
+            "Allow selected domains",
+            $"Allow {FormatDomains(domains)} and remove any current hosts-file blocks for them? Future blocklist imports will respect these allowlist entries."))
         {
             return;
         }
@@ -612,6 +653,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             return;
         }
 
+        if (!ConfirmHostsChange(
+            "Block root domain",
+            $"Add the root domain for {domain} to the hosts-file block list? This can block sibling subdomains too."))
+        {
+            return;
+        }
+
         await RunServiceActionAsync("Block root domain", async () =>
         {
             var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "feed" });
@@ -632,6 +680,13 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     private async Task TempAllowAsync(string domain, int minutes)
     {
         if (NoSelection(domain))
+        {
+            return;
+        }
+
+        if (!ConfirmHostsChange(
+            "Temporarily allow domain",
+            $"Temporarily remove {domain} from hosts-file blocking for {minutes} minutes, then restore the block automatically?"))
         {
             return;
         }
@@ -711,6 +766,28 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             .Where(d => !string.IsNullOrWhiteSpace(d))
             .Distinct(StringComparer.Ordinal)
             .ToList();
+
+    private bool ConfirmHostsChange(string title, string message)
+    {
+        if (_confirm is null || _confirm.Confirm(title, message))
+        {
+            return true;
+        }
+
+        StatusText = "Hosts-file change cancelled";
+        return false;
+    }
+
+    private static string FormatDomains(IReadOnlyList<string> domains)
+    {
+        var preview = string.Join(", ", domains.Take(5));
+        if (domains.Count > 5)
+        {
+            preview += $", and {domains.Count - 5} more";
+        }
+
+        return Plural.Of(domains.Count, "selected domain") + ": " + preview;
+    }
 
     /// <summary>
     /// Hide a whole group: store the exact domains currently listed under that

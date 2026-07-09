@@ -158,6 +158,87 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Declined_activity_block_selected_changes_nothing()
+    {
+        var confirm = new FakeConfirm(false);
+        var vm = new HostsActivityViewModel(_client, confirm: confirm);
+        var selected = new System.Collections.ArrayList
+        {
+            new ActivityRowViewModel { Domain = "accidental.example.com" },
+        };
+
+        await vm.BlockSelectedCommand.ExecuteAsync(selected);
+
+        confirm.Prompts.Should().ContainSingle()
+            .Which.Should().Contain("accidental.example.com");
+        _state.Hosts.GetBlocked().Should().NotContain("accidental.example.com");
+        _state.Db.GetDomainStatus("accidental.example.com").Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Accepted_activity_block_selected_proceeds()
+    {
+        var vm = new HostsActivityViewModel(_client, confirm: new FakeConfirm(true));
+        var selected = new System.Collections.ArrayList
+        {
+            new ActivityRowViewModel { Domain = "blocked-from-feed.example.com" },
+        };
+
+        await vm.BlockSelectedCommand.ExecuteAsync(selected);
+
+        _state.Hosts.GetBlocked().Should().Contain("blocked-from-feed.example.com");
+        _state.Db.GetDomainStatus("blocked-from-feed.example.com").Should().Be("blocked");
+    }
+
+    [Fact]
+    public async Task Declined_activity_unblock_selected_changes_nothing()
+    {
+        await _client.Hosts.BlockAsync(new DomainRequest { Domain = "still-blocked.example.com" });
+        var confirm = new FakeConfirm(false);
+        var vm = new HostsActivityViewModel(_client, confirm: confirm);
+        var selected = new System.Collections.ArrayList
+        {
+            new ActivityRowViewModel { Domain = "still-blocked.example.com" },
+        };
+
+        await vm.UnblockSelectedCommand.ExecuteAsync(selected);
+
+        confirm.Prompts.Should().ContainSingle();
+        _state.Hosts.GetBlocked().Should().Contain("still-blocked.example.com");
+    }
+
+    [Fact]
+    public async Task Declined_activity_allow_selected_changes_nothing()
+    {
+        await _client.Hosts.BlockAsync(new DomainRequest { Domain = "not-allowed.example.com" });
+        var confirm = new FakeConfirm(false);
+        var vm = new HostsActivityViewModel(_client, confirm: confirm);
+        var selected = new System.Collections.ArrayList
+        {
+            new ActivityRowViewModel { Domain = "not-allowed.example.com" },
+        };
+
+        await vm.AllowSelectedCommand.ExecuteAsync(selected);
+
+        confirm.Prompts.Should().ContainSingle();
+        _state.Db.GetDomainStatus("not-allowed.example.com").Should().Be("blocked");
+        _state.Hosts.GetBlocked().Should().Contain("not-allowed.example.com");
+    }
+
+    [Fact]
+    public async Task Declined_activity_block_root_changes_nothing()
+    {
+        var confirm = new FakeConfirm(false);
+        var vm = new HostsActivityViewModel(_client, confirm: confirm);
+
+        await vm.BlockRootCommand.ExecuteAsync("cdn.example.com");
+
+        confirm.Prompts.Should().ContainSingle();
+        _state.Hosts.GetBlocked().Should().NotContain("example.com");
+        _state.Db.GetDomainStatus("example.com").Should().BeNull();
+    }
+
+    [Fact]
     public async Task Declined_fw_delete_changes_nothing()
     {
         await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = "203.0.113.5" });

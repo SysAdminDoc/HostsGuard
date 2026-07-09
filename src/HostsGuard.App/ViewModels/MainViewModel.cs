@@ -159,7 +159,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
             Hosts = new HostsViewModel(client, _confirm);
-            Activity = new HostsActivityViewModel(client, _config, _prompt);
+            Activity = new HostsActivityViewModel(client, _config, _prompt, _confirm);
             RawHosts = new RawHostsViewModel(client);
             FwActivity = new FwActivityViewModel(client, _confirm, _config, _filePicker);
             Alerts = new AlertsViewModel(client);

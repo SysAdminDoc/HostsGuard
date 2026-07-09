@@ -2,6 +2,13 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Added shared confirmation guardrails to Hosts Activity block, allow, unblock,
+  root-block, and temporary-allow commands so feed actions cannot write hosts
+  entries without an explicit operator decision.
+
 ## [0.12.62] - 2026-07-09
 
 ### Security
