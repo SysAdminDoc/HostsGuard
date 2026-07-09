@@ -105,6 +105,17 @@
   <data name="Xaml_Check_for_updates_736b9062" xml:space="preserve"><value>Check for updates</value></data>
   <data name="Xaml_Open_GitHub_repository_76131fab" xml:space="preserve"><value>Open GitHub repository</value></data>
   <data name="Xaml_About_HostsGuard_5f701f9a" xml:space="preserve"><value>About HostsGuard</value></data>
+  <data name="About_Title" xml:space="preserve"><value>About HostsGuard</value></data>
+  <data name="About_AutomationName" xml:space="preserve"><value>About HostsGuard</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>Network privacy control for Windows</value></data>
+  <data name="About_Description" xml:space="preserve"><value>Hosts-file protection, firewall control, live network visibility, and outbound consent in one local desktop app.</value></data>
+  <data name="About_ProtectionTitle" xml:space="preserve"><value>Split-trust protection</value></data>
+  <data name="About_ProtectionBody" xml:space="preserve"><value>The elevated service owns policy changes; the desktop app remains unelevated.</value></data>
+  <data name="About_PrivacyTitle" xml:space="preserve"><value>Local-first by design</value></data>
+  <data name="About_PrivacyBody" xml:space="preserve"><value>Policy, monitoring, and diagnostics stay on this PC unless you explicitly export them.</value></data>
+  <data name="About_OpenGitHub" xml:space="preserve"><value>Open GitHub</value></data>
+  <data name="About_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="Xaml_Blocked_entries_currently_written_to_the_13a1cafc" xml:space="preserve"><value>Blocked entries currently written to the Windows hosts file</value></data>
   <data name="Xaml_Managed_domains_set_to_blocked_ce919f47" xml:space="preserve"><value>Managed domains set to blocked</value></data>
   <data name="Xaml_Managed_domains_set_to_allowed_â_2b3fb277" xml:space="preserve"><value>Managed domains set to allowed - these always win over blocklists</value></data>

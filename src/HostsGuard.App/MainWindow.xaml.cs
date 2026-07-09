@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -227,13 +226,8 @@ public partial class MainWindow : Window
 
     private void OnAbout(object sender, RoutedEventArgs e)
     {
-        var version = Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion.Split('+')[0] ?? "unknown";
-        MessageBox.Show(
-            $"HostsGuard v{version}\n\nSplit-trust Windows network-privacy manager: hosts-file blocking, "
-            + "firewall control, live DNS/connection monitoring, and outbound consent prompts.",
-            "About HostsGuard", MessageBoxButton.OK, MessageBoxImage.Information);
+        var dialog = new AboutDialog { Owner = this };
+        _ = dialog.ShowDialog();
     }
 
     private void OnOpenGitHub(object sender, RoutedEventArgs e)

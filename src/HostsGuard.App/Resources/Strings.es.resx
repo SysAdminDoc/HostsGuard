@@ -50,4 +50,15 @@
   <data name="Consent_Countdown" xml:space="preserve"><value>se cierra en {0:0} s</value></data>
   <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Decision no aplicada</value></data>
   <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Su decision para {0} no se pudo aplicar: el servicio no la acepto. La conexion sigue bloqueada; volvera a preguntar en su proximo intento.</value></data>
+  <data name="About_Title" xml:space="preserve"><value>Acerca de HostsGuard</value></data>
+  <data name="About_AutomationName" xml:space="preserve"><value>Acerca de HostsGuard</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>Control de privacidad de red para Windows</value></data>
+  <data name="About_Description" xml:space="preserve"><value>Proteccion del archivo hosts, control del firewall, visibilidad de red en vivo y consentimiento de salida en una aplicacion local.</value></data>
+  <data name="About_ProtectionTitle" xml:space="preserve"><value>Proteccion de confianza dividida</value></data>
+  <data name="About_ProtectionBody" xml:space="preserve"><value>El servicio elevado controla los cambios de politica; la aplicacion de escritorio permanece sin elevar.</value></data>
+  <data name="About_PrivacyTitle" xml:space="preserve"><value>Diseno local primero</value></data>
+  <data name="About_PrivacyBody" xml:space="preserve"><value>La politica, el monitoreo y los diagnosticos permanecen en este PC salvo que los exporte explicitamente.</value></data>
+  <data name="About_OpenGitHub" xml:space="preserve"><value>Abrir GitHub</value></data>
+  <data name="About_Close" xml:space="preserve"><value>Cerrar</value></data>
+  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
 </root>

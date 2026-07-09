@@ -139,6 +139,7 @@ internal static class VisualSmokeRunner
     {
         var dialogs = new (string Name, Window Window)[]
         {
+            ("About", new AboutDialog()),
             ("Confirmation", new ConfirmDialog(
                 "Block all outbound traffic?",
                 "New outbound connections will be blocked until you restore the safe network posture.")),

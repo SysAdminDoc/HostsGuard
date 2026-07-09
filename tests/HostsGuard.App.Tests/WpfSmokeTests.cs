@@ -336,6 +336,16 @@ public sealed class WpfSmokeTests
                 System.Windows.Automation.AutomationProperties.GetHelpText(inputBox)
                     .Should().Contain("blank removes");
 
+                _stage = $"{theme}: constructing AboutDialog";
+                var about = new AboutDialog();
+                about.Measure(new Size(560, 520));
+                about.Arrange(new Rect(0, 0, 560, 520));
+                about.UpdateLayout();
+                System.Windows.Automation.AutomationProperties.GetName(about)
+                    .Should().Be("About HostsGuard");
+                var versionText = (TextBlock)about.FindName("VersionText");
+                versionText.Text.Should().StartWith("v").And.Contain(".NET 10");
+
                 vm.Dispose();
             }
 

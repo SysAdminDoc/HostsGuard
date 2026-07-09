@@ -2,17 +2,17 @@
     "schemaVersion":  1,
     "product":  "HostsGuard",
     "version":  "0.12.64",
-    "generatedAtUtc":  "2026-07-09T21:06:45.7235204+00:00",
+    "generatedAtUtc":  "2026-07-09T21:11:49.5128471+00:00",
     "expectedSize":  "1600x1000",
     "app":  {
                 "path":  "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
                 "fileVersion":  "0.12.64.0",
-                "productVersion":  "0.12.64+7c08ece60223b80fdecb638f93e35dcebd366398"
+                "productVersion":  "0.12.64+9e7a836a95bdcc063dd4fd929bd0a3f17052046b"
             },
     "service":  {
                     "path":  "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
                     "fileVersion":  "0.12.64.0",
-                    "productVersion":  "0.12.64+7c08ece60223b80fdecb638f93e35dcebd366398"
+                    "productVersion":  "0.12.64+9e7a836a95bdcc063dd4fd929bd0a3f17052046b"
                 },
     "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
     "readmeScreenshots":  [
@@ -20,8 +20,8 @@
                                   "theme":  "dark",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "D4C52A50AB5C354C925FE6B3EF332DFE055F37D669D73C25156E045A6B509C36",
-                                  "bytes":  228881,
+                                  "sha256":  "5433B7105D995B4A8A6B453C6E9D0134ED5C22D6F8C231894FBF631A8A722360",
+                                  "bytes":  228846,
                                   "width":  1600,
                                   "height":  1000
                               },
@@ -29,8 +29,8 @@
                                   "theme":  "light",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "FC599ECF6F77B0304060F3F47A7FFC102852E6B3220EE71C2F5C009C37AE6889",
-                                  "bytes":  228939,
+                                  "sha256":  "A924D33410BC2BB69F2C64816049DD952607038BFE9FFCBD13C86E9B858F1093",
+                                  "bytes":  228850,
                                   "width":  1600,
                                   "height":  1000
                               }
