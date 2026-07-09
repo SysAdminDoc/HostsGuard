@@ -104,6 +104,29 @@ public sealed class BlockedConnectionWatchTests
     }
 
     [Fact]
+    public void Parses_filter_origin_and_interface_metadata_when_emitted()
+    {
+        var fields = BlockedConnectionWatch.ParseEventXml(Sample5157Xml.Replace(
+            "</EventData>",
+            """
+                <Data Name="FilterOrigin">VendorBlockRule</Data>
+                <Data Name="InterfaceIndex">12</Data>
+              </EventData>
+            """));
+
+        var blocked = BlockedConnectionWatch.FromFields(fields, 5157, DateTime.UtcNow, Mapper,
+            interfaceNameResolver: index => index == 12 ? "Ethernet" : string.Empty);
+
+        blocked!.FilterRuntimeId.Should().Be("67338");
+        blocked.FilterOrigin.Should().Be("VendorBlockRule");
+        blocked.LayerName.Should().Be("%%14611");
+        blocked.LayerRuntimeId.Should().Be("48");
+        blocked.InterfaceIndex.Should().Be(12);
+        blocked.InterfaceName.Should().Be("Ethernet");
+        blocked.Provenance.IsExternalRule.Should().BeTrue();
+    }
+
+    [Fact]
     public void Start_never_throws_and_stop_tears_down_cleanly()
     {
         // Security-log read access varies by machine (admin token, Event Log

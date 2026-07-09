@@ -1859,7 +1859,7 @@
                                     </DataGrid.ContextMenu>
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_When_769bb19e}" Binding="{Binding DecidedAtText}" Width="110" />
-                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Application_b291beb8}" Binding="{Binding Application}" Width="2*">
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Application_b291beb8}" Binding="{Binding Application}" Width="1.6*">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -1875,7 +1875,31 @@
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="56" />
-                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Verdict_7f6e5a6e}" Binding="{Binding Verdict}" Width="76" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Verdict_7f6e5a6e}" Binding="{Binding Verdict}" Width="70" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Cause_FilterCause, Default=Cause}" Binding="{Binding OriginBadge}" Width="110">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                    <Setter Property="ToolTip" Value="{Binding FilterOwner}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding FilterOriginText}" Width="150">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                    <Setter Property="ToolTip" Value="{Binding FilterOriginText}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Interface_Wfp, Default=Interface}" Binding="{Binding InterfaceText}" Width="118">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                    <Setter Property="ToolTip" Value="{Binding InterfaceText}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Scope_4651a34e}" Binding="{Binding Scope}" Width="86" />
                                     </DataGrid.Columns>
                                 </DataGrid>

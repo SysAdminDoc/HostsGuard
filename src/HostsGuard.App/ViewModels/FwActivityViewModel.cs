@@ -1009,6 +1009,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                     Protocol = entry.Protocol,
                     Verdict = entry.Verdict,
                     Permanent = entry.Permanent,
+                    FilterRuntimeId = entry.FilterRuntimeId,
+                    FilterOrigin = entry.FilterOrigin,
+                    LayerName = entry.LayerName,
+                    LayerRuntimeId = entry.LayerRuntimeId,
+                    InterfaceIndex = entry.InterfaceIndex,
+                    InterfaceName = entry.InterfaceName,
+                    FilterOwner = entry.FilterOwner,
+                    ExternalFilter = entry.ExternalFilter,
                 });
             }
 

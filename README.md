@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.50-blue)
+![Version](https://img.shields.io/badge/version-0.12.51-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -63,7 +63,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Identity-bound rules | Rules record the binary's SHA-256 and signer; a renamed impostor at a whitelisted path is re-prompted, while an auto-updater moving to a new versioned directory is recognized as the same app |
 | Trust publisher / folder | Auto-allow future software signed by a trusted Authenticode publisher, or any binary under a trusted install folder — opted in from the prompt |
 | Inbound consent | Opt-in prompting on unruled **inbound** connections too, producing scoped inbound rules (off by default to avoid unsolicited-inbound noise) |
-| Decision history | Every consent decision is recorded and reviewable |
+| Decision history | Every consent decision is recorded and reviewable, with WFP filter origin/runtime and interface attribution when Windows emits it |
 | Posture rails | Arming Notify/Learning sets default-outbound Block per profile; the prior posture is restored on switch back to Normal and on service stop |
 | Accessibility | Full AutomationProperties coverage, explicit tab order, live-region threat banner, keyboard/screen-reader focus management |
 
@@ -201,8 +201,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.50-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.50-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.51-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.51-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

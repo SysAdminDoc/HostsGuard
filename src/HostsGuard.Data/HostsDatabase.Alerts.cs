@@ -11,6 +11,7 @@ public sealed partial class HostsDatabase
         ("hosts_tamper", "Hosts tamper", true),
         ("kill_switch", "VPN kill-switch", true),
         ("firewall_drift", "Firewall drift", true),
+        ("wfp_external_filter", "External WFP blocks", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
     };
 

@@ -285,6 +285,35 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Event_ledger_persists_wfp_provenance_columns()
+    {
+        using var db = new HostsDatabase(DbPath("wfp-events.db"));
+        db.LogEvent(
+            "C:\\Apps\\blocked.exe",
+            "consent_block",
+            details: "Out|203.0.113.9|TCP|permanent",
+            reason: "consent",
+            provenance: new WfpAuditProvenance(
+                FilterRuntimeId: "67338",
+                FilterOrigin: "VendorBlockRule",
+                LayerName: "%%14611",
+                LayerRuntimeId: "48",
+                InterfaceIndex: 12,
+                InterfaceName: "Ethernet"));
+
+        var row = db.GetLog().Should().ContainSingle().Subject;
+        row.FilterRuntimeId.Should().Be("67338");
+        row.FilterOrigin.Should().Be("VendorBlockRule");
+        row.LayerName.Should().Be("%%14611");
+        row.LayerRuntimeId.Should().Be("48");
+        row.InterfaceIndex.Should().Be(12);
+        row.InterfaceName.Should().Be("Ethernet");
+
+        db.GetEvents(new EventLogFilter(Search: "VendorBlockRule")).Rows.Should()
+            .ContainSingle(e => e.FilterOrigin == "VendorBlockRule" && e.InterfaceName == "Ethernet");
+    }
+
+    [Fact]
     public void Alerts_dedupe_unread_rows_ack_and_honor_type_surface()
     {
         using var db = new HostsDatabase(DbPath("alerts.db"));

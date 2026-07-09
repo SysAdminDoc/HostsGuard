@@ -1222,6 +1222,16 @@ message ConnectionDecisionRequest {
   string command_line = 14;       // display text, e.g. "node C:\dev\app\index.js"
   string script_path = 15;        // extracted script/module/jar identity
   string script_binding_key = 16; // opaque app+script key echoed in decisions
+  // WFP 5157/5152 provenance (Windows 11/Server 2022 emits filter origin and
+  // interface index; older builds leave these blank/zero).
+  string filter_runtime_id = 17;
+  string filter_origin = 18;
+  string layer_name = 19;
+  string layer_runtime_id = 20;
+  int32 interface_index = 21;
+  string interface_name = 22;
+  string filter_owner = 23;       // "HostsGuard rule" | "Windows default filter" | "External firewall rule"
+  bool external_filter = 24;      // true when filter_origin is a non-HG, non-default firewall rule
 }
 
 message ConnectionDecision {
@@ -1280,6 +1290,14 @@ message DecisionEntry {
   string protocol = 5;
   string verdict = 6;         // "allow" | "block" | "timeout" | "learn"
   bool permanent = 7;
+  string filter_runtime_id = 8;
+  string filter_origin = 9;
+  string layer_name = 10;
+  string layer_runtime_id = 11;
+  int32 interface_index = 12;
+  string interface_name = 13;
+  string filter_owner = 14;
+  bool external_filter = 15;
 }
 
 message DecisionHistory {

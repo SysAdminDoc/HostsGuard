@@ -86,6 +86,45 @@ public sealed partial class DecisionRowViewModel : ObservableObject
     private bool _permanent;
 
     public string Scope => Permanent ? "permanent" : "once";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilterOriginText))]
+    private string _filterOrigin = string.Empty;
+
+    [ObservableProperty]
+    private string _filterRuntimeId = string.Empty;
+
+    [ObservableProperty]
+    private string _layerName = string.Empty;
+
+    [ObservableProperty]
+    private string _layerRuntimeId = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InterfaceText))]
+    private int _interfaceIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InterfaceText))]
+    private string _interfaceName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OriginBadge))]
+    private string _filterOwner = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OriginBadge))]
+    private bool _externalFilter;
+
+    public string FilterOriginText => FilterOrigin.Length == 0 ? "Origin unavailable" : FilterOrigin;
+
+    public string InterfaceText => InterfaceName.Length != 0
+        ? InterfaceIndex > 0 ? $"{InterfaceName} ({InterfaceIndex})" : InterfaceName
+        : InterfaceIndex > 0 ? $"ifIndex {InterfaceIndex}" : string.Empty;
+
+    public string OriginBadge => ExternalFilter
+        ? "Not HostsGuard"
+        : FilterOwner.Length != 0 ? FilterOwner : "Unknown origin";
 }
 
 /// <summary>One timeline series: per-minute new-connection counts for a process.</summary>

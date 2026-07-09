@@ -142,9 +142,54 @@ public sealed record BandwidthRow(string Process, string Minute, long Sent, long
 /// <summary>A per-day per-process per-domain data-usage rollup (NET-158).</summary>
 public sealed record UsageRollupRow(string Day, string Process, string Domain, long Sent, long Recv);
 
+/// <summary>A raw append-only ledger row.</summary>
+public sealed record LogEventRow(
+    string Ts,
+    string Domain,
+    string Action,
+    string Process,
+    string Details,
+    string Reason,
+    string FilterRuntimeId = "",
+    string FilterOrigin = "",
+    string LayerName = "",
+    string LayerRuntimeId = "",
+    long InterfaceIndex = 0,
+    string InterfaceName = "")
+{
+    public void Deconstruct(
+        out string Ts,
+        out string Domain,
+        out string Action,
+        out string Process,
+        out string Details,
+        out string Reason)
+    {
+        Ts = this.Ts;
+        Domain = this.Domain;
+        Action = this.Action;
+        Process = this.Process;
+        Details = this.Details;
+        Reason = this.Reason;
+    }
+}
+
 /// <summary>A persisted event-log row with its derived taxonomy category.</summary>
 public sealed record EventLogRow(
-    long Id, string Ts, string Domain, string Action, string Process, string Details, string Reason, string Category);
+    long Id,
+    string Ts,
+    string Domain,
+    string Action,
+    string Process,
+    string Details,
+    string Reason,
+    string Category,
+    string FilterRuntimeId = "",
+    string FilterOrigin = "",
+    string LayerName = "",
+    string LayerRuntimeId = "",
+    int InterfaceIndex = 0,
+    string InterfaceName = "");
 
 /// <summary>Filter and paging shape for the persisted event ledger.</summary>
 public sealed record EventLogFilter(
@@ -250,7 +295,7 @@ public sealed record PolicyImportCheckpointRow(long Id, string Created, string J
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 25;
+    public const int SchemaVersion = 26;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -308,7 +353,9 @@ public sealed partial class HostsDatabase : IDisposable
                 domain TEXT PRIMARY KEY, first_seen TEXT, last_seen TEXT, hits INTEGER DEFAULT 1,
                 process TEXT, hidden INTEGER DEFAULT 0, reason TEXT);
             CREATE TABLE IF NOT EXISTS log(
-                id INTEGER PRIMARY KEY, ts TEXT, domain TEXT, action TEXT, process TEXT, details TEXT, reason TEXT);
+                id INTEGER PRIMARY KEY, ts TEXT, domain TEXT, action TEXT, process TEXT, details TEXT, reason TEXT,
+                filter_runtime_id TEXT DEFAULT '', filter_origin TEXT DEFAULT '', layer_name TEXT DEFAULT '',
+                layer_runtime_id TEXT DEFAULT '', interface_index INTEGER DEFAULT 0, interface_name TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_log_ts ON log(ts);
             CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen);
             CREATE TABLE IF NOT EXISTS fw_state(
@@ -426,6 +473,12 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("domains", "reason", "TEXT");
         AddColumnIfMissing("feed", "reason", "TEXT");
         AddColumnIfMissing("log", "reason", "TEXT");
+        AddColumnIfMissing("log", "filter_runtime_id", "TEXT DEFAULT ''");
+        AddColumnIfMissing("log", "filter_origin", "TEXT DEFAULT ''");
+        AddColumnIfMissing("log", "layer_name", "TEXT DEFAULT ''");
+        AddColumnIfMissing("log", "layer_runtime_id", "TEXT DEFAULT ''");
+        AddColumnIfMissing("log", "interface_index", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("log", "interface_name", "TEXT DEFAULT ''");
         AddColumnIfMissing("blocklist_subs", "enabled", "INTEGER DEFAULT 1");
         AddColumnIfMissing("blocklist_subs", "content_hash", "TEXT DEFAULT ''");
         AddColumnIfMissing("blocklist_subs", "previous_hash", "TEXT DEFAULT ''");

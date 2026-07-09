@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.51] - 2026-07-09
+
+### Added
+- Added WFP 5157/5152 filter-origin/runtime and interface-index/name capture
+  for blocked connection triage, with provenance persisted in the event ledger
+  and surfaced in consent history.
+- Added external firewall-rule block alerts so drops caused by non-HostsGuard
+  filters are labeled clearly in Activity/Alerts instead of looking like
+  HostsGuard-owned decisions.
+
 ## [0.12.50] - 2026-07-09
 
 ### Added

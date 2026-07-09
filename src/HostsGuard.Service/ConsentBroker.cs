@@ -378,6 +378,8 @@ public sealed partial class ConsentBroker : IDisposable
             }
         }
 
+        AddExternalFilterAlert(blocked);
+
         // svchost attribution (NET-073): the responsible service, when exactly
         // one owns the PID. Resolved before the covering-rule check so a
         // service-scoped rule only covers its own service's connections.
@@ -401,7 +403,7 @@ public sealed partial class ConsentBroker : IDisposable
         // allowed silently so Notify mode targets interesting traffic (NET-068).
         if (KnownSafeBaseline.IsBaseline(blocked.Application))
         {
-            AutoAllowBaseline(blocked.Application, blocked.Direction);
+            AutoAllowBaseline(blocked);
             return;
         }
 
@@ -454,6 +456,14 @@ public sealed partial class ConsentBroker : IDisposable
             CommandLine = commandBinding?.Display ?? string.Empty,
             ScriptPath = commandBinding?.ScriptPath ?? string.Empty,
             ScriptBindingKey = commandBinding?.ScriptKey ?? string.Empty,
+            FilterRuntimeId = blocked.FilterRuntimeId,
+            FilterOrigin = blocked.FilterOrigin,
+            LayerName = blocked.LayerName,
+            LayerRuntimeId = blocked.LayerRuntimeId,
+            InterfaceIndex = blocked.InterfaceIndex,
+            InterfaceName = blocked.InterfaceName,
+            FilterOwner = blocked.Provenance.OwnerLabel,
+            ExternalFilter = blocked.Provenance.IsExternalRule,
         };
         lock (_gate)
         {
@@ -461,6 +471,45 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         _bus.Publish(request);
+    }
+
+    private void AddExternalFilterAlert(BlockedConnection blocked)
+    {
+        var provenance = blocked.Provenance;
+        if (!provenance.IsExternalRule)
+        {
+            return;
+        }
+
+        var iface = provenance.InterfaceLabel.Length != 0 ? $"; interface={provenance.InterfaceLabel}" : string.Empty;
+        var runtime = provenance.FilterRuntimeId.Length != 0 ? $"; filterRTID={provenance.FilterRuntimeId}" : string.Empty;
+        var layer = provenance.LayerName.Length != 0 ? $"; layer={provenance.LayerName}" : string.Empty;
+        _db.AddAlert(
+            "wfp_external_filter",
+            "info",
+            "Blocked by external firewall rule",
+            provenance.FilterOrigin,
+            $"{Path.GetFileName(blocked.Application)} {blocked.Direction} {blocked.Protocol} {blocked.RemoteAddress}:{blocked.RemotePort}{iface}{runtime}{layer}",
+            action: "wfp_external_filter",
+            process: blocked.Application,
+            sourceEventId: blocked.EventId);
+    }
+
+    private static WfpAuditProvenance? ProvenanceFrom(ConnectionDecisionRequest? request)
+    {
+        if (request is null)
+        {
+            return null;
+        }
+
+        var provenance = new WfpAuditProvenance(
+            request.FilterRuntimeId,
+            request.FilterOrigin,
+            request.LayerName,
+            request.LayerRuntimeId,
+            request.InterfaceIndex,
+            request.InterfaceName);
+        return provenance.HasAny ? provenance : null;
     }
 
     private bool TryApplyCommandLineDecision(BlockedConnection blocked, InterpreterCommandBinding binding)
@@ -479,7 +528,8 @@ public sealed partial class ConsentBroker : IDisposable
 
         if (rule.Action.Equals("Block", StringComparison.OrdinalIgnoreCase))
         {
-            _db.LogEvent(blocked.Application, "consent_cmd_block", details: binding.ScriptPath, reason: "consent");
+            _db.LogEvent(blocked.Application, "consent_cmd_block", details: binding.ScriptPath, reason: "consent",
+                provenance: blocked.Provenance);
             return true;
         }
 
@@ -509,7 +559,8 @@ public sealed partial class ConsentBroker : IDisposable
             }
         }
 
-        _db.LogEvent(blocked.Application, "consent_cmd_allow", details: binding.ScriptPath, reason: "consent");
+        _db.LogEvent(blocked.Application, "consent_cmd_allow", details: binding.ScriptPath, reason: "consent",
+            provenance: blocked.Provenance);
         return true;
     }
 
@@ -676,7 +727,8 @@ public sealed partial class ConsentBroker : IDisposable
             _identity?.Remember(name, blocked.Application);
         }
 
-        LogDecision(blocked.Application, blocked.Direction, blocked.RemoteAddress, blocked.Protocol, "learn", permanent: true);
+        LogDecision(blocked.Application, blocked.Direction, blocked.RemoteAddress, blocked.Protocol, "learn", permanent: true,
+            provenance: blocked.Provenance);
     }
 
     /// <summary>
@@ -722,7 +774,8 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         _db.LogEvent(blocked.Application, "consent_child_allow",
-            details: $"{blocked.Direction}|inherited from {Path.GetFileName(parentPath)}|1h", reason: "consent");
+            details: $"{blocked.Direction}|inherited from {Path.GetFileName(parentPath)}|1h", reason: "consent",
+            provenance: blocked.Provenance);
     }
 
     // â”€â”€â”€ Trust-by-publisher (NET-113) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -804,7 +857,8 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         _db.LogEvent(blocked.Application, "consent_publisher_allow",
-            details: $"{blocked.Direction}|trusted publisher", reason: "consent");
+            details: $"{blocked.Direction}|trusted publisher", reason: "consent",
+            provenance: blocked.Provenance);
     }
 
     // â”€â”€â”€ Trust-by-folder (NET-117) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -885,17 +939,20 @@ public sealed partial class ConsentBroker : IDisposable
         }
 
         _db.LogEvent(blocked.Application, "consent_folder_allow",
-            details: $"{blocked.Direction}|trusted folder", reason: "consent");
+            details: $"{blocked.Direction}|trusted folder", reason: "consent",
+            provenance: blocked.Provenance);
     }
 
     /// <summary>Silently allow a known-safe OS binary (NET-068 baseline).</summary>
-    private void AutoAllowBaseline(string application, string direction)
+    private void AutoAllowBaseline(BlockedConnection blocked)
     {
         if (_firewall is not { } fw)
         {
             return;
         }
 
+        var application = blocked.Application;
+        var direction = blocked.Direction;
         var name = $"{BasePrefix}{Path.GetFileNameWithoutExtension(application)}_{direction}";
         if (fw.RuleExists(name))
         {
@@ -905,7 +962,8 @@ public sealed partial class ConsentBroker : IDisposable
         if (fw.CreateRule(new FwRule(name, direction, "Allow", true, "Any", "Any", application, "hostsguard")))
         {
             _db.UpsertFwState(name, direction, "Allow", "Any", "Any", application);
-            _db.LogEvent(application, "consent_baseline", details: $"{direction}|Any|Any|permanent", reason: "consent");
+            _db.LogEvent(application, "consent_baseline", details: $"{direction}|Any|Any|permanent", reason: "consent",
+                provenance: blocked.Provenance);
         }
     }
 
@@ -979,13 +1037,20 @@ public sealed partial class ConsentBroker : IDisposable
             AddTrustedFolder(Core.PathScope.ParentFolder(application));
         }
 
+        ConnectionDecisionRequest? pendingRequest = null;
         if (decision.Id.Length != 0)
         {
             lock (_gate)
             {
+                if (_pending.TryGetValue(decision.Id, out var pending))
+                {
+                    pendingRequest = pending.Request;
+                }
+
                 _pending.Remove(decision.Id);
             }
         }
+        var provenance = ProvenanceFrom(pendingRequest);
 
         if (_firewall is not { } fw)
         {
@@ -994,7 +1059,7 @@ public sealed partial class ConsentBroker : IDisposable
 
         if (decision.ScopeCommandLine && decision.ScriptBindingKey.Length != 0)
         {
-            return DecideCommandLine(fw, decision, application, verdict);
+            return DecideCommandLine(fw, decision, application, verdict, provenance);
         }
 
         // Prompt-burst blanket decision (NET-099): a single whole-app rule per
@@ -1002,7 +1067,7 @@ public sealed partial class ConsentBroker : IDisposable
         // app. Ignores per-connection scoping (the point is one broad decision).
         if (decision.ApplyToApp)
         {
-            return DecideAll(fw, application, verdict == "allow" ? "Allow" : "Block");
+            return DecideAll(fw, application, verdict == "allow" ? "Allow" : "Block", provenance);
         }
 
         var direction = decision.Direction == "In" ? "In" : "Out";
@@ -1062,7 +1127,8 @@ public sealed partial class ConsentBroker : IDisposable
             }
         }
 
-        LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, permanent);
+        LogDecision(application, direction, remote == "Any" ? decision.RemoteAddress : remote, decision.Protocol, verdict, permanent,
+            provenance);
         if (action == "Block")
         {
             FlowTeardown?.CloseForProgram(application, "consent_block", decision.RemoteAddress, decision.RemotePort);
@@ -1075,7 +1141,12 @@ public sealed partial class ConsentBroker : IDisposable
         };
     }
 
-    private Ack DecideCommandLine(IFirewallEngine fw, ConnectionDecision decision, string application, string verdict)
+    private Ack DecideCommandLine(
+        IFirewallEngine fw,
+        ConnectionDecision decision,
+        string application,
+        string verdict,
+        WfpAuditProvenance? provenance)
     {
         var direction = decision.Direction == "In" ? "In" : "Out";
         var action = verdict == "allow" ? "Allow" : "Block";
@@ -1199,7 +1270,7 @@ public sealed partial class ConsentBroker : IDisposable
             }
         }
 
-        LogDecision(application, direction, remote, protocol, verdict, permanent);
+        LogDecision(application, direction, remote, protocol, verdict, permanent, provenance);
         if (action == "Block")
         {
             FlowTeardown?.CloseForProgram(application, "consent_cmd_block", remote == "Any" ? null : remote, remotePort);
@@ -1285,7 +1356,7 @@ public sealed partial class ConsentBroker : IDisposable
     /// seen in the queue (plus the just-answered direction) and drops all matching
     /// pending requests so the burst is answered in one click.
     /// </summary>
-    private Ack DecideAll(IFirewallEngine fw, string application, string action)
+    private Ack DecideAll(IFirewallEngine fw, string application, string action, WfpAuditProvenance? provenance = null)
     {
         List<string> directions;
         lock (_gate)
@@ -1323,7 +1394,8 @@ public sealed partial class ConsentBroker : IDisposable
                 written++;
             }
 
-            LogDecision(application, direction, "Any", "Any", action == "Allow" ? "allow" : "block", permanent: true);
+            LogDecision(application, direction, "Any", "Any", action == "Allow" ? "allow" : "block", permanent: true,
+                provenance);
         }
 
         if (action == "Block")
@@ -1390,7 +1462,8 @@ public sealed partial class ConsentBroker : IDisposable
         {
             // Default-block already holds the connection; a timeout writes no
             // rule â€” it just records that nobody answered.
-            LogDecision(request.Application, request.Direction, request.RemoteAddress, request.Protocol, "timeout", permanent: false);
+            LogDecision(request.Application, request.Direction, request.RemoteAddress, request.Protocol, "timeout", permanent: false,
+                ProvenanceFrom(request));
         }
 
         ReapExpiredOnceRules(nowUtc, startup: false);

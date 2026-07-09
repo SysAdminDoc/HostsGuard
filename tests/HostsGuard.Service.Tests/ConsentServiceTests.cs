@@ -62,9 +62,30 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         return path;
     }
 
-    private static BlockedConnection Blocked(string app, DateTime tsUtc, string direction = "Out",
-        string remote = "203.0.113.7", string protocol = "TCP")
-        => new(tsUtc, app, direction, remote, 443, protocol, 4711, 5157);
+    private static BlockedConnection Blocked(
+        string app,
+        DateTime tsUtc,
+        string direction = "Out",
+        string remote = "203.0.113.7",
+        string protocol = "TCP",
+        string filterOrigin = "",
+        int interfaceIndex = 0,
+        string interfaceName = "")
+        => new(
+            tsUtc,
+            app,
+            direction,
+            remote,
+            443,
+            protocol,
+            4711,
+            5157,
+            "67338",
+            filterOrigin,
+            "%%14611",
+            "48",
+            interfaceIndex,
+            interfaceName);
 
     [Fact]
     public void Normal_mode_drops_everything_and_notify_dedups_bursts()
@@ -159,6 +180,33 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         request!.Application.Should().Be(@"C:\apps\push.exe");
         request.RemoteAddress.Should().Be("203.0.113.7");
         request.Id.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Notify_publishes_wfp_provenance_and_alerts_external_filters()
+    {
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        _state.Consent.OnBlocked(Blocked(
+            @"C:\apps\external.exe",
+            DateTime.UtcNow,
+            filterOrigin: "VendorBlockRule",
+            interfaceIndex: 12,
+            interfaceName: "Ethernet"));
+
+        sub.Reader.TryRead(out var request).Should().BeTrue();
+        request!.FilterRuntimeId.Should().Be("67338");
+        request.FilterOrigin.Should().Be("VendorBlockRule");
+        request.LayerName.Should().Be("%%14611");
+        request.LayerRuntimeId.Should().Be("48");
+        request.InterfaceIndex.Should().Be(12);
+        request.InterfaceName.Should().Be("Ethernet");
+        request.FilterOwner.Should().Be("External firewall rule");
+        request.ExternalFilter.Should().BeTrue();
+
+        _state.Db.GetAlerts(new AlertFilter(Type: "wfp_external_filter")).Rows.Should()
+            .ContainSingle(a => a.Subject == "VendorBlockRule" && a.Process == @"C:\apps\external.exe");
     }
 
     [Fact]
@@ -307,6 +355,46 @@ public sealed class ConsentServiceTests : IAsyncLifetime
 
         var history = await consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 10 });
         history.Entries.Should().Contain(e => e.Application == app && e.Verdict == "allow" && e.Permanent);
+    }
+
+    [Fact]
+    public void Pending_decision_history_preserves_wfp_provenance()
+    {
+        var app = WriteExe("triaged.exe");
+        _state.Consent.SetMode("notify");
+        using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
+
+        _state.Consent.OnBlocked(Blocked(
+            app,
+            DateTime.UtcNow,
+            filterOrigin: "VendorBlockRule",
+            interfaceIndex: 12,
+            interfaceName: "Ethernet"));
+        sub.Reader.TryRead(out var req).Should().BeTrue();
+
+        _state.Consent.Decide(new ConnectionDecision
+        {
+            Id = req!.Id,
+            Application = req.Application,
+            Direction = req.Direction,
+            RemoteAddress = req.RemoteAddress,
+            RemotePort = req.RemotePort,
+            Protocol = req.Protocol,
+            Verdict = "block",
+            Duration = "always",
+        }).Ok.Should().BeTrue();
+
+        _state.Consent.History(10).Entries.Should().ContainSingle(e =>
+            e.Application == app &&
+            e.Verdict == "block" &&
+            e.FilterOrigin == "VendorBlockRule" &&
+            e.FilterRuntimeId == "67338" &&
+            e.LayerName == "%%14611" &&
+            e.LayerRuntimeId == "48" &&
+            e.InterfaceIndex == 12 &&
+            e.InterfaceName == "Ethernet" &&
+            e.FilterOwner == "External firewall rule" &&
+            e.ExternalFilter);
     }
 
     [Fact]

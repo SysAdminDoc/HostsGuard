@@ -38,6 +38,8 @@
   <data name="FwRules_TargetKind" xml:space="preserve"><value>Kind</value></data>
   <data name="FwRules_Target" xml:space="preserve"><value>Target</value></data>
   <data name="FwRules_Package" xml:space="preserve"><value>Package</value></data>
+  <data name="Xaml_Cause_FilterCause" xml:space="preserve"><value>Cause</value></data>
+  <data name="Xaml_Interface_Wfp" xml:space="preserve"><value>Interface</value></data>
   <data name="FwRules_NewRulePackage" xml:space="preserve"><value>New firewall rule package</value></data>
   <data name="FwRules_PackageTip" xml:space="preserve"><value>Optional MSIX package family name or package SID. Use either package or program, not both.</value></data>
   <data name="Tab_HostsActivity" xml:space="preserve"><value>Hosts Activity</value></data>

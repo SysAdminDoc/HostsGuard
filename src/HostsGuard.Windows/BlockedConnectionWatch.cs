@@ -1,7 +1,9 @@
 using System.Diagnostics.Eventing.Reader;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
+using HostsGuard.Core;
 
 namespace HostsGuard.Windows;
 
@@ -14,7 +16,22 @@ public sealed record BlockedConnection(
     int RemotePort,
     string Protocol,       // "TCP" | "UDP" | raw number for anything else
     int ProcessId,
-    int EventId);          // 5157 (connection) | 5152 (packet drop)
+    int EventId,           // 5157 (connection) | 5152 (packet drop)
+    string FilterRuntimeId = "",
+    string FilterOrigin = "",
+    string LayerName = "",
+    string LayerRuntimeId = "",
+    int InterfaceIndex = 0,
+    string InterfaceName = "")
+{
+    public WfpAuditProvenance Provenance => new(
+        FilterRuntimeId,
+        FilterOrigin,
+        LayerName,
+        LayerRuntimeId,
+        InterfaceIndex,
+        InterfaceName);
+}
 
 /// <summary>
 /// WFCP-003: the WFC-parity blocked-connection source. The TCP-table poller can
@@ -128,7 +145,11 @@ public sealed class BlockedConnectionWatch : IDisposable
     /// with no application path (nothing to decide on).
     /// </summary>
     public static BlockedConnection? FromFields(
-        IReadOnlyDictionary<string, string> fields, int eventId, DateTime tsUtc, DevicePathMapper mapper)
+        IReadOnlyDictionary<string, string> fields,
+        int eventId,
+        DateTime tsUtc,
+        DevicePathMapper mapper,
+        Func<int, string?>? interfaceNameResolver = null)
     {
         ArgumentNullException.ThrowIfNull(mapper);
         if (!fields.TryGetValue("Application", out var application) || application.Length == 0)
@@ -146,6 +167,12 @@ public sealed class BlockedConnectionWatch : IDisposable
         };
         _ = int.TryParse(fields.GetValueOrDefault("DestPort"), out var port);
         _ = int.TryParse(fields.GetValueOrDefault("ProcessID") ?? fields.GetValueOrDefault("ProcessId"), out var pid);
+        _ = int.TryParse(First(fields, "InterfaceIndex", "InterfaceIdx", "Interface"), out var interfaceIndex);
+        var interfaceName = First(fields, "InterfaceName", "InterfaceAlias", "InterfaceDescription");
+        if (interfaceName.Length == 0 && interfaceIndex > 0)
+        {
+            interfaceName = SafeResolveInterfaceName(interfaceIndex, interfaceNameResolver);
+        }
 
         return new BlockedConnection(
             tsUtc,
@@ -155,7 +182,53 @@ public sealed class BlockedConnectionWatch : IDisposable
             port,
             protocol,
             pid,
-            eventId);
+            eventId,
+            First(fields, "FilterRTID", "FilterRuntimeId", "FilterRunTimeId"),
+            First(fields, "FilterOrigin", "Filter Origin"),
+            First(fields, "LayerName"),
+            First(fields, "LayerRTID", "LayerRuntimeId", "LayerRunTimeId"),
+            interfaceIndex,
+            interfaceName);
+    }
+
+    private static string First(IReadOnlyDictionary<string, string> fields, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (fields.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string SafeResolveInterfaceName(int interfaceIndex, Func<int, string?>? resolver)
+    {
+        try
+        {
+            return (resolver?.Invoke(interfaceIndex) ?? ResolveInterfaceName(interfaceIndex) ?? string.Empty).Trim();
+        }
+        catch (Exception ex) when (ex is NetworkInformationException or InvalidOperationException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string? ResolveInterfaceName(int interfaceIndex)
+    {
+        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            var properties = nic.GetIPProperties();
+            if (properties.GetIPv4Properties()?.Index == interfaceIndex ||
+                properties.GetIPv6Properties()?.Index == interfaceIndex)
+            {
+                return nic.Name.Length != 0 ? nic.Name : nic.Description;
+            }
+        }
+
+        return null;
     }
 
     public void Dispose() => Stop();

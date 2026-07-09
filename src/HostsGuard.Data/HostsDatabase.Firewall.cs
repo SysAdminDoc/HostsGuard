@@ -495,7 +495,18 @@ public sealed partial class HostsDatabase
             args.Add("limit", limit);
             args.Add("offset", offset);
             var rows = _conn.Query<EventLogRowRaw>(
-                    $"SELECT id, ts, domain, action, process, details, reason FROM log{where} ORDER BY ts DESC, id DESC LIMIT @limit OFFSET @offset",
+                    $"""
+                     SELECT id, ts, domain, action, process, details, reason,
+                            filter_runtime_id AS FilterRuntimeId,
+                            filter_origin AS FilterOrigin,
+                            layer_name AS LayerName,
+                            layer_runtime_id AS LayerRuntimeId,
+                            CAST(COALESCE(interface_index, 0) AS INTEGER) AS InterfaceIndex,
+                            interface_name AS InterfaceName
+                     FROM log{where}
+                     ORDER BY ts DESC, id DESC
+                     LIMIT @limit OFFSET @offset
+                     """,
                     args)
                 .Select(ToEventLogRow)
                 .ToList();
@@ -509,7 +520,7 @@ public sealed partial class HostsDatabase
         var args = new DynamicParameters();
 
         AddLike("search", filter.Search,
-            "(domain LIKE @search ESCAPE '\\' OR action LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\' OR details LIKE @search ESCAPE '\\' OR reason LIKE @search ESCAPE '\\')");
+            "(domain LIKE @search ESCAPE '\\' OR action LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\' OR details LIKE @search ESCAPE '\\' OR reason LIKE @search ESCAPE '\\' OR filter_origin LIKE @search ESCAPE '\\' OR interface_name LIKE @search ESCAPE '\\')");
         if (!string.IsNullOrWhiteSpace(filter.Since))
         {
             clauses.Add("ts >= @since");
@@ -594,10 +605,55 @@ public sealed partial class HostsDatabase
             row.Process ?? string.Empty,
             row.Details ?? string.Empty,
             row.Reason ?? string.Empty,
-            EventTaxonomy.Category(row.Action));
+            EventTaxonomy.Category(row.Action),
+            row.FilterRuntimeId ?? string.Empty,
+            row.FilterOrigin ?? string.Empty,
+            row.LayerName ?? string.Empty,
+            row.LayerRuntimeId ?? string.Empty,
+            ToInterfaceIndex(row.InterfaceIndex),
+            row.InterfaceName ?? string.Empty);
 
-    private sealed record EventLogRowRaw(
-        long Id, string? Ts, string? Domain, string? Action, string? Process, string? Details, string? Reason);
+    private static int ToInterfaceIndex(object? value)
+        => value switch
+        {
+            null => 0,
+            int i => i,
+            long l => (int)Math.Clamp(l, int.MinValue, int.MaxValue),
+            byte[] bytes when bytes.Length == 0 => 0,
+            byte[] bytes when long.TryParse(System.Text.Encoding.UTF8.GetString(bytes), out var parsed)
+                => (int)Math.Clamp(parsed, int.MinValue, int.MaxValue),
+            string s when long.TryParse(s, out var parsed) => (int)Math.Clamp(parsed, int.MinValue, int.MaxValue),
+            _ => 0,
+        };
+
+    private sealed class EventLogRowRaw
+    {
+        public long Id { get; set; }
+
+        public string? Ts { get; set; }
+
+        public string? Domain { get; set; }
+
+        public string? Action { get; set; }
+
+        public string? Process { get; set; }
+
+        public string? Details { get; set; }
+
+        public string? Reason { get; set; }
+
+        public string? FilterRuntimeId { get; set; }
+
+        public string? FilterOrigin { get; set; }
+
+        public string? LayerName { get; set; }
+
+        public string? LayerRuntimeId { get; set; }
+
+        public object? InterfaceIndex { get; set; }
+
+        public string? InterfaceName { get; set; }
+    }
 
 
 }
