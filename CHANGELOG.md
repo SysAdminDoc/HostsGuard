@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.49] - 2026-07-09
+
+### Added
+- Added `tools/release-version-gate.ps1` to verify app, installer, README,
+  CHANGELOG, and winget manifest versions, release URLs, and built installer
+  SHA256 hashes.
+
+### Changed
+- Updated winget manifests to the current release artifact naming and hashes.
+
 ## [0.12.48] - 2026-07-09
 
 ### Added

@@ -3,7 +3,7 @@
 # installer (signing is required only for MSIX). Update PackageVersion + the
 # installer SHA/URL on each release, then open a PR to winget-pkgs.
 PackageIdentifier: SysAdminDoc.HostsGuard
-PackageVersion: 0.12.43
+PackageVersion: 0.12.49
 DefaultLocale: en-US
 ManifestType: version
 ManifestVersion: 1.6.0
