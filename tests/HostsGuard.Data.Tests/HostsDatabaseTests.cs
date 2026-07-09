@@ -254,6 +254,14 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Event_log_query_handles_empty_fresh_databases()
+    {
+        using var db = new HostsDatabase(DbPath("empty-log.db"));
+
+        db.GetLog().Should().BeEmpty();
+    }
+
+    [Fact]
     public void Event_ledger_filters_pages_and_derives_categories()
     {
         using var db = new HostsDatabase(DbPath("events.db"));

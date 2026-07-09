@@ -48,9 +48,10 @@ public sealed partial class HostsDatabase
     {
         lock (_gate)
         {
-            return _conn.Query<LogEventRow>(
+            return _conn.Query<EventLogRowRaw>(
                 """
                 SELECT
+                    id AS Id,
                     ts AS Ts,
                     domain AS Domain,
                     action AS Action,
@@ -67,9 +68,25 @@ public sealed partial class HostsDatabase
                 ORDER BY ts DESC
                 LIMIT @limit
                 """,
-                new { limit }).ToList();
+                new { limit })
+                .Select(ToLogEventRow)
+                .ToList();
         }
     }
 
+    private static LogEventRow ToLogEventRow(EventLogRowRaw row)
+        => new(
+            row.Ts ?? string.Empty,
+            row.Domain ?? string.Empty,
+            row.Action ?? string.Empty,
+            row.Process ?? string.Empty,
+            row.Details ?? string.Empty,
+            row.Reason ?? string.Empty,
+            row.FilterRuntimeId ?? string.Empty,
+            row.FilterOrigin ?? string.Empty,
+            row.LayerName ?? string.Empty,
+            row.LayerRuntimeId ?? string.Empty,
+            ToInterfaceIndex(row.InterfaceIndex),
+            row.InterfaceName ?? string.Empty);
 
 }

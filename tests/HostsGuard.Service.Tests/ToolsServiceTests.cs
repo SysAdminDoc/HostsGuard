@@ -384,6 +384,23 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Support_bundle_repeated_exports_get_distinct_paths()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+
+        var first = await client.ExportSupportBundleAsync(new SupportBundleRequest());
+        var second = await client.ExportSupportBundleAsync(new SupportBundleRequest());
+
+        first.Ok.Should().BeTrue();
+        second.Ok.Should().BeTrue();
+        first.Message.Should().NotBe(second.Message);
+        Path.GetFileName(first.Message).Should().MatchRegex(@"^hostsguard_bundle_\d{8}_\d{6}_[a-f0-9]{8}\.zip$");
+        File.Exists(first.Message).Should().BeTrue();
+        File.Exists(second.Message).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Diagnostics_summary_reports_grouped_counts_and_consent_state_without_leaking()
     {
         _state.Db.LogEvent("203.0.113.9", "fw_blocked", details: "remote 203.0.113.9");

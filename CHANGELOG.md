@@ -9,6 +9,12 @@ All notable changes to HostsGuard are documented in this file.
   preserving RFC-4180 quoting for event, connection-history, usage-quota, and
   traffic-profile exports.
 
+### Fixed
+- Made repeated support-bundle exports write distinct zip paths instead of
+  reusing the same second-resolution filename.
+- Fixed support-bundle export on fresh databases with an empty event log by
+  using the resilient event-ledger row mapper for diagnostic log reads.
+
 ## [0.12.61] - 2026-07-09
 
 ### Added

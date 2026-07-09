@@ -46,7 +46,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         var dir = Path.Combine(_state.DataDir, "support");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir,
-            $"hostsguard_bundle_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+            $"hostsguard_bundle_{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}.zip");
 
         using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
         {
