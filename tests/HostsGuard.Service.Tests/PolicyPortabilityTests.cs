@@ -37,6 +37,24 @@ public sealed class PolicyPortabilityTests : IDisposable
         return (state, fw);
     }
 
+    private (ServiceState State, FakeFirewallEngine Fw, FakeListFetcher Fetcher) NewMachineWithFetcher()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "hg_pol_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        _dirs.Add(dir);
+        var hostsPath = Path.Combine(dir, "hosts");
+        File.WriteAllText(hostsPath, "# hosts\n");
+        var fw = new FakeFirewallEngine();
+        var fetcher = new FakeListFetcher();
+        var state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(dir, "hostsguard.db")),
+            firewall: fw,
+            dataDir: dir,
+            listFetcher: fetcher);
+        return (state, fw, fetcher);
+    }
+
     private (ServiceState State, FakeFirewallEngine Fw, FakeLanAttackSurfaceStore Lan) NewMachineWithLan()
     {
         var dir = Path.Combine(Path.GetTempPath(), "hg_pol_" + Guid.NewGuid().ToString("N"));
@@ -331,6 +349,79 @@ public sealed class PolicyPortabilityTests : IDisposable
             {
                 await dstApp.DisposeAsync();
             }
+        }
+        finally
+        {
+            await app.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Policy_subscription_previews_applies_pins_and_rolls_back_over_grpc()
+    {
+        var (src, _) = NewMachine();
+        src.Hosts.Block("subscribed.example.com");
+        src.Db.AddDomain("subscribed.example.com", "blocked", "manual");
+        var originalJson = PolicyPortability.Export(src).ToJson();
+
+        src.Hosts.Block("changed.example.com");
+        src.Db.AddDomain("changed.example.com", "blocked", "manual");
+        var changedJson = PolicyPortability.Export(src).ToJson();
+
+        var (dst, _, fetcher) = NewMachineWithFetcher();
+        var url = "https://policies.example.test/base.json";
+        fetcher.Responses[url] = originalJson;
+
+        var token = SessionToken.Generate();
+        var pipe = "HostsGuard.PolicySub." + Guid.NewGuid().ToString("N");
+        var app = ServiceHost.Build(dst, token, pipe);
+        await app.StartAsync();
+        try
+        {
+            using var channel = NamedPipeChannel.Create(token, pipe);
+            var client = new Policy.PolicyClient(channel);
+            var request = new PolicySubscriptionRequest
+            {
+                Name = "Test policy",
+                Url = url,
+                Enabled = true,
+                AutoApply = false,
+                PinCurrentHash = true,
+            };
+
+            var preview = await client.PreviewPolicySubscriptionAsync(request);
+            preview.Ok.Should().BeTrue();
+            preview.Preview.Should().BeTrue();
+            preview.Summary.Should().Contain(s => s.StartsWith("sha256:", StringComparison.Ordinal));
+            dst.Db.GetDomainStatus("subscribed.example.com").Should().BeNull("preview must not mutate policy");
+
+            var applied = await client.ApplyPolicySubscriptionAsync(request);
+            applied.Ok.Should().BeTrue();
+            applied.CheckpointId.Should().BeGreaterThan(0);
+            dst.Db.GetDomainStatus("subscribed.example.com").Should().Be("blocked");
+
+            var list = await client.ListPolicySubscriptionsAsync(new Empty());
+            var saved = list.Subscriptions.Should().ContainSingle().Subject;
+            saved.Name.Should().Be("Test policy");
+            saved.AutoApply.Should().BeFalse();
+            saved.PinHash.Should().Be(saved.LastHash);
+            saved.LastCheckpointId.Should().Be(applied.CheckpointId);
+
+            fetcher.Responses[url] = changedJson;
+            var refresh = await client.RefreshPolicySubscriptionsAsync(new Empty());
+            refresh.Ok.Should().BeTrue();
+            refresh.Message.Should().Contain("no policy subscriptions have auto-apply enabled");
+            dst.Db.GetDomainStatus("changed.example.com").Should().BeNull("manual subscriptions must not auto-apply");
+
+            var mismatch = await client.PreviewPolicySubscriptionAsync(new PolicySubscriptionRequest { Id = saved.Id });
+            mismatch.Ok.Should().BeFalse();
+            mismatch.ErrorCode.Should().Be("hostsguard.error.v1/policy_subscription_pin_mismatch");
+
+            var rollback = await client.RollbackPolicySubscriptionAsync(new PolicySubscriptionRequest { Id = saved.Id });
+            rollback.Ok.Should().BeTrue();
+            rollback.CheckpointId.Should().Be(applied.CheckpointId);
+            dst.Db.GetDomainStatus("subscribed.example.com").Should().BeNull();
+            dst.Hosts.GetBlocked().Should().NotContain("subscribed.example.com");
         }
         finally
         {

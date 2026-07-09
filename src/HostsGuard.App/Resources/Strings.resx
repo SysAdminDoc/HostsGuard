@@ -669,4 +669,34 @@
   <data name="TopBand_RestoreSafeTip" xml:space="preserve"><value>Restore Normal filtering, allow default outbound, remove DNS bypass blocks, and leave hosts-file blocks unchanged.</value></data>
   <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restore policy checkpoint</value></data>
   <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restore the latest policy state captured before an import</value></data>
+  <data name="PolicySub_Title" xml:space="preserve"><value>Policy subscriptions</value></data>
+  <data name="PolicySub_Help" xml:space="preserve"><value>Subscribe to remote portable-policy JSON only after preview. Applies are manual by default, create restore checkpoints, and can pin the fetched SHA-256 hash.</value></data>
+  <data name="PolicySub_NameHint" xml:space="preserve"><value>Name</value></data>
+  <data name="PolicySub_NameName" xml:space="preserve"><value>Policy subscription name</value></data>
+  <data name="PolicySub_NameTip" xml:space="preserve"><value>Friendly label for this remote policy feed.</value></data>
+  <data name="PolicySub_UrlHint" xml:space="preserve"><value>https://example.com/policy.json</value></data>
+  <data name="PolicySub_UrlName" xml:space="preserve"><value>Policy subscription HTTPS URL</value></data>
+  <data name="PolicySub_UrlTip" xml:space="preserve"><value>Remote portable-policy JSON URL. The service enforces public HTTPS before fetching.</value></data>
+  <data name="PolicySub_PinHashHint" xml:space="preserve"><value>Expected SHA-256 (optional)</value></data>
+  <data name="PolicySub_PinHashName" xml:space="preserve"><value>Policy subscription pinned SHA-256</value></data>
+  <data name="PolicySub_PinHashTip" xml:space="preserve"><value>When set, preview and apply fail if the fetched policy hash changes.</value></data>
+  <data name="PolicySub_Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="PolicySub_EnabledTip" xml:space="preserve"><value>Keep this subscription available for trusted refresh operations.</value></data>
+  <data name="PolicySub_AutoApply" xml:space="preserve"><value>Auto-apply trusted refreshes</value></data>
+  <data name="PolicySub_AutoApplyTip" xml:space="preserve"><value>Off by default. Only enabled subscriptions with this option are applied by the refresh action.</value></data>
+  <data name="PolicySub_PinFetched" xml:space="preserve"><value>Pin fetched hash on apply</value></data>
+  <data name="PolicySub_PinFetchedTip" xml:space="preserve"><value>Store the SHA-256 of the policy fetched during apply, so later changes require deliberate trust.</value></data>
+  <data name="PolicySub_Preview" xml:space="preserve"><value>Preview</value></data>
+  <data name="PolicySub_Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="PolicySub_Save" xml:space="preserve"><value>Save</value></data>
+  <data name="PolicySub_ApplyAuto" xml:space="preserve"><value>Apply auto-refresh</value></data>
+  <data name="PolicySub_Rollback" xml:space="preserve"><value>Rollback latest</value></data>
+  <data name="PolicySub_TableName" xml:space="preserve"><value>Policy subscriptions table</value></data>
+  <data name="PolicySub_State" xml:space="preserve"><value>State</value></data>
+  <data name="PolicySub_Trust" xml:space="preserve"><value>Trust</value></data>
+  <data name="PolicySub_Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="PolicySub_LastApplied" xml:space="preserve"><value>Applied</value></data>
+  <data name="PolicySub_LastHash" xml:space="preserve"><value>Last hash</value></data>
+  <data name="PolicySub_Error" xml:space="preserve"><value>Error</value></data>
+  <data name="PolicySub_Empty" xml:space="preserve"><value>No policy subscriptions yet. Paste an HTTPS policy URL, preview the diff, then apply only if you trust the source.</value></data>
 </root>

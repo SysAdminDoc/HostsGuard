@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.56] - 2026-07-09
+
+### Added
+- Added optional remote portable-policy subscriptions with HTTPS fetch, preview
+  diffs before apply, SHA-256 trust pinning, manual/default-off auto-apply
+  metadata, and rollback to the checkpoint captured before the latest
+  subscription apply.
+- Added a Tools tab policy-subscriptions editor with saved source metadata,
+  preview/apply/save/remove actions, trust state, and latest error/hash status.
+
 ## [0.12.55] - 2026-07-09
 
 ### Added

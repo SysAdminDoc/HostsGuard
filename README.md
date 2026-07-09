@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.55-blue)
+![Version](https://img.shields.io/badge/version-0.12.56-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -142,7 +142,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
-| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent |
+| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent; optional HTTPS policy subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary (no tokens, webhooks, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
@@ -201,8 +201,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.55-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.55-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.56-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.56-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

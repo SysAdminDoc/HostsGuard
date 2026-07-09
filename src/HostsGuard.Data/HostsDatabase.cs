@@ -305,6 +305,23 @@ public sealed record BlocklistCheckpointRestore(long CheckpointId, long Restored
 /// <summary>Checkpoint captured immediately before a broad portable-policy import.</summary>
 public sealed record PolicyImportCheckpointRow(long Id, string Created, string Json, string Summary);
 
+/// <summary>Remote portable-policy subscription metadata and latest trust/apply state.</summary>
+public sealed record PolicySubscriptionRow(
+    long Id,
+    string Name,
+    string Url,
+    bool Enabled,
+    bool AutoApply,
+    string PinHash,
+    string LastHash,
+    long LastCheckpointId,
+    string LastAppliedAt,
+    string LastPreviewSummary,
+    string LastError,
+    string LastErrorAt,
+    string Created,
+    string Updated);
+
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
 /// mirrors the Python schema v7 (domains/feed/log/fw_state/profiles + canonical
@@ -314,7 +331,7 @@ public sealed record PolicyImportCheckpointRow(long Id, string Created, string J
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 27;
+    public const int SchemaVersion = 28;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -487,6 +504,21 @@ public sealed partial class HostsDatabase : IDisposable
                 type TEXT PRIMARY KEY, label TEXT, surface INTEGER DEFAULT 1);
             CREATE TABLE IF NOT EXISTS policy_import_checkpoints(
                 id INTEGER PRIMARY KEY, created TEXT, json TEXT NOT NULL, summary TEXT);
+            CREATE TABLE IF NOT EXISTS policy_subscriptions(
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL UNIQUE,
+                enabled INTEGER DEFAULT 1,
+                auto_apply INTEGER DEFAULT 0,
+                pin_hash TEXT DEFAULT '',
+                last_hash TEXT DEFAULT '',
+                last_checkpoint_id INTEGER DEFAULT 0,
+                last_applied_at TEXT DEFAULT '',
+                last_preview_summary TEXT DEFAULT '',
+                last_error TEXT DEFAULT '',
+                last_error_at TEXT DEFAULT '',
+                created TEXT,
+                updated TEXT);
             """);
 
         // Add reason columns to tables that predate schema v7 but survived the rename.

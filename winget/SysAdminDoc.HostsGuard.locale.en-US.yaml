@@ -1,5 +1,5 @@
 PackageIdentifier: SysAdminDoc.HostsGuard
-PackageVersion: 0.12.55
+PackageVersion: 0.12.56
 PackageLocale: en-US
 Publisher: SysAdminDoc
 PublisherUrl: https://github.com/SysAdminDoc
@@ -13,7 +13,8 @@ Description: >-
   hosts-file and Windows Firewall rule management, DoH/QUIC survival, per-app VPN
   binding, UWP/MSIX package-scoped firewall rules, persistent app/domain data
   usage, persisted event-ledger browsing, source-scoped blocklist rollback,
-  rule-decision explanations and portable-policy import/export.
+  rule-decision explanations, portable-policy import/export, and optional
+  preview-first remote policy subscriptions with SHA-256 trust pinning.
   Split-trust: an elevated LocalSystem service owns all mutation while the WPF UI
   runs unelevated over an ACL'd named pipe — no kernel driver, no account, no
   telemetry.

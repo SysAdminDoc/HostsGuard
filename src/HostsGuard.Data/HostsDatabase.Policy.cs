@@ -231,6 +231,275 @@ public sealed partial class HostsDatabase
         }
     }
 
+    public PolicyImportCheckpointRow? GetPolicyImportCheckpoint(long id)
+    {
+        if (id <= 0)
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return _conn.QuerySingleOrDefault<PolicyImportCheckpointRow>(
+                """
+                SELECT id AS Id, COALESCE(created,'') AS Created, json AS Json, COALESCE(summary,'') AS Summary
+                FROM policy_import_checkpoints
+                WHERE id=@id
+                LIMIT 1
+                """,
+                new { id });
+        }
+    }
+
+    public IReadOnlyList<PolicySubscriptionRow> GetPolicySubscriptions()
+    {
+        lock (_gate)
+        {
+            return QueryPolicySubscriptionsNoLock(string.Empty, null);
+        }
+    }
+
+    public PolicySubscriptionRow? GetPolicySubscription(long id)
+    {
+        if (id <= 0)
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return QueryPolicySubscriptionsNoLock("WHERE id=@id", new { id }).FirstOrDefault();
+        }
+    }
+
+    public PolicySubscriptionRow? GetPolicySubscriptionByUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            return QueryPolicySubscriptionsNoLock("WHERE url=@url", new { url = url.Trim() }).FirstOrDefault();
+        }
+    }
+
+    public long SavePolicySubscription(long id, string name, string url, bool enabled, bool autoApply, string pinHash)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            if (id > 0)
+            {
+                var changed = _conn.Execute(
+                    """
+                    UPDATE policy_subscriptions SET
+                        name=@name,
+                        url=@url,
+                        enabled=@enabled,
+                        auto_apply=@autoApply,
+                        pin_hash=@pinHash,
+                        updated=@now
+                    WHERE id=@id
+                    """,
+                    new
+                    {
+                        id,
+                        name = name.Trim(),
+                        url = url.Trim(),
+                        enabled = enabled ? 1 : 0,
+                        autoApply = autoApply ? 1 : 0,
+                        pinHash = NormalizeHash(pinHash),
+                        now,
+                    });
+                if (changed != 0)
+                {
+                    return id;
+                }
+            }
+
+            _conn.Execute(
+                """
+                INSERT INTO policy_subscriptions(
+                    name,url,enabled,auto_apply,pin_hash,created,updated)
+                VALUES(@name,@url,@enabled,@autoApply,@pinHash,@now,@now)
+                ON CONFLICT(url) DO UPDATE SET
+                    name=excluded.name,
+                    enabled=excluded.enabled,
+                    auto_apply=excluded.auto_apply,
+                    pin_hash=excluded.pin_hash,
+                    updated=excluded.updated
+                """,
+                new
+                {
+                    name = name.Trim(),
+                    url = url.Trim(),
+                    enabled = enabled ? 1 : 0,
+                    autoApply = autoApply ? 1 : 0,
+                    pinHash = NormalizeHash(pinHash),
+                    now,
+                });
+            return _conn.ExecuteScalar<long>(
+                "SELECT id FROM policy_subscriptions WHERE url=@url",
+                new { url = url.Trim() });
+        }
+    }
+
+    public long RecordPolicySubscriptionApplied(
+        long id,
+        string name,
+        string url,
+        bool enabled,
+        bool autoApply,
+        string pinHash,
+        string lastHash,
+        long checkpointId,
+        IEnumerable<string> summary)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        ArgumentNullException.ThrowIfNull(summary);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            var savedId = SavePolicySubscription(id, name, url, enabled, autoApply, pinHash);
+            _conn.Execute(
+                """
+                UPDATE policy_subscriptions SET
+                    last_hash=@lastHash,
+                    last_checkpoint_id=@checkpointId,
+                    last_applied_at=@now,
+                    last_preview_summary=@summary,
+                    last_error='',
+                    last_error_at='',
+                    updated=@now
+                WHERE id=@savedId
+                """,
+                new
+                {
+                    savedId,
+                    lastHash = NormalizeHash(lastHash),
+                    checkpointId,
+                    now,
+                    summary = string.Join("\n", summary),
+                });
+            return savedId;
+        }
+    }
+
+    public void RecordPolicySubscriptionFailure(long id, string url, string name, string error)
+    {
+        var message = (error ?? string.Empty).Trim();
+        if (message.Length > 500)
+        {
+            message = message[..500];
+        }
+
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            if (id > 0)
+            {
+                _conn.Execute(
+                    """
+                    UPDATE policy_subscriptions SET
+                        last_error=@message,
+                        last_error_at=@now,
+                        updated=@now
+                    WHERE id=@id
+                    """,
+                    new { id, message, now });
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(name))
+            {
+                _conn.Execute(
+                    """
+                    INSERT INTO policy_subscriptions(name,url,enabled,auto_apply,last_error,last_error_at,created,updated)
+                    VALUES(@name,@url,1,0,@message,@now,@now,@now)
+                    ON CONFLICT(url) DO UPDATE SET
+                        last_error=excluded.last_error,
+                        last_error_at=excluded.last_error_at,
+                        updated=excluded.updated
+                    """,
+                    new { name = name.Trim(), url = url.Trim(), message, now });
+            }
+        }
+    }
+
+    public bool DeletePolicySubscription(long id)
+    {
+        if (id <= 0)
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            return _conn.Execute("DELETE FROM policy_subscriptions WHERE id=@id", new { id }) != 0;
+        }
+    }
+
+    private IReadOnlyList<PolicySubscriptionRow> QueryPolicySubscriptionsNoLock(string whereClause, object? args)
+    {
+        return _conn.Query<(
+                long Id,
+                string Name,
+                string Url,
+                long Enabled,
+                long AutoApply,
+                string PinHash,
+                string LastHash,
+                long LastCheckpointId,
+                string LastAppliedAt,
+                string LastPreviewSummary,
+                string LastError,
+                string LastErrorAt,
+                string Created,
+                string Updated)>(
+            $"""
+            SELECT id AS Id, name AS Name, url AS Url,
+                   COALESCE(enabled,1) AS Enabled,
+                   COALESCE(auto_apply,0) AS AutoApply,
+                   COALESCE(pin_hash,'') AS PinHash,
+                   COALESCE(last_hash,'') AS LastHash,
+                   COALESCE(last_checkpoint_id,0) AS LastCheckpointId,
+                   COALESCE(last_applied_at,'') AS LastAppliedAt,
+                   COALESCE(last_preview_summary,'') AS LastPreviewSummary,
+                   COALESCE(last_error,'') AS LastError,
+                   COALESCE(last_error_at,'') AS LastErrorAt,
+                   COALESCE(created,'') AS Created,
+                   COALESCE(updated,'') AS Updated
+            FROM policy_subscriptions
+            {whereClause}
+            ORDER BY name, id
+            """,
+            args)
+            .Select(r => new PolicySubscriptionRow(
+                r.Id,
+                r.Name,
+                r.Url,
+                r.Enabled != 0,
+                r.AutoApply != 0,
+                r.PinHash,
+                r.LastHash,
+                r.LastCheckpointId,
+                r.LastAppliedAt,
+                r.LastPreviewSummary,
+                r.LastError,
+                r.LastErrorAt,
+                r.Created,
+                r.Updated))
+            .ToList();
+    }
+
+    private static string NormalizeHash(string? value)
+        => (value ?? string.Empty).Trim().ToLowerInvariant();
+
     // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
 
     public void UpsertBlocklistSub(

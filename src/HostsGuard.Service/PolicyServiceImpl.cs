@@ -1,8 +1,11 @@
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
+using HostsGuard.Data;
 
 namespace HostsGuard.Service;
 
@@ -14,6 +17,8 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 {
+    private const int MaxRemotePolicyBytes = 10 * 1024 * 1024;
+
     private readonly ServiceState _state;
 
     public PolicyServiceImpl(ServiceState state) => _state = state;
@@ -423,6 +428,401 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             summary: summary,
             checkpointId: checkpoint.Id));
     }
+
+    public override Task<PolicySubscriptionList> ListPolicySubscriptions(Empty request, ServerCallContext context)
+    {
+        var list = new PolicySubscriptionList();
+        foreach (var row in _state.Db.GetPolicySubscriptions())
+        {
+            list.Subscriptions.Add(ToPolicySubscription(row));
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> SavePolicySubscription(PolicySubscriptionRequest request, ServerCallContext context)
+    {
+        var resolved = ResolveSubscription(request, requireExisting: false);
+        if (resolved.Error is not null)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = resolved.Error.Message,
+                ErrorCode = resolved.Error.ErrorCode,
+            });
+        }
+
+        var id = _state.Db.SavePolicySubscription(
+            resolved.Row?.Id ?? request.Id,
+            resolved.Name,
+            resolved.Url,
+            request.Enabled,
+            request.AutoApply,
+            request.PinHash);
+        return Task.FromResult(Ok($"policy subscription '{resolved.Name}' saved (id {id})"));
+    }
+
+    public override Task<Ack> DeletePolicySubscription(PolicySubscriptionRequest request, ServerCallContext context)
+    {
+        var resolved = ResolveSubscription(request, requireExisting: true);
+        if (resolved.Error is not null)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = resolved.Error.Message,
+                ErrorCode = resolved.Error.ErrorCode,
+            });
+        }
+
+        var deleted = _state.Db.DeletePolicySubscription(resolved.Row!.Id);
+        return Task.FromResult(deleted
+            ? Ok($"policy subscription '{resolved.Row.Name}' removed")
+            : Error("unknown_policy_subscription", "policy subscription was not found"));
+    }
+
+    public override async Task<ImportPolicyResult> PreviewPolicySubscription(
+        PolicySubscriptionRequest request,
+        ServerCallContext context)
+    {
+        var fetched = await FetchSubscriptionPolicyAsync(request, context.CancellationToken);
+        if (fetched.Error is not null)
+        {
+            return fetched.Error;
+        }
+
+        var preview = PolicyPortability.PreviewImport(_state, fetched.Policy!);
+        return ToImportResult(
+            ok: true,
+            message: $"subscription preview: +{preview.Added}, ~{preview.Changed}, -{preview.Removed}; sha256 {fetched.Hash}",
+            summary: SubscriptionSummary(fetched, preview.Summary),
+            preview: true,
+            added: preview.Added,
+            changed: preview.Changed,
+            removed: preview.Removed);
+    }
+
+    public override async Task<ImportPolicyResult> ApplyPolicySubscription(
+        PolicySubscriptionRequest request,
+        ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
+        }
+
+        return await ApplyPolicySubscriptionCoreAsync(request, context.CancellationToken);
+    }
+
+    public override async Task<ImportPolicyResult> RefreshPolicySubscriptions(Empty request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
+        }
+
+        var rows = _state.Db.GetPolicySubscriptions()
+            .Where(s => s.Enabled && s.AutoApply)
+            .ToList();
+        if (rows.Count == 0)
+        {
+            return ToImportResult(
+                ok: true,
+                message: "no policy subscriptions have auto-apply enabled",
+                summary: Array.Empty<string>());
+        }
+
+        var summary = new List<string>();
+        long added = 0;
+        long changed = 0;
+        long removed = 0;
+        var failures = 0;
+        foreach (var row in rows)
+        {
+            var result = await ApplyPolicySubscriptionCoreAsync(new PolicySubscriptionRequest
+            {
+                Id = row.Id,
+                Name = row.Name,
+                Url = row.Url,
+                Enabled = row.Enabled,
+                AutoApply = row.AutoApply,
+                PinHash = row.PinHash,
+            }, context.CancellationToken);
+            if (!result.Ok)
+            {
+                failures++;
+                summary.Add($"{row.Name}: {result.Message}");
+                continue;
+            }
+
+            added += result.Added;
+            changed += result.Changed;
+            removed += result.Removed;
+            summary.Add($"{row.Name}: {result.Message}");
+        }
+
+        return ToImportResult(
+            ok: failures == 0,
+            message: failures == 0
+                ? $"refreshed {rows.Count} policy subscriptions"
+                : $"refreshed {rows.Count - failures} policy subscriptions; {failures} failed",
+            summary: summary,
+            added: added,
+            changed: changed,
+            removed: removed);
+    }
+
+    public override Task<ImportPolicyResult> RollbackPolicySubscription(
+        PolicySubscriptionRequest request,
+        ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
+        var resolved = ResolveSubscription(request, requireExisting: true);
+        if (resolved.Error is not null)
+        {
+            return Task.FromResult(resolved.Error);
+        }
+
+        var row = resolved.Row!;
+        if (row.LastCheckpointId <= 0)
+        {
+            return Task.FromResult(new ImportPolicyResult
+            {
+                Ok = false,
+                Message = $"policy subscription '{row.Name}' has no rollback checkpoint",
+                ErrorCode = "hostsguard.error.v1/no_checkpoint",
+            });
+        }
+
+        var checkpoint = _state.Db.GetPolicyImportCheckpoint(row.LastCheckpointId);
+        if (checkpoint is null)
+        {
+            return Task.FromResult(new ImportPolicyResult
+            {
+                Ok = false,
+                Message = $"policy subscription checkpoint {row.LastCheckpointId} was not found",
+                ErrorCode = "hostsguard.error.v1/no_checkpoint",
+            });
+        }
+
+        var (policy, error) = ReadPortablePolicy(checkpoint.Json);
+        if (error is not null)
+        {
+            error.Message = $"subscription checkpoint {checkpoint.Id} could not be read: {error.Message}";
+            return Task.FromResult(error);
+        }
+
+        var current = PolicyPortability.Export(_state);
+        var currentPreview = PolicyPortability.PreviewImport(_state, current);
+        _state.Db.CreatePolicyImportCheckpoint(current.ToJson(), currentPreview.Summary);
+        var summary = PolicyPortability.Restore(_state, policy!);
+        return Task.FromResult(ToImportResult(
+            ok: true,
+            message: $"policy subscription '{row.Name}' rolled back to checkpoint {checkpoint.Id}",
+            summary: summary,
+            checkpointId: checkpoint.Id));
+    }
+
+    private async Task<ImportPolicyResult> ApplyPolicySubscriptionCoreAsync(
+        PolicySubscriptionRequest request,
+        CancellationToken ct)
+    {
+        var fetched = await FetchSubscriptionPolicyAsync(request, ct);
+        if (fetched.Error is not null)
+        {
+            var resolved = ResolveSubscription(request, requireExisting: false);
+            if (resolved.Error is null)
+            {
+                _state.Db.RecordPolicySubscriptionFailure(
+                    resolved.Row?.Id ?? request.Id,
+                    resolved.Url,
+                    resolved.Name,
+                    fetched.Error.Message);
+            }
+
+            return fetched.Error;
+        }
+
+        var preview = PolicyPortability.PreviewImport(_state, fetched.Policy!);
+        var checkpointJson = PolicyPortability.Export(_state).ToJson();
+        var checkpointId = _state.Db.CreatePolicyImportCheckpoint(checkpointJson, preview.Summary);
+        var summary = PolicyPortability.Import(_state, fetched.Policy!);
+        var pinHash = request.PinCurrentHash
+            ? fetched.Hash
+            : !string.IsNullOrWhiteSpace(request.PinHash)
+                ? request.PinHash
+                : fetched.Row?.PinHash ?? string.Empty;
+        var explicitMetadata = !string.IsNullOrWhiteSpace(request.Url) || !string.IsNullOrWhiteSpace(request.Name);
+        var savedId = _state.Db.RecordPolicySubscriptionApplied(
+            fetched.Row?.Id ?? request.Id,
+            fetched.Name,
+            fetched.Url,
+            explicitMetadata ? request.Enabled : fetched.Row?.Enabled ?? request.Enabled,
+            explicitMetadata ? request.AutoApply : fetched.Row?.AutoApply ?? request.AutoApply,
+            pinHash,
+            fetched.Hash,
+            checkpointId,
+            SubscriptionSummary(fetched, summary));
+        return ToImportResult(
+            ok: true,
+            message: $"policy subscription '{fetched.Name}' applied (id {savedId}, checkpoint {checkpointId}, sha256 {fetched.Hash})",
+            summary: summary,
+            added: preview.Added,
+            changed: preview.Changed,
+            removed: preview.Removed,
+            checkpointId: checkpointId);
+    }
+
+    private async Task<SubscriptionFetchResult> FetchSubscriptionPolicyAsync(
+        PolicySubscriptionRequest request,
+        CancellationToken ct)
+    {
+        var resolved = ResolveSubscription(request, requireExisting: false);
+        if (resolved.Error is not null)
+        {
+            return new SubscriptionFetchResult(null, null, string.Empty, string.Empty, string.Empty, resolved.Error);
+        }
+
+        if (_state.ListFetcher is null)
+        {
+            return new SubscriptionFetchResult(null, null, resolved.Name, resolved.Url, string.Empty, new ImportPolicyResult
+            {
+                Ok = false,
+                Message = "remote policy subscriptions are unavailable because no list fetcher is configured",
+                ErrorCode = "hostsguard.error.v1/no_fetcher",
+            });
+        }
+
+        try
+        {
+            var json = await _state.ListFetcher.FetchAsync(resolved.Url, MaxRemotePolicyBytes, ct);
+            var hash = Sha256(json);
+            var pinned = !string.IsNullOrWhiteSpace(request.PinHash)
+                ? request.PinHash.Trim().ToLowerInvariant()
+                : resolved.Row?.PinHash ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(pinned) && !hash.Equals(pinned, StringComparison.OrdinalIgnoreCase))
+            {
+                return new SubscriptionFetchResult(null, resolved.Row, resolved.Name, resolved.Url, hash, new ImportPolicyResult
+                {
+                    Ok = false,
+                    Message = $"policy subscription '{resolved.Name}' hash mismatch: expected {pinned}, got {hash}",
+                    ErrorCode = "hostsguard.error.v1/policy_subscription_pin_mismatch",
+                });
+            }
+
+            var (policy, error) = ReadPortablePolicy(json);
+            return error is not null
+                ? new SubscriptionFetchResult(null, resolved.Row, resolved.Name, resolved.Url, hash, error)
+                : new SubscriptionFetchResult(policy, resolved.Row, resolved.Name, resolved.Url, hash, null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new SubscriptionFetchResult(null, resolved.Row, resolved.Name, resolved.Url, string.Empty, new ImportPolicyResult
+            {
+                Ok = false,
+                Message = $"could not fetch policy subscription '{resolved.Name}': {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/policy_subscription_fetch_failed",
+            });
+        }
+    }
+
+    private SubscriptionResolveResult ResolveSubscription(PolicySubscriptionRequest request, bool requireExisting)
+    {
+        var row = request.Id > 0
+            ? _state.Db.GetPolicySubscription(request.Id)
+            : !string.IsNullOrWhiteSpace(request.Url)
+                ? _state.Db.GetPolicySubscriptionByUrl(request.Url.Trim())
+                : null;
+        if (requireExisting && row is null)
+        {
+            return new SubscriptionResolveResult(null, string.Empty, string.Empty, new ImportPolicyResult
+            {
+                Ok = false,
+                Message = "policy subscription was not found",
+                ErrorCode = "hostsguard.error.v1/unknown_policy_subscription",
+            });
+        }
+
+        var requestUrl = (request.Url ?? string.Empty).Trim();
+        var url = requestUrl.Length != 0 ? requestUrl : row?.Url ?? string.Empty;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            !uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return new SubscriptionResolveResult(row, string.Empty, url, new ImportPolicyResult
+            {
+                Ok = false,
+                Message = "policy subscription URL must be absolute HTTPS",
+                ErrorCode = "hostsguard.error.v1/invalid_policy_subscription_url",
+            });
+        }
+
+        var requestName = (request.Name ?? string.Empty).Trim();
+        var name = requestName.Length != 0 ? requestName : row?.Name ?? string.Empty;
+        if (name.Length == 0)
+        {
+            name = DefaultSubscriptionName(uri);
+        }
+
+        return new SubscriptionResolveResult(row, name, url, null);
+    }
+
+    private static string DefaultSubscriptionName(Uri uri)
+    {
+        var path = uri.AbsolutePath.Trim('/');
+        return path.Length == 0
+            ? uri.Host
+            : $"{uri.Host}/{path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()}";
+    }
+
+    private static IEnumerable<string> SubscriptionSummary(SubscriptionFetchResult fetched, IEnumerable<string> summary)
+    {
+        yield return $"subscription: {fetched.Name} ({fetched.Url})";
+        yield return $"sha256: {fetched.Hash}";
+        foreach (var item in summary)
+        {
+            yield return item;
+        }
+    }
+
+    private static PolicySubscription ToPolicySubscription(PolicySubscriptionRow row) => new()
+    {
+        Id = row.Id,
+        Name = row.Name,
+        Url = row.Url,
+        Enabled = row.Enabled,
+        AutoApply = row.AutoApply,
+        PinHash = row.PinHash,
+        LastHash = row.LastHash,
+        LastCheckpointId = row.LastCheckpointId,
+        LastAppliedAt = row.LastAppliedAt,
+        LastPreviewSummary = row.LastPreviewSummary,
+        LastError = row.LastError,
+        LastErrorAt = row.LastErrorAt,
+        Created = row.Created,
+        Updated = row.Updated,
+    };
+
+    private static string Sha256(string text)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+
+    private sealed record SubscriptionResolveResult(
+        PolicySubscriptionRow? Row,
+        string Name,
+        string Url,
+        ImportPolicyResult? Error);
+
+    private sealed record SubscriptionFetchResult(
+        Core.PortablePolicy? Policy,
+        PolicySubscriptionRow? Row,
+        string Name,
+        string Url,
+        string Hash,
+        ImportPolicyResult? Error);
 
     private static Ack Ok(string message) => new() { Ok = true, Message = message };
 

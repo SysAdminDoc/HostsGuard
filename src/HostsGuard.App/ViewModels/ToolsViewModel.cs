@@ -66,6 +66,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<DnsCacheEntryViewModel> DnsCacheEntries { get; } = new();
 
+    public ObservableCollection<PolicySubscriptionViewModel> PolicySubscriptions { get; } = new();
+
     public ObservableCollection<LanAttackSurfaceToggleViewModel> LanAttackSurface { get; } = new();
 
     public ObservableCollection<AppVpnBindingRowViewModel> AppVpnBindings { get; } = new();
@@ -206,6 +208,232 @@ public sealed partial class ToolsViewModel : ObservableObject
             var ack = await _client.Policy.SetHostsProtectionAsync(new HostsProtectionRequest { Enabled = true });
             StatusText = ack.Message;
         });
+    }
+
+    // ─── Remote policy subscriptions (NET-171) ──────────────────────────────
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(DeletePolicySubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RollbackPolicySubscriptionCommand))]
+    private PolicySubscriptionViewModel? _selectedPolicySubscription;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SavePolicySubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PreviewPolicySubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyPolicySubscriptionCommand))]
+    private string _policySubscriptionName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SavePolicySubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PreviewPolicySubscriptionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyPolicySubscriptionCommand))]
+    private string _policySubscriptionUrl = string.Empty;
+
+    [ObservableProperty]
+    private bool _policySubscriptionEnabled = true;
+
+    [ObservableProperty]
+    private bool _policySubscriptionAutoApply;
+
+    [ObservableProperty]
+    private bool _policySubscriptionPinCurrentHash = true;
+
+    [ObservableProperty]
+    private string _policySubscriptionPinHash = string.Empty;
+
+    [ObservableProperty]
+    private string _policySubscriptionStatusText = "Add an HTTPS policy JSON subscription, preview it, then apply with a pinned source hash.";
+
+    [RelayCommand]
+    public async Task LoadPolicySubscriptionsAsync()
+    {
+        await RunServiceActionAsync("Load policy subscriptions", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var selectedId = SelectedPolicySubscription?.Id ?? 0;
+            var list = await _client.Policy.ListPolicySubscriptionsAsync(new Empty());
+            PolicySubscriptions.Clear();
+            foreach (var sub in list.Subscriptions)
+            {
+                PolicySubscriptions.Add(PolicySubscriptionViewModel.From(sub));
+            }
+
+            SelectedPolicySubscription = PolicySubscriptions.FirstOrDefault(s => s.Id == selectedId)
+                ?? PolicySubscriptions.FirstOrDefault();
+            PolicySubscriptionStatusText = PolicySubscriptions.Count == 0
+                ? "No policy subscriptions saved."
+                : $"{PolicySubscriptions.Count} policy subscriptions loaded.";
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSavePolicySubscription))]
+    public async Task SavePolicySubscriptionAsync()
+    {
+        await RunServiceActionAsync("Save policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var ack = await _client.Policy.SavePolicySubscriptionAsync(CreatePolicySubscriptionRequest());
+            PolicySubscriptionStatusText = ack.Message;
+            StatusText = ack.Message;
+            await LoadPolicySubscriptionsAsync();
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUsePolicySubscriptionTarget))]
+    public async Task PreviewPolicySubscriptionAsync()
+    {
+        await RunServiceActionAsync("Preview policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var result = await _client.Policy.PreviewPolicySubscriptionAsync(CreatePolicySubscriptionRequest());
+            PolicySubscriptionStatusText = DescribePolicyImportResult(result);
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUsePolicySubscriptionTarget))]
+    public async Task ApplyPolicySubscriptionAsync()
+    {
+        await RunServiceActionAsync("Apply policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var preview = await _client.Policy.PreviewPolicySubscriptionAsync(CreatePolicySubscriptionRequest());
+            if (!preview.Ok)
+            {
+                PolicySubscriptionStatusText = preview.Message;
+                return;
+            }
+
+            var previewText = $"{preview.Message}\n\n" + string.Join("\n", preview.Summary.Take(8));
+            if (!_confirm.Confirm("Apply policy subscription",
+                previewText + "\n\nCreate a restore checkpoint and apply this subscription?"))
+            {
+                PolicySubscriptionStatusText = "Policy subscription apply cancelled after preview.";
+                return;
+            }
+
+            var result = await _client.Policy.ApplyPolicySubscriptionAsync(CreatePolicySubscriptionRequest());
+            PolicySubscriptionStatusText = DescribePolicyImportResult(result);
+            StatusText = result.Message;
+            await LoadPolicySubscriptionsAsync();
+        });
+    }
+
+    [RelayCommand]
+    public async Task RefreshPolicySubscriptionsAsync()
+    {
+        if (!_confirm.Confirm("Apply trusted policy subscriptions",
+            "Apply every enabled policy subscription with auto-apply enabled now? Pinned hashes are enforced and each apply creates a restore checkpoint."))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Refresh policy subscriptions", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var result = await _client.Policy.RefreshPolicySubscriptionsAsync(new Empty());
+            PolicySubscriptionStatusText = DescribePolicyImportResult(result);
+            StatusText = result.Message;
+            await LoadPolicySubscriptionsAsync();
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedPolicySubscription))]
+    public async Task RollbackPolicySubscriptionAsync()
+    {
+        if (SelectedPolicySubscription is not { } row)
+        {
+            return;
+        }
+
+        if (!_confirm.Confirm("Rollback policy subscription",
+            $"Restore the checkpoint captured before the latest apply of '{row.Name}'?"))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Rollback policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var result = await _client.Policy.RollbackPolicySubscriptionAsync(new PolicySubscriptionRequest { Id = row.Id });
+            PolicySubscriptionStatusText = DescribePolicyImportResult(result);
+            StatusText = result.Message;
+            await LoadPolicySubscriptionsAsync();
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedPolicySubscription))]
+    public async Task DeletePolicySubscriptionAsync()
+    {
+        if (SelectedPolicySubscription is not { } row)
+        {
+            return;
+        }
+
+        if (!_confirm.Confirm("Remove policy subscription",
+            $"Remove '{row.Name}' from saved policy subscriptions? Applied policy is not rolled back."))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Remove policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        {
+            var ack = await _client.Policy.DeletePolicySubscriptionAsync(new PolicySubscriptionRequest { Id = row.Id });
+            PolicySubscriptionStatusText = ack.Message;
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                ClearPolicySubscriptionEditor();
+                await LoadPolicySubscriptionsAsync();
+            }
+        });
+    }
+
+    private bool CanSavePolicySubscription() => !string.IsNullOrWhiteSpace(PolicySubscriptionUrl);
+
+    private bool CanUsePolicySubscriptionTarget() =>
+        SelectedPolicySubscription is not null || !string.IsNullOrWhiteSpace(PolicySubscriptionUrl);
+
+    private bool CanUseSelectedPolicySubscription() => SelectedPolicySubscription is not null;
+
+    private PolicySubscriptionRequest CreatePolicySubscriptionRequest() => new()
+    {
+        Id = SelectedPolicySubscription?.Id ?? 0,
+        Name = PolicySubscriptionName.Trim(),
+        Url = PolicySubscriptionUrl.Trim(),
+        Enabled = PolicySubscriptionEnabled,
+        AutoApply = PolicySubscriptionAutoApply,
+        PinHash = PolicySubscriptionPinHash.Trim(),
+        PinCurrentHash = PolicySubscriptionPinCurrentHash,
+    };
+
+    private void ClearPolicySubscriptionEditor()
+    {
+        SelectedPolicySubscription = null;
+        PolicySubscriptionName = string.Empty;
+        PolicySubscriptionUrl = string.Empty;
+        PolicySubscriptionEnabled = true;
+        PolicySubscriptionAutoApply = false;
+        PolicySubscriptionPinCurrentHash = true;
+        PolicySubscriptionPinHash = string.Empty;
+    }
+
+    partial void OnSelectedPolicySubscriptionChanged(PolicySubscriptionViewModel? value)
+    {
+        if (value is null)
+        {
+            return;
+        }
+
+        PolicySubscriptionName = value.Name;
+        PolicySubscriptionUrl = value.Url;
+        PolicySubscriptionEnabled = value.Enabled;
+        PolicySubscriptionAutoApply = value.AutoApply;
+        PolicySubscriptionPinHash = value.PinHash;
+        PolicySubscriptionPinCurrentHash = string.IsNullOrWhiteSpace(value.PinHash);
+        DeletePolicySubscriptionCommand.NotifyCanExecuteChanged();
+        RollbackPolicySubscriptionCommand.NotifyCanExecuteChanged();
+    }
+
+    private static string DescribePolicyImportResult(ImportPolicyResult result)
+    {
+        var detail = result.Summary.Count == 0
+            ? string.Empty
+            : " " + string.Join("; ", result.Summary.Take(5));
+        return result.Ok ? result.Message + detail : result.Message;
     }
 
     [RelayCommand]
@@ -1372,5 +1600,70 @@ public sealed partial class LanAttackSurfaceToggleViewModel : ObservableObject
         Blocked = toggle.Blocked,
         Status = toggle.Status,
         BreakNote = toggle.BreakNote,
+    };
+}
+
+public sealed partial class PolicySubscriptionViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private long _id;
+
+    [ObservableProperty]
+    private string _name = string.Empty;
+
+    [ObservableProperty]
+    private string _url = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StateText))]
+    private bool _enabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ApplyModeText))]
+    private bool _autoApply;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TrustText))]
+    private string _pinHash = string.Empty;
+
+    [ObservableProperty]
+    private string _lastHash = string.Empty;
+
+    [ObservableProperty]
+    private long _lastCheckpointId;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LastAppliedText))]
+    private string _lastAppliedAt = string.Empty;
+
+    [ObservableProperty]
+    private string _lastError = string.Empty;
+
+    [ObservableProperty]
+    private string _lastErrorAt = string.Empty;
+
+    public string StateText => Enabled ? "Enabled" : "Disabled";
+
+    public string ApplyModeText => AutoApply ? "Auto-apply" : "Manual approval";
+
+    public string TrustText => string.IsNullOrWhiteSpace(PinHash) ? "Unpinned" : "Pinned";
+
+    public string LastAppliedText => string.IsNullOrWhiteSpace(LastAppliedAt) ? "Never" : TimeText.Compact(LastAppliedAt);
+
+    public string ErrorText => string.IsNullOrWhiteSpace(LastError) ? string.Empty : LastError;
+
+    public static PolicySubscriptionViewModel From(PolicySubscription sub) => new()
+    {
+        Id = sub.Id,
+        Name = sub.Name,
+        Url = sub.Url,
+        Enabled = sub.Enabled,
+        AutoApply = sub.AutoApply,
+        PinHash = sub.PinHash,
+        LastHash = sub.LastHash,
+        LastCheckpointId = sub.LastCheckpointId,
+        LastAppliedAt = sub.LastAppliedAt,
+        LastError = sub.LastError,
+        LastErrorAt = sub.LastErrorAt,
     };
 }

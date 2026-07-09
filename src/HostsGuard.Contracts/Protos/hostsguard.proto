@@ -1367,6 +1367,13 @@ service Policy {
   rpc PreviewPolicyImport(ImportPolicyRequest) returns (ImportPolicyResult);
   rpc ImportPolicy(ImportPolicyRequest) returns (ImportPolicyResult);
   rpc RestorePolicyCheckpoint(Empty) returns (ImportPolicyResult);
+  rpc ListPolicySubscriptions(Empty) returns (PolicySubscriptionList);
+  rpc SavePolicySubscription(PolicySubscriptionRequest) returns (Ack);
+  rpc DeletePolicySubscription(PolicySubscriptionRequest) returns (Ack);
+  rpc PreviewPolicySubscription(PolicySubscriptionRequest) returns (ImportPolicyResult);
+  rpc ApplyPolicySubscription(PolicySubscriptionRequest) returns (ImportPolicyResult);
+  rpc RefreshPolicySubscriptions(Empty) returns (ImportPolicyResult);
+  rpc RollbackPolicySubscription(PolicySubscriptionRequest) returns (ImportPolicyResult);
 }
 
 message PolicyDocument {
@@ -1389,6 +1396,37 @@ message ImportPolicyResult {
   int64 changed = 7;
   int64 removed = 8;
   int64 checkpoint_id = 9;
+}
+
+message PolicySubscription {
+  int64 id = 1;
+  string name = 2;
+  string url = 3;
+  bool enabled = 4;
+  bool auto_apply = 5;
+  string pin_hash = 6;
+  string last_hash = 7;
+  int64 last_checkpoint_id = 8;
+  string last_applied_at = 9;
+  string last_preview_summary = 10;
+  string last_error = 11;
+  string last_error_at = 12;
+  string created = 13;
+  string updated = 14;
+}
+
+message PolicySubscriptionList {
+  repeated PolicySubscription subscriptions = 1;
+}
+
+message PolicySubscriptionRequest {
+  int64 id = 1;
+  string name = 2;
+  string url = 3;
+  bool enabled = 4;
+  bool auto_apply = 5;
+  string pin_hash = 6;
+  bool pin_current_hash = 7;
 }
 
 message CurrentNetwork {
