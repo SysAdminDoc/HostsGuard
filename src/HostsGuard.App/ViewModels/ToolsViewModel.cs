@@ -29,7 +29,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private readonly IConfirm _confirm;
 
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = I18n.T("Status.Ready", "Ready");
 
     [ObservableProperty]
     private string _selectedResolver = "DHCP (default)";
@@ -242,12 +242,14 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _policySubscriptionPinHash = string.Empty;
 
     [ObservableProperty]
-    private string _policySubscriptionStatusText = "Add an HTTPS policy JSON subscription, preview it, then apply with a pinned source hash.";
+    private string _policySubscriptionStatusText = I18n.T(
+        "PolicySub_StatusIntro",
+        "Add an HTTPS policy JSON subscription, preview it, then apply with a pinned source hash.");
 
     [RelayCommand]
     public async Task LoadPolicySubscriptionsAsync()
     {
-        await RunServiceActionAsync("Load policy subscriptions", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionLoad", "Load policy subscriptions"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var selectedId = SelectedPolicySubscription?.Id ?? 0;
             var list = await _client.Policy.ListPolicySubscriptionsAsync(new Empty());
@@ -260,15 +262,15 @@ public sealed partial class ToolsViewModel : ObservableObject
             SelectedPolicySubscription = PolicySubscriptions.FirstOrDefault(s => s.Id == selectedId)
                 ?? PolicySubscriptions.FirstOrDefault();
             PolicySubscriptionStatusText = PolicySubscriptions.Count == 0
-                ? "No policy subscriptions saved."
-                : $"{PolicySubscriptions.Count} policy subscriptions loaded.";
+                ? I18n.T("PolicySub_StatusNoneSaved", "No policy subscriptions saved.")
+                : I18n.T("PolicySub_StatusLoaded", "{0} policy subscriptions loaded.", PolicySubscriptions.Count);
         });
     }
 
     [RelayCommand(CanExecute = nameof(CanSavePolicySubscription))]
     public async Task SavePolicySubscriptionAsync()
     {
-        await RunServiceActionAsync("Save policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionSave", "Save policy subscription"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var ack = await _client.Policy.SavePolicySubscriptionAsync(CreatePolicySubscriptionRequest());
             PolicySubscriptionStatusText = ack.Message;
@@ -280,7 +282,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUsePolicySubscriptionTarget))]
     public async Task PreviewPolicySubscriptionAsync()
     {
-        await RunServiceActionAsync("Preview policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionPreview", "Preview policy subscription"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var result = await _client.Policy.PreviewPolicySubscriptionAsync(CreatePolicySubscriptionRequest());
             PolicySubscriptionStatusText = DescribePolicyImportResult(result);
@@ -290,7 +292,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUsePolicySubscriptionTarget))]
     public async Task ApplyPolicySubscriptionAsync()
     {
-        await RunServiceActionAsync("Apply policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionApply", "Apply policy subscription"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var preview = await _client.Policy.PreviewPolicySubscriptionAsync(CreatePolicySubscriptionRequest());
             if (!preview.Ok)
@@ -300,10 +302,11 @@ public sealed partial class ToolsViewModel : ObservableObject
             }
 
             var previewText = $"{preview.Message}\n\n" + string.Join("\n", preview.Summary.Take(8));
-            if (!_confirm.Confirm("Apply policy subscription",
-                previewText + "\n\nCreate a restore checkpoint and apply this subscription?"))
+            if (!_confirm.Confirm(
+                I18n.T("PolicySub_ConfirmApplyTitle", "Apply policy subscription"),
+                previewText + "\n\n" + I18n.T("PolicySub_ConfirmApplyMessage", "Create a restore checkpoint and apply this subscription?")))
             {
-                PolicySubscriptionStatusText = "Policy subscription apply cancelled after preview.";
+                PolicySubscriptionStatusText = I18n.T("PolicySub_StatusApplyCancelled", "Policy subscription apply cancelled after preview.");
                 return;
             }
 
@@ -317,13 +320,16 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshPolicySubscriptionsAsync()
     {
-        if (!_confirm.Confirm("Apply trusted policy subscriptions",
-            "Apply every enabled policy subscription with auto-apply enabled now? Pinned hashes are enforced and each apply creates a restore checkpoint."))
+        if (!_confirm.Confirm(
+            I18n.T("PolicySub_ConfirmAutoApplyTitle", "Apply trusted policy subscriptions"),
+            I18n.T(
+                "PolicySub_ConfirmAutoApplyMessage",
+                "Apply every enabled policy subscription with auto-apply enabled now? Pinned hashes are enforced and each apply creates a restore checkpoint.")))
         {
             return;
         }
 
-        await RunServiceActionAsync("Refresh policy subscriptions", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionRefresh", "Refresh policy subscriptions"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var result = await _client.Policy.RefreshPolicySubscriptionsAsync(new Empty());
             PolicySubscriptionStatusText = DescribePolicyImportResult(result);
@@ -340,13 +346,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        if (!_confirm.Confirm("Rollback policy subscription",
-            $"Restore the checkpoint captured before the latest apply of '{row.Name}'?"))
+        if (!_confirm.Confirm(
+            I18n.T("PolicySub_ConfirmRollbackTitle", "Rollback policy subscription"),
+            I18n.T("PolicySub_ConfirmRollbackMessage", "Restore the checkpoint captured before the latest apply of '{0}'?", row.Name)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Rollback policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionRollback", "Rollback policy subscription"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var result = await _client.Policy.RollbackPolicySubscriptionAsync(new PolicySubscriptionRequest { Id = row.Id });
             PolicySubscriptionStatusText = DescribePolicyImportResult(result);
@@ -363,13 +370,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        if (!_confirm.Confirm("Remove policy subscription",
-            $"Remove '{row.Name}' from saved policy subscriptions? Applied policy is not rolled back."))
+        if (!_confirm.Confirm(
+            I18n.T("PolicySub_ConfirmRemoveTitle", "Remove policy subscription"),
+            I18n.T("PolicySub_ConfirmRemoveMessage", "Remove '{0}' from saved policy subscriptions? Applied policy is not rolled back.", row.Name)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Remove policy subscription", s => PolicySubscriptionStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("PolicySub_ActionRemove", "Remove policy subscription"), s => PolicySubscriptionStatusText = s, async () =>
         {
             var ack = await _client.Policy.DeletePolicySubscriptionAsync(new PolicySubscriptionRequest { Id = row.Id });
             PolicySubscriptionStatusText = ack.Message;
@@ -1589,7 +1597,9 @@ public sealed partial class LanAttackSurfaceToggleViewModel : ObservableObject
     [ObservableProperty]
     private string _breakNote = string.Empty;
 
-    public string ActionText => Blocked ? "Restore" : "Block";
+    public string ActionText => Blocked
+        ? I18n.T("Common_Restore", "Restore")
+        : I18n.T("Common_Block", "Block");
 
     public string StateText => Status;
 
@@ -1642,13 +1652,21 @@ public sealed partial class PolicySubscriptionViewModel : ObservableObject
     [ObservableProperty]
     private string _lastErrorAt = string.Empty;
 
-    public string StateText => Enabled ? "Enabled" : "Disabled";
+    public string StateText => Enabled
+        ? I18n.T("PolicySub_StateEnabled", "Enabled")
+        : I18n.T("PolicySub_StateDisabled", "Disabled");
 
-    public string ApplyModeText => AutoApply ? "Auto-apply" : "Manual approval";
+    public string ApplyModeText => AutoApply
+        ? I18n.T("PolicySub_ModeAutoApply", "Auto-apply")
+        : I18n.T("PolicySub_ModeManualApproval", "Manual approval");
 
-    public string TrustText => string.IsNullOrWhiteSpace(PinHash) ? "Unpinned" : "Pinned";
+    public string TrustText => string.IsNullOrWhiteSpace(PinHash)
+        ? I18n.T("PolicySub_TrustUnpinned", "Unpinned")
+        : I18n.T("PolicySub_TrustPinned", "Pinned");
 
-    public string LastAppliedText => string.IsNullOrWhiteSpace(LastAppliedAt) ? "Never" : TimeText.Compact(LastAppliedAt);
+    public string LastAppliedText => string.IsNullOrWhiteSpace(LastAppliedAt)
+        ? I18n.T("PolicySub_LastNever", "Never")
+        : TimeText.Compact(LastAppliedAt);
 
     public string ErrorText => string.IsNullOrWhiteSpace(LastError) ? string.Empty : LastError;
 

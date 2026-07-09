@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
@@ -72,6 +73,51 @@ public sealed class ToolsViewModelTests
 
         row.ActionText.Should().Be("Restore");
         row.StateText.Should().Be("Allowed");
+    }
+
+    [Fact]
+    public async Task Policy_subscription_view_text_uses_i18n_resources()
+    {
+        var original = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("qps-ploc");
+            var confirm = new FakeConfirm(false);
+            var vm = new ToolsViewModel(
+                new HostsServiceClient(NamedPipeChannel.Create(SessionToken.Generate(), "hg-policy-sub-none")),
+                confirm);
+
+            vm.PolicySubscriptionStatusText.Should().StartWith("[!! ");
+
+            await vm.RefreshPolicySubscriptionsAsync();
+            confirm.Prompts.Should().ContainSingle()
+                .Which.Should().StartWith("[!! ").And.Contain("!!]: [!! ");
+
+            var row = PolicySubscriptionViewModel.From(new PolicySubscription
+            {
+                Name = "Example",
+                Url = "https://example.com/policy.json",
+                Enabled = false,
+                AutoApply = false,
+            });
+
+            row.StateText.Should().StartWith("[!! ");
+            row.ApplyModeText.Should().StartWith("[!! ");
+            row.TrustText.Should().StartWith("[!! ");
+            row.LastAppliedText.Should().StartWith("[!! ");
+
+            row.Enabled = true;
+            row.AutoApply = true;
+            row.PinHash = "abc123";
+
+            row.StateText.Should().StartWith("[!! ");
+            row.ApplyModeText.Should().StartWith("[!! ");
+            row.TrustText.Should().StartWith("[!! ");
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = original;
+        }
     }
 
     [Fact]

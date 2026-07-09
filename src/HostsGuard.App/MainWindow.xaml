@@ -357,7 +357,7 @@
                                                    Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
                                                    Style="{StaticResource Hg.RailActionText}"
                                                    Foreground="{DynamicResource Hg.Green}" />
-                                        <TextBlock Text="{Binding ServiceVersion, StringFormat='v{0}', TargetNullValue='service offline'}"
+                                        <TextBlock Text="{Binding ServiceVersion, StringFormat='v{0}', TargetNullValue={svc:Loc Key=Xaml_ServiceOfflineTargetNull}}"
                                                    Style="{StaticResource Hg.DimText}" />
                                         <Button Content="{svc:Loc Key=Xaml_Reconnect_6988b16a}"
                                                 Command="{Binding ConnectCommand}"
@@ -572,7 +572,7 @@
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      Width="160"
-                                     Tag="Search domains"
+                                     Tag="{svc:Loc Key=Xaml_SearchDomainsHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_DNS_activity_c131610b}"
                                      ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_supports_field_900279c6}" />
                             <Button Content="{svc:Loc Key=Xaml_AI_purposes_9aa2d27e}"
@@ -874,12 +874,12 @@
                                                        FontWeight="SemiBold"
                                                        Margin="0,0,8,0"
                                                        VerticalAlignment="Center" />
-                                            <TextBlock Text="{Binding Domain, TargetNullValue='Select a DNS row'}"
+                                            <TextBlock Text="{Binding Domain, TargetNullValue={svc:Loc Key=Xaml_SelectDnsRowTargetNull}}"
                                                        FontSize="16"
                                                        FontWeight="SemiBold"
                                                        TextWrapping="Wrap" />
                                         </DockPanel>
-                                        <TextBlock Text="{Binding Root, StringFormat='Root: {0}', TargetNullValue='Right-click rows for full action menu'}"
+                                        <TextBlock Text="{Binding Root, StringFormat='Root: {0}', TargetNullValue={svc:Loc Key=Xaml_DnsRowActionMenuTargetNull}}"
                                                    Style="{StaticResource Hg.DimText}"
                                                    Margin="0,5,0,0"
                                                    TextWrapping="Wrap" />
@@ -890,11 +890,11 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <Border Grid.Column="0" Style="{StaticResource Hg.Badge}" Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding Status, TargetNullValue='No status'}"
+                                                <TextBlock Text="{Binding Status, TargetNullValue={svc:Loc Key=Xaml_NoStatusTargetNull}}"
                                                            Style="{StaticResource Hg.DimText}" />
                                             </Border>
                                             <Border Grid.Column="1" Style="{StaticResource Hg.Badge}" Margin="6,0,0,0">
-                                                <TextBlock Text="{Binding BlocklistsText, TargetNullValue='No list hits'}"
+                                                <TextBlock Text="{Binding BlocklistsText, TargetNullValue={svc:Loc Key=Xaml_NoListHitsTargetNull}}"
                                                            Style="{StaticResource Hg.DimText}" />
                                             </Border>
                                         </Grid>
@@ -907,7 +907,7 @@
                                                     MinHeight="24" />
                                             <TextBlock Text="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Style="{StaticResource Hg.InspectorLabel}" Margin="0" />
                                         </DockPanel>
-                                        <TextBlock Text="{Binding Purpose, TargetNullValue='Not classified yet'}"
+                                        <TextBlock Text="{Binding Purpose, TargetNullValue={svc:Loc Key=Xaml_NotClassifiedYetTargetNull}}"
                                                    Style="{StaticResource Hg.InspectorValue}" />
 
                                         <UniformGrid Columns="2" Margin="0,12,0,0">
@@ -1143,7 +1143,7 @@
                                     <TextBox DockPanel.Dock="Right" Width="220" Margin="8,0,0,0"
                                              Text="{Binding NewDomain, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource Hg.HintBox}"
-                                             Tag="Domain to block"
+                                             Tag="{svc:Loc Key=Xaml_Domain_to_block_31b7bab9}"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_Domain_to_block_31b7bab9}"
                                              ToolTip="{svc:Loc Key=Xaml_Domain_to_block_31b7bab9}" />
                                     <ComboBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0"
@@ -1152,7 +1152,7 @@
                                               SelectedItem="{Binding StatusFilter}" />
                                     <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource Hg.HintBox}"
-                                             Tag="Search managed domains - try field:value or !term"
+                                             Tag="{svc:Loc Key=Xaml_SearchManagedDomainsHint}"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_Search_managed_domains_f5421c94}"
                                              ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_â_supports_a2c98d15}" />
                                 </DockPanel>
@@ -1444,13 +1444,13 @@
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
                                      MinWidth="260"
-                                     Tag="Search connections - try process:chrome, port:443, or !svchost"
+                                     Tag="{svc:Loc Key=Xaml_SearchConnectionsHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_live_connections_0c00b205}"
                                      ToolTip="{svc:Loc Key=Xaml_Search_process_chrome_port_443_country_7a34001a}" />
                             <TextBox Width="220" Margin="10,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding ExplainInput, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
-                                     Tag="Explain domain, IP, process, or path"
+                                     Tag="{svc:Loc Key=Xaml_ExplainConnectionHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Decision_explainer_target_bb8fba97}"
                                      ToolTip="{svc:Loc Key=Xaml_Explain_the_current_rule_decision_for_04e02131}" />
                             <Button Content="{svc:Loc Key=Xaml_Explain_55cbfd1b}" Margin="6,0,0,0" Padding="10,3"
@@ -1610,12 +1610,12 @@
                                             </Style>
                                         </StackPanel.Style>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Selected_connection_c9d01f2f}" Style="{StaticResource Hg.Kicker}" />
-                                        <TextBlock Text="{Binding Process, TargetNullValue='Select a connection'}"
+                                        <TextBlock Text="{Binding Process, TargetNullValue={svc:Loc Key=Xaml_SelectConnectionTargetNull}}"
                                                    FontSize="16"
                                                    FontWeight="SemiBold"
                                                    TextWrapping="Wrap"
                                                    Margin="0,4,0,0" />
-                                        <TextBlock Text="{Binding ResearchTarget, StringFormat='Target: {0}', TargetNullValue='Choose a live row to inspect'}"
+                                        <TextBlock Text="{Binding ResearchTarget, StringFormat={svc:Loc Key=Xaml_ConnectionTargetLabel}, TargetNullValue={svc:Loc Key=Xaml_ChooseLiveRowTargetNull}}"
                                                    Style="{StaticResource Hg.DimText}"
                                                    Margin="0,3,0,0"
                                                    TextWrapping="Wrap" />
@@ -1626,11 +1626,11 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <Border Grid.Column="0" Style="{StaticResource Hg.Badge}" Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding State, TargetNullValue='No state'}"
+                                                <TextBlock Text="{Binding State, TargetNullValue={svc:Loc Key=Xaml_NoStateTargetNull}}"
                                                            Style="{StaticResource Hg.DimText}" />
                                             </Border>
                                             <Border Grid.Column="1" Style="{StaticResource Hg.Badge}" Margin="6,0,0,0">
-                                                <TextBlock Text="{Binding FwStatus, TargetNullValue='No FW flag'}"
+                                                <TextBlock Text="{Binding FwStatus, TargetNullValue={svc:Loc Key=Xaml_NoFwFlagTargetNull}}"
                                                            Style="{StaticResource Hg.DimText}" />
                                             </Border>
                                         </Grid>
@@ -1645,18 +1645,18 @@
                                         </TextBlock>
 
                                         <TextBlock Text="{svc:Loc Key=Xaml_Resolved_site_ec0dc722}" Style="{StaticResource Hg.InspectorLabel}" />
-                                        <TextBlock Text="{Binding Host, TargetNullValue='No DNS match yet'}"
+                                        <TextBlock Text="{Binding Host, TargetNullValue={svc:Loc Key=Xaml_NoDnsMatchTargetNull}}"
                                                    Style="{StaticResource Hg.InspectorValue}" />
 
                                         <TextBlock Text="{svc:Loc Key=Xaml_Service_location_bd11579c}" Style="{StaticResource Hg.InspectorLabel}" />
-                                        <TextBlock Text="{Binding Service, TargetNullValue='No service attribution'}"
+                                        <TextBlock Text="{Binding Service, TargetNullValue={svc:Loc Key=Xaml_NoServiceAttributionTargetNull}}"
                                                    Style="{StaticResource Hg.InspectorValue}" />
-                                        <TextBlock Text="{Binding Country, StringFormat='Country: {0}', TargetNullValue='Country: unknown'}"
+                                        <TextBlock Text="{Binding Country, StringFormat={svc:Loc Key=Xaml_CountryLabel}, TargetNullValue={svc:Loc Key=Xaml_CountryUnknownTargetNull}}"
                                                    Style="{StaticResource Hg.DimText}"
                                                    Margin="0,4,0,0" />
 
                                         <TextBlock Text="{svc:Loc Key=Xaml_Info_4b631f69}" Style="{StaticResource Hg.InspectorLabel}" />
-                                        <TextBlock Text="{Binding Info, TargetNullValue='Run AI identify or use the lookup menu for context'}"
+                                        <TextBlock Text="{Binding Info, TargetNullValue={svc:Loc Key=Xaml_RunAiIdentifyTargetNull}}"
                                                    Style="{StaticResource Hg.InspectorValue}"
                                                    Foreground="{DynamicResource Hg.Teal}"
                                                    MaxHeight="72" />
@@ -1968,43 +1968,43 @@
                                         <TextBox Width="160" Margin="0,0,6,6"
                                                  Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Search all history"
+                                                 Tag="{svc:Loc Key=Xaml_SearchAllHistoryHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Search_connection_history_7c35164f}"
                                                  ToolTip="{svc:Loc Key=Xaml_Substring_match_on_process_remote_address_ed5726b7}" />
                                         <TextBox Width="130" Margin="0,0,6,6"
                                                  Text="{Binding HistoryProcess, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="App/process"
+                                                 Tag="{svc:Loc Key=Xaml_HistoryProcessHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_ProcessName}" />
                                         <TextBox Width="150" Margin="0,0,6,6"
                                                  Text="{Binding HistoryHost, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Domain/host"
+                                                 Tag="{svc:Loc Key=Xaml_HistoryHostHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_HostName}" />
                                         <TextBox Width="130" Margin="0,0,6,6"
                                                  Text="{Binding HistoryRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Remote IP"
+                                                 Tag="{svc:Loc Key=Xaml_RemoteIpHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_RemoteName}" />
                                         <TextBox Width="96" Margin="0,0,6,6"
                                                  Text="{Binding HistoryStatusFilter, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Action"
+                                                 Tag="{svc:Loc Key=Xaml_Action_97c89a4d}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_StatusName}" />
                                         <TextBox Width="74" Margin="0,0,6,6"
                                                  Text="{Binding HistoryProtocol, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="TCP/UDP"
+                                                 Tag="{svc:Loc Key=Xaml_TcpUdpHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_ProtocolName}" />
                                         <TextBox Width="148" Margin="0,0,6,6"
                                                  Text="{Binding HistorySince, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Since ISO"
+                                                 Tag="{svc:Loc Key=Xaml_SinceIsoHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_SinceName}" />
                                         <TextBox Width="148" Margin="0,0,6,6"
                                                  Text="{Binding HistoryUntil, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Until ISO"
+                                                 Tag="{svc:Loc Key=Xaml_UntilIsoHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=History_UntilName}" />
                                     </WrapPanel>
                                     <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0"
@@ -2047,7 +2047,7 @@
                                         <TextBox Width="150" Margin="0,0,6,6"
                                                  Text="{Binding EventSearch, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Search events"
+                                                 Tag="{svc:Loc Key=Xaml_SearchEventsHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Search_event_ledger_3c9d9d9d}" />
                                         <ComboBox Width="112" Margin="0,0,6,6"
                                                   ItemsSource="{x:Static vm:FwActivityViewModel.EventCategories}"
@@ -2057,32 +2057,32 @@
                                         <TextBox Width="112" Margin="0,0,6,6"
                                                  Text="{Binding EventAction, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Action"
+                                                 Tag="{svc:Loc Key=Xaml_Action_97c89a4d}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_action_filter_a44d0147}" />
                                         <TextBox Width="100" Margin="0,0,6,6"
                                                  Text="{Binding EventReason, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Reason"
+                                                 Tag="{svc:Loc Key=Xaml_Reason_f219cc06}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_reason_filter_b375e7c7}" />
                                         <TextBox Width="120" Margin="0,0,6,6"
                                                  Text="{Binding EventDomain, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Domain"
+                                                 Tag="{svc:Loc Key=Xaml_Domain_9b10914d}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_domain_filter_338ec470}" />
                                         <TextBox Width="120" Margin="0,0,6,6"
                                                  Text="{Binding EventProcess, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Process"
+                                                 Tag="{svc:Loc Key=Xaml_Process_12f4c13a}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_process_filter_75ccb70d}" />
                                         <TextBox Width="148" Margin="0,0,6,6"
                                                  Text="{Binding EventSince, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Since ISO"
+                                                 Tag="{svc:Loc Key=Xaml_SinceIsoHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_since_filter_833b82e2}" />
                                         <TextBox Width="148" Margin="0,0,6,6"
                                                  Text="{Binding EventUntil, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Until ISO"
+                                                 Tag="{svc:Loc Key=Xaml_UntilIsoHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_until_filter_9d11b765}" />
                                     </WrapPanel>
                                     <DataGrid ItemsSource="{Binding EventRows}" MaxHeight="180" Margin="0,2,0,0"
@@ -2227,7 +2227,7 @@
                                       ToolTip="{svc:Loc Key=Xaml_Show_only_firewall_rules_that_changed_7d356f72}" />
                             <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
-                                      Tag="Search rules by name, remote address, service, program, or package"
+                                      Tag="{svc:Loc Key=Xaml_SearchRulesHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_firewall_rules_bbf5460e}"
                                      ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_â_matches_4dd5c1e7}" />
                         </DockPanel>
@@ -2370,7 +2370,7 @@
                                     <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
                                              Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource Hg.HintBox}"
-                                             Tag="Required"
+                                             Tag="{svc:Loc Key=Xaml_RequiredHint}"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_name_025d122b}"
                                              ToolTip="{svc:Loc Key=Xaml_Rule_name_HG_prefix_added_automatically_80fd16a4}" />
                                     <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
@@ -2485,7 +2485,7 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Enter_a_domain_to_resolve_and_bdf20a48}" />
                                         <TextBox Text="{Binding InspectDomain, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Domain to resolve and check - e.g. tracker.example.com"
+                                                 Tag="{svc:Loc Key=Xaml_InspectDomainHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Domain_to_inspect_ea69d8b4}"
                                                  ToolTip="{svc:Loc Key=Xaml_Domain_to_resolve_and_check_block_be2f0bc0}" />
                                     </DockPanel>
@@ -2577,10 +2577,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_One_click_block_QUIC_UDP_443_edd53016}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource Hg.AccentButton}">
-                                                    <Setter Property="Content" Value="See everything (force browser DNS to OS resolver)" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_SeeEverythingOffButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SeeEverythingActive}" Value="True">
-                                                            <Setter Property="Content" Value="See-everything is ON - click to turn off" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_SeeEverythingOnButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -2595,10 +2595,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Firewall_block_known_DoH_resolver_IPs_d179fd3d}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Block encrypted DNS" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_BlockEncryptedDnsButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding DohBlockingActive}" Value="True">
-                                                            <Setter Property="Content" Value="Unblock encrypted DNS" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_UnblockEncryptedDnsButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -2609,13 +2609,13 @@
                                         <TextBox DockPanel.Dock="Left" Width="240" Margin="0,0,8,0"
                                                  Text="{Binding DohUrl, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Resolver-list URL (optional, https)"
+                                                 Tag="{svc:Loc Key=Xaml_DohUrlHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_DoH_intelligence_URL_04daa00f}"
                                                  ToolTip="{svc:Loc Key=Xaml_Optional_remote_resolver_list_URL_https_0024c563}" />
                                         <TextBox DockPanel.Dock="Left" Width="200" Margin="0,0,8,0"
                                                  Text="{Binding DohSha256, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="SHA-256 of the list"
+                                                 Tag="{svc:Loc Key=Xaml_DohSha256Hint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_DoH_intelligence_SHA_256_24601ac7}"
                                                  ToolTip="{svc:Loc Key=Xaml_Expected_SHA_256_of_the_remote_5d820f42}" />
                                         <Button DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Refresh_DoH_intelligence_b3df1a97}"
@@ -2627,10 +2627,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Block_outbound_QUIC_HTTP3_UDP_port_6ce0d298}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Block QUIC / HTTP3" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_BlockQuicButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding QuicBlockingActive}" Value="True">
-                                                            <Setter Property="Content" Value="Unblock QUIC / HTTP3" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_UnblockQuicButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -2648,10 +2648,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_CNAME_cloak_defense_when_a_first_6bce35c8}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Arm CNAME-cloak defense" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_ArmCnameCloakButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding CnameCloakActive}" Value="True">
-                                                            <Setter Property="Content" Value="Disarm CNAME-cloak defense" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_DisarmCnameCloakButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -2669,10 +2669,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_TLS_SNI_capture_NET_109_recover_f333e6fd}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Capture TLS SNI" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_CaptureSniButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SniCaptureActive}" Value="True">
-                                                            <Setter Property="Content" Value="Stop SNI capture" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_StopSniButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -2843,7 +2843,7 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Store_the_key_in_the_service_1493e7be}" />
                                         <TextBox DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" VerticalAlignment="Center"
                                                  Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource Hg.HintBox}" Tag="Model"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=Xaml_ModelHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_AI_model_6572e8b8}"
                                                  ToolTip="{svc:Loc Key=Xaml_DeepSeek_model_deepseek_chat_is_the_ca4c0112}" />
                                         <PasswordBox x:Name="AiKeyBox" VerticalAlignment="Center"
@@ -2924,11 +2924,11 @@
                                                   AutomationProperties.Name="{svc:Loc Key=Xaml_Correction_kind_688a781b}" />
                                         <TextBox DockPanel.Dock="Left" Width="190" Margin="8,0,0,0" VerticalAlignment="Center"
                                                  Text="{Binding CorrectDomain, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource Hg.HintBox}" Tag="domain.example.com"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=Xaml_CorrectionDomainHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Correction_domain_1067f9bb}" />
                                         <TextBox DockPanel.Dock="Left" Width="220" Margin="8,0,0,0" VerticalAlignment="Center"
                                                  Text="{Binding CorrectValue, UpdateSourceTrigger=PropertyChanged}"
-                                                 Style="{StaticResource Hg.HintBox}" Tag="new label (blank clears)"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=Xaml_CorrectionValueHint}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Correction_value_3225de74}" />
                                         <Button DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Apply_cfea419c}" Margin="8,0,0,0"
                                                 Style="{StaticResource Hg.AccentButton}" Command="{Binding CorrectDomainCommand}" />
@@ -3124,7 +3124,7 @@
                                         <TextBox Width="180" Margin="0,0,8,8"
                                                  Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="New profile name"
+                                                 Tag="{svc:Loc Key=Xaml_New_profile_name_393313b6}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_New_profile_name_393313b6}"
                                                  ToolTip="{svc:Loc Key=Xaml_Name_for_a_snapshot_of_the_196c42ae}" />
                                         <Button Content="{svc:Loc Key=Xaml_Save_current_as_profile_8e02fa9c}"
@@ -3155,10 +3155,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Secure_Rules_the_service_recreates_or_894b4569}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Arm Secure Rules" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_ArmSecureRulesButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SecureRulesActive}" Value="True">
-                                                            <Setter Property="Content" Value="Disarm Secure Rules" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_DisarmSecureRulesButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>
@@ -3283,10 +3283,10 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Turn_the_VPN_kill_switch_on_2e253649}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Content" Value="Enable kill-switch" />
+                                                    <Setter Property="Content" Value="{svc:Loc Key=Xaml_EnableKillSwitchButton}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding KillSwitchEnabled}" Value="True">
-                                                            <Setter Property="Content" Value="Disable kill-switch" />
+                                                            <Setter Property="Content" Value="{svc:Loc Key=Xaml_DisableKillSwitchButton}" />
                                                             <Setter Property="Background" Value="{DynamicResource Hg.Danger2}" />
                                                             <Setter Property="Foreground" Value="{DynamicResource Hg.OnDanger}" />
                                                         </DataTrigger>

@@ -62,9 +62,10 @@ public sealed class I18nTests
     public void Pseudo_locale_marks_and_expands_strings_without_breaking_placeholders()
     {
         const string variable = "9.9.9";
-        Environment.SetEnvironmentVariable("HOSTSGUARD_PSEUDO_LOCALE", "1");
+        var original = CultureInfo.CurrentUICulture;
         try
         {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("qps-ploc");
             var value = I18n.T("Status.Connected", "Connected - service v{0}", variable);
 
             value.Should().StartWith("[!! ");
@@ -74,7 +75,7 @@ public sealed class I18nTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("HOSTSGUARD_PSEUDO_LOCALE", null);
+            CultureInfo.CurrentUICulture = original;
         }
     }
 
@@ -99,11 +100,39 @@ public sealed class I18nTests
     }
 
     [Fact]
+    public void Code_i18n_keys_exist_in_neutral_resources()
+    {
+        var keys = NeutralResourceKeys();
+        var missing = new List<string>();
+        var pattern = new Regex("I18n\\.T\\(\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
+        foreach (var file in Directory.EnumerateFiles(AppDir, "*.cs", SearchOption.AllDirectories))
+        {
+            var text = File.ReadAllText(file);
+            foreach (Match match in pattern.Matches(text))
+            {
+                var key = match.Groups["key"].Value;
+                if (!keys.Contains(key))
+                {
+                    missing.Add($"{Path.GetRelativePath(AppDir, file)}:{key}");
+                }
+            }
+        }
+
+        missing.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Xaml_has_no_new_literal_english_on_localizable_attributes()
     {
         var offenders = new List<string>();
         var pattern = new Regex(
-            "(?<attr>\\b(?:Header|Content|Text|ToolTip|AutomationProperties\\.Name|Title)\\s*=\\s*)\"(?<value>[^\"]*)\"",
+            "(?<attr>\\b(?:Header|Content|Text|ToolTip|AutomationProperties\\.Name|Title|Tag)\\s*=\\s*)\"(?<value>[^\"]*)\"",
+            RegexOptions.Compiled);
+        var targetNullPattern = new Regex(
+            "\\bTargetNullValue\\s*=\\s*(?:'(?<value>[^']*)'|\"(?<value>[^\"]*)\"|(?<value>[^,}\\s]+))",
+            RegexOptions.Compiled);
+        var setterContentPattern = new Regex(
+            "<Setter\\s+Property=\"Content\"\\s+Value=\"(?<value>[^\"]*)\"",
             RegexOptions.Compiled);
         foreach (var file in LocalizedXamlFiles())
         {
@@ -111,9 +140,27 @@ public sealed class I18nTests
             foreach (Match match in pattern.Matches(text))
             {
                 var value = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value);
-                if (IsHardCodedLocalizableText(value))
+                if (IsHardCodedLocalizableText(value, match.Groups["attr"].Value))
                 {
                     offenders.Add($"{Path.GetFileName(file)}:{match.Groups["attr"].Value.Trim()}\"{value}\"");
+                }
+            }
+
+            foreach (Match match in targetNullPattern.Matches(text))
+            {
+                var value = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value);
+                if (IsHardCodedLocalizableText(value, "TargetNullValue"))
+                {
+                    offenders.Add($"{Path.GetFileName(file)}:TargetNullValue=\"{value}\"");
+                }
+            }
+
+            foreach (Match match in setterContentPattern.Matches(text))
+            {
+                var value = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value);
+                if (IsHardCodedLocalizableText(value, "Setter.Content"))
+                {
+                    offenders.Add($"{Path.GetFileName(file)}:Setter Content=\"{value}\"");
                 }
             }
         }
@@ -121,13 +168,19 @@ public sealed class I18nTests
         offenders.Should().BeEmpty();
     }
 
-    private static bool IsHardCodedLocalizableText(string value)
+    private static bool IsHardCodedLocalizableText(string value, string attr)
     {
         if (string.IsNullOrWhiteSpace(value) ||
             value.StartsWith("{", StringComparison.Ordinal) ||
             value.StartsWith("#", StringComparison.Ordinal) ||
             value.StartsWith("pack:", StringComparison.OrdinalIgnoreCase) ||
             !Regex.IsMatch(value, @"\p{L}"))
+        {
+            return false;
+        }
+
+        if (attr.Contains("Tag", StringComparison.Ordinal) &&
+            Regex.IsMatch(value, "^[a-z0-9:-]+$", RegexOptions.CultureInvariant))
         {
             return false;
         }

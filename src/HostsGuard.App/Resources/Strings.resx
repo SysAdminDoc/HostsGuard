@@ -18,12 +18,17 @@
   <data name="Status.Connected" xml:space="preserve">
     <value>Connected - service v{0}</value>
   </data>
+  <data name="Status.ConnectedLoading" xml:space="preserve">
+    <value>Connected - loading views...</value>
+  </data>
   <data name="Status.Unavailable" xml:space="preserve">
     <value>Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}</value>
   </data>
   <data name="Status.Ready" xml:space="preserve">
     <value>Ready</value>
   </data>
+  <data name="Common_Block" xml:space="preserve"><value>Block</value></data>
+  <data name="Common_Restore" xml:space="preserve"><value>Restore</value></data>
   <data name="Tools_AppVpnBinding_Title" xml:space="preserve"><value>Per-app VPN binding</value></data>
   <data name="Tools_AppVpnBinding_Help" xml:space="preserve"><value>Bind one program to an adapter by blocking it on other active interfaces. Default outbound and hosts-file blocks are unchanged.</value></data>
   <data name="Tools_AppVpnBinding_Program" xml:space="preserve"><value>Program</value></data>
@@ -669,6 +674,56 @@
   <data name="TopBand_RestoreSafeTip" xml:space="preserve"><value>Restore Normal filtering, allow default outbound, remove DNS bypass blocks, and leave hosts-file blocks unchanged.</value></data>
   <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restore policy checkpoint</value></data>
   <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restore the latest policy state captured before an import</value></data>
+  <data name="Xaml_ServiceOfflineTargetNull" xml:space="preserve"><value>service offline</value></data>
+  <data name="Xaml_SearchDomainsHint" xml:space="preserve"><value>Search domains</value></data>
+  <data name="Xaml_SelectDnsRowTargetNull" xml:space="preserve"><value>Select a DNS row</value></data>
+  <data name="Xaml_DnsRowActionMenuTargetNull" xml:space="preserve"><value>Right-click rows for full action menu</value></data>
+  <data name="Xaml_NoStatusTargetNull" xml:space="preserve"><value>No status</value></data>
+  <data name="Xaml_NoListHitsTargetNull" xml:space="preserve"><value>No list hits</value></data>
+  <data name="Xaml_NotClassifiedYetTargetNull" xml:space="preserve"><value>Not classified yet</value></data>
+  <data name="Xaml_SearchManagedDomainsHint" xml:space="preserve"><value>Search managed domains - try field:value or !term</value></data>
+  <data name="Xaml_SearchConnectionsHint" xml:space="preserve"><value>Search connections - try process:chrome, port:443, or !svchost</value></data>
+  <data name="Xaml_ExplainConnectionHint" xml:space="preserve"><value>Explain domain, IP, process, or path</value></data>
+  <data name="Xaml_SelectConnectionTargetNull" xml:space="preserve"><value>Select a connection</value></data>
+  <data name="Xaml_ConnectionTargetLabel" xml:space="preserve"><value>Target: {0}</value></data>
+  <data name="Xaml_ChooseLiveRowTargetNull" xml:space="preserve"><value>Choose a live row to inspect</value></data>
+  <data name="Xaml_NoStateTargetNull" xml:space="preserve"><value>No state</value></data>
+  <data name="Xaml_NoFwFlagTargetNull" xml:space="preserve"><value>No FW flag</value></data>
+  <data name="Xaml_NoDnsMatchTargetNull" xml:space="preserve"><value>No DNS match yet</value></data>
+  <data name="Xaml_NoServiceAttributionTargetNull" xml:space="preserve"><value>No service attribution</value></data>
+  <data name="Xaml_CountryLabel" xml:space="preserve"><value>Country: {0}</value></data>
+  <data name="Xaml_CountryUnknownTargetNull" xml:space="preserve"><value>Country: unknown</value></data>
+  <data name="Xaml_RunAiIdentifyTargetNull" xml:space="preserve"><value>Run AI identify or use the lookup menu for context</value></data>
+  <data name="Xaml_SearchAllHistoryHint" xml:space="preserve"><value>Search all history</value></data>
+  <data name="Xaml_HistoryProcessHint" xml:space="preserve"><value>App/process</value></data>
+  <data name="Xaml_HistoryHostHint" xml:space="preserve"><value>Domain/host</value></data>
+  <data name="Xaml_RemoteIpHint" xml:space="preserve"><value>Remote IP</value></data>
+  <data name="Xaml_TcpUdpHint" xml:space="preserve"><value>TCP/UDP</value></data>
+  <data name="Xaml_SinceIsoHint" xml:space="preserve"><value>Since ISO</value></data>
+  <data name="Xaml_UntilIsoHint" xml:space="preserve"><value>Until ISO</value></data>
+  <data name="Xaml_SearchEventsHint" xml:space="preserve"><value>Search events</value></data>
+  <data name="Xaml_SearchRulesHint" xml:space="preserve"><value>Search rules by name, remote address, service, program, or package</value></data>
+  <data name="Xaml_RequiredHint" xml:space="preserve"><value>Required</value></data>
+  <data name="Xaml_InspectDomainHint" xml:space="preserve"><value>Domain to resolve and check - e.g. tracker.example.com</value></data>
+  <data name="Xaml_DohUrlHint" xml:space="preserve"><value>Resolver-list URL (optional, https)</value></data>
+  <data name="Xaml_DohSha256Hint" xml:space="preserve"><value>SHA-256 of the list</value></data>
+  <data name="Xaml_ModelHint" xml:space="preserve"><value>Model</value></data>
+  <data name="Xaml_CorrectionDomainHint" xml:space="preserve"><value>domain.example.com</value></data>
+  <data name="Xaml_CorrectionValueHint" xml:space="preserve"><value>new label (blank clears)</value></data>
+  <data name="Xaml_SeeEverythingOffButton" xml:space="preserve"><value>See everything (force browser DNS to OS resolver)</value></data>
+  <data name="Xaml_SeeEverythingOnButton" xml:space="preserve"><value>See-everything is ON - click to turn off</value></data>
+  <data name="Xaml_BlockEncryptedDnsButton" xml:space="preserve"><value>Block encrypted DNS</value></data>
+  <data name="Xaml_UnblockEncryptedDnsButton" xml:space="preserve"><value>Unblock encrypted DNS</value></data>
+  <data name="Xaml_BlockQuicButton" xml:space="preserve"><value>Block QUIC / HTTP3</value></data>
+  <data name="Xaml_UnblockQuicButton" xml:space="preserve"><value>Unblock QUIC / HTTP3</value></data>
+  <data name="Xaml_ArmCnameCloakButton" xml:space="preserve"><value>Arm CNAME-cloak defense</value></data>
+  <data name="Xaml_DisarmCnameCloakButton" xml:space="preserve"><value>Disarm CNAME-cloak defense</value></data>
+  <data name="Xaml_CaptureSniButton" xml:space="preserve"><value>Capture TLS SNI</value></data>
+  <data name="Xaml_StopSniButton" xml:space="preserve"><value>Stop SNI capture</value></data>
+  <data name="Xaml_ArmSecureRulesButton" xml:space="preserve"><value>Arm Secure Rules</value></data>
+  <data name="Xaml_DisarmSecureRulesButton" xml:space="preserve"><value>Disarm Secure Rules</value></data>
+  <data name="Xaml_EnableKillSwitchButton" xml:space="preserve"><value>Enable kill-switch</value></data>
+  <data name="Xaml_DisableKillSwitchButton" xml:space="preserve"><value>Disable kill-switch</value></data>
   <data name="PolicySub_Title" xml:space="preserve"><value>Policy subscriptions</value></data>
   <data name="PolicySub_Help" xml:space="preserve"><value>Subscribe to remote portable-policy JSON only after preview. Applies are manual by default, create restore checkpoints, and can pin the fetched SHA-256 hash.</value></data>
   <data name="PolicySub_NameHint" xml:space="preserve"><value>Name</value></data>
@@ -699,4 +754,30 @@
   <data name="PolicySub_LastHash" xml:space="preserve"><value>Last hash</value></data>
   <data name="PolicySub_Error" xml:space="preserve"><value>Error</value></data>
   <data name="PolicySub_Empty" xml:space="preserve"><value>No policy subscriptions yet. Paste an HTTPS policy URL, preview the diff, then apply only if you trust the source.</value></data>
+  <data name="PolicySub_StatusIntro" xml:space="preserve"><value>Add an HTTPS policy JSON subscription, preview it, then apply with a pinned source hash.</value></data>
+  <data name="PolicySub_ActionLoad" xml:space="preserve"><value>Load policy subscriptions</value></data>
+  <data name="PolicySub_StatusNoneSaved" xml:space="preserve"><value>No policy subscriptions saved.</value></data>
+  <data name="PolicySub_StatusLoaded" xml:space="preserve"><value>{0} policy subscriptions loaded.</value></data>
+  <data name="PolicySub_ActionSave" xml:space="preserve"><value>Save policy subscription</value></data>
+  <data name="PolicySub_ActionPreview" xml:space="preserve"><value>Preview policy subscription</value></data>
+  <data name="PolicySub_ActionApply" xml:space="preserve"><value>Apply policy subscription</value></data>
+  <data name="PolicySub_ConfirmApplyTitle" xml:space="preserve"><value>Apply policy subscription</value></data>
+  <data name="PolicySub_ConfirmApplyMessage" xml:space="preserve"><value>Create a restore checkpoint and apply this subscription?</value></data>
+  <data name="PolicySub_StatusApplyCancelled" xml:space="preserve"><value>Policy subscription apply cancelled after preview.</value></data>
+  <data name="PolicySub_ConfirmAutoApplyTitle" xml:space="preserve"><value>Apply trusted policy subscriptions</value></data>
+  <data name="PolicySub_ConfirmAutoApplyMessage" xml:space="preserve"><value>Apply every enabled policy subscription with auto-apply enabled now? Pinned hashes are enforced and each apply creates a restore checkpoint.</value></data>
+  <data name="PolicySub_ActionRefresh" xml:space="preserve"><value>Refresh policy subscriptions</value></data>
+  <data name="PolicySub_ConfirmRollbackTitle" xml:space="preserve"><value>Rollback policy subscription</value></data>
+  <data name="PolicySub_ConfirmRollbackMessage" xml:space="preserve"><value>Restore the checkpoint captured before the latest apply of '{0}'?</value></data>
+  <data name="PolicySub_ActionRollback" xml:space="preserve"><value>Rollback policy subscription</value></data>
+  <data name="PolicySub_ConfirmRemoveTitle" xml:space="preserve"><value>Remove policy subscription</value></data>
+  <data name="PolicySub_ConfirmRemoveMessage" xml:space="preserve"><value>Remove '{0}' from saved policy subscriptions? Applied policy is not rolled back.</value></data>
+  <data name="PolicySub_ActionRemove" xml:space="preserve"><value>Remove policy subscription</value></data>
+  <data name="PolicySub_StateEnabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="PolicySub_StateDisabled" xml:space="preserve"><value>Disabled</value></data>
+  <data name="PolicySub_ModeAutoApply" xml:space="preserve"><value>Auto-apply</value></data>
+  <data name="PolicySub_ModeManualApproval" xml:space="preserve"><value>Manual approval</value></data>
+  <data name="PolicySub_TrustUnpinned" xml:space="preserve"><value>Unpinned</value></data>
+  <data name="PolicySub_TrustPinned" xml:space="preserve"><value>Pinned</value></data>
+  <data name="PolicySub_LastNever" xml:space="preserve"><value>Never</value></data>
 </root>

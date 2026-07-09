@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.57] - 2026-07-09
+
+### Changed
+- Moved policy-subscription ViewModel status, confirmation, and row display text
+  through the neutral localization resources, and added regression coverage that
+  fails missing `I18n.T` resource keys.
+- Expanded the XAML localization gate to cover hint `Tag` values,
+  `TargetNullValue` fallbacks, and dynamic button content setters.
+
 ## [0.12.56] - 2026-07-09
 
 ### Added
