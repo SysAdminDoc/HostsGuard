@@ -17,6 +17,8 @@ All notable changes to HostsGuard are documented in this file.
 - Improved GUI and CLI service-failure messaging so app/service version
   mismatches and handler errors are not mislabeled as unreachable service
   failures.
+- Removed WPF menu access-key markers from neutral and Spanish labels so the UI
+  follows HostsGuard's no-keyboard-shortcut interaction contract.
 
 ## [0.12.61] - 2026-07-09
 

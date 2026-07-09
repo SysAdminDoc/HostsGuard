@@ -106,7 +106,7 @@
 
             <!-- Menu bar -->
             <Menu DockPanel.Dock="Top">
-                <MenuItem Header="{svc:Loc Key=Menu_File, Default=_File}">
+                <MenuItem Header="{svc:Loc Key=Menu_File, Default=File}">
                     <MenuItem Header="{svc:Loc Key=Xaml_Import_hosts_fileâ_fcc431cd}" Command="{Binding ImportHostsFileCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Replace_the_live_hosts_file_with_b6081ef3}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Export_hosts_fileâ_cb20a33b}" Command="{Binding ExportHostsFileCommand}" />
@@ -126,7 +126,7 @@
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Exit_f83b6fe3}" Click="OnTrayExit" />
                 </MenuItem>
-                <MenuItem Header="{svc:Loc Key=Menu_View, Default=_View}">
+                <MenuItem Header="{svc:Loc Key=Menu_View, Default=View}">
                     <MenuItem Header="{svc:Loc Key=Xaml_Group_by_root_activity_db0a88c0}" IsCheckable="True" IsChecked="{Binding Activity.GroupByRoot}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Hide_blocked_activity_c4c8a89e}" IsCheckable="True" IsChecked="{Binding Activity.HideBlocked}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Show_hidden_activity_28f65185}" IsCheckable="True" IsChecked="{Binding Activity.ShowHidden}" />
@@ -163,7 +163,7 @@
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Check_for_updates_736b9062}" Command="{Binding CheckForUpdatesCommand}" />
                 </MenuItem>
-                <MenuItem Header="{svc:Loc Key=Menu_Help, Default=_Help}">
+                <MenuItem Header="{svc:Loc Key=Menu_Help, Default=Help}">
                     <MenuItem Header="{svc:Loc Key=Xaml_Check_for_updates_736b9062}" Command="{Binding CheckForUpdatesCommand}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Open_GitHub_repository_76131fab}" Click="OnOpenGitHub" />
                     <MenuItem Header="{svc:Loc Key=Xaml_About_HostsGuard_5f701f9a}" Click="OnAbout" />

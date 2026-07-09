@@ -168,6 +168,26 @@ public sealed class I18nTests
         offenders.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("Strings.resx")]
+    [InlineData("Strings.es.resx")]
+    public void Menu_resources_do_not_define_access_key_markers(string resourceFile)
+    {
+        var doc = XDocument.Load(Path.Combine(AppDir, "Resources", resourceFile));
+        var offenders = doc.Root!.Elements("data")
+            .Where(e => e.Attribute("name")?.Value.StartsWith("Menu_", StringComparison.Ordinal) == true)
+            .Select(e => new
+            {
+                Name = e.Attribute("name")?.Value ?? string.Empty,
+                Value = e.Element("value")?.Value ?? string.Empty,
+            })
+            .Where(item => item.Value.Contains('_', StringComparison.Ordinal))
+            .Select(item => $"{resourceFile}:{item.Name}={item.Value}")
+            .ToList();
+
+        offenders.Should().BeEmpty("menus use visible labels only; HostsGuard does not define keyboard shortcuts");
+    }
+
     private static bool IsHardCodedLocalizableText(string value, string attr)
     {
         if (string.IsNullOrWhiteSpace(value) ||

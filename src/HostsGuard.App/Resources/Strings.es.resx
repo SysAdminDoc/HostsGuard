@@ -29,9 +29,9 @@
   <data name="FwRules_Package" xml:space="preserve"><value>Paquete</value></data>
   <data name="FwRules_NewRulePackage" xml:space="preserve"><value>Paquete de la nueva regla de firewall</value></data>
   <data name="FwRules_PackageTip" xml:space="preserve"><value>Nombre de familia del paquete MSIX o SID del paquete opcional. Use paquete o programa, no ambos.</value></data>
-  <data name="Menu_File" xml:space="preserve"><value>_Archivo</value></data>
-  <data name="Menu_View" xml:space="preserve"><value>_Ver</value></data>
-  <data name="Menu_Help" xml:space="preserve"><value>A_yuda</value></data>
+  <data name="Menu_File" xml:space="preserve"><value>Archivo</value></data>
+  <data name="Menu_View" xml:space="preserve"><value>Ver</value></data>
+  <data name="Menu_Help" xml:space="preserve"><value>Ayuda</value></data>
   <data name="Menu_Language" xml:space="preserve"><value>Idioma</value></data>
   <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restaurar punto de control de politica</value></data>
   <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restaura el ultimo estado de politica capturado antes de una importacion</value></data>
