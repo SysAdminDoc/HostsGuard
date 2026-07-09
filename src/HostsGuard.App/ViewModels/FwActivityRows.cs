@@ -18,13 +18,13 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     [ObservableProperty]
     private string _remoteAddr = string.Empty;
 
-    [ObservableProperty]
-    private int _remotePort;
-
     /// <summary>Site the remote IP was resolved as (ETW DNS); "" when unknown.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ResearchTarget))]
     private string _host = string.Empty;
+
+    [ObservableProperty]
+    private int _remotePort;
 
     /// <summary>AI explanation of what this connection is likely for; "" until identified.</summary>
     [ObservableProperty]
@@ -182,6 +182,9 @@ public sealed partial class HistoryRowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _remoteAddr = string.Empty;
+
+    [ObservableProperty]
+    private string _host = string.Empty;
 
     [ObservableProperty]
     private int _remotePort;

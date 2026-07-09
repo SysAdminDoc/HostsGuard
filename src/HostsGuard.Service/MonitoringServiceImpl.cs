@@ -30,14 +30,41 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     public override Task WatchEvents(Empty request, IServerStreamWriter<ActivityEvent> responseStream, ServerCallContext context)
         => Pump(responseStream, context);
 
+    public override Task<Ack> ClearConnectionHistory(Empty request, ServerCallContext context)
+    {
+        var deleted = _state.Db.ClearConnectionHistory();
+        _state.Db.LogEvent("connection_history", "history_cleared", process: "monitoring",
+            details: $"deleted {deleted} connection history row{(deleted == 1 ? string.Empty : "s")}");
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = $"cleared {deleted} connection history row{(deleted == 1 ? string.Empty : "s")}",
+        });
+    }
+
     public override Task<ConnectionHistoryList> GetConnectionHistory(ConnectionHistoryRequest request, ServerCallContext context)
     {
-        var rows = _state.Db.GetConnectionHistory(
-            request.Limit > 0 ? request.Limit : 500,
-            string.IsNullOrWhiteSpace(request.Search) ? null : request.Search,
-            string.IsNullOrWhiteSpace(request.Since) ? null : request.Since);
-        var list = new ConnectionHistoryList();
-        foreach (var r in rows)
+        var limit = Math.Clamp(request.Limit > 0 ? request.Limit : 500, 1, 2000);
+        var offset = Math.Max(0, request.Offset);
+        var page = _state.Db.GetConnectionHistoryPage(new ConnectionHistoryFilter(
+            Limit: limit,
+            Offset: offset,
+            Search: Clean(request.Search),
+            Since: Clean(request.Since),
+            Until: Clean(request.Until),
+            Process: Clean(request.Process),
+            Host: Clean(request.Host),
+            RemoteAddr: Clean(request.RemoteAddr),
+            FwStatus: Clean(request.FwStatus),
+            Protocol: Clean(request.Protocol)));
+        var list = new ConnectionHistoryList
+        {
+            Total = page.Total,
+            Limit = page.Limit,
+            Offset = page.Offset,
+            RetentionDays = _state.Db.HistoryRetentionDays,
+        };
+        foreach (var r in page.Rows)
         {
             list.Rows.Add(new ConnectionHistoryRow
             {
@@ -49,6 +76,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
                 RemotePort = (int)r.RemotePort,
                 Country = r.Country,
                 FwStatus = r.FwStatus,
+                Host = r.Host,
             });
         }
 

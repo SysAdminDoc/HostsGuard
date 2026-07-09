@@ -908,6 +908,7 @@ message DnsInspectResult {
 // ─── Monitoring (server-streaming live feeds) ────────────────────────────────
 
 service Monitoring {
+  rpc ClearConnectionHistory(Empty) returns (Ack);
   rpc WatchDns(Empty) returns (stream DnsEvent);
   rpc WatchConnections(Empty) returns (stream ConnectionEvent);
   rpc WatchEvents(Empty) returns (stream ActivityEvent);
@@ -937,9 +938,16 @@ service Monitoring {
 }
 
 message ConnectionHistoryRequest {
-  int32 limit = 1;      // 0 = server default
-  string search = 2;    // substring match on process / remote address / country
+  int32 limit = 1;      // 0 = server default, max 2000
+  string search = 2;    // substring match on process / host / remote / country / status
   string since = 3;     // ISO-8601 floor (optional)
+  string until = 4;     // ISO-8601 ceiling (optional)
+  string process = 5;   // app/process substring
+  string host = 6;      // resolved host/domain substring
+  string remote_addr = 7; // remote IP substring
+  string fw_status = 8; // firewall/status substring
+  string protocol = 9;  // TCP/UDP exact match
+  int32 offset = 10;    // zero-based page offset
 }
 
 message ConnectionHistoryRow {
@@ -951,10 +959,15 @@ message ConnectionHistoryRow {
   int32 remote_port = 6;
   string country = 7;
   string fw_status = 8; // "", "THREAT", …
+  string host = 9;
 }
 
 message ConnectionHistoryList {
   repeated ConnectionHistoryRow rows = 1;
+  int32 total = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+  int32 retention_days = 5;
 }
 
 message EventLogRequest {

@@ -362,8 +362,20 @@
   <data name="Xaml_History_retention_days_5a7034c6" xml:space="preserve"><value>History retention days</value></data>
   <data name="Xaml_History_retention_in_days_1_365_5b9947ca" xml:space="preserve"><value>History retention in days (1-365)</value></data>
   <data name="Xaml_Search_connection_history_7c35164f" xml:space="preserve"><value>Search connection history</value></data>
-  <data name="Xaml_Substring_match_on_process_remote_address_ed5726b7" xml:space="preserve"><value>Substring match on process, remote address, or country</value></data>
+  <data name="Xaml_Substring_match_on_process_remote_address_ed5726b7" xml:space="preserve"><value>Substring match on process, host, remote address, country, status, or protocol</value></data>
   <data name="Xaml_Connection_history_f48a01d3" xml:space="preserve"><value>Connection history</value></data>
+  <data name="History_Clear" xml:space="preserve"><value>Clear history</value></data>
+  <data name="History_ClearName" xml:space="preserve"><value>Clear retained connection history</value></data>
+  <data name="History_LimitName" xml:space="preserve"><value>Connection history page size</value></data>
+  <data name="History_OffsetName" xml:space="preserve"><value>Connection history page offset</value></data>
+  <data name="History_ProcessName" xml:space="preserve"><value>Connection history app or process filter</value></data>
+  <data name="History_HostName" xml:space="preserve"><value>Connection history domain or host filter</value></data>
+  <data name="History_RemoteName" xml:space="preserve"><value>Connection history remote IP filter</value></data>
+  <data name="History_StatusName" xml:space="preserve"><value>Connection history action or firewall status filter</value></data>
+  <data name="History_ProtocolName" xml:space="preserve"><value>Connection history protocol filter</value></data>
+  <data name="History_SinceName" xml:space="preserve"><value>Connection history since time</value></data>
+  <data name="History_UntilName" xml:space="preserve"><value>Connection history until time</value></data>
+  <data name="History_ColumnHost" xml:space="preserve"><value>Host</value></data>
   <data name="Xaml_Remote_address_209fa9f4" xml:space="preserve"><value>Remote address</value></data>
   <data name="Xaml_Event_ledger_fe4c6b16" xml:space="preserve"><value>Event ledger</value></data>
   <data name="Xaml_Load_events_6b8e35ba" xml:space="preserve"><value>Load events</value></data>

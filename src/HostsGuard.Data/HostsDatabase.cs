@@ -134,7 +134,26 @@ public sealed record FirewallRuleDriftRow(
 /// <summary>A recorded (historical) connection sighting (NET-070).</summary>
 public sealed record ConnHistoryRow(
     string Ts, string Process, long Pid, string Protocol,
-    string RemoteAddr, long RemotePort, string Country, string FwStatus);
+    string RemoteAddr, long RemotePort, string Country, string FwStatus,
+    string Host = "");
+
+public sealed record ConnectionHistoryFilter(
+    int Limit = 500,
+    int Offset = 0,
+    string? Search = null,
+    string? Since = null,
+    string? Until = null,
+    string? Process = null,
+    string? Host = null,
+    string? RemoteAddr = null,
+    string? FwStatus = null,
+    string? Protocol = null);
+
+public sealed record ConnectionHistoryPage(
+    IReadOnlyList<ConnHistoryRow> Rows,
+    int Total,
+    int Limit,
+    int Offset);
 
 /// <summary>A per-process per-minute bandwidth bucket (NET-070).</summary>
 public sealed record BandwidthRow(string Process, string Minute, long Sent, long Recv);
@@ -295,7 +314,7 @@ public sealed record PolicyImportCheckpointRow(long Id, string Created, string J
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 26;
+    public const int SchemaVersion = 27;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -416,7 +435,8 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_feed_domain_hourly_hour ON feed_domain_hourly(hour);
             CREATE TABLE IF NOT EXISTS conn_history(
                 id INTEGER PRIMARY KEY, ts TEXT, process TEXT, pid INTEGER, protocol TEXT,
-                remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT);
+                remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT,
+                host TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_conn_history_ts ON conn_history(ts);
             CREATE INDEX IF NOT EXISTS idx_conn_history_process ON conn_history(process);
             CREATE TABLE IF NOT EXISTS app_bandwidth(
@@ -479,6 +499,9 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("log", "layer_runtime_id", "TEXT DEFAULT ''");
         AddColumnIfMissing("log", "interface_index", "INTEGER DEFAULT 0");
         AddColumnIfMissing("log", "interface_name", "TEXT DEFAULT ''");
+        AddColumnIfMissing("conn_history", "host", "TEXT DEFAULT ''");
+        _conn.Execute("CREATE INDEX IF NOT EXISTS idx_conn_history_host ON conn_history(host);");
+        _conn.Execute("CREATE INDEX IF NOT EXISTS idx_conn_history_remote ON conn_history(remote_addr);");
         AddColumnIfMissing("blocklist_subs", "enabled", "INTEGER DEFAULT 1");
         AddColumnIfMissing("blocklist_subs", "content_hash", "TEXT DEFAULT ''");
         AddColumnIfMissing("blocklist_subs", "previous_hash", "TEXT DEFAULT ''");

@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.53] - 2026-07-09
+
+### Added
+- Added an analyst-grade local connection history explorer with persisted
+  host/domain attribution, typed app/domain/IP/status/protocol/time filters,
+  paging metadata, async filtered CSV export, retention controls, and a
+  confirmed clear-history action.
+
 ## [0.12.52] - 2026-07-09
 
 ### Added

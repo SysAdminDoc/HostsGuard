@@ -37,8 +37,8 @@ public sealed class ConnectionHistoryTests : IDisposable
         }
     }
 
-    private static ConnHistoryRow Row(string ts, string process = "app.exe", string remote = "1.2.3.4") =>
-        new(ts, process, 100, "TCP", remote, 443, "US", string.Empty);
+    private static ConnHistoryRow Row(string ts, string process = "app.exe", string remote = "1.2.3.4", string host = "") =>
+        new(ts, process, 100, "TCP", remote, 443, "US", string.Empty, host);
 
     private static string Iso(DateTime dt) => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
 
@@ -65,15 +65,67 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
-    public void History_search_matches_process_remote_and_country()
+    public void History_search_matches_process_remote_country_and_host()
     {
-        _db.RecordConnection(Row(Iso(DateTime.Now), "chrome.exe", "8.8.8.8"));
+        _db.RecordConnection(Row(Iso(DateTime.Now), "chrome.exe", "8.8.8.8", "dns.google"));
         _db.RecordConnection(Row(Iso(DateTime.Now), "svchost.exe", "9.9.9.9"));
 
         _db.GetConnectionHistory(search: "chrome").Should().ContainSingle().Which.Process.Should().Be("chrome.exe");
         _db.GetConnectionHistory(search: "9.9.9").Should().ContainSingle().Which.Process.Should().Be("svchost.exe");
+        _db.GetConnectionHistory(search: "dns.google").Should().ContainSingle().Which.Host.Should().Be("dns.google");
         _db.GetConnectionHistory(search: "US").Should().HaveCount(2);
         _db.GetConnectionHistory(search: "nomatch").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void History_page_filters_by_app_host_ip_status_protocol_and_time()
+    {
+        var now = DateTime.Now;
+        _db.RecordConnection(new ConnHistoryRow(Iso(now.AddMinutes(-2)), "chrome.exe", 100, "TCP",
+            "203.0.113.9", 443, "US", "allowed", "cdn.example.com"));
+        _db.RecordConnection(new ConnHistoryRow(Iso(now.AddMinutes(-1)), "curl.exe", 101, "UDP",
+            "198.51.100.4", 53, "US", "blocked", "api.example.net"));
+        _db.RecordConnection(new ConnHistoryRow(Iso(now), "chrome.exe", 102, "TCP",
+            "203.0.113.10", 443, "US", "allowed", "static.example.com"));
+
+        var page = _db.GetConnectionHistoryPage(new ConnectionHistoryFilter(
+            Limit: 1,
+            Offset: 1,
+            Since: Iso(now.AddMinutes(-3)),
+            Until: Iso(now.AddMinutes(1)),
+            Process: "chrome",
+            Host: "example.com",
+            RemoteAddr: "203.0.113",
+            FwStatus: "allow",
+            Protocol: "tcp"));
+
+        page.Total.Should().Be(2);
+        page.Limit.Should().Be(1);
+        page.Offset.Should().Be(1);
+        page.Rows.Should().ContainSingle().Which.Host.Should().Be("cdn.example.com");
+    }
+
+    [Fact]
+    public void History_filters_escape_like_wildcards()
+    {
+        _db.RecordConnection(Row(Iso(DateTime.Now), "literal.exe", "203.0.113.1", "weird%host.example"));
+        _db.RecordConnection(Row(Iso(DateTime.Now), "wild.exe", "203.0.113.2", "weirdXhost.example"));
+
+        var rows = _db.GetConnectionHistoryPage(new ConnectionHistoryFilter(Host: "weird%host")).Rows;
+
+        rows.Should().ContainSingle().Which.Process.Should().Be("literal.exe");
+    }
+
+    [Fact]
+    public void Clear_connection_history_deletes_only_history_rows()
+    {
+        _db.RecordConnection(Row(Iso(DateTime.Now), "chrome.exe"));
+        _db.LogEvent("keep.example.com", "blocked");
+
+        _db.ClearConnectionHistory().Should().Be(1);
+
+        _db.GetConnectionHistory().Should().BeEmpty();
+        _db.GetLog().Should().Contain(e => e.Domain == "keep.example.com");
     }
 
     [Fact]
@@ -265,6 +317,40 @@ public sealed class ConnectionHistoryTests : IDisposable
         verify.Open();
         verify.ExecuteScalar<long>("PRAGMA auto_vacuum").Should().Be(2);
         verify.ExecuteScalar<string>("SELECT value FROM legacy").Should().Be("keep");
+    }
+
+    [Fact]
+    public void Existing_connection_history_table_gains_host_column()
+    {
+        var path = Path.Combine(_dir, "existing-conn-history.db");
+        using (var conn = new SqliteConnection($"Data Source={path}"))
+        {
+            conn.Open();
+            conn.Execute(
+                """
+                CREATE TABLE conn_history(
+                    id INTEGER PRIMARY KEY, ts TEXT, process TEXT, pid INTEGER, protocol TEXT,
+                    remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT)
+                """);
+            conn.Execute(
+                """
+                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status)
+                VALUES('2026-07-09T00:00:00Z','old.exe',1,'TCP','203.0.113.5',443,'US','')
+                """);
+        }
+
+        using (var db = new HostsDatabase(path))
+        {
+            db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
+        }
+
+        SqliteConnection.ClearAllPools();
+        using var verify = new SqliteConnection($"Data Source={path}");
+        verify.Open();
+        verify.Query<string>("SELECT name FROM pragma_table_info('conn_history')")
+            .Should().Contain("host");
+        verify.ExecuteScalar<string>("SELECT host FROM conn_history WHERE process='old.exe'")
+            .Should().BeEmpty();
     }
 
     [Fact]

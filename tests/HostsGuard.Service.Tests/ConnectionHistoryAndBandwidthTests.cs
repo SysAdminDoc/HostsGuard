@@ -62,6 +62,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     public void PublishConnection_records_history_only_for_first_sightings()
     {
         var info = new ConnectionInfo("TCP", "127.0.0.1", 5000, "93.184.216.34", 443, "ESTABLISHED", 42, "app.exe");
+        _state.RememberResolution("example.com", new[] { "93.184.216.34" });
 
         _state.PublishConnection(info, recordHistory: true);
         _state.PublishConnection(info with { State = "CLOSE_WAIT" }, recordHistory: false);
@@ -72,6 +73,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         row.RemoteAddr.Should().Be("93.184.216.34");
         row.RemotePort.Should().Be(443);
         row.Protocol.Should().Be("TCP");
+        row.Host.Should().Be("example.com");
     }
 
     [Fact]
@@ -150,6 +152,41 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         (await impl.SetHistorySettings(new HistorySettings { RetentionDays = 0 }, null!)).Ok.Should().BeFalse();
         (await impl.SetHistorySettings(new HistorySettings { RetentionDays = 14 }, null!)).Ok.Should().BeTrue();
         (await impl.GetHistorySettings(new Empty(), null!)).RetentionDays.Should().Be(14);
+    }
+
+    [Fact]
+    public async Task History_rpc_filters_pages_and_clears_rows()
+    {
+        var now = DateTime.Now;
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-2).ToString("o"), "chrome.exe", 10, "TCP",
+            "203.0.113.9", 443, "US", "allowed", "cdn.example.com"));
+        _db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "curl.exe", 11, "UDP",
+            "198.51.100.4", 53, "US", "blocked", "api.example.net"));
+        var impl = new MonitoringServiceImpl(_state);
+
+        var filtered = await impl.GetConnectionHistory(new ConnectionHistoryRequest
+        {
+            Limit = 10,
+            Process = "chrome",
+            Host = "cdn",
+            RemoteAddr = "203.0.113",
+            FwStatus = "allow",
+            Protocol = "tcp",
+            Since = now.AddMinutes(-3).ToString("o"),
+            Until = now.AddMinutes(1).ToString("o"),
+        }, null!);
+
+        filtered.Total.Should().Be(1);
+        filtered.RetentionDays.Should().Be(30);
+        var row = filtered.Rows.Should().ContainSingle().Subject;
+        row.Process.Should().Be("chrome.exe");
+        row.Host.Should().Be("cdn.example.com");
+
+        var ack = await impl.ClearConnectionHistory(new Empty(), null!);
+
+        ack.Ok.Should().BeTrue();
+        _db.GetConnectionHistory().Should().BeEmpty();
+        _db.GetLog().Should().Contain(e => e.Action == "history_cleared");
     }
 
     [Fact]

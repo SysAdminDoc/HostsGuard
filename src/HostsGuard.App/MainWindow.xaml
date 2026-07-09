@@ -1914,24 +1914,73 @@
                                   AutomationProperties.Name="{svc:Loc Key=Xaml_Connection_history_and_bandwidth_90795564}">
                             <Border Style="{StaticResource Hg.Card}">
                                 <StackPanel>
-                                    <DockPanel LastChildFill="True">
-                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Load_ddcb77ff}" Padding="10,2" Margin="6,0,0,0"
+                                    <WrapPanel>
+                                        <Button Content="{svc:Loc Key=Xaml_Load_ddcb77ff}" Padding="10,2" Margin="0,0,6,6"
                                                 Command="{Binding LoadHistoryCommand}" />
-                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Export_CSV_5755f9ac}" Padding="10,2" Margin="6,0,0,0"
+                                        <Button Content="{svc:Loc Key=Xaml_Prev_e96fea52}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding PreviousHistoryPageCommand}" />
+                                        <Button Content="{svc:Loc Key=Xaml_Next_bc981983}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding NextHistoryPageCommand}" />
+                                        <Button Content="{svc:Loc Key=Xaml_Export_CSV_5755f9ac}" Padding="10,2" Margin="0,0,6,6"
                                                 Command="{Binding ExportHistoryCsvCommand}"
                                                 ToolTip="{svc:Loc Key=Xaml_Save_the_loaded_connection_history_to_91aec34f}" />
-                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Set_retention_ab73848f}" Padding="10,2" Margin="6,0,0,0"
+                                        <Button Content="{svc:Loc Key=Xaml_Set_retention_ab73848f}" Padding="10,2" Margin="0,0,6,6"
                                                 Command="{Binding SaveRetentionCommand}" />
-                                        <TextBox DockPanel.Dock="Right" Width="46" Margin="6,0,0,0" VerticalAlignment="Center"
+                                        <Button Content="{svc:Loc Key=History_Clear}" Padding="10,2" Margin="0,0,6,6"
+                                                Command="{Binding ClearHistoryCommand}"
+                                                AutomationProperties.Name="{svc:Loc Key=History_ClearName}" />
+                                        <TextBox Width="46" Margin="0,0,6,6" VerticalAlignment="Center"
                                                  Text="{Binding RetentionDays, UpdateSourceTrigger=PropertyChanged}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_History_retention_days_5a7034c6}"
                                                  ToolTip="{svc:Loc Key=Xaml_History_retention_in_days_1_365_5b9947ca}" />
-                                        <TextBox Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
+                                        <TextBox Width="54" Margin="0,0,6,6" VerticalAlignment="Center"
+                                                 Text="{Binding HistoryLimit, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_LimitName}" />
+                                        <TextBox Width="66" Margin="0,0,6,6" VerticalAlignment="Center"
+                                                 Text="{Binding HistoryOffset, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_OffsetName}" />
+                                        <TextBox Width="160" Margin="0,0,6,6"
+                                                 Text="{Binding HistorySearch, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
-                                                 Tag="Search history by process, remote address, or country"
+                                                 Tag="Search all history"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Search_connection_history_7c35164f}"
                                                  ToolTip="{svc:Loc Key=Xaml_Substring_match_on_process_remote_address_ed5726b7}" />
-                                    </DockPanel>
+                                        <TextBox Width="130" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryProcess, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="App/process"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_ProcessName}" />
+                                        <TextBox Width="150" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryHost, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Domain/host"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_HostName}" />
+                                        <TextBox Width="130" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Remote IP"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_RemoteName}" />
+                                        <TextBox Width="96" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryStatusFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Action"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_StatusName}" />
+                                        <TextBox Width="74" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryProtocol, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="TCP/UDP"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_ProtocolName}" />
+                                        <TextBox Width="148" Margin="0,0,6,6"
+                                                 Text="{Binding HistorySince, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Since ISO"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_SinceName}" />
+                                        <TextBox Width="148" Margin="0,0,6,6"
+                                                 Text="{Binding HistoryUntil, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="Until ISO"
+                                                 AutomationProperties.Name="{svc:Loc Key=History_UntilName}" />
+                                    </WrapPanel>
                                     <DataGrid ItemsSource="{Binding HistoryRows}" MaxHeight="180" Margin="0,6,0,0"
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_Connection_history_f48a01d3}">
                                         <DataGrid.Columns>
@@ -1939,13 +1988,15 @@
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="150" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_PID_dde57e82}" Binding="{Binding Pid}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="56" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=History_ColumnHost}" Binding="{Binding Host}" Width="150" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_address_209fa9f4}" Binding="{Binding RemoteAddr}" Width="*" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Port_fe035157}" Binding="{Binding RemotePort}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Country_d523ebbd}" Binding="{Binding Country}" Width="70" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_FW_913a8d78}" Binding="{Binding FwStatus}" Width="80" />
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,0"
+                                               AutomationProperties.LiveSetting="Polite" />
 
                                     <DockPanel LastChildFill="False" Margin="0,12,0,0">
                                         <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Event_ledger_fe4c6b16}" FontWeight="SemiBold" />

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.52-blue)
+![Version](https://img.shields.io/badge/version-0.12.53-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -92,7 +92,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Quick blocking | Block any remote IP or program, block a resolved site through the hosts file, create a per-app DNS-following `HG_Domain_` firewall rule, or scope-block a program to Internet / LAN / localhost / inbound |
 | Immediate flow close | Right-click an established IPv4 TCP row to close it now; opt in to **Close TCP on block** to close matching IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 teardown is reported unsupported. |
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
-| Connection history | Retention-bounded searchable log of past connections (default 30 days) |
+| Connection history | Retention-bounded local traffic explorer with app, domain/host, IP, status, protocol, and time filters, CSV export, clear-history, and 30-day default retention |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
 | Data usage rollups | Retention-bounded daily app x domain byte table with sent/received/total filters |
 | Explain / look up connection | Right-click a connection to show the ordered hosts/firewall/trust/profile/kill-switch decision chain, or look it up on VirusTotal, who.is, Google, and AbuseIPDB |
@@ -201,8 +201,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.52-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.52-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.53-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.53-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

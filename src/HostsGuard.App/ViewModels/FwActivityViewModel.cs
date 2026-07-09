@@ -661,6 +661,33 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _historySearch = string.Empty;
 
     [ObservableProperty]
+    private string _historyProcess = string.Empty;
+
+    [ObservableProperty]
+    private string _historyHost = string.Empty;
+
+    [ObservableProperty]
+    private string _historyRemoteAddr = string.Empty;
+
+    [ObservableProperty]
+    private string _historyStatusFilter = string.Empty;
+
+    [ObservableProperty]
+    private string _historyProtocol = string.Empty;
+
+    [ObservableProperty]
+    private string _historySince = string.Empty;
+
+    [ObservableProperty]
+    private string _historyUntil = string.Empty;
+
+    [ObservableProperty]
+    private int _historyLimit = 500;
+
+    [ObservableProperty]
+    private int _historyOffset;
+
+    [ObservableProperty]
     private string _historyStatus = "Click Load to show recorded connections.";
 
     [ObservableProperty]
@@ -725,13 +752,24 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         await RunServiceActionAsync("Load connection history", s => HistoryStatus = s, async () =>
         {
-            var settings = await _client.Monitoring.GetHistorySettingsAsync(new Empty());
-            RetentionDays = settings.RetentionDays;
+            HistoryLimit = Math.Clamp(HistoryLimit <= 0 ? 500 : HistoryLimit, 1, 2000);
+            HistoryOffset = Math.Max(0, HistoryOffset);
             var history = await _client.Monitoring.GetConnectionHistoryAsync(new ConnectionHistoryRequest
             {
-                Limit = 500,
+                Limit = HistoryLimit,
+                Offset = HistoryOffset,
                 Search = HistorySearch ?? string.Empty,
+                Since = HistorySince ?? string.Empty,
+                Until = HistoryUntil ?? string.Empty,
+                Process = HistoryProcess ?? string.Empty,
+                Host = HistoryHost ?? string.Empty,
+                RemoteAddr = HistoryRemoteAddr ?? string.Empty,
+                FwStatus = HistoryStatusFilter ?? string.Empty,
+                Protocol = HistoryProtocol ?? string.Empty,
             });
+            RetentionDays = history.RetentionDays > 0
+                ? history.RetentionDays
+                : (await _client.Monitoring.GetHistorySettingsAsync(new Empty())).RetentionDays;
             HistoryRows.Clear();
             foreach (var row in history.Rows)
             {
@@ -742,16 +780,31 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                     Pid = row.Pid,
                     Protocol = row.Protocol,
                     RemoteAddr = row.RemoteAddr,
+                    Host = row.Host,
                     RemotePort = row.RemotePort,
                     Country = row.Country,
                     FwStatus = row.FwStatus,
                 });
             }
 
-            HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} · retained {Plural.Of(RetentionDays, "day")}";
+            HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} shown of {Plural.Of(history.Total, "match")} - offset {history.Offset} - retained {Plural.Of(RetentionDays, "day")}";
             await LoadBandwidthAsync();
             await LoadUsageAsync();
         });
+    }
+
+    [RelayCommand]
+    public async Task PreviousHistoryPageAsync()
+    {
+        HistoryOffset = Math.Max(0, HistoryOffset - Math.Max(1, HistoryLimit));
+        await LoadHistoryAsync();
+    }
+
+    [RelayCommand]
+    public async Task NextHistoryPageAsync()
+    {
+        HistoryOffset += Math.Max(1, HistoryLimit);
+        await LoadHistoryAsync();
     }
 
     [RelayCommand]
@@ -818,9 +871,27 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         });
     }
 
-    /// <summary>Export the loaded connection history to a CSV file (NET-091).</summary>
     [RelayCommand]
-    public void ExportHistoryCsv()
+    public async Task ClearHistoryAsync()
+    {
+        if (!_confirm.Confirm("Clear connection history",
+            "Delete all retained connection-history rows? Event logs, hosts blocks, and firewall rules are unchanged."))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Clear connection history", s => HistoryStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.ClearConnectionHistoryAsync(new Empty());
+            HistoryRows.Clear();
+            HistoryOffset = 0;
+            HistoryStatus = ack.Message;
+        });
+    }
+
+    /// <summary>Export the loaded connection history to a CSV file (NET-091/168).</summary>
+    [RelayCommand]
+    public async Task ExportHistoryCsvAsync()
     {
         if (_filePicker is null)
         {
@@ -842,7 +913,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         try
         {
-            System.IO.File.WriteAllText(path, BuildHistoryCsv(HistoryRows));
+            await System.IO.File.WriteAllTextAsync(path, BuildHistoryCsv(HistoryRows));
             HistoryStatus = $"Exported {Plural.Of(HistoryRows.Count, "connection")} to {System.IO.Path.GetFileName(path)}";
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
@@ -855,13 +926,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append("When,Process,PID,Protocol,Remote,Port,Country,Firewall\r\n");
+        sb.Append("When,Process,PID,Protocol,Host,Remote,Port,Country,Firewall\r\n");
         foreach (var r in rows)
         {
             sb.Append(Csv(r.Ts)).Append(',')
               .Append(Csv(r.Process)).Append(',')
               .Append(r.Pid).Append(',')
               .Append(Csv(r.Protocol)).Append(',')
+              .Append(Csv(r.Host)).Append(',')
               .Append(Csv(r.RemoteAddr)).Append(',')
               .Append(r.RemotePort).Append(',')
               .Append(Csv(r.Country)).Append(',')

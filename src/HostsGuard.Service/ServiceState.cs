@@ -291,7 +291,7 @@ public sealed class ServiceState : IDisposable
             Db.RecordConnection(new ConnHistoryRow(
                 DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 info.Process, info.Pid, info.Protocol, info.RemoteAddress, info.RemotePort,
-                country, fwStatus));
+                country, fwStatus, host));
         }
 
         Bus.Publish(new ConnectionEvent

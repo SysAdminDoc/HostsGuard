@@ -31,8 +31,8 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status)
-                VALUES(@Ts,@Process,@Pid,@Protocol,@RemoteAddr,@RemotePort,@Country,@FwStatus)
+                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status,host)
+                VALUES(@Ts,@Process,@Pid,@Protocol,@RemoteAddr,@RemotePort,@Country,@FwStatus,@Host)
                 """, row);
             _conn.Execute("DELETE FROM conn_history WHERE ts < @cutoff", new { cutoff });
         }
@@ -43,31 +43,88 @@ public sealed partial class HostsDatabase
     /// substring match across process, remote address, and country.
     /// </summary>
     public IReadOnlyList<ConnHistoryRow> GetConnectionHistory(int limit = 500, string? search = null, string? since = null)
+        => GetConnectionHistoryPage(new ConnectionHistoryFilter(
+            Limit: limit,
+            Search: search,
+            Since: since)).Rows;
+
+    public ConnectionHistoryPage GetConnectionHistoryPage(ConnectionHistoryFilter filter)
     {
-        var sql = """
+        var limit = Math.Clamp(filter.Limit > 0 ? filter.Limit : 500, 1, 10_000);
+        var offset = Math.Max(0, filter.Offset);
+        var (where, p) = BuildConnectionHistoryWhere(filter);
+        var sql = $"""
             SELECT ts AS Ts, process AS Process, pid AS Pid, protocol AS Protocol,
                    remote_addr AS RemoteAddr, remote_port AS RemotePort,
-                   country AS Country, fw_status AS FwStatus
-            FROM conn_history WHERE 1=1
+                   country AS Country, fw_status AS FwStatus, host AS Host
+            FROM conn_history{where}
+            ORDER BY ts DESC LIMIT @limit OFFSET @offset
             """;
-        var p = new DynamicParameters();
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            sql += " AND (process LIKE @s OR remote_addr LIKE @s OR country LIKE @s)";
-            p.Add("s", $"%{search.Trim()}%");
-        }
-
-        if (!string.IsNullOrWhiteSpace(since))
-        {
-            sql += " AND ts >= @since";
-            p.Add("since", since);
-        }
-
-        sql += " ORDER BY ts DESC LIMIT @limit";
-        p.Add("limit", Math.Clamp(limit, 1, 10_000));
+        p.Add("limit", limit);
+        p.Add("offset", offset);
         lock (_gate)
         {
-            return _conn.Query<ConnHistoryRow>(sql, p).ToList();
+            var total = _conn.ExecuteScalar<int>($"SELECT COUNT(*) FROM conn_history{where}", p);
+            var rows = _conn.Query<ConnHistoryRow>(sql, p).ToList();
+            return new ConnectionHistoryPage(rows, total, limit, offset);
+        }
+    }
+
+    public int ClearConnectionHistory()
+    {
+        lock (_gate)
+        {
+            return _conn.Execute("DELETE FROM conn_history");
+        }
+    }
+
+    private static (string Where, DynamicParameters Args) BuildConnectionHistoryWhere(ConnectionHistoryFilter filter)
+    {
+        var clauses = new List<string>();
+        var args = new DynamicParameters();
+
+        AddLike("search", filter.Search,
+            "(process LIKE @search ESCAPE '\\' OR host LIKE @search ESCAPE '\\' OR remote_addr LIKE @search ESCAPE '\\' OR country LIKE @search ESCAPE '\\' OR fw_status LIKE @search ESCAPE '\\' OR protocol LIKE @search ESCAPE '\\')");
+        if (!string.IsNullOrWhiteSpace(filter.Since))
+        {
+            clauses.Add("ts >= @since");
+            args.Add("since", filter.Since.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Until))
+        {
+            clauses.Add("ts <= @until");
+            args.Add("until", filter.Until.Trim());
+        }
+
+        AddLike("process", filter.Process, "process LIKE @process ESCAPE '\\'");
+        AddLike("host", filter.Host, "host LIKE @host ESCAPE '\\'");
+        AddLike("remoteAddr", filter.RemoteAddr, "remote_addr LIKE @remoteAddr ESCAPE '\\'");
+        AddLike("fwStatus", filter.FwStatus, "fw_status LIKE @fwStatus ESCAPE '\\'");
+        AddExact("protocol", filter.Protocol, "protocol");
+
+        return (clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses), args);
+
+        void AddLike(string name, string? value, string clause)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            clauses.Add(clause);
+            args.Add(name, "%" + EscapeLike(value.Trim()) + "%");
+        }
+
+        void AddExact(string name, string? value, string column)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            clauses.Add($"LOWER({column}) = LOWER(@{name})");
+            args.Add(name, value.Trim());
         }
     }
 

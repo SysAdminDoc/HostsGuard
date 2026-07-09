@@ -138,6 +138,7 @@ public class SchemaLockTests
           SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack)
         service Monitoring
           AckAlert(AlertAckRequest) returns (Ack)
+          ClearConnectionHistory(Empty) returns (Ack)
           GetAppBandwidth(BandwidthRequest) returns (AppBandwidthList)
           GetConnectionHistory(ConnectionHistoryRequest) returns (ConnectionHistoryList)
           GetHistorySettings(Empty) returns (HistorySettings)
