@@ -10,7 +10,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:svc="clr-namespace:HostsGuard.App.Services"
         mc:Ignorable="d"
-        Title="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}" Height="900" Width="1500"
+        Title="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}" Height="920" Width="1520"
         MinHeight="760" MinWidth="1180">
     <Window.Resources>
         <svc:PointsTextConverter x:Key="PointsConverter" />
@@ -294,7 +294,7 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="250" />
+                    <ColumnDefinition Width="264" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -305,30 +305,44 @@
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Disabled">
+                        <ScrollViewer Grid.Row="0"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Padding="0,0,2,0">
                             <StackPanel>
-                                <StackPanel HorizontalAlignment="Center" Margin="0,4,0,8">
-                                    <Border Width="52"
-                                            Height="52"
-                                            CornerRadius="10"
-                                            Background="{DynamicResource Hg.SafeSoft}"
-                                            BorderBrush="{DynamicResource Hg.SafeBorder}"
-                                            BorderThickness="1"
-                                            Padding="8"
-                                            HorizontalAlignment="Center">
-                                        <Image Source="pack://application:,,,/HostsGuard.App;component/Assets/icon.ico"
-                                               Stretch="Uniform" />
+                                <Grid Margin="4,4,4,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Style="{StaticResource Hg.BrandMark}">
+                                        <Viewbox Stretch="Uniform">
+                                            <Grid Width="32" Height="36">
+                                                <Path Data="M 16 2 L 29 7 V 17 C 29 24 23.5 29.5 16 34 C 8.5 29.5 3 24 3 17 V 7 Z"
+                                                      Stroke="{DynamicResource Hg.Teal}"
+                                                      Fill="Transparent"
+                                                      StrokeThickness="2.4"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" />
+                                                <Path Data="M 10 17 L 14 21 L 22.5 12"
+                                                      Stroke="{DynamicResource Hg.Green}"
+                                                      StrokeThickness="2.6"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      StrokeLineJoin="Round" />
+                                            </Grid>
+                                        </Viewbox>
                                     </Border>
-                                    <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}"
-                                               FontSize="17"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,6,0,0" />
-                                    <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}"
-                                               Style="{StaticResource Hg.DimText}"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,2,0,0" />
-                                </StackPanel>
+                                    <StackPanel Grid.Column="1"
+                                                Margin="12,0,0,0"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_bf992a7e}"
+                                                   Style="{StaticResource Hg.BrandName}" />
+                                        <TextBlock Text="{Binding AppVersion, StringFormat='v{0}'}"
+                                                   Style="{StaticResource Hg.BrandVersion}" />
+                                    </StackPanel>
+                                </Grid>
 
                                 <Border Style="{StaticResource Hg.RailDivider}" />
 
@@ -457,53 +471,6 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Style="{StaticResource Hg.RailTile}">
-                                    <StackPanel>
-                                        <TextBlock Text="{svc:Loc Key=Xaml_Quick_actions_e47e8042}" Style="{StaticResource Hg.Kicker}" Margin="0,0,0,8" />
-                                        <UniformGrid Columns="4">
-                                            <Button Width="38"
-                                                    Height="34"
-                                                    MinHeight="34"
-                                                    Padding="0"
-                                                    Command="{Binding Tools.FlushDnsCommand}"
-                                                    ToolTip="{svc:Loc Key=Xaml_Flush_DNS_15214212}"
-                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Flush_DNS_15214212}">
-                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
-                                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
-                                            </Button>
-                                            <Button Width="38"
-                                                    Height="34"
-                                                    MinHeight="34"
-                                                    Padding="0"
-                                                    Command="{Binding RunDiagnosticsCommand}"
-                                                    ToolTip="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}"
-                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}">
-                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
-                                                      Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5" />
-                                            </Button>
-                                            <Button Width="38"
-                                                    Height="34"
-                                                    MinHeight="34"
-                                                    Padding="0"
-                                                    Command="{Binding Tools.ExportBundleCommand}"
-                                                    ToolTip="{svc:Loc Key=Xaml_Export_support_bundle_5b5b35e2}"
-                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Export_support_bundle_5b5b35e2}">
-                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
-                                                      Data="M 8 2 V 11 M 4 7 L 8 11 L 12 7 M 4 13 H 12" />
-                                            </Button>
-                                            <Button Width="38"
-                                                    Height="34"
-                                                    MinHeight="34"
-                                                    Padding="0"
-                                                    Command="{Binding CheckForUpdatesCommand}"
-                                                    ToolTip="{svc:Loc Key=Xaml_Check_for_updates_736b9062}"
-                                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Check_for_updates_736b9062}">
-                                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
-                                                      Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
-                                            </Button>
-                                        </UniformGrid>
-                                    </StackPanel>
-                                </Border>
                             </StackPanel>
                         </ScrollViewer>
 
@@ -549,7 +516,10 @@
 
                 <Border Grid.Column="1" Style="{StaticResource Hg.ShellSurface}">
                     <Grid>
-            <TabControl x:Name="MainTabs" Margin="0"
+            <TabControl x:Name="MainTabs"
+                        Style="{StaticResource Hg.PrimaryTabs}"
+                        ItemContainerStyle="{StaticResource Hg.PrimaryTabItem}"
+                        Margin="0"
                         IsEnabled="{Binding IsConnected}">
                 <TabItem>
                     <TabItem.Header>

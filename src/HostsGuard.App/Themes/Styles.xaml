@@ -8,10 +8,12 @@
     <Style x:Key="Hg.Window" TargetType="Window">
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable Text" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="UseLayoutRounding" Value="True" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style TargetType="TextBlock">
@@ -125,16 +127,15 @@
 
     <Style x:Key="Hg.ShellSurface" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1,0,0,0" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="14,12,18,12" />
     </Style>
 
     <Style x:Key="Hg.SideRail" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.PanelAlt}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="0,0,1,0" />
-        <Setter Property="Padding" Value="12" />
+        <Setter Property="Padding" Value="14,12,12,10" />
     </Style>
 
     <Style x:Key="Hg.RailTile" TargetType="Border">
@@ -142,8 +143,29 @@
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="8,7" />
-        <Setter Property="Margin" Value="0,0,0,7" />
+        <Setter Property="Padding" Value="10,9" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="Hg.BrandMark" TargetType="Border">
+        <Setter Property="Width" Value="48" />
+        <Setter Property="Height" Value="52" />
+        <Setter Property="Background" Value="{DynamicResource Hg.SafeSoft}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.SafeBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="9" />
+    </Style>
+
+    <Style x:Key="Hg.BrandName" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Hg.BrandVersion" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Margin" Value="0,3,0,0" />
     </Style>
 
     <Style x:Key="Hg.MetricTile" TargetType="Border" BasedOn="{StaticResource Hg.RailTile}">
@@ -266,6 +288,93 @@
         <Setter Property="Fill" Value="Transparent" />
         <Setter Property="Margin" Value="0,0,9,0" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="Hg.PrimaryTabs" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0"
+                                BorderBrush="{DynamicResource Hg.S0}"
+                                BorderThickness="0,0,0,1">
+                            <TabPanel x:Name="HeaderPanel"
+                                      IsItemsHost="True"
+                                      KeyboardNavigation.TabIndex="1"
+                                      Panel.ZIndex="1" />
+                        </Border>
+                        <ContentPresenter x:Name="PART_SelectedContentHost"
+                                          Grid.Row="1"
+                                          Margin="0,10,0,0"
+                                          ContentSource="SelectedContent"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Hg.PrimaryTabItem" TargetType="TabItem">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid Margin="0,0,8,0">
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="6"
+                                Margin="0,3"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="14,10,14,11">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <Rectangle x:Name="ActiveIndicator"
+                                   Height="3"
+                                   Margin="12,0"
+                                   VerticalAlignment="Bottom"
+                                   RadiusX="1.5"
+                                   RadiusY="1.5"
+                                   Fill="{DynamicResource Hg.Teal}"
+                                   Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ActiveIndicator" Property="Visibility" Value="Visible" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsSelected" Value="False" />
+                                <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Command}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="Hg.RailGlyphPath" TargetType="Path" BasedOn="{StaticResource Hg.MainTabIconPath}">
@@ -704,7 +813,7 @@
 
     <Style TargetType="DataGridRow">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinHeight" Value="34" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
@@ -844,6 +953,10 @@
     <Style TargetType="StatusBar">
         <Setter Property="Background" Value="{DynamicResource Hg.Crust}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="MinHeight" Value="30" />
+        <Setter Property="Padding" Value="4,1" />
     </Style>
 
     <!-- StatusBar separators resolve through their own style key, not the

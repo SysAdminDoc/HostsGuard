@@ -4,6 +4,8 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+- Re-imagined the WPF workbench around a premium operator-console shell: a crisp vector brand lockup, calmer dark/light surface hierarchy, a continuous primary-tab rail, denser tables, a scroll-safe status sidebar, and mockup-aligned spacing across every primary view.
+
 ## [0.12.64] - 2026-07-09
 
 ### Fixed

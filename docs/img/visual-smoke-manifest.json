@@ -2,17 +2,17 @@
     "schemaVersion":  1,
     "product":  "HostsGuard",
     "version":  "0.12.64",
-    "generatedAtUtc":  "2026-07-09T15:25:15.2135678+00:00",
+    "generatedAtUtc":  "2026-07-09T20:57:56.8737171+00:00",
     "expectedSize":  "1600x1000",
     "app":  {
-                "path":  "dist/dotnet/win-x64/app/HostsGuard.App.exe",
+                "path":  "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
                 "fileVersion":  "0.12.64.0",
-                "productVersion":  "0.12.64+5243ddaddae3f15a74c0099bbea04e01cd9b55b0"
+                "productVersion":  "0.12.64+129c04fa5f13a54b33c710f37df29cf704f51ff6"
             },
     "service":  {
-                    "path":  "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
+                    "path":  "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
                     "fileVersion":  "0.12.64.0",
-                    "productVersion":  "0.12.64+5243ddaddae3f15a74c0099bbea04e01cd9b55b0"
+                    "productVersion":  "0.12.64+129c04fa5f13a54b33c710f37df29cf704f51ff6"
                 },
     "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
     "readmeScreenshots":  [
@@ -20,8 +20,8 @@
                                   "theme":  "dark",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "DBEBD0E78CC546CD6D9EFF42C6D2EA6B608EE164B4D9F72EEE9187706D5FF214",
-                                  "bytes":  198932,
+                                  "sha256":  "540D63FD49894DC08258A38BB19F525B8D178915B73D13B08F50217DB8F388C0",
+                                  "bytes":  227875,
                                   "width":  1600,
                                   "height":  1000
                               },
@@ -29,8 +29,8 @@
                                   "theme":  "light",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "0C86D8583BB10833B915A626BC5B720D337A36194BCC8CAA3A47B6A0201C39D8",
-                                  "bytes":  198216,
+                                  "sha256":  "4CA27B2799D0D280DB12E4EF37C419E1115232123DDAC81445C5C91D7B16D66E",
+                                  "bytes":  227644,
                                   "width":  1600,
                                   "height":  1000
                               }
