@@ -168,6 +168,29 @@ public sealed class I18nTests
         offenders.Should().BeEmpty();
     }
 
+    [Fact]
+    public void Xaml_has_no_new_literal_english_inside_nested_text_elements()
+    {
+        var offenders = new List<string>();
+        var pattern = new Regex(
+            @">(?<value>[^<>{}]*\p{L}[^<>{}]*)</(?<tag>Hyperlink|Run)>",
+            RegexOptions.Compiled);
+        foreach (var file in LocalizedXamlFiles())
+        {
+            var text = File.ReadAllText(file);
+            foreach (Match match in pattern.Matches(text))
+            {
+                var value = System.Net.WebUtility.HtmlDecode(match.Groups["value"].Value).Trim();
+                if (IsHardCodedLocalizableText(value, match.Groups["tag"].Value))
+                {
+                    offenders.Add($"{Path.GetFileName(file)}:<{match.Groups["tag"].Value}>{value}");
+                }
+            }
+        }
+
+        offenders.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("Strings.resx")]
     [InlineData("Strings.es.resx")]

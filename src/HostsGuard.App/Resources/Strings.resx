@@ -808,4 +808,5 @@
   <data name="PolicySub_TrustUnpinned" xml:space="preserve"><value>Unpinned</value></data>
   <data name="PolicySub_TrustPinned" xml:space="preserve"><value>Pinned</value></data>
   <data name="PolicySub_LastNever" xml:space="preserve"><value>Never</value></data>
+  <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Look up reputation</value></data>
 </root>

@@ -36,7 +36,9 @@
                 <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center">
                     <Hyperlink x:Name="LookupLink" Click="OnLookup"
                                AutomationProperties.Name="{svc:Loc Key=Xaml_Look_up_this_process_reputation_online_e5312c55}"
-                               Foreground="{DynamicResource Hg.Mauve}">Look up reputation</Hyperlink>
+                               Foreground="{DynamicResource Hg.Mauve}">
+                        <Run Text="{svc:Loc Key=Xaml_Look_up_reputation_51bc5c1e}" />
+                    </Hyperlink>
                 </TextBlock>
             </DockPanel>
             <TextBlock x:Name="AppPath" TextWrapping="Wrap" Foreground="{DynamicResource Hg.Dim}" FontSize="11" />

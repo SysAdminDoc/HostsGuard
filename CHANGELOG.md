@@ -13,6 +13,8 @@ All notable changes to HostsGuard are documented in this file.
   or another process is holding the hosts file.
 - Logged a bounded domain preview for bulk hosts-file events and preserved the
   caller source when blocking a root domain from Hosts Activity.
+- Localized the consent prompt reputation hyperlink and added an i18n guard for
+  nested XAML text so interactive prompt copy cannot bypass resource coverage.
 
 ## [0.12.62] - 2026-07-09
 

@@ -35,4 +35,5 @@
   <data name="Menu_Language" xml:space="preserve"><value>Idioma</value></data>
   <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restaurar punto de control de politica</value></data>
   <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restaura el ultimo estado de politica capturado antes de una importacion</value></data>
+  <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Consultar reputacion</value></data>
 </root>
