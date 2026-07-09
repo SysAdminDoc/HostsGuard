@@ -112,6 +112,12 @@ public static class BlocklistCatalog
 
             total++;
 
+            if (LooksLikeAdblockRule(line))
+            {
+                invalid++;
+                continue;
+            }
+
             // Hosts-format line: "<ip> <domain> [more]". Flag a non-sink target.
             var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             if (fields.Length >= 2 && System.Net.IPAddress.TryParse(fields[0], out _) && !SinkIps.Contains(fields[0]))
@@ -137,5 +143,31 @@ public static class BlocklistCatalog
         }
 
         return new BlocklistScan(domains, total, duplicates, invalid, hijack);
+    }
+
+    private static bool LooksLikeAdblockRule(string line)
+    {
+        foreach (var token in line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (token[0] == '#')
+            {
+                return false;
+            }
+
+            if (token.StartsWith("@@", StringComparison.Ordinal)
+                || token.StartsWith("||", StringComparison.Ordinal)
+                || token.StartsWith('/')
+                || token.Contains('^')
+                || token.Contains("##", StringComparison.Ordinal)
+                || token.Contains("#@#", StringComparison.Ordinal)
+                || token.Contains("#?#", StringComparison.Ordinal)
+                || token.Contains("#$#", StringComparison.Ordinal)
+                || token.Contains("#%#", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

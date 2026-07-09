@@ -13,6 +13,8 @@ public class HostsFileTests
     [InlineData("0.0.0.0 ADS.Example.COM", "0.0.0.0 ads.example.com")]
     [InlineData("0.0.0.0 example.com.", "0.0.0.0 example.com")]
     [InlineData(":: ads.example.com", "0.0.0.0 ads.example.com")]
+    [InlineData("0:0:0:0:0:0:0:0 ads.example.com", "0.0.0.0 ads.example.com")]
+    [InlineData("0:0:0:0:0:0:0:1 ads.example.com", "0.0.0.0 ads.example.com")]
     [InlineData("0.0.0.0 192.168.1.1", "0.0.0.0 192.168.1.1")]
     [InlineData("0.0.0.0\tads.example.com", "0.0.0.0 ads.example.com")]
     public void NormLine_normalizes(string input, string expected) =>

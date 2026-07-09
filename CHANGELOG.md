@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.58] - 2026-07-09
+
+### Changed
+- Hardened blocklist parsing with edge-case fixtures for hosts comments,
+  adblock exclusions, wildcard-like entries, IPv4/IPv6 null routes, duplicates,
+  malformed lines, and hijack diagnostics.
+- Rejected adblock cosmetic/filter syntax during blocklist import instead of
+  accidentally trimming it into a bare domain.
+
 ## [0.12.57] - 2026-07-09
 
 ### Changed

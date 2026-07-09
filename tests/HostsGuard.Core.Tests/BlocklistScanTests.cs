@@ -27,6 +27,58 @@ public class BlocklistScanTests
     }
 
     [Fact]
+    public void Scan_accepts_comment_and_null_route_hosts_fixture()
+    {
+        var text = string.Join('\n',
+            "# hosts-style comment",
+            "! adblock-style comment",
+            "0.0.0.0 ads.example.com # inline hosts comment",
+            "127.0.0.1 TRACKER.Example.NET",
+            ":: ipv6.example.org",
+            "::1 loopback.example.org",
+            "0:0:0:0:0:0:0:0 zero.example.org",
+            "0:0:0:0:0:0:0:1 long-loopback.example.org",
+            "");
+
+        var scan = BlocklistCatalog.Scan(text);
+
+        scan.Total.Should().Be(6);
+        scan.Domains.Should().Equal([
+            "ads.example.com",
+            "tracker.example.net",
+            "ipv6.example.org",
+            "loopback.example.org",
+            "zero.example.org",
+            "long-loopback.example.org",
+        ]);
+        scan.Duplicates.Should().Be(0);
+        scan.Invalid.Should().Be(0);
+        scan.HijackFlagged.Should().Be(0);
+    }
+
+    [Fact]
+    public void Scan_counts_adblock_exclusions_wildcards_and_cosmetic_filters_as_invalid()
+    {
+        var text = string.Join('\n',
+            "@@||allow.example^",
+            "||ads.example^",
+            "*.wild.example",
+            "/tracker\\d+\\.example/",
+            "[Adblock Plus 2.0]",
+            "example.com##.ad",
+            "0.0.0.0 filter.example##.ad",
+            "0.0.0.0 valid.example # inline hosts comment");
+
+        var scan = BlocklistCatalog.Scan(text);
+
+        scan.Total.Should().Be(8);
+        scan.Domains.Should().Equal(["valid.example"]);
+        scan.Duplicates.Should().Be(0);
+        scan.Invalid.Should().Be(7);
+        scan.HijackFlagged.Should().Be(0);
+    }
+
+    [Fact]
     public void Scan_flags_and_excludes_hosts_hijack_entries()
     {
         var text = string.Join('\n',
@@ -45,9 +97,33 @@ public class BlocklistScanTests
     [Fact]
     public void Sink_ipv6_and_ipv4_are_not_hijacks()
     {
-        var scan = BlocklistCatalog.Scan(":: blocked.example\n::1 other.example");
+        var scan = BlocklistCatalog.Scan(string.Join('\n',
+            ":: blocked.example",
+            "::1 other.example",
+            "0:0:0:0:0:0:0:0 zero.example",
+            "0:0:0:0:0:0:0:1 long-loopback.example"));
         scan.HijackFlagged.Should().Be(0);
-        scan.Domains.Should().HaveCount(2);
+        scan.Domains.Should().Equal(["blocked.example", "other.example", "zero.example", "long-loopback.example"]);
+    }
+
+    [Fact]
+    public void Scan_deduplicates_case_and_trailing_dot_before_hijack_diagnostics()
+    {
+        var text = string.Join('\n',
+            "0.0.0.0 Ads.Example.COM.",
+            "ads.example.com",
+            "255.255.255.255 broadcast.example",
+            "fe80::1 linklocal.example",
+            "2001:4860:4860::8888 redirected.example",
+            "0:0:0:0:0:0:0:0 zero.example");
+
+        var scan = BlocklistCatalog.Scan(text);
+
+        scan.Total.Should().Be(6);
+        scan.Domains.Should().Equal(["ads.example.com", "zero.example"]);
+        scan.Duplicates.Should().Be(1);
+        scan.Invalid.Should().Be(0);
+        scan.HijackFlagged.Should().Be(3);
     }
 
     [Fact]

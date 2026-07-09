@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "product": "HostsGuard",
-  "version": "0.12.57",
-  "generatedAtUtc": "2026-07-09T10:59:01.0486185+00:00",
+  "version": "0.12.58",
+  "generatedAtUtc": "2026-07-09T11:37:49.1830489+00:00",
   "expectedSize": "1600x1000",
   "app": {
     "path": "dist/dotnet/win-x64/app/HostsGuard.App.exe",
-    "fileVersion": "0.12.57.0",
-    "productVersion": "0.12.57+d01096610d3694b5a3136b9d346d6335efb0b037"
+    "fileVersion": "0.12.58.0",
+    "productVersion": "0.12.58+a6ebab73a6c2330f12610d9fc9fc49f709fc28f2"
   },
   "service": {
     "path": "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
-    "fileVersion": "0.12.57.0",
-    "productVersion": "0.12.57+d01096610d3694b5a3136b9d346d6335efb0b037"
+    "fileVersion": "0.12.58.0",
+    "productVersion": "0.12.58+a6ebab73a6c2330f12610d9fc9fc49f709fc28f2"
   },
   "sourceSummary": "artifacts/visual-smoke/visual-smoke-summary.json",
   "readmeScreenshots": [
@@ -20,8 +20,8 @@
       "theme": "dark",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-dark.png",
-      "sha256": "F3E74427C8C42FFE56ACC6929B74A3D15A4199AE32B344DA4BDA893730377CDC",
-      "bytes": 199031,
+      "sha256": "22BE5F477F547140F1A9FF65721394B908AF4273AF227A66C0F68FB9C6BF59C9",
+      "bytes": 199745,
       "width": 1600,
       "height": 1000
     },
@@ -29,8 +29,8 @@
       "theme": "light",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-light.png",
-      "sha256": "5FAE353216E00B908DDA07159B2A28BAC9D6FA8A95E7001169CF6064035773F0",
-      "bytes": 198519,
+      "sha256": "B739A01B2EA06FF7F8B6928461DDD8A2F56152FA4DBFDF24EEBF5A9B0F0C2ABE",
+      "bytes": 199156,
       "width": 1600,
       "height": 1000
     }

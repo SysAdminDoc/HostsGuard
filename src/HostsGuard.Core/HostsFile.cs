@@ -29,7 +29,7 @@ public static class HostsFile
 
     private static readonly IReadOnlySet<string> BlockPrefixes = new HashSet<string>(StringComparer.Ordinal)
     {
-        "0.0.0.0", "127.0.0.1", "::", "::1",
+        "0.0.0.0", "127.0.0.1", "::", "::1", "0:0:0:0:0:0:0:0", "0:0:0:0:0:0:0:1",
     };
 
     private static readonly IReadOnlySet<string> NonDomainValues = new HashSet<string>(StringComparer.Ordinal)
