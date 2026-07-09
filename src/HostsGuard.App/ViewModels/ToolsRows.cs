@@ -82,6 +82,12 @@ public sealed partial class DnsCacheEntryViewModel : ObservableObject
     [ObservableProperty]
     private uint _flags;
 
+    [ObservableProperty]
+    private bool _serviceBinding;
+
+    [ObservableProperty]
+    private string _privacyRole = string.Empty;
+
     public string DataLengthText => DataLength == 0
         ? "-"
         : $"{DataLength} B";
@@ -96,6 +102,8 @@ public sealed partial class DnsCacheEntryViewModel : ObservableObject
         Type = entry.Type,
         DataLength = entry.DataLength,
         Flags = entry.Flags,
+        ServiceBinding = entry.ServiceBinding,
+        PrivacyRole = entry.PrivacyRole,
     };
 }
 

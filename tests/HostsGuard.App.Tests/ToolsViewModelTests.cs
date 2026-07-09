@@ -73,4 +73,23 @@ public sealed class ToolsViewModelTests
         row.ActionText.Should().Be("Restore");
         row.StateText.Should().Be("Allowed");
     }
+
+    [Fact]
+    public void Dns_cache_row_exposes_service_binding_privacy_role()
+    {
+        var row = DnsCacheEntryViewModel.From(new DnsCacheEntry
+        {
+            Name = "svc.example.com",
+            Type = "HTTPS",
+            DataLength = 48,
+            Flags = 4,
+            ServiceBinding = true,
+            PrivacyRole = "HTTPS service binding cached by Windows",
+        });
+
+        row.ServiceBinding.Should().BeTrue();
+        row.PrivacyRole.Should().Contain("service binding");
+        row.DataLengthText.Should().Be("48 B");
+        row.FlagsText.Should().Be("0x00000004");
+    }
 }

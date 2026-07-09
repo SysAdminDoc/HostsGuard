@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.52] - 2026-07-09
+
+### Added
+- Added HTTPS/SVCB-aware DNS diagnostics in the service, WPF Tools tab, and
+  `HostsGuard.Cli dns-cache`, including ECH posture text that distinguishes
+  ECH-hidden SNI from cache-only/unobservable states without enabling blocking
+  by default.
+
 ## [0.12.51] - 2026-07-09
 
 ### Added

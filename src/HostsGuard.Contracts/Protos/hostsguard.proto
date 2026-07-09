@@ -833,6 +833,8 @@ message DnsCacheEntry {
   string type = 2;     // A / AAAA / CNAME / PTR / numeric fallback
   int32 data_length = 3;
   uint32 flags = 4;
+  bool service_binding = 5; // SVCB/HTTPS RR; may carry ALPN/ECH parameters
+  string privacy_role = 6;  // human-readable role for diagnostics
 }
 
 message DnsCacheList {
@@ -865,6 +867,14 @@ message DohStatus {
   bool cname_cloak = 8;     // CNAME-cloak reactive blocking is armed
   bool sni_capture = 9;     // TLS SNI capture is running (NET-109)
   bool dns_encrypted_only = 10; // OS is in encrypted-DNS-only posture (NET-112 warn)
+  int32 https_records = 11; // HTTPS RR rows visible in Windows DNS cache
+  int32 svcb_records = 12;  // SVCB RR rows visible in Windows DNS cache
+  int32 ech_unavailable_observations = 13; // TLS ClientHello observations with ECH
+  string ech_state = 14;    // stable posture token
+  string ech_summary = 15;  // user-facing explanation
+  string ech_remediation = 16; // safe next step; never enables blocking
+  bool service_binding_observed = 17;
+  bool ech_unobservable = 18;
 }
 
 message DohRefreshRequest {
@@ -887,6 +897,12 @@ message DnsInspectResult {
   repeated DnsRecord records = 1;
   int32 latency_ms = 2;
   bool blocked = 3;
+  string ech_state = 4;
+  string ech_summary = 5;
+  string ech_remediation = 6;
+  int32 https_records = 7;
+  int32 svcb_records = 8;
+  bool service_binding_observed = 9;
 }
 
 // ─── Monitoring (server-streaming live feeds) ────────────────────────────────

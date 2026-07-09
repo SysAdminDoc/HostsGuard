@@ -129,6 +129,8 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         list.Entries[0].Type.Should().Be("A");
         list.Entries[0].DataLength.Should().Be(4);
         list.Entries[0].Flags.Should().Be(8);
+        list.Entries[0].ServiceBinding.Should().BeFalse();
+        list.Entries[0].PrivacyRole.Should().BeEmpty();
 
         var ack = await dns.FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = "ADS.EXAMPLE.COM." });
 
@@ -151,6 +153,24 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Dns_status_reports_https_svcb_cache_and_ech_observations()
+    {
+        _dns.CacheEntries.Add(new DnsCacheRecord("svc.example.com", "HTTPS", 32, 0));
+        _dns.CacheEntries.Add(new DnsCacheRecord("_443._tcp.svc.example.com", "SVCB", 24, 0));
+        _state.RecordSni(new SniObservation("203.0.113.44", "", EchUnavailable: true));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var status = await new DnsControl.DnsControlClient(channel).GetDohStatusAsync(new Empty());
+
+        status.HttpsRecords.Should().Be(1);
+        status.SvcbRecords.Should().Be(1);
+        status.ServiceBindingObserved.Should().BeTrue();
+        status.EchUnavailableObservations.Should().Be(1);
+        status.EchState.Should().Be("ech-hidden");
+        status.EchSummary.Should().Contain("real SNI was encrypted");
+        status.EchRemediation.Should().Contain("No DNS or firewall blocking is changed automatically");
+    }
+
+    [Fact]
     public async Task Inspect_reports_engine_block_state()
     {
         _state.Hosts.Block("ads.inspect-me.test");
@@ -160,6 +180,27 @@ public sealed class ToolsServiceTests : IAsyncLifetime
             .InspectAsync(new DomainRequest { Domain = "ads.inspect-me.test" });
 
         result.Blocked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Inspect_includes_domain_service_binding_cache_rows_and_posture()
+    {
+        _dns.CacheEntries.Add(new DnsCacheRecord("svc.inspect-me.test", "HTTPS", 48, 0));
+        _dns.CacheEntries.Add(new DnsCacheRecord("_443._tcp.svc.inspect-me.test", "SVCB", 16, 0));
+        _dns.CacheEntries.Add(new DnsCacheRecord("other.example.com", "HTTPS", 8, 0));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var result = await new DnsControl.DnsControlClient(channel)
+            .InspectAsync(new DomainRequest { Domain = "svc.inspect-me.test" });
+
+        result.HttpsRecords.Should().Be(1);
+        result.SvcbRecords.Should().Be(1);
+        result.ServiceBindingObserved.Should().BeTrue();
+        result.Records.Should().Contain(r => r.Type == "HTTPS" && r.Name == "svc.inspect-me.test");
+        result.Records.Should().Contain(r => r.Type == "SVCB" && r.Name == "_443._tcp.svc.inspect-me.test");
+        result.Records.Should().NotContain(r => r.Name == "other.example.com");
+        result.EchState.Should().NotBeEmpty();
+        result.EchSummary.Should().Contain("unobservable");
     }
 
     [Fact]

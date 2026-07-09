@@ -466,6 +466,7 @@
   <data name="DnsCache_TableName" xml:space="preserve"><value>Windows DNS resolver cache entries</value></data>
   <data name="DnsCache_ColumnName" xml:space="preserve"><value>Name</value></data>
   <data name="DnsCache_ColumnType" xml:space="preserve"><value>Type</value></data>
+  <data name="DnsCache_ColumnPrivacyRole" xml:space="preserve"><value>Role</value></data>
   <data name="DnsCache_ColumnDataLength" xml:space="preserve"><value>Data</value></data>
   <data name="DnsCache_ColumnFlags" xml:space="preserve"><value>Flags</value></data>
   <data name="Xaml_Close_DNS_bypass_b36af939" xml:space="preserve"><value>Close DNS bypass</value></data>

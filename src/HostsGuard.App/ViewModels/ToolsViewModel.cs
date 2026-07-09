@@ -142,7 +142,11 @@ public sealed partial class ToolsViewModel : ObservableObject
         }
 
         SelectedDnsCacheEntry = DnsCacheEntries.FirstOrDefault();
-        DnsCacheStatusText = list.Message;
+        var https = DnsCacheEntries.Count(e => e.Type.Equals("HTTPS", StringComparison.OrdinalIgnoreCase));
+        var svcb = DnsCacheEntries.Count(e => e.Type.Equals("SVCB", StringComparison.OrdinalIgnoreCase));
+        DnsCacheStatusText = https + svcb == 0
+            ? list.Message
+            : $"{list.Message}; HTTPS/SVCB: {https} HTTPS, {svcb} SVCB. Windows cache does not expose ECH SVCB parameters.";
     }
 
     [RelayCommand]
@@ -314,7 +318,10 @@ public sealed partial class ToolsViewModel : ObservableObject
             var records = result.Records.Count == 0
                 ? "no records"
                 : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
-            InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} — {records} ({result.LatencyMs} ms)";
+            var ech = string.IsNullOrWhiteSpace(result.EchSummary)
+                ? string.Empty
+                : $" | ECH: {result.EchSummary} {result.EchRemediation}";
+            InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} - {records} ({result.LatencyMs} ms){ech}";
         });
     }
 
@@ -480,6 +487,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _dohStatusText = string.Empty;
 
     [ObservableProperty]
+    private string _echPostureText = "Load encrypted DNS status to review HTTPS/SVCB and ECH visibility.";
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SeeEverythingActive))]
     private bool _dohBlockingActive;
 
@@ -522,9 +532,13 @@ public sealed partial class ToolsViewModel : ObservableObject
             CnameCloakActive = status.CnameCloak;
             SniCaptureActive = status.SniCapture;
             DnsEncryptedOnly = status.DnsEncryptedOnly;
+            var serviceBindings = $"{status.HttpsRecords} HTTPS / {status.SvcbRecords} SVCB cache rows";
             DohStatusText = status.Updated.Length != 0
-                ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}"
-                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet";
+                ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}; {serviceBindings}"
+                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet; {serviceBindings}";
+            EchPostureText = string.IsNullOrWhiteSpace(status.EchSummary)
+                ? "ECH posture unavailable."
+                : $"{status.EchSummary} {status.EchRemediation}";
         });
     }
 

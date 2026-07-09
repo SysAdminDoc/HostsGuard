@@ -979,10 +979,10 @@ static async Task<int> DnsCacheAsync(string[] args)
             }
 
             Console.WriteLine($"dns-cache: {list.Entries.Count} rows");
-            Console.WriteLine("name\ttype\tdata\tflags");
+            Console.WriteLine("name\ttype\trole\tdata\tflags");
             foreach (var e in list.Entries)
             {
-                Console.WriteLine($"{e.Name}\t{e.Type}\t{e.DataLength}\t0x{e.Flags:X8}");
+                Console.WriteLine($"{e.Name}\t{e.Type}\t{e.PrivacyRole}\t{e.DataLength}\t0x{e.Flags:X8}");
             }
 
             return 0;

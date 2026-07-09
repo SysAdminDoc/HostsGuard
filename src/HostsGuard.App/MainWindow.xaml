@@ -2408,7 +2408,8 @@
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Domain_to_inspect_ea69d8b4}"
                                                  ToolTip="{svc:Loc Key=Xaml_Domain_to_resolve_and_check_block_be2f0bc0}" />
                                     </DockPanel>
-                                    <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0" />
+                                    <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0"
+                                               TextWrapping="Wrap" />
 
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0">
                                         <Grid>
@@ -2469,10 +2470,11 @@
                                                       MaxHeight="178"
                                                       AutomationProperties.Name="{svc:Loc Key=DnsCache_TableName}">
                                                 <DataGrid.Columns>
-                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnName}" Binding="{Binding Name}" Width="*" />
-                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnType}" Binding="{Binding Type}" Width="78" />
-                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnDataLength}" Binding="{Binding DataLengthText}" Width="96" />
-                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnFlags}" Binding="{Binding FlagsText}" Width="104" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnName}" Binding="{Binding Name}" Width="1.3*" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnType}" Binding="{Binding Type}" Width="72" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnPrivacyRole}" Binding="{Binding PrivacyRole}" Width="1.2*" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnDataLength}" Binding="{Binding DataLengthText}" Width="82" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=DnsCache_ColumnFlags}" Binding="{Binding FlagsText}" Width="92" />
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                             <TextBlock Grid.Row="3"
@@ -2602,9 +2604,17 @@
                                                    Text="{svc:Loc Key=Xaml_Names_HTTPS_dials_the_OS_resolver_79149379}" />
                                     </DockPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
-                                        <TextBlock Text="{Binding DohStatusText}"
-                                                   Style="{StaticResource Hg.SubText}"
-                                                   AutomationProperties.LiveSetting="Polite" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DohStatusText}"
+                                                       Style="{StaticResource Hg.SubText}"
+                                                       TextWrapping="Wrap"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                            <TextBlock Text="{Binding EchPostureText}"
+                                                       Style="{StaticResource Hg.DimText}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,4,0,0"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </Border>

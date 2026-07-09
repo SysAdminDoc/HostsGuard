@@ -76,12 +76,15 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         {
             foreach (var row in dns.GetCacheEntries(limit, search))
             {
+                var serviceBinding = IsServiceBindingType(row.Type);
                 result.Entries.Add(new DnsCacheEntry
                 {
                     Name = row.Name,
                     Type = row.Type,
                     DataLength = row.DataLength,
                     Flags = row.Flags,
+                    ServiceBinding = serviceBinding,
+                    PrivacyRole = serviceBinding ? DnsCachePrivacyRole(row) : string.Empty,
                 });
             }
 
@@ -157,6 +160,21 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             result.LatencyMs = (int)sw.ElapsedMilliseconds;
         }
 
+        var serviceBindings = ServiceBindingCacheRows(MaxDnsCacheLimit, d);
+        foreach (var row in serviceBindings)
+        {
+            result.Records.Add(new DnsRecord
+            {
+                Type = row.Type,
+                Name = row.Name,
+                Value = DnsCachePrivacyRole(row),
+            });
+        }
+
+        var counts = CountServiceBindings(serviceBindings);
+        result.HttpsRecords = counts.HttpsRecords;
+        result.SvcbRecords = counts.SvcbRecords;
+        ApplyPosture(result, BuildPosture(counts));
         return result;
     }
 
@@ -165,6 +183,8 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         var state = _state.Doh.Load();
         var extras = Core.DohResolvers.NormalizeIpSet(state.Ips);
         extras.ExceptWith(Core.DohResolvers.NormalizeIpSet(Core.DohResolvers.BuiltIn));
+        var counts = CountServiceBindings(ServiceBindingCacheRows(MaxDnsCacheLimit, null));
+        var posture = BuildPosture(counts);
         return Task.FromResult(new DohStatus
         {
             ResolverIps = _state.Doh.CurrentIps().Count,
@@ -177,6 +197,14 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             CnameCloak = _state.CnameCloak.Enabled,
             SniCapture = _state.Sni?.Active ?? false,
             DnsEncryptedOnly = Windows.DnsConfig.IsEncryptedDnsOnly(),
+            HttpsRecords = counts.HttpsRecords,
+            SvcbRecords = counts.SvcbRecords,
+            EchUnavailableObservations = _state.EchUnavailableSniObservations,
+            EchState = posture.State,
+            EchSummary = posture.Summary,
+            EchRemediation = posture.Remediation,
+            ServiceBindingObserved = posture.ServiceBindingObserved,
+            EchUnobservable = posture.EchUnobservable,
         });
     }
 
@@ -304,6 +332,97 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
     private static bool IsDnsCacheApiException(Exception ex)
         => ex is EntryPointNotFoundException or DllNotFoundException or InvalidOperationException
             or UnauthorizedAccessException;
+
+    private IReadOnlyList<Windows.DnsCacheRecord> ServiceBindingCacheRows(int limit, string? search)
+    {
+        if (_state.Dns is not { } dns)
+        {
+            return Array.Empty<Windows.DnsCacheRecord>();
+        }
+
+        try
+        {
+            var rows = dns.GetCacheEntries(limit, search)
+                .Where(row => IsServiceBindingType(row.Type));
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var domain = search.Trim().TrimEnd('.').ToLowerInvariant();
+                rows = rows.Where(row => IsServiceBindingMatch(row.Name, domain));
+            }
+
+            return rows.ToList();
+        }
+        catch (Exception ex) when (IsDnsCacheApiException(ex))
+        {
+            return Array.Empty<Windows.DnsCacheRecord>();
+        }
+    }
+
+    private static bool IsServiceBindingType(string type)
+        => string.Equals(type, "HTTPS", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(type, "SVCB", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(type, "64", StringComparison.Ordinal) ||
+           string.Equals(type, "65", StringComparison.Ordinal);
+
+    private static bool IsServiceBindingMatch(string name, string domain)
+    {
+        var n = (name ?? string.Empty).Trim().TrimEnd('.').ToLowerInvariant();
+        return n.Equals(domain, StringComparison.Ordinal) ||
+               n.EndsWith("." + domain, StringComparison.Ordinal);
+    }
+
+    private static string DnsCachePrivacyRole(Windows.DnsCacheRecord row)
+    {
+        var type = row.Type.Equals("HTTPS", StringComparison.OrdinalIgnoreCase) || row.Type == "65"
+            ? "HTTPS"
+            : "SVCB";
+        return row.DataLength > 0
+            ? $"{type} service binding cached by Windows ({row.DataLength} bytes; SVCB params not exposed)"
+            : $"{type} service binding cached by Windows (SVCB params not exposed)";
+    }
+
+    private readonly record struct ServiceBindingCounts(int HttpsRecords, int SvcbRecords);
+
+    private static ServiceBindingCounts CountServiceBindings(IEnumerable<Windows.DnsCacheRecord> rows)
+    {
+        var https = 0;
+        var svcb = 0;
+        foreach (var row in rows)
+        {
+            if (row.Type.Equals("HTTPS", StringComparison.OrdinalIgnoreCase) || row.Type == "65")
+            {
+                https++;
+            }
+            else if (row.Type.Equals("SVCB", StringComparison.OrdinalIgnoreCase) || row.Type == "64")
+            {
+                svcb++;
+            }
+        }
+
+        return new ServiceBindingCounts(https, svcb);
+    }
+
+    private DnsPrivacyPostureResult BuildPosture(ServiceBindingCounts counts)
+    {
+        var dohBlockingActive = _state.Firewall?.RuleExists("HG_DoT_TCP") ?? false;
+        var quicBlocked = _state.Firewall?.RuleExists(FirewallControlServiceImpl.QuicRuleName) ?? false;
+        return DnsPrivacyPosture.Evaluate(new DnsPrivacySignals(
+            counts.HttpsRecords,
+            counts.SvcbRecords,
+            _state.Sni?.Active ?? false,
+            _state.EchUnavailableSniObservations,
+            Windows.DnsConfig.IsEncryptedDnsOnly(),
+            dohBlockingActive,
+            quicBlocked));
+    }
+
+    private static void ApplyPosture(DnsInspectResult result, DnsPrivacyPostureResult posture)
+    {
+        result.EchState = posture.State;
+        result.EchSummary = posture.Summary;
+        result.EchRemediation = posture.Remediation;
+        result.ServiceBindingObserved = posture.ServiceBindingObserved;
+    }
 
     /// <summary>Reverse-DNS an IP with a hard timeout; "" when it has no PTR name.</summary>
     private static async Task<string> ReverseLookupAsync(string ip, CancellationToken ct)

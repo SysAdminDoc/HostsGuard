@@ -192,6 +192,10 @@ public sealed class ServiceState : IDisposable
     /// <summary>Per-app VPN adapter bindings (NET-157); wired by the host, opt-in.</summary>
     public AppVpnBindingCoordinator? AppVpnBindings { get; set; }
 
+    private int _echUnavailableSniObservations;
+
+    public int EchUnavailableSniObservations => Volatile.Read(ref _echUnavailableSniObservations);
+
     /// <summary>
     /// Record a TLS SNI observation (NET-109): persist the IP→host mapping (source
     /// "sni") and seed the live cache so the connection feed names an HTTPS dial
@@ -201,7 +205,13 @@ public sealed class ServiceState : IDisposable
     public void RecordSni(Windows.SniObservation obs)
     {
         ArgumentNullException.ThrowIfNull(obs);
-        if (obs.EchUnavailable || string.IsNullOrEmpty(obs.Host) || string.IsNullOrEmpty(obs.RemoteAddress))
+        if (obs.EchUnavailable)
+        {
+            Interlocked.Increment(ref _echUnavailableSniObservations);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(obs.Host) || string.IsNullOrEmpty(obs.RemoteAddress))
         {
             return;
         }
