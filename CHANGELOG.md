@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.54] - 2026-07-09
+
+### Added
+- Added versioned visual-smoke metadata for the tracked README screenshots,
+  including app/service binary versions, dimensions, and SHA-256 hashes.
+
+### Changed
+- Visual smoke now refreshes the dark/light README screenshots after a
+  successful offscreen WPF run, and the release version gate fails stale
+  screenshot manifests, missing README references, or changed screenshot files.
+
 ## [0.12.53] - 2026-07-09
 
 ### Added

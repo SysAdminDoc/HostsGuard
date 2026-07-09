@@ -37,6 +37,110 @@ function Get-Sha256([string]$Path) {
     }
 }
 
+function Join-RepoPath([string]$Path) {
+    Join-Path $repo ($Path -replace '/', '\')
+}
+
+function Get-PngSize([string]$Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if (($bytes.Length -lt 24) -or
+        ($bytes[0] -ne 0x89) -or
+        ($bytes[1] -ne 0x50) -or
+        ($bytes[2] -ne 0x4E) -or
+        ($bytes[3] -ne 0x47)) {
+        Add-Error "screenshot is not a PNG: $Path"
+        return [pscustomobject]@{ width = 0; height = 0 }
+    }
+
+    [pscustomobject]@{
+        width = (([int]$bytes[16] -shl 24) -bor ([int]$bytes[17] -shl 16) -bor ([int]$bytes[18] -shl 8) -bor [int]$bytes[19])
+        height = (([int]$bytes[20] -shl 24) -bor ([int]$bytes[21] -shl 16) -bor ([int]$bytes[22] -shl 8) -bor [int]$bytes[23])
+    }
+}
+
+function Version-Matches([string]$Actual, [string]$Expected) {
+    -not [string]::IsNullOrWhiteSpace($Actual) -and (
+        $Actual -eq $Expected -or
+        $Actual -eq "$Expected.0" -or
+        $Actual.StartsWith("$Expected+", [StringComparison]::OrdinalIgnoreCase) -or
+        $Actual.StartsWith("$Expected.", [StringComparison]::OrdinalIgnoreCase))
+}
+
+function Test-ScreenshotManifest([string]$Version) {
+    $manifestRel = 'docs/img/visual-smoke-manifest.json'
+    $manifestPath = Join-RepoPath $manifestRel
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        Add-Error "visual smoke screenshot manifest missing: $manifestRel"
+        return
+    }
+
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ($manifest.schemaVersion -ne 1) {
+        Add-Error "visual smoke manifest schemaVersion must be 1"
+    }
+
+    if ($manifest.version -ne $Version) {
+        Add-Error "visual smoke manifest version '$($manifest.version)' does not match $Version"
+    }
+
+    foreach ($binaryName in @('app', 'service')) {
+        $binary = $manifest.$binaryName
+        if ($null -eq $binary) {
+            Add-Error "visual smoke manifest missing $binaryName binary version"
+            continue
+        }
+
+        if (-not (Version-Matches ([string]$binary.fileVersion) $Version)) {
+            Add-Error "visual smoke $binaryName fileVersion '$($binary.fileVersion)' does not match $Version"
+        }
+    }
+
+    $readme = Read-Text 'README.md'
+    $expectedThemes = @('dark', 'light')
+    $screenshots = @($manifest.readmeScreenshots)
+    foreach ($theme in $expectedThemes) {
+        $shot = $screenshots | Where-Object { $_.theme -eq $theme } | Select-Object -First 1
+        if ($null -eq $shot) {
+            Add-Error "visual smoke manifest missing $theme README screenshot"
+            continue
+        }
+
+        $path = [string]$shot.path
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            Add-Error "visual smoke $theme screenshot path is empty"
+            continue
+        }
+
+        $fullPath = Join-RepoPath $path
+        if (-not (Test-Path -LiteralPath $fullPath)) {
+            Add-Error "visual smoke $theme screenshot file missing: $path"
+            continue
+        }
+
+        if (-not $readme.Contains($path)) {
+            Add-Error "README does not reference visual smoke $theme screenshot $path"
+        }
+
+        $hash = Get-Sha256 $fullPath
+        if ($hash -ne $shot.sha256) {
+            Add-Error "visual smoke $theme screenshot SHA256 changed without manifest update"
+        }
+
+        $size = Get-PngSize $fullPath
+        if ($size.width -ne $shot.width -or $size.height -ne $shot.height) {
+            Add-Error "visual smoke $theme screenshot dimensions changed without manifest update"
+        }
+
+        if ($size.width -ne 1600 -or $size.height -ne 1000) {
+            Add-Error "visual smoke $theme screenshot is $($size.width)x$($size.height); expected 1600x1000"
+        }
+
+        if ((Get-Item -LiteralPath $fullPath).Length -lt 50000) {
+            Add-Error "visual smoke $theme screenshot is unexpectedly small: $path"
+        }
+    }
+}
+
 [xml]$props = Read-Text 'Directory.Build.props'
 $version = $props.Project.PropertyGroup.Version | Select-Object -First 1
 if ([string]::IsNullOrWhiteSpace($version)) {
@@ -55,6 +159,7 @@ Require-Contains 'README.md' "version-$version-blue" 'README badge'
 Require-Contains 'README.md' "HostsGuard-v$version-win-x64-dotnet-Setup.exe" 'README x64 artifact'
 Require-Contains 'README.md' "HostsGuard-v$version-win-arm64-dotnet-Setup.exe" 'README arm64 artifact'
 Require-Contains 'CHANGELOG.md' "## [$version] -" 'CHANGELOG heading'
+Test-ScreenshotManifest $version
 
 foreach ($manifest in @(
     'winget/SysAdminDoc.HostsGuard.yaml',

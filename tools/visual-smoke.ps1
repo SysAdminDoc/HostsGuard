@@ -2,6 +2,7 @@
 param(
     [string]$AppPath = "",
     [string]$OutputDir = "",
+    [string]$ReadmeImageDir = "",
     [int]$Width = 1600,
     [int]$Height = 1000,
     [int]$SettleMs = 1200,
@@ -14,6 +15,10 @@ $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $repoRoot "artifacts\visual-smoke"
+}
+
+if ([string]::IsNullOrWhiteSpace($ReadmeImageDir)) {
+    $ReadmeImageDir = Join-Path $repoRoot "docs\img"
 }
 
 if ([string]::IsNullOrWhiteSpace($AppPath)) {
@@ -33,6 +38,85 @@ if (-not (Test-Path -LiteralPath $AppPath)) {
 }
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+
+function Get-ProjectVersion {
+    [xml]$props = Get-Content -LiteralPath (Join-Path $repoRoot "Directory.Build.props") -Raw
+    $version = $props.Project.PropertyGroup.Version | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($version)) {
+        throw "Directory.Build.props does not define <Version>."
+    }
+
+    return [string]$version
+}
+
+function Get-RelativeRepoPath([string]$Path) {
+    $resolved = (Resolve-Path -LiteralPath $Path).Path
+    $root = $repoRoot.TrimEnd('\') + '\'
+    if ($resolved.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)) {
+        return ($resolved.Substring($root.Length) -replace '\\', '/')
+    }
+
+    return $resolved
+}
+
+function Get-Sha256([string]$Path) {
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            return -join ($sha.ComputeHash($stream) | ForEach-Object { $_.ToString('X2') })
+        }
+        finally {
+            $sha.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-PngSize([string]$Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if (($bytes.Length -lt 24) -or
+        ($bytes[0] -ne 0x89) -or
+        ($bytes[1] -ne 0x50) -or
+        ($bytes[2] -ne 0x4E) -or
+        ($bytes[3] -ne 0x47)) {
+        throw "Screenshot is not a PNG: $Path"
+    }
+
+    return [pscustomobject]@{
+        width = (([int]$bytes[16] -shl 24) -bor ([int]$bytes[17] -shl 16) -bor ([int]$bytes[18] -shl 8) -bor [int]$bytes[19])
+        height = (([int]$bytes[20] -shl 24) -bor ([int]$bytes[21] -shl 16) -bor ([int]$bytes[22] -shl 8) -bor [int]$bytes[23])
+    }
+}
+
+function Get-BinaryVersion([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path -LiteralPath $Path).Path)
+    return [ordered]@{
+        path = Get-RelativeRepoPath $Path
+        fileVersion = $info.FileVersion
+        productVersion = $info.ProductVersion
+    }
+}
+
+function Find-ServicePath([string]$ResolvedAppPath) {
+    $appDir = Split-Path -Parent $ResolvedAppPath
+    $appParent = Split-Path -Parent $appDir
+    $candidates = @(
+        (Join-Path $appParent "service\HostsGuard.Service.exe"),
+        (Join-Path $repoRoot "src\HostsGuard.Service\bin\Debug\net10.0-windows\HostsGuard.Service.exe"),
+        (Join-Path $repoRoot "src\HostsGuard.Service\bin\Release\net10.0-windows\HostsGuard.Service.exe"),
+        (Join-Path $repoRoot "dist\dotnet\win-x64\service\HostsGuard.Service.exe"),
+        (Join-Path $repoRoot "dist\dotnet\win-arm64\service\HostsGuard.Service.exe")
+    )
+
+    return $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+}
 
 function Invoke-SmokeTheme {
     param([ValidateSet("dark", "light")] [string]$Theme)
@@ -72,10 +156,17 @@ function Invoke-SmokeTheme {
     return $run
 }
 
+$productVersion = Get-ProjectVersion
+$resolvedAppPath = (Resolve-Path -LiteralPath $AppPath).Path
+$servicePath = Find-ServicePath $resolvedAppPath
+
 $summary = [ordered]@{
-    appPath = (Resolve-Path -LiteralPath $AppPath).Path
+    productVersion = $productVersion
+    generatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
+    appPath = $resolvedAppPath
     outputDir = (Resolve-Path -LiteralPath $OutputDir).Path
     expectedSize = "${Width}x${Height}"
+    readmeImageDir = $ReadmeImageDir
     runs = @()
 }
 
@@ -92,4 +183,44 @@ if ($failures.Count -gt 0) {
     throw $message
 }
 
+New-Item -ItemType Directory -Force -Path $ReadmeImageDir | Out-Null
+$readmeScreenshots = @()
+foreach ($theme in @("dark", "light")) {
+    $run = $summary.runs | Where-Object { $_.theme -eq $theme } | Select-Object -First 1
+    $capture = @($run.captures | Where-Object { $_.tab -eq "Hosts Activity" }) | Select-Object -First 1
+    if ($null -eq $capture) {
+        throw "Visual smoke did not capture the Hosts Activity README screenshot for $theme theme."
+    }
+
+    $targetPath = Join-Path $ReadmeImageDir "hosts-activity-$theme.png"
+    Copy-Item -LiteralPath $capture.path -Destination $targetPath -Force
+    $size = Get-PngSize $targetPath
+    $file = Get-Item -LiteralPath $targetPath
+    $readmeScreenshots += [ordered]@{
+        theme = $theme
+        tab = "Hosts Activity"
+        path = Get-RelativeRepoPath $targetPath
+        sha256 = Get-Sha256 $targetPath
+        bytes = $file.Length
+        width = $size.width
+        height = $size.height
+    }
+}
+
+$manifest = [ordered]@{
+    schemaVersion = 1
+    product = "HostsGuard"
+    version = $productVersion
+    generatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
+    expectedSize = "${Width}x${Height}"
+    app = Get-BinaryVersion $resolvedAppPath
+    service = if ($null -ne $servicePath) { Get-BinaryVersion $servicePath } else { $null }
+    sourceSummary = Get-RelativeRepoPath $summaryPath
+    readmeScreenshots = $readmeScreenshots
+}
+
+$manifestPath = Join-Path $ReadmeImageDir "visual-smoke-manifest.json"
+$manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+
 "Visual smoke passed. Evidence: $summaryPath"
+"README screenshots refreshed. Manifest: $manifestPath"
