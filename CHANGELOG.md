@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.46] - 2026-07-09
+
+### Added
+- Added installer safe-posture recovery and `HostsGuard.Cli safe-posture-smoke`
+  verification so fresh installs/upgrades restore Normal/Allow posture, disarm
+  DNS-bypass, flow-teardown, and kill-switch controls, and leave hosts-file
+  blocks unchanged.
+
+### Fixed
+- Fixed safe-posture recovery order so disabling an engaged VPN kill-switch
+  cannot restore a prior block-all posture after recovery already set outbound
+  Allow.
+
 ## [0.12.45] - 2026-07-09
 
 ### Added

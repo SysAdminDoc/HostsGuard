@@ -415,6 +415,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             await Apply("filtering mode", () => _client.Consent.SetModeAsync(
                 new FilteringMode { Mode = "normal" }).ResponseAsync);
+            try
+            {
+                var killSwitch = await _client.Firewall.GetKillSwitchAsync(new Empty());
+                await Apply("VPN kill-switch", () => _client.Firewall.SetKillSwitchAsync(
+                    new KillSwitchRequest { Enabled = false, Adapter = killSwitch.Adapter }).ResponseAsync);
+            }
+            catch (RpcException ex)
+            {
+                messages.Add($"VPN kill-switch: failed ({ex.Status.Detail})");
+                failures++;
+            }
+
             await Apply("global outbound", () => _client.Firewall.SetGlobalModeAsync(
                 new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
             await Apply("default outbound", () => _client.Firewall.SetDefaultOutboundAsync(
@@ -427,18 +439,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 new CnameCloakRequest { Enabled = false }).ResponseAsync);
             await Apply("TCP flow teardown", () => _client.Firewall.SetFlowTeardownAsync(
                 new FlowTeardownRequest { Enabled = false }).ResponseAsync);
-
-            try
-            {
-                var killSwitch = await _client.Firewall.GetKillSwitchAsync(new Empty());
-                await Apply("VPN kill-switch", () => _client.Firewall.SetKillSwitchAsync(
-                    new KillSwitchRequest { Enabled = false, Adapter = killSwitch.Adapter }).ResponseAsync);
-            }
-            catch (RpcException ex)
-            {
-                messages.Add($"VPN kill-switch: failed ({ex.Status.Detail})");
-                failures++;
-            }
 
             await LoadFilteringModeAsync();
             await LoadEnforcementPauseAsync();

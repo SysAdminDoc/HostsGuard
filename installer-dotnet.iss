@@ -19,8 +19,8 @@
 #endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.45"
-#define MyAppVersionInfo "0.12.45.0"
+#define MyAppVersion "0.12.46"
+#define MyAppVersionInfo "0.12.46.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
@@ -74,6 +74,12 @@ Filename: "{sys}\sc.exe"; Parameters: "create {#MyServiceName} binPath= ""{app}\
 Filename: "{sys}\sc.exe"; Parameters: "description {#MyServiceName} ""HostsGuard elevated engine: hosts file, firewall rules, DNS/connection monitors, consent prompts."""; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "failure {#MyServiceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000"; Flags: runhidden
 Filename: "{sys}\sc.exe"; Parameters: "start {#MyServiceName}"; Flags: runhidden
+; Fresh installs and upgrades must never leave broad network-blocking posture on
+; by default. This restores Normal/Allow posture, disarms DNS-bypass blocks,
+; flow teardown, and kill-switch, and intentionally leaves hosts-file blocks
+; unchanged.
+Filename: "{app}\cli\HostsGuard.Cli.exe"; Parameters: "safe-posture"; StatusMsg: "Restoring safe network posture..."; Flags: runhidden
+Filename: "{app}\cli\HostsGuard.Cli.exe"; Parameters: "safe-posture-smoke"; StatusMsg: "Verifying safe network posture..."; Flags: runhidden
 Filename: "{app}\HostsGuard.App.exe"; Description: "Launch HostsGuard"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

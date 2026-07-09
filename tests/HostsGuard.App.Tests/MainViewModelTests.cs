@@ -3,6 +3,7 @@ using System.Runtime.Versioning;
 using FluentAssertions;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Ipc;
 using HostsGuard.Service;
@@ -24,6 +25,9 @@ public sealed class MainViewModelTests : IAsyncLifetime
     private string _dir = null!;
     private WebApplication _app = null!;
     private ServiceState _state = null!;
+    private ShellFirewallEngine _fw = null!;
+    private ShellFlowTerminator _flows = null!;
+    private KillSwitchMonitor _killSwitch = null!;
     private HostsServiceClient _client = null!;
     private AppConfigStore _config = null!;
     private string _token = null!;
@@ -36,7 +40,18 @@ public sealed class MainViewModelTests : IAsyncLifetime
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n");
 
-        _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "db.sqlite")));
+        _fw = new ShellFirewallEngine();
+        _flows = new ShellFlowTerminator();
+        _state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(_dir, "db.sqlite")),
+            _fw,
+            new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
+            dataDir: _dir,
+            flowTerminator: _flows,
+            connectionSnapshot: () => Array.Empty<ConnectionInfo>());
+        _killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => false, _dir);
+        _state.KillSwitch = _killSwitch;
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.MainVmTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -50,6 +65,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         _client.Dispose();
         await _app.DisposeAsync();
+        _killSwitch.Dispose();
         _state.Dispose();
         SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
@@ -95,6 +111,48 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await vm.RestoreSafeNetworkPostureCommand.ExecuteAsync(null);
 
         vm.ConnectionText.Should().Be("Safe posture unavailable - service is not connected");
+    }
+
+    [Fact]
+    public async Task Safe_posture_command_restores_nonblocking_posture_without_touching_hosts_blocks()
+    {
+        await _client.Hosts.BlockAsync(new Contracts.DomainRequest { Domain = "ads.example.com", Source = "manual" });
+        await _client.Consent.SetModeAsync(new Contracts.FilteringMode { Mode = "notify" });
+        await _client.Firewall.SetGlobalModeAsync(new Contracts.GlobalModeRequest { Mode = "block-all" });
+        await _client.Firewall.BlockEncryptedDnsAsync(new Contracts.DohBlockRequest());
+        await _client.Firewall.BlockQuicAsync(new Contracts.Empty());
+        await _client.Dns.SetCnameCloakAsync(new Contracts.CnameCloakRequest { Enabled = true });
+        await _client.Firewall.SetFlowTeardownAsync(new Contracts.FlowTeardownRequest { Enabled = true });
+        await _client.Firewall.SetKillSwitchAsync(new Contracts.KillSwitchRequest
+        {
+            Enabled = true,
+            Adapter = "Test VPN",
+        });
+        _fw.OutboundBlock.Should().BeTrue();
+
+        using var vm = CreateShell();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await vm.RestoreSafeNetworkPostureCommand.ExecuteAsync(null);
+
+        var mode = await _client.Consent.GetModeAsync(new Contracts.Empty());
+        var posture = await _client.Firewall.GetPostureAsync(new Contracts.Empty());
+        var doh = await _client.Dns.GetDohStatusAsync(new Contracts.Empty());
+        var flow = await _client.Firewall.GetFlowTeardownAsync(new Contracts.Empty());
+        var killSwitch = await _client.Firewall.GetKillSwitchAsync(new Contracts.Empty());
+        var status = await _client.Diagnostics.GetStatusAsync(new Contracts.Empty());
+
+        mode.Mode.Should().Be("normal");
+        posture.Lockdown.Should().BeFalse();
+        posture.Profiles.Should().OnlyContain(p => !p.OutboundBlock);
+        doh.BlockingActive.Should().BeFalse();
+        doh.QuicBlocked.Should().BeFalse();
+        doh.CnameCloak.Should().BeFalse();
+        flow.Enabled.Should().BeFalse();
+        killSwitch.Enabled.Should().BeFalse();
+        killSwitch.Engaged.Should().BeFalse();
+        status.HostsBlocked.Should().Be(1);
+        vm.ConnectionText.Should().StartWith("Safe network posture restored - hosts-file blocks left unchanged.");
     }
 
     [Fact]
@@ -229,5 +287,101 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         vm.FwActivity.Should().NotBeNull();
         vm.FwActivity!.Rows.Should().Contain(r => r.RemoteAddr == remoteAddr && r.RemotePort == remotePort);
+    }
+
+    private sealed class ShellFirewallEngine : IFirewallEngine
+    {
+        private bool _outboundBlock;
+
+        public Dictionary<string, FwRule> Rules { get; } = new(StringComparer.Ordinal);
+
+        public bool OutboundBlock
+        {
+            get => _outboundBlock;
+            private set
+            {
+                _outboundBlock = value;
+                PerProfileBlock = new Dictionary<string, bool>(StringComparer.Ordinal)
+                {
+                    ["Domain"] = value,
+                    ["Private"] = value,
+                    ["Public"] = value,
+                };
+            }
+        }
+
+        public Dictionary<string, bool> PerProfileBlock { get; private set; } = new(StringComparer.Ordinal)
+        {
+            ["Domain"] = false,
+            ["Private"] = false,
+            ["Public"] = false,
+        };
+
+        public IReadOnlyList<FwRule> ListRules() => Rules.Values.ToList();
+
+        public bool CreateRule(FwRule rule)
+        {
+            if (Rules.ContainsKey(rule.Name))
+            {
+                return false;
+            }
+
+            Rules[rule.Name] = rule;
+            return true;
+        }
+
+        public bool DeleteRule(string name) => Rules.Remove(name);
+
+        public bool SetRuleEnabled(string name, bool enabled)
+        {
+            if (!Rules.TryGetValue(name, out var rule))
+            {
+                return false;
+            }
+
+            Rules[name] = rule with { Enabled = enabled };
+            return true;
+        }
+
+        public bool RuleExists(string name) => Rules.ContainsKey(name);
+
+        public IReadOnlyList<FwProfilePosture> GetPosture() =>
+            PerProfileBlock.Select(kv => new FwProfilePosture(kv.Key, true, kv.Value)).ToList();
+
+        public void SetDefaultOutboundBlock(bool block) => OutboundBlock = block;
+
+        public void SetDefaultOutboundBlock(IReadOnlyDictionary<string, bool> perProfile)
+        {
+            PerProfileBlock = new Dictionary<string, bool>(perProfile, StringComparer.Ordinal);
+            _outboundBlock = PerProfileBlock.Values.All(v => v);
+        }
+
+        public bool SetRuleProgram(string name, string programPath)
+        {
+            if (!Rules.TryGetValue(name, out var rule))
+            {
+                return false;
+            }
+
+            Rules[name] = rule with { Program = programPath };
+            return true;
+        }
+
+        public bool SetRuleRemoteAddresses(string name, string remoteAddresses)
+        {
+            if (!Rules.TryGetValue(name, out var rule))
+            {
+                return false;
+            }
+
+            Rules[name] = rule with { RemoteAddr = remoteAddresses };
+            return true;
+        }
+    }
+
+    private sealed class ShellFlowTerminator : IFlowTerminator
+    {
+        public FlowTerminationResult CloseTcp4(FlowTuple flow) =>
+            new(true, "closed IPv4 TCP flow");
     }
 }

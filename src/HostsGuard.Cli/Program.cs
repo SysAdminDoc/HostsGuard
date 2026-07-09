@@ -34,6 +34,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "blocklists" => await BlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "safe-posture" => await SafePostureAsync(),
+    "safe-posture-smoke" => await SafePostureSmokeAsync(),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
     "--version" or "version" => Version(),
@@ -77,6 +78,7 @@ static int Usage()
           HostsGuard.Cli blocklists disable|enable|remove <name>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli safe-posture
+          HostsGuard.Cli safe-posture-smoke
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
 
@@ -1055,13 +1057,6 @@ static async Task<int> SafePostureAsync()
         var dns = new DnsControl.DnsControlClient(channel);
 
         await Apply("filtering mode", () => consent.SetModeAsync(new FilteringMode { Mode = "normal" }).ResponseAsync);
-        await Apply("global outbound", () => fw.SetGlobalModeAsync(new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
-        await Apply("default outbound", () => fw.SetDefaultOutboundAsync(new OutboundRequest { Block = false }).ResponseAsync);
-        await Apply("encrypted DNS firewall blocks", () => fw.UnblockEncryptedDnsAsync(new Empty()).ResponseAsync);
-        await Apply("QUIC firewall block", () => fw.UnblockQuicAsync(new Empty()).ResponseAsync);
-        await Apply("CNAME-cloak reactive blocking", () => dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = false }).ResponseAsync);
-        await Apply("TCP flow teardown", () => fw.SetFlowTeardownAsync(new FlowTeardownRequest { Enabled = false }).ResponseAsync);
-
         try
         {
             var status = await fw.GetKillSwitchAsync(new Empty());
@@ -1076,6 +1071,13 @@ static async Task<int> SafePostureAsync()
             Console.WriteLine($"VPN kill-switch: failed ({ex.Status.Detail})");
             failures++;
         }
+
+        await Apply("global outbound", () => fw.SetGlobalModeAsync(new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
+        await Apply("default outbound", () => fw.SetDefaultOutboundAsync(new OutboundRequest { Block = false }).ResponseAsync);
+        await Apply("encrypted DNS firewall blocks", () => fw.UnblockEncryptedDnsAsync(new Empty()).ResponseAsync);
+        await Apply("QUIC firewall block", () => fw.UnblockQuicAsync(new Empty()).ResponseAsync);
+        await Apply("CNAME-cloak reactive blocking", () => dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = false }).ResponseAsync);
+        await Apply("TCP flow teardown", () => fw.SetFlowTeardownAsync(new FlowTeardownRequest { Enabled = false }).ResponseAsync);
 
         Console.WriteLine("hosts-file blocks: left unchanged");
         return failures == 0 ? 0 : 2;
@@ -1096,6 +1098,76 @@ static async Task<int> SafePostureAsync()
                 Console.WriteLine($"{label}: failed ({ex.Status.Detail})");
                 failures++;
             }
+        }
+    }
+}
+
+static async Task<int> SafePostureSmokeAsync()
+{
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var failures = new List<string>();
+            var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+            var consent = new Consent.ConsentClient(channel);
+            var fw = new FirewallControl.FirewallControlClient(channel);
+            var dns = new DnsControl.DnsControlClient(channel);
+
+            var status = await diagnostics.GetStatusAsync(new Empty());
+            var mode = await consent.GetModeAsync(new Empty());
+            var posture = await fw.GetPostureAsync(new Empty());
+            var doh = await dns.GetDohStatusAsync(new Empty());
+            var teardown = await fw.GetFlowTeardownAsync(new Empty());
+            var killSwitch = await fw.GetKillSwitchAsync(new Empty());
+
+            Console.WriteLine("HostsGuard safe-posture-smoke");
+            Console.WriteLine($"  hosts-file blocks: {status.HostsBlocked} (unchanged by this check)");
+            Check(mode.Mode == "normal", $"filtering mode: {mode.Mode}", "filtering mode is not normal");
+            Check(!mode.DetectionArmed, "detection: disarmed", "detection is armed");
+            Check(
+                posture.Available && posture.Profiles.Count != 0 && !posture.Lockdown && posture.Profiles.All(p => !p.OutboundBlock),
+                "default outbound: Allow on all profiles",
+                "default outbound is not Allow on every profile");
+            Check(!doh.BlockingActive, "encrypted DNS blocks: off", "encrypted DNS blocks are active");
+            Check(!doh.QuicBlocked, "QUIC block: off", "QUIC block is active");
+            Check(!doh.CnameCloak, "CNAME-cloak blocking: off", "CNAME-cloak blocking is active");
+            Check(!teardown.Enabled, "TCP flow teardown: off", "TCP flow teardown is enabled");
+            Check(!killSwitch.Enabled && !killSwitch.Engaged, "VPN kill-switch: off", "VPN kill-switch is enabled or engaged");
+
+            if (failures.Count == 0)
+            {
+                Console.WriteLine("OK: safe network posture is installed");
+                return 0;
+            }
+
+            foreach (var failure in failures)
+            {
+                Console.WriteLine($"FAIL: {failure}");
+            }
+
+            return 2;
+
+            void Check(bool ok, string pass, string fail)
+            {
+                Console.WriteLine($"{(ok ? "OK" : "FAIL")}: {(ok ? pass : fail)}");
+                if (!ok)
+                {
+                    failures.Add(fail);
+                }
+            }
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            PrintServiceUnavailable(ex.Status.Detail);
+            return 3;
         }
     }
 }
