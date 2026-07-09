@@ -259,6 +259,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
     // Inline custom-rule form.
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(CreateRuleCommand))]
+    [NotifyPropertyChangedFor(nameof(CreateRuleHelpText))]
     private string _newRuleName = string.Empty;
 
     [ObservableProperty]
@@ -274,10 +275,20 @@ public sealed partial class FwRulesViewModel : ObservableObject
     private string _newRuleRemoteAddr = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateRuleCommand))]
+    [NotifyPropertyChangedFor(nameof(CreateRuleHelpText))]
     private string _newRuleProgram = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateRuleCommand))]
+    [NotifyPropertyChangedFor(nameof(CreateRuleHelpText))]
     private string _newRulePackageFamily = string.Empty;
+
+    public string CreateRuleHelpText => string.IsNullOrWhiteSpace(NewRuleName)
+        ? I18n.T("FwRules_CreateNeedsName", "Enter a name to create this rule.")
+        : HasConflictingTarget
+            ? I18n.T("FwRules_CreateChooseOneTarget", "Choose either a package or a program path, not both.")
+            : I18n.T("FwRules_CreateReady", "Ready to create this HostsGuard-managed rule.");
 
     public FwRulesViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null, IPrompt? prompt = null)
     {
@@ -590,13 +601,6 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand]
     public async Task AdoptRulesAsync()
     {
-        if (!_confirm.Confirm("Import existing firewall rules",
-            "Read the machine's current Windows Firewall rules into HostsGuard's view? " +
-            "This is read-only — nothing on the live firewall is changed. Adopted rules are marked ★."))
-        {
-            return;
-        }
-
         await RunServiceActionAsync("Import existing firewall rules", async () =>
         {
             var result = await _client.Firewall.AdoptFirewallRulesAsync(new Empty());
@@ -616,7 +620,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
         {
             if (!string.IsNullOrWhiteSpace(NewRuleProgram) && !string.IsNullOrWhiteSpace(NewRulePackageFamily))
             {
-                StatusText = "Choose either a program path or a package, not both";
+                StatusText = I18n.T(
+                    "FwRules_CreateChooseOneTarget",
+                    "Choose either a package or a program path, not both.");
                 return;
             }
 
@@ -643,7 +649,12 @@ public sealed partial class FwRulesViewModel : ObservableObject
         });
     }
 
-    private bool CanCreateRule() => !string.IsNullOrWhiteSpace(NewRuleName);
+    private bool HasConflictingTarget =>
+        !string.IsNullOrWhiteSpace(NewRuleProgram)
+        && !string.IsNullOrWhiteSpace(NewRulePackageFamily);
+
+    private bool CanCreateRule() =>
+        !string.IsNullOrWhiteSpace(NewRuleName) && !HasConflictingTarget;
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => StatusText = s, work);

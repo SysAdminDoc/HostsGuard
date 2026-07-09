@@ -46,6 +46,16 @@ public sealed class CommandStateTests
         vm.NewRuleName = "Block example";
 
         vm.CreateRuleCommand.CanExecute(null).Should().BeTrue();
+
+        vm.NewRuleProgram = @"C:\Apps\example.exe";
+        vm.NewRulePackageFamily = "Example.Package_123";
+
+        vm.CreateRuleCommand.CanExecute(null).Should().BeFalse();
+        vm.CreateRuleHelpText.Should().Contain("either");
+
+        vm.NewRulePackageFamily = string.Empty;
+
+        vm.CreateRuleCommand.CanExecute(null).Should().BeTrue();
     }
 
     [Fact]

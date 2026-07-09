@@ -47,6 +47,12 @@
   <data name="Xaml_Interface_Wfp" xml:space="preserve"><value>Interface</value></data>
   <data name="FwRules_NewRulePackage" xml:space="preserve"><value>New firewall rule package</value></data>
   <data name="FwRules_PackageTip" xml:space="preserve"><value>Optional MSIX package family name or package SID. Use either package or program, not both.</value></data>
+  <data name="FwRules_IncludeWindowsRules" xml:space="preserve"><value>Include Windows rules</value></data>
+  <data name="FwRules_IncludeWindowsRulesTip" xml:space="preserve"><value>Index current Windows Firewall rules in this view. Read-only; nothing on the live firewall changes.</value></data>
+  <data name="FwRules_HostsGuardOnlyTip" xml:space="preserve"><value>Show only rules created and managed by HostsGuard.</value></data>
+  <data name="FwRules_CreateNeedsName" xml:space="preserve"><value>Enter a name to create this rule.</value></data>
+  <data name="FwRules_CreateChooseOneTarget" xml:space="preserve"><value>Choose either a package or a program path, not both.</value></data>
+  <data name="FwRules_CreateReady" xml:space="preserve"><value>Ready to create this HostsGuard-managed rule.</value></data>
   <data name="Tab_HostsActivity" xml:space="preserve"><value>Hosts Activity</value></data>
   <data name="Tab_HostsFile" xml:space="preserve"><value>Hosts File</value></data>
   <data name="Tab_FirewallActivity" xml:space="preserve"><value>Firewall Activity</value></data>

@@ -1,38 +1,38 @@
 {
-    "schemaVersion":  1,
-    "product":  "HostsGuard",
-    "version":  "0.12.65",
-    "generatedAtUtc":  "2026-07-09T21:50:09.5055229+00:00",
-    "expectedSize":  "1600x1000",
-    "app":  {
-                "path":  "dist/dotnet/win-x64/app/HostsGuard.App.exe",
-                "fileVersion":  "0.12.65.0",
-                "productVersion":  "0.12.65+a53aed641642b1f2583231cc5b15066f65105827"
-            },
-    "service":  {
-                    "path":  "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
-                    "fileVersion":  "0.12.65.0",
-                    "productVersion":  "0.12.65+a53aed641642b1f2583231cc5b15066f65105827"
-                },
-    "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
-    "readmeScreenshots":  [
-                              {
-                                  "theme":  "dark",
-                                  "tab":  "Hosts Activity",
-                                  "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "EBAC73401E39F4DDA707E5AF2048C2C8269AC8DCA0B47B260FAA82A12C13A789",
-                                  "bytes":  206040,
-                                  "width":  1600,
-                                  "height":  1000
-                              },
-                              {
-                                  "theme":  "light",
-                                  "tab":  "Hosts Activity",
-                                  "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "556840F05029BAA6A461B85FC099B9C36C04DCD96FBA9B6FB4B10768EA986F21",
-                                  "bytes":  206314,
-                                  "width":  1600,
-                                  "height":  1000
-                              }
-                          ]
+  "schemaVersion": 1,
+  "product": "HostsGuard",
+  "version": "0.12.65",
+  "generatedAtUtc": "2026-07-09T23:23:28.8781956+00:00",
+  "expectedSize": "1600x1000",
+  "app": {
+    "path": "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
+    "fileVersion": "0.12.65.0",
+    "productVersion": "0.12.65+7bec0c4d8f14fd61939bdb4de6d57e94a03a2f81"
+  },
+  "service": {
+    "path": "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
+    "fileVersion": "0.12.65.0",
+    "productVersion": "0.12.65+7bec0c4d8f14fd61939bdb4de6d57e94a03a2f81"
+  },
+  "sourceSummary": "artifacts/visual-smoke-firewall-fix/visual-smoke-summary.json",
+  "readmeScreenshots": [
+    {
+      "theme": "dark",
+      "tab": "Hosts Activity",
+      "path": "docs/img/hosts-activity-dark.png",
+      "sha256": "C4B412708799E1446DF6DE76DDD528D06BDB8A363750CA3DB5AAE5819CEF6350",
+      "bytes": 208217,
+      "width": 1600,
+      "height": 1000
+    },
+    {
+      "theme": "light",
+      "tab": "Hosts Activity",
+      "path": "docs/img/hosts-activity-light.png",
+      "sha256": "C2DE5AE32A445E377ECEA21E73AEFEED2E437514FBBC75E9305F06CE175E35A4",
+      "bytes": 207891,
+      "width": 1600,
+      "height": 1000
+    }
+  ]
 }

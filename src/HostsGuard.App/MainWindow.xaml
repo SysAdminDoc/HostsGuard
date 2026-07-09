@@ -2266,11 +2266,12 @@
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Import_existing_rules_6cc9e389}"
+                            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_IncludeWindowsRules, Default=Include Windows rules}"
                                     Command="{Binding AdoptRulesCommand}" Margin="8,0,0,0"
-                                    ToolTip="{svc:Loc Key=Xaml_Read_the_machine_s_current_Windows_7e27ca24}" />
+                                    ToolTip="{svc:Loc Key=FwRules_IncludeWindowsRulesTip, Default=Index current Windows Firewall rules in this view. Read-only; nothing on the live firewall changes.}" />
                             <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_HostsGuard_rules_only_a5afd2dd}" Margin="8,0,0,0"
-                                      VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}" />
+                                      VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}"
+                                      ToolTip="{svc:Loc Key=FwRules_HostsGuardOnlyTip, Default=Show only rules created and managed by HostsGuard.}" />
                             <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Drift_only_d7e80af4}" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding DriftOnly}"
                                       ToolTip="{svc:Loc Key=Xaml_Show_only_firewall_rules_that_changed_7d356f72}" />
@@ -2282,9 +2283,16 @@
                         </DockPanel>
                         </Border>
 
-                        <DataGrid Grid.Row="1" ItemsSource="{Binding Rules}"
+                        <DataGrid x:Name="FwRulesGrid" Grid.Row="1" ItemsSource="{Binding Rules}"
                                   AutomationProperties.Name="{svc:Loc Key=Xaml_Firewall_rules_1e019fbf}"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                   IsVisibleChanged="OnGridVisible">
+                            <DataGrid.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                </Style>
+                            </DataGrid.Resources>
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="{svc:Loc Key=Xaml_Enable_disable_37f81b0c}"
@@ -2307,28 +2315,31 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="2*" />
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Dir_84c6b9ac}" Binding="{Binding Direction}" Width="50" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Action_97c89a4d}" Binding="{Binding Action}" Width="70" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Origin}" Width="90" IsReadOnly="True" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_TargetKind, Default=Kind}" Binding="{Binding TargetKind}" Width="82" IsReadOnly="True" />
-                                 <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_On_e0049a66}" Binding="{Binding Enabled}" Width="46" IsReadOnly="True" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" Width="*" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="60" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="86" IsReadOnly="True" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Target, Default=Target}" Binding="{Binding Target}" Width="2*" IsReadOnly="True" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Interfaces, Default=Interfaces}" Binding="{Binding Interfaces}" Width="120" />
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="110" />
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="82">
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="1.5*" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Dir_84c6b9ac}" Binding="{Binding Direction}" Width="42" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Action_97c89a4d}" Binding="{Binding Action}" Width="58" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Origin}" Width="68" IsReadOnly="True" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_TargetKind, Default=Kind}" Binding="{Binding TargetKind}" Width="64" IsReadOnly="True" />
+                                 <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_On_e0049a66}" Binding="{Binding Enabled}" Width="38" IsReadOnly="True" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" Width="0.8*" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="52" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="64" IsReadOnly="True" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Target, Default=Target}" Binding="{Binding Target}" Width="1.8*" IsReadOnly="True" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Interfaces, Default=Interfaces}" Binding="{Binding Interfaces}" Width="72" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="80" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="64">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                                             <Setter Property="ToolTip" Value="{Binding DriftDetail}" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Flags_5d728758}" Binding="{Binding Flags}" Width="110">
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Flags_5d728758}" Binding="{Binding Flags}" Width="86">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                            <Setter Property="ToolTip" Value="{Binding Flags}" />
                                             <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
@@ -2379,13 +2390,14 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
                                 <DockPanel Grid.Row="0" LastChildFill="True">
                                     <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Create_rule_69c3acdb}"
                                             Style="{StaticResource Hg.AccentButton}"
                                             Command="{Binding CreateRuleCommand}" Margin="12,0,0,0"
-                                            ToolTip="{svc:Loc Key=Xaml_Enter_a_rule_name_before_creating_5207092e}" />
+                                            ToolTip="{Binding CreateRuleHelpText}" />
                                     <StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Create_HostsGuard_rule_0516d184}" Style="{StaticResource Hg.SectionTitle}" />
                                         <TextBlock Text="{svc:Loc Key=Xaml_Rules_created_here_use_the_HG_b7f8e3c1}"
@@ -2453,6 +2465,11 @@
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_program_path_1032f360}"
                                              ToolTip="{svc:Loc Key=Xaml_Program_path_optional_c4107d4a}" />
                                 </Grid>
+
+                                <TextBlock Grid.Row="2" Margin="0,8,0,0"
+                                           Text="{Binding CreateRuleHelpText}"
+                                           Style="{StaticResource Hg.HelperText}"
+                                           AutomationProperties.LiveSetting="Polite" />
                             </Grid>
                         </Border>
 

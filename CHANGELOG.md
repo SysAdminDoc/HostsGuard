@@ -2,6 +2,11 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [Unreleased]
+
+- Kept the Firewall Rules workbench within the viewport by rebalancing column widths, truncating long values with full-value tooltips, and removing the horizontal navigation regression in both themes.
+- Clarified the read-only Windows Firewall indexing action, removed its unnecessary confirmation interruption, and added live rule-creation guidance that prevents conflicting package and program targets before submission.
+
 ## [0.12.65] - 2026-07-09
 
 - Re-imagined the WPF workbench around a premium operator-console shell: a crisp vector brand lockup, calmer dark/light surface hierarchy, a continuous primary-tab rail, denser tables, a scroll-safe status sidebar, and mockup-aligned spacing across every primary view.

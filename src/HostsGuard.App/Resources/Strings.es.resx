@@ -29,6 +29,12 @@
   <data name="FwRules_Package" xml:space="preserve"><value>Paquete</value></data>
   <data name="FwRules_NewRulePackage" xml:space="preserve"><value>Paquete de la nueva regla de firewall</value></data>
   <data name="FwRules_PackageTip" xml:space="preserve"><value>Nombre de familia del paquete MSIX o SID del paquete opcional. Use paquete o programa, no ambos.</value></data>
+  <data name="FwRules_IncludeWindowsRules" xml:space="preserve"><value>Incluir reglas de Windows</value></data>
+  <data name="FwRules_IncludeWindowsRulesTip" xml:space="preserve"><value>Indexa las reglas actuales del Firewall de Windows en esta vista. Es de solo lectura y no cambia el firewall activo.</value></data>
+  <data name="FwRules_HostsGuardOnlyTip" xml:space="preserve"><value>Mostrar solo las reglas creadas y administradas por HostsGuard.</value></data>
+  <data name="FwRules_CreateNeedsName" xml:space="preserve"><value>Escriba un nombre para crear esta regla.</value></data>
+  <data name="FwRules_CreateChooseOneTarget" xml:space="preserve"><value>Elija un paquete o una ruta de programa, pero no ambos.</value></data>
+  <data name="FwRules_CreateReady" xml:space="preserve"><value>Listo para crear esta regla administrada por HostsGuard.</value></data>
   <data name="Menu_File" xml:space="preserve"><value>Archivo</value></data>
   <data name="Menu_View" xml:space="preserve"><value>Ver</value></data>
   <data name="Menu_Help" xml:space="preserve"><value>Ayuda</value></data>
