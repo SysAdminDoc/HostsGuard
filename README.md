@@ -194,7 +194,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 912 tests, no elevation needed
+dotnet test HostsGuard.sln           # 930 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1 -RequireArtifacts
