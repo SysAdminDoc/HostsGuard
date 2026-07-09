@@ -36,4 +36,16 @@
   <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restaurar punto de control de politica</value></data>
   <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restaura el ultimo estado de politica capturado antes de una importacion</value></data>
   <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Consultar reputacion</value></data>
+  <data name="Consent_Inbound" xml:space="preserve"><value>Entrante</value></data>
+  <data name="Consent_Outbound" xml:space="preserve"><value>Saliente</value></data>
+  <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
+  <data name="Consent_PidUnknown" xml:space="preserve"><value>PID desconocido</value></data>
+  <data name="Consent_ScopeRemote" xml:space="preserve"><value>Aplicar solo a {0}</value></data>
+  <data name="Consent_CountryUnknown" xml:space="preserve"><value>desconocido</value></data>
+  <data name="Consent_SignerUnknown" xml:space="preserve"><value>sin firmar / desconocido</value></data>
+  <data name="Consent_TrustPublisher" xml:space="preserve"><value>Confiar en todo el software firmado por "{0}"</value></data>
+  <data name="Consent_TrustFolder" xml:space="preserve"><value>Confiar en todo el software en "{0}"</value></data>
+  <data name="Consent_ScopeService" xml:space="preserve"><value>Solo el servicio '{0}'</value></data>
+  <data name="Consent_NoPtr" xml:space="preserve"><value>sin registro PTR</value></data>
+  <data name="Consent_Countdown" xml:space="preserve"><value>se cierra en {0:0} s</value></data>
 </root>

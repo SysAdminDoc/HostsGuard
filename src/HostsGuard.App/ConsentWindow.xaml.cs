@@ -27,20 +27,28 @@ public partial class ConsentWindow : Window
         AppName.Text = request.CommandLine.Length != 0 ? request.CommandLine : Path.GetFileName(request.Application);
         AppPath.Text = request.Application;
         RemoteText.Text = $"{request.RemoteAddress}:{request.RemotePort} ({request.Protocol})";
-        DirectionText.Text = request.Direction == "In" ? "Inbound" : "Outbound";
-        PidText.Text = request.ProcessId > 0 ? $"PID {request.ProcessId}" : "unknown PID";
-        ScopeRemote.Content = $"Apply only to {request.RemoteAddress}";
+        DirectionText.Text = request.Direction == "In"
+            ? Services.I18n.T("Consent_Inbound", "Inbound")
+            : Services.I18n.T("Consent_Outbound", "Outbound");
+        PidText.Text = request.ProcessId > 0
+            ? Services.I18n.T("Consent_Pid", "PID {0}", request.ProcessId)
+            : Services.I18n.T("Consent_PidUnknown", "unknown PID");
+        ScopeRemote.Content = Services.I18n.T("Consent_ScopeRemote", "Apply only to {0}", request.RemoteAddress);
 
         // NET-066 decision-quality enrichment.
-        CountryText.Text = request.Country.Length != 0 ? request.Country : "unknown";
-        SignerText.Text = request.Signer.Length != 0 ? request.Signer : "unsigned / unknown";
+        CountryText.Text = request.Country.Length != 0
+            ? request.Country
+            : Services.I18n.T("Consent_CountryUnknown", "unknown");
+        SignerText.Text = request.Signer.Length != 0
+            ? request.Signer
+            : Services.I18n.T("Consent_SignerUnknown", "unsigned / unknown");
         ThreatBanner.Visibility = request.Threat ? Visibility.Visible : Visibility.Collapsed;
 
         // NET-113: offer trust-by-publisher only when the binary is signed.
         var publisher = HostsGuard.Core.PublisherName.Of(request.Signer);
         if (publisher.Length != 0)
         {
-            TrustPublisher.Content = $"Trust all software signed by \"{publisher}\"";
+            TrustPublisher.Content = Services.I18n.T("Consent_TrustPublisher", "Trust all software signed by \"{0}\"", publisher);
             TrustPublisher.Visibility = Visibility.Visible;
         }
 
@@ -48,7 +56,7 @@ public partial class ConsentWindow : Window
         var folder = HostsGuard.Core.PathScope.ParentFolder(request.Application);
         if (folder.Length != 0)
         {
-            TrustFolder.Content = $"Trust all software in \"{folder}\"";
+            TrustFolder.Content = Services.I18n.T("Consent_TrustFolder", "Trust all software in \"{0}\"", folder);
             TrustFolder.Visibility = Visibility.Visible;
         }
 
@@ -63,7 +71,7 @@ public partial class ConsentWindow : Window
         if (request.ServiceKey.Length != 0)
         {
             ScopeService.Visibility = Visibility.Visible;
-            ScopeService.Content = $"Only the '{request.ServiceKey}' service";
+            ScopeService.Content = Services.I18n.T("Consent_ScopeService", "Only the '{0}' service", request.ServiceKey);
         }
 
         if (request.CommandLine.Length != 0 && request.ScriptBindingKey.Length != 0)
@@ -101,7 +109,7 @@ public partial class ConsentWindow : Window
             var entry = await System.Net.Dns.GetHostEntryAsync(ip).WaitAsync(cts.Token);
             if (string.IsNullOrEmpty(entry.HostName) || entry.HostName == remote)
             {
-                HostText.Text = "no PTR record";
+                HostText.Text = Services.I18n.T("Consent_NoPtr", "no PTR record");
             }
             else
             {
@@ -112,7 +120,7 @@ public partial class ConsentWindow : Window
         }
         catch (Exception ex) when (ex is System.Net.Sockets.SocketException or OperationCanceledException or TimeoutException or ArgumentException)
         {
-            HostText.Text = "no PTR record";
+            HostText.Text = Services.I18n.T("Consent_NoPtr", "no PTR record");
         }
     }
 
@@ -128,7 +136,7 @@ public partial class ConsentWindow : Window
             return;
         }
 
-        Countdown.Text = $"closes in {left.TotalSeconds:0} s";
+        Countdown.Text = Services.I18n.T("Consent_Countdown", "closes in {0:0} s", left.TotalSeconds);
     }
 
     private void Decide(string verdict)

@@ -11,6 +11,12 @@ All notable changes to HostsGuard are documented in this file.
 - Cached the firewall rule snapshot used by consent covering-rule checks with a
   short TTL (invalidated on the broker's own rule writes), replacing a full COM
   rule enumeration on every blocked-connection event in Notify/Learning mode.
+- Localized the consent prompt's dynamic strings (direction, PID, scope labels,
+  country/signer fallbacks, trust-publisher/folder offers, service scope, PTR
+  status, and the countdown) through neutral resources with Spanish
+  translations, gated by a resource-coverage regression.
+- Fixed the consent prompt's duplicate TabIndex so keyboard order now flows
+  scopes, trust checkboxes, duration, then action buttons unambiguously.
 
 ## [0.12.63] - 2026-07-09
 

@@ -809,4 +809,16 @@
   <data name="PolicySub_TrustPinned" xml:space="preserve"><value>Pinned</value></data>
   <data name="PolicySub_LastNever" xml:space="preserve"><value>Never</value></data>
   <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Look up reputation</value></data>
+  <data name="Consent_Inbound" xml:space="preserve"><value>Inbound</value></data>
+  <data name="Consent_Outbound" xml:space="preserve"><value>Outbound</value></data>
+  <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
+  <data name="Consent_PidUnknown" xml:space="preserve"><value>unknown PID</value></data>
+  <data name="Consent_ScopeRemote" xml:space="preserve"><value>Apply only to {0}</value></data>
+  <data name="Consent_CountryUnknown" xml:space="preserve"><value>unknown</value></data>
+  <data name="Consent_SignerUnknown" xml:space="preserve"><value>unsigned / unknown</value></data>
+  <data name="Consent_TrustPublisher" xml:space="preserve"><value>Trust all software signed by "{0}"</value></data>
+  <data name="Consent_TrustFolder" xml:space="preserve"><value>Trust all software in "{0}"</value></data>
+  <data name="Consent_ScopeService" xml:space="preserve"><value>Only the '{0}' service</value></data>
+  <data name="Consent_NoPtr" xml:space="preserve"><value>no PTR record</value></data>
+  <data name="Consent_Countdown" xml:space="preserve"><value>closes in {0:0} s</value></data>
 </root>

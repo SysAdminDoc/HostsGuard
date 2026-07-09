@@ -211,6 +211,40 @@ public sealed class I18nTests
         offenders.Should().BeEmpty("menus use visible labels only; HostsGuard does not define keyboard shortcuts");
     }
 
+    [Fact]
+    public void Consent_window_tab_order_has_no_duplicate_indices()
+    {
+        var xaml = File.ReadAllText(Path.Combine(AppDir, "ConsentWindow.xaml"));
+        var indices = Regex.Matches(xaml, @"TabIndex=""(\d+)""")
+            .Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture))
+            .ToList();
+
+        indices.Should().NotBeEmpty();
+        indices.Should().OnlyHaveUniqueItems("duplicate TabIndex values make keyboard order ambiguous");
+    }
+
+    [Fact]
+    public void Consent_window_code_behind_keys_exist_in_neutral_and_spanish_resources()
+    {
+        var code = File.ReadAllText(Path.Combine(AppDir, "ConsentWindow.xaml.cs"));
+        var keys = Regex.Matches(code, @"I18n\.T\(""(?<key>[^""]+)""")
+            .Select(m => m.Groups["key"].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        keys.Should().NotBeEmpty("the consent prompt's dynamic strings are localized through I18n.T");
+
+        var neutral = NeutralResourceKeys();
+        var spanish = XDocument.Load(Path.Combine(AppDir, "Resources", "Strings.es.resx")).Root!
+            .Elements("data")
+            .Select(e => e.Attribute("name")?.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        keys.Should().OnlyContain(k => neutral.Contains(k), "every consent code-behind key needs a neutral resource");
+        keys.Should().OnlyContain(k => spanish.Contains(k), "every consent code-behind key needs a Spanish translation");
+    }
+
     private static bool IsHardCodedLocalizableText(string value, string attr)
     {
         if (string.IsNullOrWhiteSpace(value) ||
