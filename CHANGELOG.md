@@ -2,7 +2,7 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.12.62] - 2026-07-09
 
 ### Security
 - Hardened all CSV exports against spreadsheet formula injection while

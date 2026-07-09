@@ -15,7 +15,11 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
-    <!-- 0.12.61: protocol-aware traffic profile exports add redacted
+    <!-- 0.12.62: deep audit hardening closes CSV formula injection, support
+         bundle export collisions, empty-log diagnostics, stale service errors,
+         WPF menu shortcut markers, webhook duplicate-start delivery, and
+         service timer lifecycle leaks.
+         0.12.61: protocol-aware traffic profile exports add redacted
          metadata-only JSON/CSV with Wireshark display-filter hints to support
          bundles, FW Activity, and the CLI, with explicit no-payload guarantees.
          0.12.60: optional usage-budget alerts add local app/domain quota
@@ -180,7 +184,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.61</Version>
+    <Version>0.12.62</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>
