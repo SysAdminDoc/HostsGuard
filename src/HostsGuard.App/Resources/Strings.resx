@@ -314,6 +314,8 @@
   <data name="Tab_Alerts" xml:space="preserve"><value>Alerts</value></data>
   <data name="Xaml_Alert_icon_8fd14cc6" xml:space="preserve"><value>!</value></data>
   <data name="Xaml_Alert_inbox_2be348dd" xml:space="preserve"><value>Alert inbox</value></data>
+  <data name="Xaml_No_alerts_yet_69542c8a" xml:space="preserve"><value>No alerts yet</value></data>
+  <data name="Xaml_Alerts_will_appear_here_when_3f0d73ac" xml:space="preserve"><value>Alerts appear here when HostsGuard detects security-relevant changes. Use Refresh to reload the inbox or adjust alert type settings on the right.</value></data>
   <data name="Xaml_Stateful_low_volume_alerts_for_security_relevant_97175abd" xml:space="preserve"><value>Stateful low-volume alerts for security-relevant changes. Toasts remain separate.</value></data>
   <data name="Xaml_Unread_alerts_0f4f2d44" xml:space="preserve"><value>Unread alerts</value></data>
   <data name="Xaml_Surface_only_5f216e59" xml:space="preserve"><value>Surface only</value></data>

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using FluentAssertions;
 using HostsGuard.App;
@@ -158,6 +159,63 @@ public sealed class WpfSmokeTests
             $"every DataGrid column on tab {tabIndex} ({theme}) must have a header label");
     }
 
+    private static void AssertLiveStatusReadouts(Window window, int tabIndex, string theme)
+    {
+        var missing = new List<string>();
+        foreach (var text in Descendants<TextBlock>(window))
+        {
+            var path = BindingOperations.GetBinding(text, TextBlock.TextProperty)?.Path?.Path;
+            if (string.IsNullOrWhiteSpace(path) || !IsStatusReadout(path))
+            {
+                continue;
+            }
+
+            if (System.Windows.Automation.AutomationProperties.GetLiveSetting(text)
+                == System.Windows.Automation.AutomationLiveSetting.Off)
+            {
+                missing.Add(path);
+            }
+        }
+
+        missing.Should().BeEmpty(
+            $"status readouts on tab {tabIndex} ({theme}) must be polite live regions");
+    }
+
+    private static bool IsStatusReadout(string bindingPath)
+        => bindingPath.Equals("ConnectionText", StringComparison.Ordinal)
+            || bindingPath.Equals("StatusText", StringComparison.Ordinal)
+            || bindingPath.EndsWith("StatusText", StringComparison.Ordinal);
+
+    private static void AssertVisibleEmptyStatesExplainAction(Window window, int tabIndex, string theme)
+    {
+        var text = LogicalDescendants<TextBlock>(window)
+            .Select(block => block.Text)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        var expected = tabIndex switch
+        {
+            0 => new[] { "No DNS activity yet", "HostsGuard will fill this feed" },
+            1 => new[] { "No alerts yet", "Alerts appear here when HostsGuard detects" },
+            2 => new[] { "No managed domains", "Add a domain above" },
+            3 => new[] { "No live connections", "Connections appear here when the monitor" },
+            _ => Array.Empty<string>(),
+        };
+
+        foreach (var phrase in expected)
+        {
+            text.Should().Contain(
+                value => value.Contains(phrase, StringComparison.Ordinal),
+                $"major tab {tabIndex} ({theme}) must render an explanatory empty state containing '{phrase}'");
+        }
+
+        text.Where(value =>
+                value.Contains("coming soon", StringComparison.OrdinalIgnoreCase) ||
+                value.Contains("premium", StringComparison.OrdinalIgnoreCase))
+            .Should().BeEmpty(
+                $"visible empty states on tab {tabIndex} ({theme}) must explain the next action or system condition");
+    }
+
     [Fact]
     public void Every_window_constructs_in_both_themes_without_a_service()
     {
@@ -209,6 +267,8 @@ public sealed class WpfSmokeTests
                     window.UpdateLayout();
                     AssertAllInputsNamed(window, mainTabs, tab, theme);
                     AssertTabAccessible(window, tab, theme);
+                    AssertLiveStatusReadouts(window, tab, theme);
+                    AssertVisibleEmptyStatesExplainAction(window, tab, theme);
                 }
 
                 mainTabs.SelectedIndex = 4; // FW Rules.

@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.55] - 2026-07-09
+
+### Added
+- Added WPF smoke coverage that fails major tab status readouts without polite
+  live-region announcements and verifies actionable empty-state copy.
+- Added an Alerts tab empty state for an empty alert inbox, with guidance to
+  refresh or adjust alert type settings.
+
+### Changed
+- Promoted main shell and tab status readouts to polite live regions for screen
+  readers.
+
 ## [0.12.54] - 2026-07-09
 
 ### Added

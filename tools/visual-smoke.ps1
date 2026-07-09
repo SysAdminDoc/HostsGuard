@@ -75,6 +75,12 @@ function Get-Sha256([string]$Path) {
     }
 }
 
+function Write-JsonFile([string]$Path, $Value) {
+    $json = $Value | ConvertTo-Json -Depth 6
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllText($Path, (($json -replace "`r`n", "`n") + "`n"), $utf8)
+}
+
 function Get-PngSize([string]$Path) {
     $bytes = [System.IO.File]::ReadAllBytes($Path)
     if (($bytes.Length -lt 24) -or
@@ -175,7 +181,7 @@ foreach ($theme in @("dark", "light")) {
 }
 
 $summaryPath = Join-Path $OutputDir "visual-smoke-summary.json"
-$summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $summaryPath -Encoding utf8
+Write-JsonFile $summaryPath $summary
 
 $failures = @($summary.runs | ForEach-Object { $_.failures } | Where-Object { $_ })
 if ($failures.Count -gt 0) {
@@ -220,7 +226,7 @@ $manifest = [ordered]@{
 }
 
 $manifestPath = Join-Path $ReadmeImageDir "visual-smoke-manifest.json"
-$manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+Write-JsonFile $manifestPath $manifest
 
 "Visual smoke passed. Evidence: $summaryPath"
 "README screenshots refreshed. Manifest: $manifestPath"

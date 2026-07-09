@@ -260,7 +260,9 @@
                                 </Style>
                             </Ellipse.Style>
                         </Ellipse>
-                        <TextBlock Text="{Binding ConnectionText}" Style="{StaticResource Hg.SubText}" />
+                        <TextBlock Text="{Binding ConnectionText}"
+                                   Style="{StaticResource Hg.SubText}"
+                                   AutomationProperties.LiveSetting="Polite" />
                     </StackPanel>
                 </StatusBarItem>
                 <Separator />
@@ -280,6 +282,7 @@
                 <Separator />
                 <StatusBarItem>
                     <TextBlock Text="{Binding FilteringModeText}" Style="{StaticResource Hg.SubText}"
+                               AutomationProperties.LiveSetting="Polite"
                                ToolTip="{svc:Loc Key=Xaml_Filtering_mode_â_switch_from_the_340a5c61}" />
                 </StatusBarItem>
                 <StatusBarItem HorizontalAlignment="Right">
@@ -975,7 +978,9 @@
                         </Grid>
 
                         <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                   Text="{Binding StatusText}"
+                                   Style="{StaticResource Hg.DimText}"
+                                   AutomationProperties.LiveSetting="Polite" />
                     </Grid>
                 </TabItem>
 
@@ -1067,6 +1072,19 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource Hg.EmptyState}"
+                                    Visibility="{Binding Alerts.Count, Converter={StaticResource EmptyStateVis}}">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Xaml_No_alerts_yet_69542c8a}"
+                                               Style="{StaticResource Hg.SectionTitle}"
+                                               HorizontalAlignment="Center"
+                                               Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Alerts_will_appear_here_when_3f0d73ac}"
+                                               Style="{StaticResource Hg.EmptyText}" />
+                                </StackPanel>
+                            </Border>
+
                             <Border Grid.Column="1" Style="{StaticResource Hg.Card}" Margin="10,0,0,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -1087,7 +1105,9 @@
                         </Grid>
 
                         <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                   Text="{Binding StatusText}"
+                                   Style="{StaticResource Hg.DimText}"
+                                   AutomationProperties.LiveSetting="Polite" />
                     </Grid>
                 </TabItem>
 
@@ -1214,7 +1234,9 @@
                                 </Border>
 
                                 <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                           Text="{Binding StatusText}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           AutomationProperties.LiveSetting="Polite" />
                             </Grid>
                         </TabItem>
 
@@ -1309,7 +1331,9 @@
                                 </Border>
 
                                 <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                           Text="{Binding StatusText}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           AutomationProperties.LiveSetting="Polite" />
                             </Grid>
                         </TabItem>
 
@@ -1348,7 +1372,9 @@
                                          HorizontalScrollBarVisibility="Auto" />
 
                                 <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                           Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                           Text="{Binding StatusText}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           AutomationProperties.LiveSetting="Polite" />
                             </Grid>
                         </TabItem>
                     </TabControl>
@@ -2163,7 +2189,9 @@
                         </Expander>
 
                         <TextBlock Grid.Row="5" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                   Text="{Binding StatusText}"
+                                   Style="{StaticResource Hg.DimText}"
+                                   AutomationProperties.LiveSetting="Polite" />
                     </Grid>
                 </TabItem>
 
@@ -2380,7 +2408,9 @@
                         </Border>
 
                         <TextBlock Grid.Row="4" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}" Style="{StaticResource Hg.DimText}" />
+                                   Text="{Binding StatusText}"
+                                   Style="{StaticResource Hg.DimText}"
+                                   AutomationProperties.LiveSetting="Polite" />
                     </Grid>
                 </TabItem>
 
