@@ -183,10 +183,40 @@ public sealed record RetentionSweepResult(
 
 /// <summary>A subscribed blocklist source plus source-owned domain count.</summary>
 public sealed record BlocklistSubRow(
-    string Name, string Url, string LastRefresh, long DomainCount, bool Enabled, long OwnedDomainCount, long Hits30d);
+    string Name,
+    string Url,
+    string LastRefresh,
+    long DomainCount,
+    bool Enabled,
+    long OwnedDomainCount,
+    long Hits30d,
+    string ContentHash,
+    string PreviousHash,
+    long PreviousDomainCount,
+    string LastError,
+    string LastErrorAt,
+    string HealthStatus,
+    long LastCheckpointId,
+    string LastAttemptHash,
+    long LastAttemptDomainCount);
 
 /// <summary>Rollback result for removing one blocklist source.</summary>
 public sealed record BlocklistRemoval(long Removed, long Preserved);
+
+/// <summary>Stored pre-refresh checkpoint for one blocklist source.</summary>
+public sealed record BlocklistCheckpointRow(
+    long Id,
+    string Source,
+    string Created,
+    string Url,
+    string PreviousHash,
+    long PreviousDomainCount,
+    string NewHash,
+    long NewDomainCount,
+    string Reason);
+
+/// <summary>Result of restoring a blocklist refresh checkpoint.</summary>
+public sealed record BlocklistCheckpointRestore(long CheckpointId, long Restored, long Removed, long Preserved);
 
 /// <summary>
 /// SQLite persistence for HostsGuard (Microsoft.Data.Sqlite + Dapper). Schema v1
@@ -197,7 +227,7 @@ public sealed record BlocklistRemoval(long Removed, long Preserved);
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 22;
+    public const int SchemaVersion = 23;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -286,11 +316,24 @@ public sealed partial class HostsDatabase : IDisposable
                 id INTEGER PRIMARY KEY, target TEXT, days TEXT, start TEXT, end TEXT);
             CREATE TABLE IF NOT EXISTS blocklist_subs(
                 name TEXT PRIMARY KEY, url TEXT, last_refresh TEXT, domain_count INTEGER DEFAULT 0,
-                enabled INTEGER DEFAULT 1);
+                enabled INTEGER DEFAULT 1, content_hash TEXT DEFAULT '', previous_hash TEXT DEFAULT '',
+                previous_domain_count INTEGER DEFAULT 0, last_error TEXT DEFAULT '',
+                last_error_at TEXT DEFAULT '', health_status TEXT DEFAULT '',
+                last_checkpoint_id INTEGER DEFAULT 0, last_attempt_hash TEXT DEFAULT '',
+                last_attempt_domain_count INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS blocklist_domain_sources(
                 source TEXT NOT NULL, domain TEXT NOT NULL,
                 PRIMARY KEY(source, domain)) WITHOUT ROWID;
             CREATE INDEX IF NOT EXISTS idx_blocklist_domain_sources_domain ON blocklist_domain_sources(domain);
+            CREATE TABLE IF NOT EXISTS blocklist_refresh_checkpoints(
+                id INTEGER PRIMARY KEY, source TEXT NOT NULL, created TEXT, url TEXT,
+                previous_hash TEXT, previous_domain_count INTEGER DEFAULT 0,
+                new_hash TEXT, new_domain_count INTEGER DEFAULT 0, reason TEXT);
+            CREATE INDEX IF NOT EXISTS idx_blocklist_refresh_checkpoints_source ON blocklist_refresh_checkpoints(source, id DESC);
+            CREATE TABLE IF NOT EXISTS blocklist_refresh_checkpoint_domains(
+                checkpoint_id INTEGER NOT NULL, domain TEXT NOT NULL,
+                PRIMARY KEY(checkpoint_id, domain)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_blocklist_refresh_checkpoint_domains_domain ON blocklist_refresh_checkpoint_domains(domain);
             CREATE TABLE IF NOT EXISTS allowlist_subs(url TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS feed_hourly(
                 root TEXT, hour TEXT, hits INTEGER DEFAULT 0, PRIMARY KEY(root, hour));
@@ -356,6 +399,15 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("feed", "reason", "TEXT");
         AddColumnIfMissing("log", "reason", "TEXT");
         AddColumnIfMissing("blocklist_subs", "enabled", "INTEGER DEFAULT 1");
+        AddColumnIfMissing("blocklist_subs", "content_hash", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "previous_hash", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "previous_domain_count", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("blocklist_subs", "last_error", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "last_error_at", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "health_status", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "last_checkpoint_id", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("blocklist_subs", "last_attempt_hash", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "last_attempt_domain_count", "INTEGER DEFAULT 0");
         AddColumnIfMissing("fw_state", "remote_ports", "TEXT");
         AddColumnIfMissing("fw_state", "local_ports", "TEXT");
         AddColumnIfMissing("fw_state", "service_name", "TEXT");

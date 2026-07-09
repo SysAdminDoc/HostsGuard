@@ -132,6 +132,7 @@ public class SchemaLockTests
           RefreshGeoIp(Empty) returns (Ack)
           RefreshThreatIntel(Empty) returns (Ack)
           RemoveBlocklistSubscription(BlocklistRequest) returns (Ack)
+          RestoreBlocklistCheckpoint(BlocklistRequest) returns (Ack)
           SetAllowlists(AllowlistUrls) returns (Ack)
           SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack)
         service Monitoring

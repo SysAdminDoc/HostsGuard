@@ -229,6 +229,8 @@ service ListControl {
   rpc SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack);
   // Remove a source and roll back domains owned only by that source.
   rpc RemoveBlocklistSubscription(BlocklistRequest) returns (Ack);
+  // Restore the latest pre-refresh checkpoint for one subscribed source.
+  rpc RestoreBlocklistCheckpoint(BlocklistRequest) returns (Ack);
   // Re-import every subscribed source now.
   rpc RefreshBlocklists(Empty) returns (BlocklistResult);
   // Allowlist subscriptions: whitelisted domains always win over blocklists.
@@ -274,6 +276,15 @@ message BlocklistSource {
   bool enabled = 9;            // subscribed source participates in refresh
   int64 owned_domain_count = 10; // source-owned rows that rollback can inspect
   int64 hits_30d = 11;         // exact DNS/feed hits attributed to this source
+  string health_status = 12;   // ok|new|guarded|error|restored
+  string content_hash = 13;    // SHA-256 of the last successfully applied payload
+  string previous_hash = 14;   // SHA-256 before the last successful apply/restore
+  int64 previous_domain_count = 15;
+  string last_error = 16;      // most recent fetch/guard failure
+  string last_error_at = 17;   // ISO timestamp of the most recent failure
+  int64 rollback_checkpoint_id = 18; // latest checkpoint id, 0 when none
+  int64 last_attempt_domain_count = 19;
+  string last_attempt_hash = 20;
 }
 
 message BlocklistSources {
@@ -297,6 +308,9 @@ message BlocklistResult {
   int64 removed = 13;          // source rollback: domains deleted
   int64 preserved = 14;        // source rollback: rows kept (manual/allowlist/other-source)
   bool preview = 15;           // true when this is a no-mutation preview result
+  int64 guarded = 16;          // refreshes skipped by churn guard
+  int64 failed = 17;           // refreshes that failed fetch/parse
+  int64 checkpoint_id = 18;    // latest checkpoint created/restored by this operation
 }
 
 message AllowlistUrls {

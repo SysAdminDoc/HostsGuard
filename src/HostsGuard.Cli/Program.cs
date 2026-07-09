@@ -75,7 +75,7 @@ static int Usage()
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
-          HostsGuard.Cli blocklists disable|enable|remove <name>
+          HostsGuard.Cli blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli safe-posture
           HostsGuard.Cli safe-posture-smoke
@@ -904,22 +904,22 @@ static async Task<int> BlocklistsAsync(string[] args)
             {
                 case "list":
                     var sources = await client.ListBlocklistSourcesAsync(new Empty());
-                    Console.WriteLine("name\tsubscribed\tenabled\tdomains\towned\thits_30d\turl");
+                    Console.WriteLine("name\tsubscribed\tenabled\thealth\tdomains\towned\tprevious\tattempt\tcheckpoint\thits_30d\turl");
                     foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.Hits30D}\t{s.Url}");
+                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{SourceHealth(s)}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.PreviousDomainCount}\t{s.LastAttemptDomainCount}\t{s.RollbackCheckpointId}\t{s.Hits30D}\t{s.Url}");
                     }
 
                     return 0;
                 case "stats":
                     var stats = await client.ListBlocklistSourcesAsync(new Empty());
-                    Console.WriteLine("name\thits_30d\towned\tdomains\tenabled");
+                    Console.WriteLine("name\thealth\thits_30d\towned\tdomains\tprevious\tcheckpoint\tenabled");
                     foreach (var s in stats.Sources
                                  .Where(s => s.Subscribed)
                                  .OrderByDescending(s => s.Hits30D)
                                  .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine($"{s.Name}\t{s.Hits30D}\t{s.OwnedDomainCount}\t{s.DomainCount}\t{s.Enabled}");
+                        Console.WriteLine($"{s.Name}\t{SourceHealth(s)}\t{s.Hits30D}\t{s.OwnedDomainCount}\t{s.DomainCount}\t{s.PreviousDomainCount}\t{s.RollbackCheckpointId}\t{s.Enabled}");
                     }
 
                     return 0;
@@ -962,6 +962,16 @@ static async Task<int> BlocklistsAsync(string[] args)
                     var ack = await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = args[2] });
                     Console.WriteLine(ack.Message);
                     return ack.Ok ? 0 : 2;
+                case "rollback":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine("Usage: blocklists rollback <name>");
+                        return 1;
+                    }
+
+                    var rollback = await client.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = args[2] });
+                    Console.WriteLine(rollback.Message);
+                    return rollback.Ok ? 0 : 2;
                 default:
                     Console.Error.WriteLine($"Unknown blocklists command: {subcommand}");
                     return 1;
@@ -990,6 +1000,17 @@ static int PrintBlocklistResult(BlocklistResult result)
         Console.WriteLine($"  preserved:   {result.Preserved}");
     }
 
+    if (result.Guarded != 0 || result.Failed != 0)
+    {
+        Console.WriteLine($"  guarded:     {result.Guarded}");
+        Console.WriteLine($"  failed:      {result.Failed}");
+    }
+
+    if (result.CheckpointId != 0)
+    {
+        Console.WriteLine($"  checkpoint:  {result.CheckpointId}");
+    }
+
     if (result.Warning.Length != 0)
     {
         Console.WriteLine($"  warning:     {result.Warning}");
@@ -997,6 +1018,9 @@ static int PrintBlocklistResult(BlocklistResult result)
 
     return result.Ok ? 0 : 2;
 }
+
+static string SourceHealth(BlocklistSource source) =>
+    string.IsNullOrWhiteSpace(source.HealthStatus) ? "new" : source.HealthStatus;
 
 static async Task<int> ModeAsync(string? requested)
 {

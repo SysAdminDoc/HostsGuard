@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.46-blue)
+![Version](https://img.shields.io/badge/version-0.12.47-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -105,7 +105,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Managed domains | Database-backed domain management with status, source, hit tracking, and canonical reasons |
 | Raw editor | Direct editing of `drivers\etc\hosts` with clean-and-save (dedupe, validate, normalize) |
 | Backup / restore | Timestamped backups with one-click restore and emergency reset to Windows defaults |
-| Blocklist import | 12+ curated community blocklists (HaGezi, StevenBlack, OISD, URLhaus, ...) with preview, enable/disable, source-scoped rollback, allowlist-wins merge, and per-source hits/30d stats |
+| Blocklist import | 12+ curated community blocklists (HaGezi, StevenBlack, OISD, URLhaus, ...) with preview, enable/disable, source-scoped rollback, source-health/churn guard checkpoints, allowlist-wins merge, and per-source hits/30d stats |
 | Allowlist subscriptions | Remote allowlists that whitelist domains and win over blocklists |
 | Blocked services | One-click toggles to block YouTube, TikTok, Facebook, Discord, Netflix, and more |
 | Telemetry preset | One-click block of ~28 Microsoft telemetry endpoints, reversible as a unit |
@@ -163,7 +163,7 @@ HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export ev
 HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
 HostsGuard.Cli dns-cache [--limit N] [--search text]
 HostsGuard.Cli dns-flush-entry <cached-name>
-HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove]
+HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove|rollback]
 HostsGuard.Cli safe-posture
 HostsGuard.Cli safe-posture-smoke
 HostsGuard.Cli release-smoke
@@ -184,7 +184,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 871 tests, no elevation needed
+dotnet test HostsGuard.sln           # 873 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
@@ -193,8 +193,8 @@ build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-ar
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
-# Produces installer_output/HostsGuard-v0.12.46-win-x64-dotnet-Setup.exe
-#          installer_output/HostsGuard-v0.12.46-win-arm64-dotnet-Setup.exe
+# Produces installer_output/HostsGuard-v0.12.47-win-x64-dotnet-Setup.exe
+#          installer_output/HostsGuard-v0.12.47-win-arm64-dotnet-Setup.exe
 ```
 
 Solution layout: `HostsGuard.Core` (pure domain, no OS deps), `HostsGuard.Contracts` (gRPC protos), `HostsGuard.Windows` (Firewall COM / ETW / IPHLPAPI / ACL interop), `HostsGuard.Service` (elevated engine), `HostsGuard.App` (WPF UI), `HostsGuard.Cli`, `HostsGuard.Migrator`, plus per-project test suites under `tests/`.

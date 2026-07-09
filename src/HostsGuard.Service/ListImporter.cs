@@ -1,5 +1,7 @@
 using System.Net.Http;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
 using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
@@ -11,7 +13,8 @@ public sealed record ImportOutcome(
     long Added, long Total, long HostsEntries, string Warning,
     long Duplicates = 0, long Invalid = 0, long HijackFlagged = 0,
     long AllowlistOverrides = 0, bool MirrorUsed = false,
-    long Removed = 0, long Preserved = 0, bool Preview = false);
+    long Removed = 0, long Preserved = 0, bool Preview = false,
+    long Guarded = 0, long Failed = 0, long CheckpointId = 0);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -22,6 +25,10 @@ public sealed record ImportOutcome(
 [SupportedOSPlatform("windows")]
 public sealed class ListImporter : IDisposable
 {
+    private const int ChurnGuardMinimumPreviousCount = 100;
+    private const double ChurnGuardDropRatio = 0.50;
+    private const double ChurnGuardGrowthRatio = 2.00;
+
     private readonly HostsEngine _hosts;
     private readonly HostsDatabase _db;
     private readonly IListFetcher _fetcher;
@@ -38,21 +45,79 @@ public sealed class ListImporter : IDisposable
     }
 
     public async Task<ImportOutcome> ImportBlocklistAsync(string name, string url, CancellationToken ct)
+        => await ImportBlocklistAsync(name, url, ct, guardChurn: false, existing: null);
+
+    private async Task<ImportOutcome> ImportBlocklistAsync(
+        string name,
+        string url,
+        CancellationToken ct,
+        bool guardChurn,
+        BlocklistSubRow? existing)
     {
         // Mirror fallback (NET-077): if the primary URL fails and the catalog
         // knows a mirror for this source, retry the mirror before giving up.
         var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        var contentHash = Sha256(text);
         var scan = BlocklistCatalog.Scan(text);
         var domains = scan.Domains;
+        existing ??= _db.GetBlocklistSub(name);
 
+        if (guardChurn && existing is not null)
+        {
+            var guard = EvaluateChurn(existing, domains.Count, contentHash);
+            if (guard.Guarded)
+            {
+                _db.RecordBlocklistRefreshFailure(
+                    name,
+                    url,
+                    guard.Message,
+                    healthStatus: "guarded",
+                    lastAttemptHash: contentHash,
+                    lastAttemptDomainCount: domains.Count);
+                _db.LogEvent($"list:{name}", "refresh_guarded", details: guard.Message, reason: "blocklist");
+                return new ImportOutcome(0, domains.Count, _hosts.GetBlocked().Count, guard.Message,
+                    scan.Duplicates, scan.Invalid, scan.HijackFlagged, MirrorUsed: mirrorUsed,
+                    Guarded: 1);
+            }
+        }
+
+        var previousDomains = existing is null
+            ? Array.Empty<string>()
+            : _db.GetBlocklistSourceDomains(name);
+        var checkpointId = existing is null || (existing.DomainCount == 0 && previousDomains.Count == 0)
+            ? 0
+            : _db.CreateBlocklistCheckpoint(
+                name,
+                existing.Url.Length != 0 ? existing.Url : url,
+                existing.ContentHash,
+                existing.DomainCount,
+                contentHash,
+                domains.Count,
+                guardChurn ? "scheduled refresh" : "manual import",
+                previousDomains);
+
+        var dropped = existing is null
+            ? new BlocklistRemoval(0, 0)
+            : _db.RemoveBlocklistSourceDomainsNotIn(name, domains);
         var added = _hosts.BlockBulk(domains);
         _db.AddDomainsBulk(domains.Select(d => (d, "blocked", $"list:{name}")));
         _db.ReplaceBlocklistSourceDomains(name, domains);
-        _db.UpsertBlocklistSub(name, url, domains.Count);
+        _db.UpsertBlocklistSub(
+            name,
+            url,
+            domains.Count,
+            contentHash,
+            existing?.ContentHash ?? string.Empty,
+            existing?.DomainCount ?? 0,
+            healthStatus: checkpointId == 0 ? "ok" : "ok",
+            lastCheckpointId: checkpointId,
+            lastAttemptHash: contentHash,
+            lastAttemptDomainCount: domains.Count);
 
         // Whitelisted domains always win: re-apply allowlists after an import,
         // and report how many blocklist entries the allowlist overrode.
         var overrides = ReapplyAllowlisted(domains);
+        _hosts.Reconcile(_db.GetDomains(status: "blocked").Select(d => d.Domain));
 
         var entries = _hosts.GetBlocked().Count;
         var warning = entries > BlocklistCatalog.LargeHostsWarn
@@ -66,7 +131,9 @@ public sealed class ListImporter : IDisposable
             reason: "blocklist");
 
         return new ImportOutcome(added, domains.Count, entries, warning,
-            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed);
+            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed,
+            Removed: dropped.Removed, Preserved: dropped.Preserved,
+            CheckpointId: checkpointId);
     }
 
     public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
@@ -95,6 +162,17 @@ public sealed class ListImporter : IDisposable
             Removed: removal.Removed, Preserved: removal.Preserved);
     }
 
+    public ImportOutcome RestoreCheckpoint(string name)
+    {
+        var restore = _db.RestoreLatestBlocklistCheckpoint(name);
+        _hosts.Reconcile(_db.GetDomains(status: "blocked").Select(d => d.Domain));
+        _db.LogEvent($"list:{name}", "blocklist_checkpoint_restored",
+            details: $"checkpoint {restore.CheckpointId}: restored {restore.Restored}, removed {restore.Removed}, preserved {restore.Preserved}",
+            reason: "blocklist");
+        return new ImportOutcome(0, restore.Restored, _hosts.GetBlocked().Count, string.Empty,
+            Removed: restore.Removed, Preserved: restore.Preserved, CheckpointId: restore.CheckpointId);
+    }
+
     /// <summary>Fetch a list, falling back to the catalog mirror on failure.</summary>
     private async Task<(string Text, bool MirrorUsed)> FetchWithMirrorAsync(string name, string url, CancellationToken ct)
     {
@@ -120,21 +198,43 @@ public sealed class ListImporter : IDisposable
     {
         long added = 0, total = 0;
         var warning = string.Empty;
-        long duplicates = 0, invalid = 0, hijack = 0, overrides = 0;
+        long duplicates = 0, invalid = 0, hijack = 0, overrides = 0, guarded = 0, failed = 0, checkpointId = 0;
         foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled))
         {
-            var outcome = await ImportBlocklistAsync(sub.Name, sub.Url, ct);
+            ImportOutcome outcome;
+            try
+            {
+                outcome = await ImportBlocklistAsync(sub.Name, sub.Url, ct, guardChurn: true, existing: sub);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+            {
+                failed++;
+                warning = $"refresh failed for {sub.Name}: {ex.Message}";
+                _db.RecordBlocklistRefreshFailure(sub.Name, sub.Url, ex.Message);
+                _db.LogEvent($"list:{sub.Name}", "refresh_failed", details: ex.GetType().Name, reason: "blocklist");
+                continue;
+            }
+
             added += outcome.Added;
             total += outcome.Total;
             duplicates += outcome.Duplicates;
             invalid += outcome.Invalid;
             hijack += outcome.HijackFlagged;
             overrides += outcome.AllowlistOverrides;
-            warning = outcome.Warning;
+            guarded += outcome.Guarded;
+            if (outcome.CheckpointId != 0)
+            {
+                checkpointId = outcome.CheckpointId;
+            }
+
+            if (outcome.Warning.Length != 0)
+            {
+                warning = outcome.Warning;
+            }
         }
 
         return new ImportOutcome(added, total, _hosts.GetBlocked().Count, warning,
-            duplicates, invalid, hijack, overrides);
+            duplicates, invalid, hijack, overrides, Guarded: guarded, Failed: failed, CheckpointId: checkpointId);
     }
 
     public async Task<int> RefreshAllowlistsAsync(CancellationToken ct)
@@ -199,6 +299,41 @@ public sealed class ListImporter : IDisposable
         {
             _db.LogEvent("lists", "refresh_failed", details: ex.GetType().Name);
         }
+    }
+
+    private static (bool Guarded, string Message) EvaluateChurn(BlocklistSubRow existing, long newCount, string newHash)
+    {
+        if (existing.DomainCount <= 0 || string.Equals(existing.ContentHash, newHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return (false, string.Empty);
+        }
+
+        if (newCount == 0)
+        {
+            return (true, $"refresh skipped for {existing.Name}: source returned 0 domains after {existing.DomainCount:N0}");
+        }
+
+        if (existing.DomainCount >= ChurnGuardMinimumPreviousCount)
+        {
+            var ratio = newCount / (double)existing.DomainCount;
+            if (ratio < ChurnGuardDropRatio)
+            {
+                return (true, $"refresh skipped for {existing.Name}: domain count fell from {existing.DomainCount:N0} to {newCount:N0}");
+            }
+
+            if (ratio > ChurnGuardGrowthRatio)
+            {
+                return (true, $"refresh skipped for {existing.Name}: domain count grew from {existing.DomainCount:N0} to {newCount:N0}");
+            }
+        }
+
+        return (false, string.Empty);
+    }
+
+    private static string Sha256(string text)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(text));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     public void Dispose()

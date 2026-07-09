@@ -1235,15 +1235,15 @@
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Owned_b62ff5cc}" Binding="{Binding OwnedDomainCount}" Width="70" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_30d_d0f4cbfd}" Binding="{Binding Hits30d}" Width="80" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Last_refresh_53cadc51}" Binding="{Binding LastRefresh}" Width="160" />
-                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Health_3703cd21}" Binding="{Binding Flags}" Width="100">
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Health_3703cd21}" Binding="{Binding HealthSummary}" Width="180">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
-                                                    <Setter Property="ToolTip" Value="Source-health flags: very large lists and mirror fallbacks" />
+                                                    <Setter Property="ToolTip" Value="{Binding HealthSummary}" />
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_Actions_c3cd636a}" Width="330">
+                                        <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_Actions_c3cd636a}" Width="400">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
@@ -1257,6 +1257,10 @@
                                                         <Button Content="{Binding ToggleLabel}" Padding="8,2" Margin="0,0,6,0"
                                                                 Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
                                                                 Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="{svc:Loc Key=Xaml_Restore_3cbe6d6b}" Padding="8,2" Margin="0,0,6,0"
+                                                                Visibility="{Binding CanRollback, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.RollbackCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}" />
                                                         <Button Content="{svc:Loc Key=Xaml_Remove_e963907d}" Padding="8,2"
                                                                 Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"

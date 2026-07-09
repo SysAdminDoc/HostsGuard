@@ -39,6 +39,15 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Enabled = enabled,
                 OwnedDomainCount = owned,
                 Hits30D = hits30d,
+                HealthStatus = subscribed && sub is not null ? sub.HealthStatus : "new",
+                ContentHash = subscribed && sub is not null ? sub.ContentHash : string.Empty,
+                PreviousHash = subscribed && sub is not null ? sub.PreviousHash : string.Empty,
+                PreviousDomainCount = subscribed && sub is not null ? sub.PreviousDomainCount : 0,
+                LastError = subscribed && sub is not null ? sub.LastError : string.Empty,
+                LastErrorAt = subscribed && sub is not null ? sub.LastErrorAt : string.Empty,
+                RollbackCheckpointId = subscribed && sub is not null ? sub.LastCheckpointId : 0,
+                LastAttemptHash = subscribed && sub is not null ? sub.LastAttemptHash : string.Empty,
+                LastAttemptDomainCount = subscribed && sub is not null ? sub.LastAttemptDomainCount : 0,
             });
         }
 
@@ -56,6 +65,15 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Enabled = sub.Enabled,
                 OwnedDomainCount = sub.OwnedDomainCount,
                 Hits30D = sub.Hits30d,
+                HealthStatus = sub.HealthStatus,
+                ContentHash = sub.ContentHash,
+                PreviousHash = sub.PreviousHash,
+                PreviousDomainCount = sub.PreviousDomainCount,
+                LastError = sub.LastError,
+                LastErrorAt = sub.LastErrorAt,
+                RollbackCheckpointId = sub.LastCheckpointId,
+                LastAttemptHash = sub.LastAttemptHash,
+                LastAttemptDomainCount = sub.LastAttemptDomainCount,
             });
         }
 
@@ -182,7 +200,19 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         try
         {
             var outcome = await lists.RefreshAllAsync(context.CancellationToken);
-            return ToResult(outcome, $"refreshed subscriptions: {outcome.Added} new of {outcome.Total} domains");
+            var suffix = (outcome.Guarded, outcome.Failed) switch
+            {
+                (0, 0) => string.Empty,
+                (_, 0) => $"; {outcome.Guarded} guarded",
+                (0, _) => $"; {outcome.Failed} failed",
+                _ => $"; {outcome.Guarded} guarded, {outcome.Failed} failed",
+            };
+            return ToResult(
+                outcome,
+                $"refreshed subscriptions: {outcome.Added} new of {outcome.Total} domains{suffix}",
+                ok: outcome.Guarded == 0 && outcome.Failed == 0,
+                errorCode: outcome.Guarded != 0 ? "hostsguard.error.v1/churn_guarded"
+                    : outcome.Failed != 0 ? "hostsguard.error.v1/import_failed" : string.Empty);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {
@@ -192,6 +222,49 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Message = $"refresh failed: {ex.Message}",
                 ErrorCode = "hostsguard.error.v1/import_failed",
             };
+        }
+    }
+
+    public override Task<Ack> RestoreBlocklistCheckpoint(BlocklistRequest request, ServerCallContext context)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "blocklist name is required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        if (_state.Lists is not { } lists)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "list engine unavailable",
+                ErrorCode = "hostsguard.error.v1/lists_unavailable",
+            });
+        }
+
+        try
+        {
+            var outcome = lists.RestoreCheckpoint(name);
+            return Task.FromResult(new Ack
+            {
+                Ok = true,
+                Message = $"restored {name} checkpoint {outcome.CheckpointId}: restored {outcome.Total}, removed {outcome.Removed}, preserved {outcome.Preserved}",
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = ex.Message,
+                ErrorCode = "hostsguard.error.v1/no_checkpoint",
+            });
         }
     }
 
@@ -337,10 +410,15 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         return null;
     }
 
-    private static BlocklistResult ToResult(ImportOutcome outcome, string message) => new()
+    private static BlocklistResult ToResult(
+        ImportOutcome outcome,
+        string message,
+        bool ok = true,
+        string errorCode = "") => new()
     {
-        Ok = true,
+        Ok = ok,
         Message = message,
+        ErrorCode = errorCode,
         Added = outcome.Added,
         Total = outcome.Total,
         HostsEntries = outcome.HostsEntries,
@@ -353,5 +431,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         Removed = outcome.Removed,
         Preserved = outcome.Preserved,
         Preview = outcome.Preview,
+        Guarded = outcome.Guarded,
+        Failed = outcome.Failed,
+        CheckpointId = outcome.CheckpointId,
     };
 }

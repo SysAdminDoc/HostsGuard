@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.47] - 2026-07-09
+
+### Added
+- Added blocklist source-health persistence with applied/previous SHA-256
+  hashes, previous and attempted domain counts, last error state, and checkpoint
+  IDs surfaced in WPF and `HostsGuard.Cli blocklists list|stats`.
+- Added scheduled-refresh churn guarding and `HostsGuard.Cli blocklists rollback`
+  / WPF Restore actions for source checkpoints.
+
+### Fixed
+- Fixed blocklist refresh replacement so source-owned domains that disappear
+  from a refreshed list are removed from the database and hosts file unless
+  they are preserved by another source or manual ownership.
+
 ## [0.12.46] - 2026-07-09
 
 ### Added

@@ -44,12 +44,59 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     [ObservableProperty]
     private string _mirror = string.Empty;
 
+    [ObservableProperty]
+    private string _healthStatus = "new";
+
+    [ObservableProperty]
+    private string _lastError = string.Empty;
+
+    [ObservableProperty]
+    private string _lastErrorAt = string.Empty;
+
+    [ObservableProperty]
+    private long _previousDomainCount;
+
+    [ObservableProperty]
+    private long _rollbackCheckpointId;
+
+    [ObservableProperty]
+    private long _lastAttemptDomainCount;
+
     public string Flags =>
         (!Enabled && Subscribed ? "disabled " : string.Empty)
+        + (HealthStatus is "guarded" or "error" ? $"{HealthStatus} " : string.Empty)
+        + (RollbackCheckpointId > 0 ? "checkpoint " : string.Empty)
         + (LargeListWarning ? "large " : string.Empty)
         + (Mirror.Length != 0 ? "mirror" : string.Empty);
 
     public string ToggleLabel => Enabled ? "Disable" : "Enable";
+
+    public bool CanRollback => Subscribed && RollbackCheckpointId > 0;
+
+    public string HealthSummary
+    {
+        get
+        {
+            var status = string.IsNullOrWhiteSpace(HealthStatus) ? "new" : HealthStatus;
+            var parts = new List<string> { status };
+            if (PreviousDomainCount > 0)
+            {
+                parts.Add($"previous {PreviousDomainCount:N0}");
+            }
+
+            if (LastAttemptDomainCount > 0 && LastAttemptDomainCount != DomainCount)
+            {
+                parts.Add($"attempt {LastAttemptDomainCount:N0}");
+            }
+
+            if (LastError.Length != 0)
+            {
+                parts.Add(LastErrorAt.Length != 0 ? $"{LastError} at {TimeText.Compact(LastErrorAt)}" : LastError);
+            }
+
+            return string.Join(" - ", parts);
+        }
+    }
 
     public static BlocklistSourceViewModel From(BlocklistSource s) => new()
     {
@@ -64,6 +111,12 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         Hits30d = s.Hits30D,
         LargeListWarning = s.LargeListWarning,
         Mirror = s.Mirror,
+        HealthStatus = s.HealthStatus,
+        LastError = s.LastError,
+        LastErrorAt = s.LastErrorAt,
+        PreviousDomainCount = s.PreviousDomainCount,
+        RollbackCheckpointId = s.RollbackCheckpointId,
+        LastAttemptDomainCount = s.LastAttemptDomainCount,
     };
 }
 
@@ -152,6 +205,9 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         if (r.AllowlistOverrides > 0) report.Add($"{r.AllowlistOverrides} allowlist-kept");
         if (r.Removed > 0) report.Add($"{r.Removed} removed");
         if (r.Preserved > 0) report.Add($"{r.Preserved} preserved");
+        if (r.Guarded > 0) report.Add($"{r.Guarded} guarded");
+        if (r.Failed > 0) report.Add($"{r.Failed} failed");
+        if (r.CheckpointId > 0) report.Add($"checkpoint {r.CheckpointId}");
         var health = report.Count != 0 ? $" [{string.Join(", ", report)}]" : string.Empty;
         var prefix = r.Preview ? "Preview: " : string.Empty;
         var warn = r.Warning.Length != 0 ? $" - {r.Warning}" : string.Empty;
@@ -174,6 +230,30 @@ public sealed partial class BlocklistsViewModel : ObservableObject
             await RefreshCoreAsync();
         });
     }
+
+    [RelayCommand]
+    public async Task RollbackAsync(BlocklistSourceViewModel? source)
+    {
+        if (source is null)
+        {
+            StatusText = "Select a blocklist source first";
+            return;
+        }
+
+        if (!source.CanRollback)
+        {
+            StatusText = $"{source.Name} has no refresh checkpoint to restore";
+            return;
+        }
+
+        await RunServiceActionAsync($"Restore {source.Name} checkpoint", async () =>
+        {
+            var ack = await _client.Lists.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = source.Name });
+            StatusText = ack.Message;
+            await RefreshCoreAsync();
+        });
+    }
+
 
     [RelayCommand]
     public async Task ToggleEnabledAsync(BlocklistSourceViewModel? source)

@@ -190,6 +190,60 @@ public sealed class ListControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Refresh_all_blocks_suspicious_churn_and_records_source_health()
+    {
+        _fetcher.Responses["https://lists.test/churn.txt"] = DomainList("stable", 120);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        await client.ImportBlocklistAsync(new BlocklistRequest { Name = "Churn", Url = "https://lists.test/churn.txt" });
+
+        _fetcher.Responses["https://lists.test/churn.txt"] = "0.0.0.0 one.example.com\n";
+        var result = await client.RefreshBlocklistsAsync(new Empty());
+
+        result.Ok.Should().BeFalse();
+        result.ErrorCode.Should().Be("hostsguard.error.v1/churn_guarded");
+        result.Guarded.Should().Be(1);
+        result.Failed.Should().Be(0);
+        result.Warning.Should().Contain("fell from 120 to 1");
+        _state.Hosts.GetBlocked().Should().Contain("stable-000.example.com");
+        _state.Hosts.GetBlocked().Should().NotContain("one.example.com");
+
+        var source = (await client.ListBlocklistSourcesAsync(new Empty())).Sources.Single(s => s.Name == "Churn");
+        source.HealthStatus.Should().Be("guarded");
+        source.DomainCount.Should().Be(120);
+        source.LastAttemptDomainCount.Should().Be(1);
+        source.LastError.Should().Contain("fell from 120 to 1");
+    }
+
+    [Fact]
+    public async Task Restore_checkpoint_reverts_the_last_successful_refresh()
+    {
+        _fetcher.Responses["https://lists.test/restore.txt"] = DomainList("old", 120);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        await client.ImportBlocklistAsync(new BlocklistRequest { Name = "Restore", Url = "https://lists.test/restore.txt" });
+
+        _fetcher.Responses["https://lists.test/restore.txt"] = DomainList("new", 130);
+        var refresh = await client.RefreshBlocklistsAsync(new Empty());
+
+        refresh.Ok.Should().BeTrue();
+        refresh.CheckpointId.Should().BeGreaterThan(0);
+        _state.Hosts.GetBlocked().Should().Contain("new-000.example.com");
+        _state.Hosts.GetBlocked().Should().NotContain("old-000.example.com");
+
+        var ack = await client.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = "Restore" });
+
+        ack.Ok.Should().BeTrue();
+        ack.Message.Should().Contain("checkpoint");
+        _state.Hosts.GetBlocked().Should().Contain("old-000.example.com");
+        _state.Hosts.GetBlocked().Should().NotContain("new-000.example.com");
+        var source = (await client.ListBlocklistSourcesAsync(new Empty())).Sources.Single(s => s.Name == "Restore");
+        source.HealthStatus.Should().Be("restored");
+        source.DomainCount.Should().Be(120);
+        source.RollbackCheckpointId.Should().Be(refresh.CheckpointId);
+    }
+
+    [Fact]
     public async Task Disable_stops_refresh_but_keeps_domains()
     {
         _fetcher.Responses["https://lists.test/c.txt"] = "0.0.0.0 c1.example.com\n";
@@ -298,5 +352,20 @@ public sealed class ListControlServiceTests : IAsyncLifetime
         result.Ok.Should().BeTrue();
         result.HostsEntries.Should().BeGreaterThan(100_000);
         result.Warning.Should().Contain("DNS Client");
+    }
+
+    private static string DomainList(string prefix, int count)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < count; i++)
+        {
+            sb.Append("0.0.0.0 ")
+                .Append(prefix)
+                .Append('-')
+                .Append(i.ToString("000", System.Globalization.CultureInfo.InvariantCulture))
+                .Append(".example.com\n");
+        }
+
+        return sb.ToString();
     }
 }

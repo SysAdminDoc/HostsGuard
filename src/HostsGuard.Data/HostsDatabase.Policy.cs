@@ -202,7 +202,17 @@ public sealed partial class HostsDatabase
 
     // ─── Blocklist / allowlist subscriptions ──────────────────────────────────
 
-    public void UpsertBlocklistSub(string name, string url, long domainCount)
+    public void UpsertBlocklistSub(
+        string name,
+        string url,
+        long domainCount,
+        string contentHash = "",
+        string previousHash = "",
+        long previousDomainCount = 0,
+        string healthStatus = "ok",
+        long lastCheckpointId = 0,
+        string lastAttemptHash = "",
+        long lastAttemptDomainCount = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
@@ -210,15 +220,88 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT INTO blocklist_subs(name,url,last_refresh,domain_count,enabled)
-                VALUES(@name,@url,@now,@domainCount,1)
+                INSERT INTO blocklist_subs(
+                    name,url,last_refresh,domain_count,enabled,content_hash,previous_hash,
+                    previous_domain_count,last_error,last_error_at,health_status,last_checkpoint_id,
+                    last_attempt_hash,last_attempt_domain_count)
+                VALUES(
+                    @name,@url,@now,@domainCount,1,@contentHash,@previousHash,
+                    @previousDomainCount,'','',@healthStatus,@lastCheckpointId,
+                    @lastAttemptHash,@lastAttemptDomainCount)
                 ON CONFLICT(name) DO UPDATE SET
                     url=excluded.url,
                     last_refresh=excluded.last_refresh,
                     domain_count=excluded.domain_count,
-                    enabled=1
+                    enabled=1,
+                    content_hash=excluded.content_hash,
+                    previous_hash=excluded.previous_hash,
+                    previous_domain_count=excluded.previous_domain_count,
+                    last_error='',
+                    last_error_at='',
+                    health_status=excluded.health_status,
+                    last_checkpoint_id=excluded.last_checkpoint_id,
+                    last_attempt_hash=excluded.last_attempt_hash,
+                    last_attempt_domain_count=excluded.last_attempt_domain_count
                 """,
-                new { name, url, now, domainCount });
+                new
+                {
+                    name,
+                    url,
+                    now,
+                    domainCount,
+                    contentHash = contentHash ?? string.Empty,
+                    previousHash = previousHash ?? string.Empty,
+                    previousDomainCount,
+                    healthStatus = string.IsNullOrWhiteSpace(healthStatus) ? "ok" : healthStatus,
+                    lastCheckpointId,
+                    lastAttemptHash = lastAttemptHash ?? string.Empty,
+                    lastAttemptDomainCount,
+                });
+        }
+    }
+
+    public void RecordBlocklistRefreshFailure(
+        string name,
+        string url,
+        string error,
+        string healthStatus = "error",
+        string lastAttemptHash = "",
+        long lastAttemptDomainCount = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        var message = (error ?? string.Empty).Trim();
+        if (message.Length > 500)
+        {
+            message = message[..500];
+        }
+
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                INSERT INTO blocklist_subs(
+                    name,url,last_refresh,domain_count,enabled,last_error,last_error_at,
+                    health_status,last_attempt_hash,last_attempt_domain_count)
+                VALUES(@name,@url,'',0,1,@message,@now,@healthStatus,@lastAttemptHash,@lastAttemptDomainCount)
+                ON CONFLICT(name) DO UPDATE SET
+                    url=CASE WHEN @url!='' THEN @url ELSE blocklist_subs.url END,
+                    last_error=excluded.last_error,
+                    last_error_at=excluded.last_error_at,
+                    health_status=excluded.health_status,
+                    last_attempt_hash=excluded.last_attempt_hash,
+                    last_attempt_domain_count=excluded.last_attempt_domain_count
+                """,
+                new
+                {
+                    name,
+                    url = url ?? string.Empty,
+                    message,
+                    now,
+                    healthStatus = string.IsNullOrWhiteSpace(healthStatus) ? "error" : healthStatus,
+                    lastAttemptHash = lastAttemptHash ?? string.Empty,
+                    lastAttemptDomainCount,
+                });
         }
     }
 
@@ -286,17 +369,288 @@ public sealed partial class HostsDatabase
         }
     }
 
+    public BlocklistRemoval RemoveBlocklistSourceDomainsNotIn(string name, IEnumerable<string> replacementDomains)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(replacementDomains);
+        var keep = replacementDomains.Select(d => d.ToLowerInvariant()).Distinct(StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            var current = _conn.Query<string>(
+                "SELECT domain FROM blocklist_domain_sources WHERE source=@name",
+                new { name }).ToList();
+            var candidates = current.Where(d => !keep.Contains(d)).ToList();
+            if (candidates.Count == 0)
+            {
+                return new BlocklistRemoval(0, 0);
+            }
+
+            using var tx = _conn.BeginTransaction();
+            var src = $"list:{name}";
+            long removed = 0;
+            long preserved = 0;
+            foreach (var chunk in candidates.Chunk(500))
+            {
+                var owned = _conn.Query<string>(
+                    """
+                    SELECT b.domain FROM blocklist_domain_sources b
+                    JOIN domains d ON d.domain=b.domain
+                    WHERE b.source=@name
+                      AND b.domain IN @chunk
+                      AND d.status='blocked'
+                      AND (d.source IS NULL OR d.source='' OR d.source=@src)
+                      AND NOT EXISTS (
+                          SELECT 1 FROM blocklist_domain_sources other
+                          WHERE other.domain=b.domain AND other.source<>@name)
+                    """,
+                    new { name, src, chunk }, tx).ToList();
+                if (owned.Count != 0)
+                {
+                    _conn.Execute("DELETE FROM domains WHERE domain IN @owned AND status='blocked'", new { owned }, tx);
+                }
+
+                removed += owned.Count;
+                preserved += chunk.Count() - owned.Count;
+            }
+
+            tx.Commit();
+            return new BlocklistRemoval(removed, preserved);
+        }
+    }
+
+    public IReadOnlyList<string> GetBlocklistSourceDomains(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        lock (_gate)
+        {
+            return _conn.Query<string>(
+                "SELECT domain FROM blocklist_domain_sources WHERE source=@name ORDER BY domain",
+                new { name }).ToList();
+        }
+    }
+
+    public BlocklistSubRow? GetBlocklistSub(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        lock (_gate)
+        {
+            return QueryBlocklistSubs("WHERE s.name=@name", new { name }).FirstOrDefault();
+        }
+    }
+
+    public long CreateBlocklistCheckpoint(
+        string name,
+        string url,
+        string previousHash,
+        long previousDomainCount,
+        string newHash,
+        long newDomainCount,
+        string reason,
+        IEnumerable<string> previousDomains)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(previousDomains);
+        var cleaned = previousDomains.Select(d => d.ToLowerInvariant()).Distinct(StringComparer.Ordinal).ToList();
+        var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            using var tx = _conn.BeginTransaction();
+            var id = _conn.ExecuteScalar<long>(
+                """
+                INSERT INTO blocklist_refresh_checkpoints(
+                    source,created,url,previous_hash,previous_domain_count,new_hash,new_domain_count,reason)
+                VALUES(@name,@now,@url,@previousHash,@previousDomainCount,@newHash,@newDomainCount,@reason);
+                SELECT last_insert_rowid();
+                """,
+                new
+                {
+                    name,
+                    now,
+                    url,
+                    previousHash = previousHash ?? string.Empty,
+                    previousDomainCount,
+                    newHash = newHash ?? string.Empty,
+                    newDomainCount,
+                    reason = reason ?? string.Empty,
+                },
+                tx);
+            foreach (var chunk in cleaned.Chunk(500))
+            {
+                _conn.Execute(
+                    "INSERT OR IGNORE INTO blocklist_refresh_checkpoint_domains(checkpoint_id,domain) VALUES(@id,@domain)",
+                    chunk.Select(domain => new { id, domain }),
+                    tx);
+            }
+
+            tx.Commit();
+            return id;
+        }
+    }
+
+    public BlocklistCheckpointRestore RestoreLatestBlocklistCheckpoint(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        lock (_gate)
+        {
+            var checkpoint = _conn.QuerySingleOrDefault<BlocklistCheckpointRow>(
+                """
+                SELECT id AS Id, source AS Source, created AS Created, url AS Url,
+                       COALESCE(previous_hash,'') AS PreviousHash,
+                       COALESCE(previous_domain_count,0) AS PreviousDomainCount,
+                       COALESCE(new_hash,'') AS NewHash,
+                       COALESCE(new_domain_count,0) AS NewDomainCount,
+                       COALESCE(reason,'') AS Reason
+                FROM blocklist_refresh_checkpoints
+                WHERE source=@name
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                new { name });
+            if (checkpoint is null)
+            {
+                throw new InvalidOperationException($"no checkpoint exists for {name}");
+            }
+
+            var previous = _conn.Query<string>(
+                "SELECT domain FROM blocklist_refresh_checkpoint_domains WHERE checkpoint_id=@id ORDER BY domain",
+                new { id = checkpoint.Id }).ToList();
+            var previousSet = previous.ToHashSet(StringComparer.Ordinal);
+            var current = _conn.Query<string>(
+                "SELECT domain FROM blocklist_domain_sources WHERE source=@name ORDER BY domain",
+                new { name }).ToList();
+            var removedCandidates = current.Where(d => !previousSet.Contains(d)).ToList();
+            var src = $"list:{name}";
+            var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            long removed = 0;
+            long preserved = 0;
+
+            using var tx = _conn.BeginTransaction();
+            foreach (var chunk in removedCandidates.Chunk(500))
+            {
+                var owned = _conn.Query<string>(
+                    """
+                    SELECT b.domain FROM blocklist_domain_sources b
+                    JOIN domains d ON d.domain=b.domain
+                    WHERE b.source=@name
+                      AND b.domain IN @chunk
+                      AND d.status='blocked'
+                      AND (d.source IS NULL OR d.source='' OR d.source=@src)
+                      AND NOT EXISTS (
+                          SELECT 1 FROM blocklist_domain_sources other
+                          WHERE other.domain=b.domain AND other.source<>@name)
+                    """,
+                    new { name, src, chunk }, tx).ToList();
+                if (owned.Count != 0)
+                {
+                    _conn.Execute("DELETE FROM domains WHERE domain IN @owned AND status='blocked'", new { owned }, tx);
+                }
+
+                removed += owned.Count;
+                preserved += chunk.Count() - owned.Count;
+            }
+
+            _conn.Execute("DELETE FROM blocklist_domain_sources WHERE source=@name", new { name }, tx);
+            foreach (var chunk in previous.Chunk(500))
+            {
+                _conn.Execute(
+                    "INSERT OR IGNORE INTO blocklist_domain_sources(source,domain) VALUES(@name,@domain)",
+                    chunk.Select(domain => new { name, domain }),
+                    tx);
+                foreach (var domain in chunk)
+                {
+                    _conn.Execute(
+                        """
+                        INSERT INTO domains(domain,status,category,source,added,modified,hits,reason)
+                        VALUES(@domain,'blocked','',@src,@now,@now,0,@reason)
+                        ON CONFLICT(domain) DO UPDATE SET
+                            status=CASE WHEN domains.status='whitelisted' THEN 'whitelisted' ELSE 'blocked' END,
+                            modified=excluded.modified,
+                            source=CASE
+                                WHEN domains.source IS NULL OR domains.source='' OR domains.source LIKE 'list:%' THEN excluded.source
+                                ELSE domains.source
+                            END
+                        """,
+                        new { domain, src, now, reason = Reasons.Canonical(null, src, "blocked") },
+                        tx);
+                }
+            }
+
+            _conn.Execute(
+                """
+                UPDATE blocklist_subs SET
+                    url=@url,
+                    last_refresh=@now,
+                    domain_count=@domainCount,
+                    content_hash=@contentHash,
+                    previous_hash=@previousHash,
+                    previous_domain_count=@previousDomainCount,
+                    last_error='',
+                    last_error_at='',
+                    health_status='restored',
+                    last_checkpoint_id=@checkpointId,
+                    last_attempt_hash=@contentHash,
+                    last_attempt_domain_count=@domainCount
+                WHERE name=@name
+                """,
+                new
+                {
+                    name,
+                    url = checkpoint.Url,
+                    now,
+                    domainCount = previous.Count,
+                    contentHash = checkpoint.PreviousHash,
+                    previousHash = checkpoint.NewHash,
+                    previousDomainCount = checkpoint.NewDomainCount,
+                    checkpointId = checkpoint.Id,
+                },
+                tx);
+
+            tx.Commit();
+            return new BlocklistCheckpointRestore(checkpoint.Id, previous.Count, removed, preserved);
+        }
+    }
+
     public IReadOnlyList<BlocklistSubRow> GetBlocklistSubs()
+    {
+        return QueryBlocklistSubs(string.Empty, null);
+    }
+
+    private IReadOnlyList<BlocklistSubRow> QueryBlocklistSubs(string whereClause, object? args)
     {
         var cutoff = DateTime.Now.AddDays(-30)
             .ToString("yyyy-MM-ddTHH", System.Globalization.CultureInfo.InvariantCulture);
         lock (_gate)
         {
-            return _conn.Query<(string Name, string Url, string LastRefresh, long DomainCount, long Enabled, long OwnedDomainCount, long Hits30d)>(
-                """
+            return _conn.Query<(
+                    string Name,
+                    string Url,
+                    string LastRefresh,
+                    long DomainCount,
+                    long Enabled,
+                    long OwnedDomainCount,
+                    long Hits30d,
+                    string ContentHash,
+                    string PreviousHash,
+                    long PreviousDomainCount,
+                    string LastError,
+                    string LastErrorAt,
+                    string HealthStatus,
+                    long LastCheckpointId,
+                    string LastAttemptHash,
+                    long LastAttemptDomainCount)>(
+                $"""
                 SELECT s.name AS Name, s.url AS Url, COALESCE(s.last_refresh,'') AS LastRefresh,
                        COALESCE(s.domain_count,0) AS DomainCount, COALESCE(s.enabled,1) AS Enabled,
-                       COUNT(b.domain) AS OwnedDomainCount, COALESCE(stats.hits_30d,0) AS Hits30d
+                       COUNT(b.domain) AS OwnedDomainCount, COALESCE(stats.hits_30d,0) AS Hits30d,
+                       COALESCE(s.content_hash,'') AS ContentHash,
+                       COALESCE(s.previous_hash,'') AS PreviousHash,
+                       COALESCE(s.previous_domain_count,0) AS PreviousDomainCount,
+                       COALESCE(s.last_error,'') AS LastError,
+                       COALESCE(s.last_error_at,'') AS LastErrorAt,
+                       COALESCE(NULLIF(s.health_status,''),'new') AS HealthStatus,
+                       COALESCE(s.last_checkpoint_id,0) AS LastCheckpointId,
+                       COALESCE(s.last_attempt_hash,'') AS LastAttemptHash,
+                       COALESCE(s.last_attempt_domain_count,0) AS LastAttemptDomainCount
                 FROM blocklist_subs s
                 LEFT JOIN blocklist_domain_sources b ON b.source=s.name
                 LEFT JOIN (
@@ -306,10 +660,14 @@ public sealed partial class HostsDatabase
                     WHERE h.hour >= @cutoff
                     GROUP BY b.source
                 ) stats ON stats.source=s.name
-                GROUP BY s.name, s.url, s.last_refresh, s.domain_count, s.enabled
+                {whereClause}
+                GROUP BY s.name, s.url, s.last_refresh, s.domain_count, s.enabled,
+                         s.content_hash, s.previous_hash, s.previous_domain_count,
+                         s.last_error, s.last_error_at, s.health_status, s.last_checkpoint_id,
+                         s.last_attempt_hash, s.last_attempt_domain_count
                 ORDER BY s.name
                 """,
-                new { cutoff })
+                MergeArgs(args, cutoff))
                 .Select(r => new BlocklistSubRow(
                     r.Name,
                     r.Url,
@@ -317,9 +675,25 @@ public sealed partial class HostsDatabase
                     r.DomainCount,
                     r.Enabled != 0,
                     r.OwnedDomainCount,
-                    r.Hits30d))
+                    r.Hits30d,
+                    r.ContentHash,
+                    r.PreviousHash,
+                    r.PreviousDomainCount,
+                    r.LastError,
+                    r.LastErrorAt,
+                    r.HealthStatus,
+                    r.LastCheckpointId,
+                    r.LastAttemptHash,
+                    r.LastAttemptDomainCount))
                 .ToList();
         }
+    }
+
+    private static DynamicParameters MergeArgs(object? args, string cutoff)
+    {
+        var parameters = new DynamicParameters(args);
+        parameters.Add("cutoff", cutoff);
+        return parameters;
     }
 
     public void SetAllowlistSubs(IEnumerable<string> urls)
