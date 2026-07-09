@@ -17,6 +17,11 @@ All notable changes to HostsGuard are documented in this file.
   translations, gated by a resource-coverage regression.
 - Fixed the consent prompt's duplicate TabIndex so keyboard order now flows
   scopes, trust checkboxes, duration, then action buttons unambiguously.
+- Consent decision delivery now reports whether the service applied the
+  decision, and the shell warns explicitly when an Allow/Block was not applied
+  instead of silently leaving the connection blocked with the prompt closed.
+- Threat-intel IP checks on the per-connection hot path are now lock-free; the
+  refresh's disk write no longer stalls live connection processing.
 
 ## [0.12.63] - 2026-07-09
 

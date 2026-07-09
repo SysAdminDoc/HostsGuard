@@ -16,8 +16,12 @@ public sealed class ThreatIntel
     public const int MaxThreatListBytes = 5_000_000;
 
     private readonly string _path;
-    private readonly object _gate = new();
-    private HashSet<string> _ips;
+    private readonly object _refreshGate = new();
+
+    // Replaced wholesale on refresh, never mutated after publish — so the
+    // per-connection Contains hot path reads it lock-free and never waits on
+    // the refresh's disk write.
+    private volatile HashSet<string> _ips;
 
     public ThreatIntel(string dataDir)
     {
@@ -25,24 +29,9 @@ public sealed class ThreatIntel
         _ips = LoadFromDisk();
     }
 
-    public int Count
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _ips.Count;
-            }
-        }
-    }
+    public int Count => _ips.Count;
 
-    public bool Contains(string ip)
-    {
-        lock (_gate)
-        {
-            return _ips.Contains(ip);
-        }
-    }
+    public bool Contains(string ip) => _ips.Contains(ip);
 
     public async Task<int> RefreshAsync(IListFetcher fetcher, CancellationToken ct)
     {
@@ -55,7 +44,9 @@ public sealed class ThreatIntel
             throw new InvalidOperationException("threat-intel list contained no valid IPs");
         }
 
-        lock (_gate)
+        // The gate serializes concurrent refreshes (swap + persist stay
+        // consistent); readers never take it.
+        lock (_refreshGate)
         {
             _ips = parsed;
             var tmp = _path + ".tmp";

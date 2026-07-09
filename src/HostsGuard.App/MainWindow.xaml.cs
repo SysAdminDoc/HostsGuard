@@ -94,13 +94,27 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Consent prompt push (WFCP-011): raised on the UI thread by the VM.</summary>
-    private void OnDecisionRequested(Contracts.ConnectionDecisionRequest request)
+    private async void OnDecisionRequested(Contracts.ConnectionDecisionRequest request)
     {
         var window = new ConsentWindow(request);
         window.ShowDialog();
         if (window.Result is { } decision && DataContext is MainViewModel vm)
         {
-            _ = vm.SendDecisionAsync(decision);
+            // The consent window is already closed — a quiet status-bar note is
+            // not enough when the user's Allow silently did not land (the
+            // connection stays default-deny blocked). Fail loud.
+            if (!await vm.SendDecisionAsync(decision))
+            {
+                MessageBox.Show(
+                    this,
+                    I18n.T(
+                        "Consent_DeliveryFailedBody",
+                        "Your decision for {0} could not be applied — the service did not accept it. The connection stays blocked; it will prompt again on its next attempt.",
+                        System.IO.Path.GetFileName(decision.Application)),
+                    I18n.T("Consent_DeliveryFailedTitle", "Decision not applied"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
     }
 

@@ -48,4 +48,6 @@
   <data name="Consent_ScopeService" xml:space="preserve"><value>Solo el servicio '{0}'</value></data>
   <data name="Consent_NoPtr" xml:space="preserve"><value>sin registro PTR</value></data>
   <data name="Consent_Countdown" xml:space="preserve"><value>se cierra en {0:0} s</value></data>
+  <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Decision no aplicada</value></data>
+  <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Su decision para {0} no se pudo aplicar: el servicio no la acepto. La conexion sigue bloqueada; volvera a preguntar en su proximo intento.</value></data>
 </root>

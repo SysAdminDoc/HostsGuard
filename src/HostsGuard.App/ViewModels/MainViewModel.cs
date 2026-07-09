@@ -566,15 +566,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Send a consent decision back to the service.</summary>
-    public async Task SendDecisionAsync(ConnectionDecision decision)
+    /// <summary>
+    /// Send a consent decision back to the service. Returns whether the service
+    /// accepted it — false means the decision was NOT applied (pipe down or the
+    /// service refused), so the caller must warn: the consent window has already
+    /// closed and default-deny is silently keeping the connection blocked.
+    /// </summary>
+    public async Task<bool> SendDecisionAsync(ConnectionDecision decision)
     {
         if (_client is null)
         {
-            return;
+            return false;
         }
 
-        await RunServiceActionAsync("Send connection decision", async () =>
+        try
         {
             var ack = await _client.Consent.DecideAsync(decision);
             ConnectionText = ack.Message;
@@ -582,7 +587,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 await FwActivity.LoadConsentHistoryAsync();
             }
-        });
+
+            return ack.Ok;
+        }
+        catch (Exception ex) when (ex is Grpc.Core.RpcException || ServiceErrors.IsConnectivity(ex))
+        {
+            ConnectionText = ServiceErrors.DescribeActionFailure("Send connection decision", ex);
+            return false;
+        }
     }
 
     [RelayCommand]

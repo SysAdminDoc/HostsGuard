@@ -821,4 +821,6 @@
   <data name="Consent_ScopeService" xml:space="preserve"><value>Only the '{0}' service</value></data>
   <data name="Consent_NoPtr" xml:space="preserve"><value>no PTR record</value></data>
   <data name="Consent_Countdown" xml:space="preserve"><value>closes in {0:0} s</value></data>
+  <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Decision not applied</value></data>
+  <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Your decision for {0} could not be applied — the service did not accept it. The connection stays blocked; it will prompt again on its next attempt.</value></data>
 </root>

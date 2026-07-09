@@ -76,6 +76,36 @@ public sealed class MainViewModelTests : IAsyncLifetime
     private MainViewModel CreateShell() => new(CreateClient, _config, new ThemeManager(), new FakeConfirm(true));
 
     [Fact]
+    public async Task SendDecision_reports_whether_the_service_applied_it()
+    {
+        using var vm = CreateShell();
+
+        // Not connected yet — delivery must report failure, not silently drop.
+        (await vm.SendDecisionAsync(new Contracts.ConnectionDecision
+        {
+            Application = @"C:\apps\a.exe",
+            Verdict = "allow",
+        })).Should().BeFalse();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        // Service rejects an invalid verdict → delivered-but-not-applied is false.
+        (await vm.SendDecisionAsync(new Contracts.ConnectionDecision
+        {
+            Application = @"C:\apps\a.exe",
+            Verdict = "maybe",
+        })).Should().BeFalse();
+
+        // A valid decision lands and is applied.
+        (await vm.SendDecisionAsync(new Contracts.ConnectionDecision
+        {
+            Application = @"C:\apps\a.exe",
+            Verdict = "allow",
+            Duration = "always",
+        })).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Connect_populates_status_and_hosts_tab()
     {
         await _client.Hosts.BlockAsync(new Contracts.DomainRequest { Domain = "ads.example.com", Source = "manual" });
