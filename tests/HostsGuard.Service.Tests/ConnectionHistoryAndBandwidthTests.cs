@@ -157,7 +157,10 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     [Fact]
     public async Task Usage_quota_rpc_validates_lists_resets_exports_and_deletes_rules()
     {
-        var now = new DateTime(2026, 7, 8, 12, 0, 0);
+        // Anchor to the real current day: ExportUsageQuotaHistory windows on
+        // DateTime.Now, so a hardcoded past date drifts out of the export window
+        // and fails on any day outside it.
+        var now = DateTime.Now;
         const string process = "=chrome.exe";
         _db.AddUsageRollup("cdn.example.com", process, now, 100, 50);
         var impl = new MonitoringServiceImpl(_state);
