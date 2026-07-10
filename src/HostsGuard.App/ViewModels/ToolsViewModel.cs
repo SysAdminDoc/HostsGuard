@@ -744,6 +744,10 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     private bool _dnsEncryptedOnly;
 
+    /// <summary>Windows DNR is on: the network can auto-provision an encrypted resolver (NET-173).</summary>
+    [ObservableProperty]
+    private bool _dnrEnabled;
+
     /// <summary>
     /// "See everything": both QUIC/UDP-443 and the DoH bootstrap blocks are on, so
     /// browsers doing their own encrypted DNS fall back to the OS resolver and the
@@ -768,10 +772,12 @@ public sealed partial class ToolsViewModel : ObservableObject
             CnameCloakActive = status.CnameCloak;
             SniCaptureActive = status.SniCapture;
             DnsEncryptedOnly = status.DnsEncryptedOnly;
+            DnrEnabled = status.DnrEnabled;
             var serviceBindings = $"{status.HttpsRecords} HTTPS / {status.SvcbRecords} SVCB cache rows";
-            DohStatusText = status.Updated.Length != 0
+            var dnrNote = status.DnrEnabled ? "; DNR on (network may auto-provision an encrypted resolver)" : string.Empty;
+            DohStatusText = (status.Updated.Length != 0
                 ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}; {serviceBindings}"
-                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet; {serviceBindings}";
+                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet; {serviceBindings}") + dnrNote;
             EchPostureText = string.IsNullOrWhiteSpace(status.EchSummary)
                 ? "ECH posture unavailable."
                 : $"{status.EchSummary} {status.EchRemediation}";

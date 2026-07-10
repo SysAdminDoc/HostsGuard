@@ -902,6 +902,7 @@ message DohStatus {
   string ech_remediation = 16; // safe next step; never enables blocking
   bool service_binding_observed = 17;
   bool ech_unobservable = 18;
+  bool dnr_enabled = 19; // NET-173: Windows DNR auto-discovers network encrypted resolvers
 }
 
 message DohRefreshRequest {

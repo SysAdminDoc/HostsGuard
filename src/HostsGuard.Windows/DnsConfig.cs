@@ -244,4 +244,28 @@ public sealed class DnsConfig : IDnsConfig
 
         return false;
     }
+
+    // ─── DNR: Discovery of Network-designated Resolvers, RFC 9463 (NET-173) ──────
+
+    private const string DnscacheParametersKey =
+        @"SYSTEM\CurrentControlSet\Services\Dnscache\Parameters";
+
+    /// <summary>
+    /// Best-effort read of the Windows DNR client switch
+    /// (<c>Dnscache\Parameters\EnableDnr</c> DWORD = 1). When on, Windows will
+    /// auto-configure encrypted resolvers advertised by the network via DHCP/RA,
+    /// so a network can silently steer DNS — HostsGuard surfaces this. Never throws.
+    /// </summary>
+    public static bool IsDnrEnabled()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(DnscacheParametersKey);
+            return key?.GetValue("EnableDnr") is int v && v != 0;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
+    }
 }

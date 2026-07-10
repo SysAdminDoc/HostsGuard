@@ -197,6 +197,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             CnameCloak = _state.CnameCloak.Enabled,
             SniCapture = _state.Sni?.Active ?? false,
             DnsEncryptedOnly = Windows.DnsConfig.IsEncryptedDnsOnly(),
+            DnrEnabled = Windows.DnsConfig.IsDnrEnabled(),
             HttpsRecords = counts.HttpsRecords,
             SvcbRecords = counts.SvcbRecords,
             EchUnavailableObservations = _state.EchUnavailableSniObservations,

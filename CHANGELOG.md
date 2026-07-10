@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Encrypted-DNS status now reports whether Windows DNR (Discovery of
+  Network-designated Resolvers, RFC 9463) is enabled, so you can see when a
+  network may auto-provision an encrypted resolver and silently steer DNS. Adds
+  an RFC 9460/9461 SVCB/HTTPS wire parser for DDR designated-resolver records
+  (target, ALPN, port, DoH template) as the basis for resolver-upgrade discovery.
 - Very large hosts files (100k+ blocked entries, e.g. HaGeZi Ultimate / oisd Big)
   now raise a scale warning in service status and the CLI `status` command,
   suggesting firewall IP rules instead — a hosts file that size measurably slows
