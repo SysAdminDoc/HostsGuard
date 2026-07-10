@@ -74,6 +74,31 @@ public sealed class ActivityPersistenceQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task Flush_persists_every_accepted_sighting_and_counts_saturation_drops()
+    {
+        // NET-168: under a burst that saturates the bounded queue, a flush must
+        // still persist every sighting the queue ACCEPTED (the flush marker can
+        // no longer evict a pending write), and any shed sighting is counted, not
+        // silently lost. Invariant: persisted + dropped == enqueued.
+        const int total = 500;
+        var path = Path.Combine(_dir, "flush-sat.db");
+        using var db = new HostsDatabase(path);
+        using var queue = new ActivityPersistenceQueue(db, capacity: 4, maxBatch: 2);
+
+        for (var i = 0; i < total; i++)
+        {
+            queue.EnqueueDnsSighting($"sat-{i:D3}.example.com", "edge.exe", null, DateTime.Now);
+        }
+
+        await queue.FlushAsync();
+
+        var persisted = db.GetFeed(total + 10).Count;
+        persisted.Should().BeGreaterThan(0);
+        queue.DroppedWriteCount.Should().BeGreaterThan(0); // the burst provably saturated a 4-slot queue
+        (persisted + (int)queue.DroppedWriteCount).Should().Be(total);
+    }
+
+    [Fact]
     public void Disposing_queue_drains_pending_dns_writes()
     {
         var path = Path.Combine(_dir, "drain.db");

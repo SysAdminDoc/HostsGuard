@@ -22,14 +22,21 @@ public sealed class ActivityPersistenceQueue : IDisposable
     private readonly int _maxBatch;
     private long _writeBatches;
     private long _largestDnsBatch;
+    private long _droppedWrites;
 
     public ActivityPersistenceQueue(HostsDatabase db, int capacity = DefaultCapacity, int maxBatch = DefaultMaxBatch)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _maxBatch = Math.Clamp(maxBatch, 1, 4096);
+
+        // Wait mode (not DropOldest): TryWrite returns false when saturated so a
+        // shed sighting is countable rather than silently evicted, and — crucially
+        // — a Flush marker can never bump a pending sighting out of the queue.
+        // Producers stay non-blocking by using TryWrite; Flush uses WriteAsync off
+        // the hot path so it is inserted in order without dropping anything.
         _queue = Channel.CreateBounded<WorkItem>(new BoundedChannelOptions(Math.Max(1, capacity))
         {
-            FullMode = BoundedChannelFullMode.DropOldest,
+            FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = false,
         });
@@ -40,6 +47,9 @@ public sealed class ActivityPersistenceQueue : IDisposable
 
     public long LargestDnsBatchSize => Interlocked.Read(ref _largestDnsBatch);
 
+    /// <summary>DNS sightings/resolved-host writes shed because the queue was saturated (NET-168).</summary>
+    public long DroppedWriteCount => Interlocked.Read(ref _droppedWrites);
+
     public void EnqueueDnsSighting(string domain, string process, string? reason, DateTime seenAt)
     {
         if (string.IsNullOrWhiteSpace(domain))
@@ -47,7 +57,10 @@ public sealed class ActivityPersistenceQueue : IDisposable
             return;
         }
 
-        _queue.Writer.TryWrite(new DnsItem(domain, process ?? string.Empty, reason, seenAt));
+        if (!_queue.Writer.TryWrite(new DnsItem(domain, process ?? string.Empty, reason, seenAt)))
+        {
+            Interlocked.Increment(ref _droppedWrites);
+        }
     }
 
     public void EnqueueResolvedHosts(IEnumerable<(string Ip, string Host)> pairs, string source)
@@ -62,20 +75,37 @@ public sealed class ActivityPersistenceQueue : IDisposable
             return;
         }
 
-        _queue.Writer.TryWrite(new ResolvedHostsItem(rows, source ?? string.Empty));
+        if (!_queue.Writer.TryWrite(new ResolvedHostsItem(rows, source ?? string.Empty)))
+        {
+            Interlocked.Increment(ref _droppedWrites);
+        }
     }
 
-    public Task FlushAsync(CancellationToken cancellationToken = default)
+    public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!_queue.Writer.TryWrite(new FlushItem(completion)))
+
+        // WriteAsync waits for room instead of dropping, so the marker rides the
+        // same ordered channel behind every already-enqueued sighting and can
+        // never evict one — guaranteeing prior sightings are persisted on flush.
+        try
         {
-            return _worker.WaitAsync(cancellationToken);
+            await _queue.Writer.WriteAsync(new FlushItem(completion), cancellationToken).ConfigureAwait(false);
+        }
+        catch (ChannelClosedException)
+        {
+            // Queue completed (shutdown) — nothing left to flush.
+            return;
         }
 
-        return cancellationToken.CanBeCanceled
-            ? completion.Task.WaitAsync(cancellationToken)
-            : completion.Task;
+        if (cancellationToken.CanBeCanceled)
+        {
+            await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await completion.Task.ConfigureAwait(false);
+        }
     }
 
     private async Task ProcessAsync()

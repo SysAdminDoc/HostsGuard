@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- Stopped the activity-persistence flush from being able to drop a pending DNS
+  sighting: the bounded write queue now shrinks under back-pressure by refusing
+  (and counting) the newest write instead of silently evicting the oldest, and
+  `Flush` inserts its marker in order via an awaiting write so it can never bump
+  a queued sighting out — prior sightings are guaranteed persisted on flush, and
+  shed writes are exposed via a new dropped-writes counter.
 - Hardened service shutdown against a background-timer/database race: the
   Secure-Rules tamper-guard, schedule enforcer, and temp-allow scheduler now
   drain any in-flight timer callback before returning from `Dispose`, and the
