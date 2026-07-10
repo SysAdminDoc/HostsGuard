@@ -127,4 +127,30 @@ public sealed class LoopbackApiTests : IDisposable
         _state.Lock.Enable("locked1");
         Call("POST", "/domains", body: """{"action":"block","domain":"x.com"}""").Status.Should().Be(423);
     }
+
+    [Fact]
+    public async Task Oversized_chunked_body_is_rejected_even_without_a_content_length()
+    {
+        // NET-176: a chunked POST reports ContentLength64 == -1 and slips the
+        // declared-length guard; the bounded read must still reject it as 413.
+        var oversized = new string('x', 1_048_576 + 64);
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(oversized));
+
+        var (body, tooLarge) = await LoopbackApi.ReadBoundedBodyAsync(stream, contentLength: -1);
+
+        tooLarge.Should().BeTrue();
+        body.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Body_within_the_limit_is_read_intact()
+    {
+        const string payload = """{"action":"block","domain":"x.com"}""";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(payload));
+
+        var (body, tooLarge) = await LoopbackApi.ReadBoundedBodyAsync(stream, contentLength: -1);
+
+        tooLarge.Should().BeFalse();
+        body.Should().Be(payload);
+    }
 }

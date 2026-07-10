@@ -101,16 +101,14 @@ public sealed class LoopbackApi : IDisposable
         string? body = null;
         if (req.HttpMethod == "POST")
         {
-            if (req.ContentLength64 > MaxBodyBytes)
+            var (parsed, tooLarge) = await ReadBoundedBodyAsync(req.InputStream, req.ContentLength64);
+            if (tooLarge)
             {
                 await WriteAsync(ctx, 413, Error("body_too_large", "request body exceeds 1 MB"));
                 return;
             }
 
-            using var reader = new StreamReader(req.InputStream, Encoding.UTF8);
-            var buffer = new char[MaxBodyBytes];
-            var read = await reader.ReadBlockAsync(buffer, 0, buffer.Length);
-            body = new string(buffer, 0, read);
+            body = parsed;
         }
 
         var (status, json) = await HandleAsync(
@@ -123,6 +121,32 @@ public sealed class LoopbackApi : IDisposable
             _cts.Token);
 
         await WriteAsync(ctx, status, json);
+    }
+
+    /// <summary>
+    /// Read the request body bounded to <see cref="MaxBodyBytes"/>. A declared
+    /// over-limit length is rejected up front, but a chunked POST reports a length
+    /// of -1, so the read itself is bounded to one char past the limit — if more
+    /// arrives the body is rejected as too large rather than silently truncated to
+    /// a malformed payload (NET-176).
+    /// </summary>
+    public static async Task<(string? Body, bool TooLarge)> ReadBoundedBodyAsync(Stream input, long contentLength)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (contentLength > MaxBodyBytes)
+        {
+            return (null, true);
+        }
+
+        using var reader = new StreamReader(input, Encoding.UTF8);
+        var buffer = new char[MaxBodyBytes + 1];
+        var read = await reader.ReadBlockAsync(buffer, 0, buffer.Length);
+        if (read > MaxBodyBytes)
+        {
+            return (null, true);
+        }
+
+        return (new string(buffer, 0, read), false);
     }
 
     private static async Task WriteAsync(HttpListenerContext ctx, int status, string json)

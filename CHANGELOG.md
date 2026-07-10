@@ -4,6 +4,12 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Security
+- The opt-in loopback API now bounds the request-body read itself, so a chunked
+  POST (which reports no content length and previously slipped the size check)
+  can no longer submit an over-limit body; oversized bodies are rejected with 413
+  instead of being silently truncated.
+
 ### Fixed
 - The service now recovers from a corrupt or unopenable state database instead
   of failing to start: on open it runs a fast `quick_check`, and on corruption
