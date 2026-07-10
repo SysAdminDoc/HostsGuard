@@ -58,14 +58,51 @@ public static partial class Domains
         return true;
     }
 
-    /// <summary>True if <paramref name="d"/> is a syntactically valid, non-special, non-IP domain.</summary>
-    public static bool LooksLikeDomain(string? d) =>
-        !string.IsNullOrEmpty(d)
-        && d.Contains('.')
-        && WithinDnsLimits(d)
-        && DomainRegex().IsMatch(d)
-        && !Ipv4Regex().IsMatch(d)
-        && !Ignored.Contains(d);
+    /// <summary>
+    /// Canonical form for storage and comparison: trimmed, trailing-dot-stripped,
+    /// lowercased, and IDN-encoded to ASCII/punycode. A Unicode domain
+    /// (<c>münchen.de</c>, <c>例え.jp</c>) becomes its <c>xn--</c> form so it can be
+    /// blocked and matched; non-IDN junk is returned lowercased-and-trimmed so it
+    /// still fails <see cref="LooksLikeDomain"/>. Idempotent for ASCII input.
+    /// </summary>
+    public static string ToAscii(string? d)
+    {
+        if (string.IsNullOrEmpty(d))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = d.Trim().TrimEnd('.').ToLowerInvariant();
+        if (trimmed.Length == 0 || System.Text.Ascii.IsValid(trimmed))
+        {
+            return trimmed;
+        }
+
+        try
+        {
+            return new System.Globalization.IdnMapping { AllowUnassigned = true }.GetAscii(trimmed);
+        }
+        catch (ArgumentException)
+        {
+            // Not a valid IDN — hand back the trimmed input so LooksLikeDomain rejects it.
+            return trimmed;
+        }
+    }
+
+    /// <summary>
+    /// True if <paramref name="d"/> is a syntactically valid, non-special, non-IP
+    /// domain. Unicode IDNs are accepted by validating their ASCII/punycode form.
+    /// </summary>
+    public static bool LooksLikeDomain(string? d)
+    {
+        var a = ToAscii(d);
+        return a.Length != 0
+            && a.Contains('.')
+            && WithinDnsLimits(a)
+            && DomainRegex().IsMatch(a)
+            && !Ipv4Regex().IsMatch(a)
+            && !Ignored.Contains(a);
+    }
 
     /// <summary>
     /// Registrable ("root") domain, lowercased. Honors the multi-label

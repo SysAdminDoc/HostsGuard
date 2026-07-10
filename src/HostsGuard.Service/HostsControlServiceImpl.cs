@@ -16,7 +16,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> Block(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
@@ -62,7 +62,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> Allow(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
@@ -85,7 +85,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> Unblock(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         // NET-110: removing a block weakens posture — gate behind the settings lock.
         if (_state.GateWhenLocked() is { } gate)
         {
@@ -102,7 +102,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> BlockRoot(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
@@ -305,7 +305,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> TempAllow(TempAllowRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
@@ -370,7 +370,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> HideRoot(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
@@ -383,7 +383,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> UnhideRoot(DomainRequest request, ServerCallContext context)
     {
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         var root = Domains.GetRoot(d);
         _state.Db.UnhideRoot(root);
         return Task.FromResult(Ok($"unhidden root {root}"));
@@ -615,7 +615,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     public override async Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)
     {
         await _state.FlushActivityPersistenceAsync(context.CancellationToken);
-        var d = (request.Domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(request.Domain);
         var root = Domains.LooksLikeDomain(d) ? Domains.GetRoot(d) : d;
         var sparkline = new Sparkline();
         if (root.Length != 0)

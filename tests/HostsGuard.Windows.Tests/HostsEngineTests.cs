@@ -35,6 +35,32 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public void Blocks_a_unicode_idn_as_punycode_and_unblocks_it()
+    {
+        // NET-170: a Unicode IDN is stored and matched as its xn-- form.
+        var e = New();
+        e.Block("münchen.de").Should().BeTrue();
+        e.GetBlocked().Should().Contain("xn--mnchen-3ya.de");
+        File.ReadAllText(_hosts).Should().Contain("0.0.0.0 xn--mnchen-3ya.de");
+
+        // Unblock accepts the Unicode form and removes the punycode line.
+        e.Unblock("münchen.de").Should().BeTrue();
+        New().GetBlocked().Should().NotContain("xn--mnchen-3ya.de");
+    }
+
+    [Fact]
+    public void Unblock_removes_a_trailing_dot_fqdn_line()
+    {
+        // NET-177: a manually-added "0.0.0.0 example.com." line must be removable
+        // via Unblock("example.com"); normalization strips the trailing dot.
+        File.WriteAllText(_hosts, "# header\n0.0.0.0 example.com.\n");
+        var e = New();
+        e.Unblock("example.com").Should().BeTrue();
+        New().GetBlocked().Should().NotContain("example.com");
+        File.ReadAllText(_hosts).Should().NotContain("example.com.");
+    }
+
+    [Fact]
     public void Block_is_idempotent_and_validates()
     {
         var e = New();

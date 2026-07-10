@@ -29,4 +29,22 @@ public class DomainsTests
     [InlineData("google.com", "google.com")]
     public void GetRoot_matches_python(string input, string expected) =>
         Domains.GetRoot(input).Should().Be(expected);
+
+    [Theory]
+    [InlineData("example.com", "example.com")]           // ASCII unchanged
+    [InlineData("Example.COM", "example.com")]           // lowercased
+    [InlineData("example.com.", "example.com")]          // trailing dot stripped (NET-177)
+    [InlineData(" example.com ", "example.com")]         // trimmed
+    [InlineData("münchen.de", "xn--mnchen-3ya.de")]      // IDN → punycode (NET-170)
+    [InlineData("例え.jp", "xn--r8jz45g.jp")]             // IDN → punycode
+    [InlineData("xn--mnchen-3ya.de", "xn--mnchen-3ya.de")] // idempotent on punycode
+    public void ToAscii_normalizes_and_punycodes(string input, string expected) =>
+        Domains.ToAscii(input).Should().Be(expected);
+
+    [Theory]
+    [InlineData("münchen.de", true)]   // Unicode IDN is now a valid blockable domain
+    [InlineData("例え.jp", true)]
+    [InlineData("bücher.example", true)]
+    public void LooksLikeDomain_accepts_unicode_idns(string input, bool expected) =>
+        Domains.LooksLikeDomain(input).Should().Be(expected);
 }

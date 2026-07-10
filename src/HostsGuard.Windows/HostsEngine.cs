@@ -78,7 +78,7 @@ public sealed class HostsEngine
     /// <summary>Block a single domain. Returns false if invalid or already blocked.</summary>
     public bool Block(string domain)
     {
-        var d = (domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(domain);
         if (!Domains.LooksLikeDomain(d))
         {
             return false;
@@ -109,7 +109,7 @@ public sealed class HostsEngine
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var raw in domains)
             {
-                var d = (raw ?? string.Empty).ToLowerInvariant().Trim();
+                var d = Domains.ToAscii(raw);
                 if (!_blocked.Contains(d) && seen.Add(d) && Domains.LooksLikeDomain(d))
                 {
                     toAdd.Add(d);
@@ -137,7 +137,7 @@ public sealed class HostsEngine
     /// <summary>Remove all block lines for a domain, preserving everything else.</summary>
     public bool Unblock(string domain)
     {
-        var d = (domain ?? string.Empty).ToLowerInvariant().Trim();
+        var d = Domains.ToAscii(domain);
         lock (_gate)
         {
             var kept = new List<string>();
@@ -153,7 +153,7 @@ public sealed class HostsEngine
                 var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 2
                     && parts[0] is "0.0.0.0" or "127.0.0.1" or "::" or "::1"
-                    && parts.Skip(1).Any(p => p.ToLowerInvariant().Trim() == d))
+                    && parts.Skip(1).Any(p => Domains.ToAscii(p) == d))
                 {
                     continue;
                 }
@@ -183,7 +183,7 @@ public sealed class HostsEngine
         var target = new HashSet<string>(StringComparer.Ordinal);
         foreach (var raw in targetBlocked)
         {
-            var d = (raw ?? string.Empty).ToLowerInvariant().Trim();
+            var d = Domains.ToAscii(raw);
             if (Domains.LooksLikeDomain(d))
             {
                 target.Add(d);

@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Unicode internationalized domain names (IDNs) can now be blocked: domains are
+  normalized to their ASCII/punycode (`xn--`) form on the way in, so entries like
+  `münchen.de` or `例え.jp` are accepted, stored, and matched instead of being
+  rejected as invalid. The same normalization strips trailing dots, so a
+  manually-added `0.0.0.0 example.com.` line is now removable via unblock.
 - Service status and the support-bundle `diagnostics.json` now report runtime
   health: SNI/bandwidth monitor liveness, secure-rules and kill-switch state,
   pending-consent count, ECH-unavailable observations, persistence dropped-write
