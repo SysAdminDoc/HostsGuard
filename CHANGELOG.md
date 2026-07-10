@@ -4,6 +4,14 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Hardened service shutdown against a background-timer/database race: the
+  Secure-Rules tamper-guard, schedule enforcer, and temp-allow scheduler now
+  drain any in-flight timer callback before returning from `Dispose`, and the
+  database fails fast with a typed `ObjectDisposedException` on the coordinator
+  read/write paths after disposal (which those coordinators now swallow) instead
+  of surfacing an opaque SQLite error on a background thread at stop.
+
 - Kept the Firewall Rules workbench within the viewport by rebalancing column widths, truncating long values with full-value tooltips, and removing the horizontal navigation regression in both themes.
 - Clarified the read-only Windows Firewall indexing action, removed its unnecessary confirmation interruption, and added live rule-creation guidance that prevents conflicting package and program targets before submission.
 

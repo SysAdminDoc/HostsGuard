@@ -157,7 +157,14 @@ public sealed class ScheduleEnforcer : IDisposable
         lock (_gate)
         {
             _disposed = true;
-            _timer.Dispose();
+        }
+
+        // Drain: Sweep does all its DB work under _gate, but wait for any
+        // in-flight callback so it can never race Db.Dispose (which runs last).
+        using var drained = new ManualResetEvent(false);
+        if (_timer.Dispose(drained))
+        {
+            drained.WaitOne(TimeSpan.FromSeconds(5));
         }
     }
 }

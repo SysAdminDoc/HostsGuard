@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using System.Threading;
 using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
@@ -25,14 +26,41 @@ public sealed class SecureRulesGuard : IDisposable
     private readonly System.Threading.Timer _timer;
     private readonly object _gate = new();
     private bool _enabled;
+    private bool _disposed;
 
     public SecureRulesGuard(IFirewallEngine? firewall, HostsDatabase db)
     {
         _firewall = firewall;
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _enabled = _db.GetMeta(MetaKey) == "1";
-        _timer = new System.Threading.Timer(_ => { try { Reconcile(); } catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException) { } },
-            null, Interval, Interval);
+        _timer = new System.Threading.Timer(_ => ReconcileFromTimer(), null, Interval, Interval);
+    }
+
+    /// <summary>
+    /// Timer entry point: skip if disposed, and swallow the exceptions that a
+    /// shutdown-time reconcile can raise if the DB or firewall COM has already
+    /// gone away. The drain in <see cref="Dispose"/> makes this the belt to that
+    /// suspenders — a callback in flight is awaited before the DB is disposed.
+    /// </summary>
+    private void ReconcileFromTimer()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            Reconcile();
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException
+            or ObjectDisposedException or InvalidOperationException)
+        {
+            // Firewall COM unavailable, or the DB was disposed during shutdown.
+        }
     }
 
     public bool Enabled
@@ -128,5 +156,19 @@ public sealed class SecureRulesGuard : IDisposable
         return reverts;
     }
 
-    public void Dispose() => _timer.Dispose();
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            _disposed = true;
+        }
+
+        // Drain: wait for an in-flight reconcile so it can never touch the DB
+        // after ServiceState disposes it (Db.Dispose runs last).
+        using var drained = new ManualResetEvent(false);
+        if (_timer.Dispose(drained))
+        {
+            drained.WaitOne(TimeSpan.FromSeconds(5));
+        }
+    }
 }

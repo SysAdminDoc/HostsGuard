@@ -506,4 +506,30 @@ public sealed class HostsDatabaseTests : IDisposable
         var allows = db.GetTempAllows();
         allows.Should().ContainSingle(a => a.Domain == "good.com");
     }
+
+    [Fact]
+    public void Dispose_is_idempotent()
+    {
+        var db = new HostsDatabase(DbPath("dispose-twice.db"));
+        db.Dispose();
+        Action second = () => db.Dispose();
+        second.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Coordinator_path_reads_and_writes_throw_ObjectDisposedException_after_dispose()
+    {
+        // NET-167: the background coordinators (SecureRulesGuard/ScheduleEnforcer/
+        // TempAllowScheduler) hit these methods; after dispose they must fail fast
+        // with a typed exception that those coordinators swallow, not an opaque
+        // SQLite error on a background thread.
+        var db = new HostsDatabase(DbPath("disposed-guard.db"));
+        db.Dispose();
+
+        ((Action)(() => db.LogEvent("x.com", "blocked"))).Should().Throw<ObjectDisposedException>();
+        ((Action)(() => db.GetFwState())).Should().Throw<ObjectDisposedException>();
+        ((Action)(() => db.GetFwStateNames())).Should().Throw<ObjectDisposedException>();
+        ((Action)(() => db.GetSchedules())).Should().Throw<ObjectDisposedException>();
+        ((Action)(() => db.GetTempAllows())).Should().Throw<ObjectDisposedException>();
+    }
 }

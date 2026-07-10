@@ -93,4 +93,29 @@ public sealed class SecureRulesGuardTests : IDisposable
         using var reopened = new SecureRulesGuard(_fw, _db);
         reopened.Enabled.Should().BeTrue();
     }
+
+    [Fact]
+    public void Dispose_is_idempotent_and_drains_without_throwing()
+    {
+        var guard = new SecureRulesGuard(_fw, _db);
+        guard.SetEnabled(true);
+        guard.Dispose();
+        Action second = () => guard.Dispose();
+        second.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Reconcile_after_db_dispose_throws_the_type_the_timer_path_swallows()
+    {
+        // NET-167: prove the DB fails fast with ObjectDisposedException — the
+        // exact type ReconcileFromTimer catches — instead of an opaque SQLite
+        // error, so a shutdown-time tick can never crash a background thread.
+        using var guard = new SecureRulesGuard(_fw, _db);
+        Track("HG_Block_x");
+        guard.SetEnabled(true);
+
+        _db.Dispose();
+
+        ((Action)(() => guard.Reconcile())).Should().Throw<ObjectDisposedException>();
+    }
 }

@@ -76,6 +76,7 @@ public sealed partial class HostsDatabase
     {
         lock (_gate)
         {
+            ThrowIfDisposed();
             return _conn.Query<string>("SELECT name FROM fw_state").ToHashSet(StringComparer.Ordinal);
         }
     }
@@ -135,6 +136,7 @@ public sealed partial class HostsDatabase
     {
         lock (_gate)
         {
+            ThrowIfDisposed();
             return _conn.Query<FwStateRow>(
                 """
                 SELECT name AS Name, direction AS Direction, action AS Action,

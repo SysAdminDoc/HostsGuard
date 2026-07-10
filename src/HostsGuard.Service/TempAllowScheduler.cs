@@ -130,7 +130,14 @@ public sealed class TempAllowScheduler : IDisposable
         lock (_gate)
         {
             _disposed = true;
-            _timer.Dispose();
+        }
+
+        // Drain: wait for an in-flight Sweep so a re-block/revert can never touch
+        // the DB after ServiceState disposes it (Db.Dispose runs last).
+        using var drained = new ManualResetEvent(false);
+        if (_timer.Dispose(drained))
+        {
+            drained.WaitOne(TimeSpan.FromSeconds(5));
         }
     }
 }

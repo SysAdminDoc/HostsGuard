@@ -17,6 +17,7 @@ public sealed partial class HostsDatabase
         provenance ??= WfpAuditProvenance.Empty;
         lock (_gate)
         {
+            ThrowIfDisposed();
             _conn.Execute(
                 """
                 INSERT INTO log(

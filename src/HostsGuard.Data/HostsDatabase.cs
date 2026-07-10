@@ -673,6 +673,23 @@ public sealed partial class HostsDatabase : IDisposable
     public int SchemaVersionOnDisk() =>
         int.TryParse(_conn.ExecuteScalar<string>("SELECT value FROM meta WHERE key='schema_version'"), out var v) ? v : 0;
 
+    /// <summary>
+    /// Fail fast with a typed exception if a caller reaches the DB after
+    /// <see cref="Dispose"/>. Called under <c>_gate</c> on the paths background
+    /// coordinators (SecureRulesGuard/ScheduleEnforcer/TempAllowScheduler) touch,
+    /// so a stray shutdown-time callback throws <see cref="ObjectDisposedException"/>
+    /// (which those coordinators swallow) instead of an opaque SQLite error on a
+    /// background thread. The coordinators' drain-on-dispose is the hard guarantee;
+    /// this is defense-in-depth against any future dispose-order regression.
+    /// </summary>
+    internal void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(HostsDatabase));
+        }
+    }
+
     public void Dispose()
     {
         lock (_gate)

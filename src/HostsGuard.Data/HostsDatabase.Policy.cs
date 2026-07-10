@@ -30,6 +30,7 @@ public sealed partial class HostsDatabase
     {
         lock (_gate)
         {
+            ThrowIfDisposed();
             return _conn.Query<(string, string)>("SELECT domain, expires FROM temp_allows")
                 .Where(r => DateTime.TryParse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out _))
@@ -1050,6 +1051,7 @@ public sealed partial class HostsDatabase
     {
         lock (_gate)
         {
+            ThrowIfDisposed();
             return _conn.Query<(string, string, string, string)>(
                 "SELECT target, days, start, end FROM schedules ORDER BY id").ToList();
         }
