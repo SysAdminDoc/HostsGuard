@@ -52,9 +52,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
             {
                 await _state.Ai.CategorizeAsync(new[] { domain }, CancellationToken.None);
             }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException
-                or TaskCanceledException or IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
+                // Fire-and-forget: any failure (incl. JsonException/ArgumentException
+                // from a malformed AI response) must be logged, never left as an
+                // unobserved task exception.
                 _state.Db.LogEvent(domain, "ai_categorize_failed", details: ex.Message);
             }
         });

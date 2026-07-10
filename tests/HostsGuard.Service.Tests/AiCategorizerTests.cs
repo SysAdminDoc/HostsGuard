@@ -24,6 +24,13 @@ internal sealed class FakeAiCompleter : IAiCompleter, IDisposable
     public void Dispose() => Disposed = true;
 }
 
+/// <summary>A completer that always throws a non-connectivity error (NET-178).</summary>
+internal sealed class ThrowingAiCompleter : IAiCompleter
+{
+    public Task<string> CompleteAsync(AiSettings settings, string systemPrompt, string userPrompt, CancellationToken ct)
+        => throw new System.Text.Json.JsonException("malformed AI response");
+}
+
 [SupportedOSPlatform("windows")]
 public sealed class AiCategorizerTests : IDisposable
 {
@@ -78,6 +85,35 @@ public sealed class AiCategorizerTests : IDisposable
         state.Dispose();
 
         completer.Disposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AutoCategorize_logs_a_malformed_ai_response_instead_of_going_unobserved()
+    {
+        // NET-178: the fire-and-forget auto-categorize must log any failure — incl.
+        // a JsonException the old catch filter missed — not leave it unobserved.
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(_dir, "hosts178")),
+            new HostsDatabase(Path.Combine(_dir, "state178.db")),
+            dataDir: _dir,
+            aiCompleter: new ThrowingAiCompleter());
+        state.Ai.SaveSettings("sk-key", "", "", enabled: true);
+        var impl = new HostsControlServiceImpl(state);
+
+        (await impl.Block(new Contracts.DomainRequest { Domain = "uncurated-net178.example" }, null!)).Ok.Should().BeTrue();
+
+        // The categorize runs on a background task; poll briefly for the log entry.
+        var logged = false;
+        for (var i = 0; i < 50 && !logged; i++)
+        {
+            logged = state.Db.GetLog(50).Any(e => e.Action == "ai_categorize_failed");
+            if (!logged)
+            {
+                await Task.Delay(50);
+            }
+        }
+
+        logged.Should().BeTrue();
     }
 
     [Fact]

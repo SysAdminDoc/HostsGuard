@@ -33,6 +33,9 @@ All notable changes to HostsGuard are documented in this file.
   instead of being silently truncated.
 
 ### Fixed
+- Background AI auto-categorization of a freshly blocked domain now logs every
+  failure (including a malformed AI response) as `ai_categorize_failed` instead
+  of letting some exception types escape as an unobserved task exception.
 - The service now recovers from a corrupt or unopenable state database instead
   of failing to start: on open it runs a fast `quick_check`, and on corruption
   (or any open failure) it quarantines the bad file and its WAL/SHM sidecars to a
