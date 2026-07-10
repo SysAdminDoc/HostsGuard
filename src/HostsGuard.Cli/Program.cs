@@ -183,7 +183,10 @@ static async Task<int> StatusAsync()
             Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
             Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
             Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
-            Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")}");
+            Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
+            Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");
+            var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
+            Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");
             var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
             Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
             return 0;

@@ -6,6 +6,7 @@ using System.Text.Json;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
+using HostsGuard.Data;
 
 namespace HostsGuard.Service;
 
@@ -31,6 +32,18 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             FeedTotal = stats.FeedTotal,
             DnsMonitorActive = _state.DnsMonitorActive,
             ConnectionMonitorActive = _state.ConnectionMonitorActive,
+            SniMonitorActive = _state.Sni is not null,
+            BandwidthMonitorActive = _state.Bandwidth is not null,
+            KillSwitchEngaged = _state.KillSwitch?.IsEngaged ?? false,
+            SecureRulesArmed = _state.SecureRules.Enabled,
+            PersistenceDroppedWrites = _state.ActivityPersistence.DroppedWriteCount,
+            PersistenceWriteBatches = _state.ActivityPersistence.WriteBatchCount,
+            PersistenceLargestBatch = _state.ActivityPersistence.LargestDnsBatchSize,
+            PendingConsent = _state.Consent.PendingCount,
+            EchUnavailable = _state.EchUnavailableSniObservations,
+            SchemaVersion = HostsDatabase.SchemaVersion,
+            SchemaVersionOnDisk = _state.Db.SchemaVersionOnDisk(),
+            FilteringMode = _state.Consent.Mode,
         };
         return Task.FromResult(status);
     }
@@ -136,6 +149,25 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             events_window = recent.Count,
             events_by_category = byCategory,
             events_by_action_top = byAction,
+
+            // NET-169 runtime health: monitor liveness, silent-drop counters, and
+            // schema drift — the signals a support engineer cannot otherwise see.
+            health = new
+            {
+                dns_monitor_active = _state.DnsMonitorActive,
+                connection_monitor_active = _state.ConnectionMonitorActive,
+                sni_monitor_active = _state.Sni is not null,
+                bandwidth_monitor_active = _state.Bandwidth is not null,
+                secure_rules_armed = _state.SecureRules.Enabled,
+                kill_switch_engaged = _state.KillSwitch?.IsEngaged ?? false,
+                pending_consent = _state.Consent.PendingCount,
+                ech_unavailable = _state.EchUnavailableSniObservations,
+                persistence_dropped_writes = _state.ActivityPersistence.DroppedWriteCount,
+                persistence_write_batches = _state.ActivityPersistence.WriteBatchCount,
+                persistence_largest_batch = _state.ActivityPersistence.LargestDnsBatchSize,
+                schema_version = HostsDatabase.SchemaVersion,
+                schema_version_on_disk = _state.Db.SchemaVersionOnDisk(),
+            },
         }, new JsonSerializerOptions { WriteIndented = true });
     }
 

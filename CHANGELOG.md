@@ -4,6 +4,14 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Service status and the support-bundle `diagnostics.json` now report runtime
+  health: SNI/bandwidth monitor liveness, secure-rules and kill-switch state,
+  pending-consent count, ECH-unavailable observations, persistence dropped-write
+  and batch counters, and the on-disk vs compiled schema version — so a support
+  engineer can tell whether the service is healthy or quietly shedding work. The
+  CLI `status` command prints the new health and schema-version lines.
+
 ### Security
 - The opt-in loopback API now bounds the request-body read itself, so a chunked
   POST (which reports no content length and previously slipped the size check)

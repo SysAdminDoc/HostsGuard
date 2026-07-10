@@ -56,6 +56,21 @@ message ServiceStatus {
   int32 feed_total = 7;
   bool dns_monitor_active = 8;
   bool connection_monitor_active = 9;
+  // NET-169 runtime-health signals: monitor liveness, silent-drop counters,
+  // and posture so support (and the NET-186 health glance) can tell whether the
+  // service is healthy or quietly shedding work.
+  bool sni_monitor_active = 10;
+  bool bandwidth_monitor_active = 11;
+  bool kill_switch_engaged = 12;
+  bool secure_rules_armed = 13;
+  int64 persistence_dropped_writes = 14;
+  int64 persistence_write_batches = 15;
+  int64 persistence_largest_batch = 16;
+  int32 pending_consent = 17;
+  int32 ech_unavailable = 18;
+  int32 schema_version = 19;
+  int32 schema_version_on_disk = 20;
+  string filtering_mode = 21;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────
