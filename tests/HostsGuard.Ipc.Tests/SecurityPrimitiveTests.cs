@@ -105,6 +105,37 @@ public class SecurityPrimitiveTests
             var everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
             rules.Cast<System.Security.AccessControl.FileSystemAccessRule>()
                 .Any(r => r.IdentityReference.Equals(everyone)).Should().BeFalse();
+
+            // NET-179: atomic publish leaves no temp file behind.
+            File.Exists(path + ".tmp").Should().BeFalse();
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* best effort */ }
+        }
+    }
+
+    [Fact]
+    public async Task ReadHandshake_recovers_from_a_transient_empty_token_during_rotation()
+    {
+        // NET-179: a client reading mid-rotation must not cache an empty token.
+        var dir = Path.Combine(Path.GetTempPath(), "hg_ipc_rot_" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(dir, "session_token");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var token = SessionToken.Generate();
+            File.WriteAllText(path, string.Empty); // simulate the empty mid-rotation window
+
+            // A writer fills in the real token shortly after the read begins.
+            var writer = Task.Run(async () =>
+            {
+                await Task.Delay(30);
+                File.WriteAllText(path, token);
+            });
+
+            SessionToken.ReadHandshake(path).Should().Be(token);
+            await writer;
         }
         finally
         {

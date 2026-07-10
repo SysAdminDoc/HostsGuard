@@ -52,8 +52,6 @@ public static class SessionToken
             Directory.CreateDirectory(dir);
         }
 
-        File.WriteAllText(path, token);
-
         var identity = WindowsIdentity.GetCurrent();
         var currentUser = identity.User
             ?? throw new InvalidOperationException("Cannot determine current user SID.");
@@ -71,12 +69,42 @@ public static class SessionToken
                 AccessControlType.Allow));
         }
 
-        new FileInfo(path).SetAccessControl(security);
+        // Atomic publish (NET-179): write + ACL a temp file, then rename over the
+        // destination. Without this, a client reading between WriteAllText and
+        // SetAccessControl could see an empty/partial or not-yet-protected token
+        // and get Unauthenticated during a rotation.
+        var tmp = path + ".tmp";
+        File.WriteAllText(tmp, token);
+        new FileInfo(tmp).SetAccessControl(security);
+        File.Move(tmp, path, overwrite: true);
     }
 
+    /// <summary>
+    /// Read the handshake token, retrying briefly past a transient empty read or a
+    /// momentary lock during the atomic rename in <see cref="WriteHandshake"/>
+    /// (NET-179), so a client that reads mid-rotation recovers instead of caching
+    /// an empty token and getting Unauthenticated.
+    /// </summary>
     public static string ReadHandshake(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return File.ReadAllText(path).Trim();
+        const int maxAttempts = 5;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var token = File.ReadAllText(path).Trim();
+                if (token.Length != 0 || attempt >= maxAttempts)
+                {
+                    return token;
+                }
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                // Briefly locked during the temp→final rename; retry.
+            }
+
+            System.Threading.Thread.Sleep(25);
+        }
     }
 }

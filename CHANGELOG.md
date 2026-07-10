@@ -33,6 +33,10 @@ All notable changes to HostsGuard are documented in this file.
   instead of being silently truncated.
 
 ### Fixed
+- The IPC handshake token is now published atomically (write + ACL a temp file,
+  then rename over the destination), and the reader retries briefly past a
+  transient empty/locked read, so the desktop UI can no longer grab a partial or
+  not-yet-protected token during a rotation and be forced to reconnect.
 - Background AI auto-categorization of a freshly blocked domain now logs every
   failure (including a malformed AI response) as `ai_categorize_failed` instead
   of letting some exception types escape as an unobserved task exception.
