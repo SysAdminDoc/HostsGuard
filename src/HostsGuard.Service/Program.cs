@@ -29,7 +29,12 @@ var dbPath = Path.Combine(baseDir, "hostsguard.db");
 var handshakePath = Path.Combine(baseDir, "session_token");
 
 var hosts = new HostsEngine(HostsEngine.DefaultHostsPath);
-var db = new HostsDatabase(dbPath);
+var db = HostsDatabase.OpenWithRecovery(dbPath, out var quarantinedDb);
+if (quarantinedDb is not null)
+{
+    Console.WriteLine($"HostsGuard: state database was unreadable and was quarantined to {quarantinedDb}; a fresh database was created.");
+}
+
 var firewall = new FirewallEngine();
 var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"));
 var dns = new DnsConfig();

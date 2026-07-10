@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- The service now recovers from a corrupt or unopenable state database instead
+  of failing to start: on open it runs a fast `quick_check`, and on corruption
+  (or any open failure) it quarantines the bad file and its WAL/SHM sidecars to a
+  timestamped `.corrupt` name, rebuilds an empty versioned schema, and records
+  both a log event and an alert — so a power-loss-torn `hostsguard.db` can never
+  brick the elevated service responsible for restoring safe network posture.
 - Stopped the activity-persistence flush from being able to drop a pending DNS
   sighting: the bounded write queue now shrinks under back-pressure by refusing
   (and counting) the newest write instead of silently evicting the oldest, and

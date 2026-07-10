@@ -377,21 +377,110 @@ public sealed partial class HostsDatabase : IDisposable
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared,
         }.ToString());
-        _conn.Open();
-        _conn.Execute("PRAGMA busy_timeout=5000;");
-        IntegrityCheck();
-        EnsureIncrementalAutoVacuum();
-        _conn.Execute("PRAGMA journal_mode=WAL;");
-        Migrate();
+        try
+        {
+            _conn.Open();
+            _conn.Execute("PRAGMA busy_timeout=5000;");
+            IntegrityCheck();
+            EnsureIncrementalAutoVacuum();
+            _conn.Execute("PRAGMA journal_mode=WAL;");
+            Migrate();
+        }
+        catch
+        {
+            // Release the file handle so a caller (OpenWithRecovery) can quarantine
+            // a corrupt file instead of failing to move a still-locked one.
+            _conn.Dispose();
+            SqliteConnection.ClearPool(_conn);
+            throw;
+        }
     }
 
     private void IntegrityCheck()
     {
-        var result = _conn.ExecuteScalar<string>("PRAGMA integrity_check");
+        // quick_check is the open-time gate: it catches structural corruption an
+        // order of magnitude faster than a full integrity_check, which matters on
+        // every service start. OpenWithRecovery turns a failure here into a
+        // quarantine-and-rebuild instead of a crash.
+        var result = _conn.ExecuteScalar<string>("PRAGMA quick_check");
         if (result is not null && result != "ok")
         {
-            throw new InvalidOperationException($"Database integrity check failed: {result}");
+            throw new InvalidOperationException($"Database quick_check failed: {result}");
         }
+    }
+
+    /// <summary>
+    /// Open the state database, or — when it is corrupt or otherwise unopenable —
+    /// quarantine the bad file (and its WAL/SHM sidecars) to a timestamped
+    /// <c>.corrupt</c> name and rebuild an empty versioned schema, so the service
+    /// always starts and can restore safe posture. A power-loss-torn or
+    /// disk-faulted <c>hostsguard.db</c> must never brick the elevated service
+    /// that is responsible for un-blocking the network (NET-181).
+    /// </summary>
+    /// <param name="path">Database file path.</param>
+    /// <param name="quarantinedPath">The moved-aside file when recovery happened, else null.</param>
+    public static HostsDatabase OpenWithRecovery(string path, out string? quarantinedPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        quarantinedPath = null;
+        try
+        {
+            return new HostsDatabase(path);
+        }
+        catch (Exception ex) when (ex is SqliteException or InvalidOperationException or IOException)
+        {
+            // Release any native handle the failed open left so the file can move.
+            SqliteConnection.ClearAllPools();
+            quarantinedPath = QuarantineDatabaseFiles(path);
+
+            var db = new HostsDatabase(path);
+            db.LogEvent(
+                "service",
+                "db_recovered",
+                details: $"unreadable database quarantined to {Path.GetFileName(quarantinedPath)}: {ex.Message}",
+                reason: "service");
+            db.AddAlert(
+                "db_recovered",
+                "warning",
+                "State database rebuilt after corruption",
+                Path.GetFileName(path),
+                $"The state database could not be opened and was quarantined to "
+                    + $"{Path.GetFileName(quarantinedPath)}; a fresh database was created. "
+                    + "Blocklists and rules re-populate automatically.",
+                action: "recovered");
+            return db;
+        }
+    }
+
+    private static string QuarantineDatabaseFiles(string path)
+    {
+        var stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture);
+        var quarantined = $"{path}.{stamp}.corrupt";
+        if (File.Exists(quarantined))
+        {
+            File.Delete(quarantined);
+        }
+
+        File.Move(path, quarantined);
+
+        // The WAL/SHM sidecars belong to the corrupt file; a fresh DB must not
+        // inherit them. Best-effort — a locked sidecar is not fatal to recovery.
+        foreach (var sidecar in new[] { path + "-wal", path + "-shm" })
+        {
+            try
+            {
+                if (File.Exists(sidecar))
+                {
+                    File.Delete(sidecar);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Leave the orphaned sidecar; SQLite ignores a WAL with no DB header match.
+            }
+        }
+
+        return quarantined;
     }
 
     private void Migrate()

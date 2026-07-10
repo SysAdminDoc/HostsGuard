@@ -508,6 +508,31 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void OpenWithRecovery_opens_a_healthy_db_without_quarantine()
+    {
+        using var db = HostsDatabase.OpenWithRecovery(DbPath("healthy.db"), out var quarantined);
+        quarantined.Should().BeNull();
+        db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
+    }
+
+    [Fact]
+    public void OpenWithRecovery_quarantines_a_corrupt_db_and_rebuilds_fresh()
+    {
+        // NET-181: a power-loss-torn / disk-faulted database must never brick the
+        // service. Write garbage where a SQLite file should be, then recover.
+        var path = DbPath("corrupt.db");
+        File.WriteAllBytes(path, System.Text.Encoding.ASCII.GetBytes("this is not a sqlite database at all"));
+
+        using var db = HostsDatabase.OpenWithRecovery(path, out var quarantined);
+
+        quarantined.Should().NotBeNull();
+        File.Exists(quarantined!).Should().BeTrue("the bad file is moved aside, not deleted");
+        quarantined!.Should().EndWith(".corrupt");
+        db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion); // fresh, usable schema
+        db.GetLog(50).Should().Contain(e => e.Action == "db_recovered"); // recovery is auditable
+    }
+
+    [Fact]
     public void Dispose_is_idempotent()
     {
         var db = new HostsDatabase(DbPath("dispose-twice.db"));
