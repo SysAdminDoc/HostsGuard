@@ -13,6 +13,17 @@ namespace HostsGuard.Windows;
 /// </summary>
 public sealed class HostsEngine
 {
+    /// <summary>
+    /// Blocked-entry count past which a hosts file measurably slows system-wide
+    /// DNS resolution (Windows reads the file linearly), so the UI/CLI warns and
+    /// steers very large lists toward firewall IP rules instead (NET-183). Chosen
+    /// as an order-of-magnitude guard, not a hard cap — nothing is refused.
+    /// </summary>
+    public const int ScaleWarnThreshold = 100_000;
+
+    /// <summary>True when <paramref name="blockedCount"/> is large enough to warrant the scale warning.</summary>
+    public static bool IsOverScaleThreshold(int blockedCount) => blockedCount >= ScaleWarnThreshold;
+
     /// <summary>The default Windows hosts-file path.</summary>
     public static string DefaultHostsPath =>
         OperatingSystem.IsWindows()

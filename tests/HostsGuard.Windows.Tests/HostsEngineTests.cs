@@ -60,6 +60,31 @@ public sealed class HostsEngineTests : IDisposable
         File.ReadAllText(_hosts).Should().NotContain("example.com.");
     }
 
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(99_999, false)]
+    [InlineData(100_000, true)]
+    [InlineData(250_000, true)]
+    public void Scale_threshold_predicate_flags_large_lists(int count, bool over) =>
+        HostsEngine.IsOverScaleThreshold(count).Should().Be(over);
+
+    [Fact]
+    public void Bulk_block_scales_and_crosses_the_warning_threshold()
+    {
+        // NET-183: exercise the AtomicWrite + reconcile path at scale and confirm
+        // the ceiling predicate flips. Kept at threshold size to bound test time;
+        // the linear write cost extrapolates to the 200k documented ceiling.
+        var e = New();
+        var domains = Enumerable.Range(0, HostsEngine.ScaleWarnThreshold)
+            .Select(i => $"scale-{i}.example.com");
+
+        e.BlockBulk(domains).Should().Be(HostsEngine.ScaleWarnThreshold);
+        HostsEngine.IsOverScaleThreshold(e.GetBlocked().Count).Should().BeTrue();
+
+        // The persisted file re-reads to the same count (no truncation at scale).
+        New().GetBlocked().Count.Should().BeGreaterThanOrEqualTo(HostsEngine.ScaleWarnThreshold);
+    }
+
     [Fact]
     public void Block_is_idempotent_and_validates()
     {

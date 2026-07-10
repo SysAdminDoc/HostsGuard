@@ -182,6 +182,10 @@ static async Task<int> StatusAsync()
             var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel).GetStatusAsync(new Empty());
             Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
             Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
+            if (status.HostsOverScaleThreshold)
+            {
+                Console.WriteLine($"  warning:    {status.HostsBlocked} hosts entries can slow system DNS; consider firewall IP rules for very large lists");
+            }
             Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
             Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
             Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");

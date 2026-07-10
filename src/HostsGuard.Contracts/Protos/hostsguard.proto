@@ -71,6 +71,9 @@ message ServiceStatus {
   int32 schema_version = 19;
   int32 schema_version_on_disk = 20;
   string filtering_mode = 21;
+  // NET-183: hosts file is large enough to slow system-wide DNS resolution;
+  // the UI/CLI suggests firewall IP rules for very large lists.
+  bool hosts_over_scale_threshold = 22;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────

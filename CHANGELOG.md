@@ -5,6 +5,10 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Very large hosts files (100k+ blocked entries, e.g. HaGeZi Ultimate / oisd Big)
+  now raise a scale warning in service status and the CLI `status` command,
+  suggesting firewall IP rules instead — a hosts file that size measurably slows
+  system-wide DNS resolution. Nothing is capped or refused.
 - Unicode internationalized domain names (IDNs) can now be blocked: domains are
   normalized to their ASCII/punycode (`xn--`) form on the way in, so entries like
   `münchen.de` or `例え.jp` are accepted, stored, and matched instead of being

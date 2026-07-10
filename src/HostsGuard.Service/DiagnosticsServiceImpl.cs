@@ -7,6 +7,7 @@ using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
 using HostsGuard.Data;
+using HostsGuard.Windows;
 
 namespace HostsGuard.Service;
 
@@ -27,6 +28,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             Elevated = IsElevated(),
             UptimeSeconds = (long)(DateTime.UtcNow - _state.StartedAtUtc).TotalSeconds,
             HostsBlocked = _state.Hosts.GetBlocked().Count,
+            HostsOverScaleThreshold = HostsEngine.IsOverScaleThreshold(_state.Hosts.GetBlocked().Count),
             DbBlocked = stats.Blocked,
             DbAllowed = stats.Whitelisted,
             FeedTotal = stats.FeedTotal,
