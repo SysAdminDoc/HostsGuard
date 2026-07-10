@@ -198,6 +198,76 @@ public sealed class PropertyFuzzTests
         }
     }
 
+    private static byte[] RandomBytes(Random rng, int maxLen = 128)
+    {
+        var buf = new byte[rng.Next(0, maxLen)];
+        rng.NextBytes(buf);
+        return buf;
+    }
+
+    [Fact]
+    public void ToAscii_is_total_and_idempotent_over_garbage()
+    {
+        // NET-184: the domain normalizer must never throw on human/policy junk and
+        // must be a fixed point (re-normalizing its own output changes nothing).
+        var rng = new Random(4008);
+        for (var i = 0; i < Iterations; i++)
+        {
+            var junk = RandomJunk(rng, 80);
+            var once = Domains.ToAscii(junk);
+            Domains.ToAscii(once).Should().Be(once);
+            _ = Domains.LooksLikeDomain(junk); // total: never throws
+        }
+    }
+
+    [Fact]
+    public void Svcb_parser_is_total_over_random_bytes()
+    {
+        // NET-184: DDR SVCB RDATA arrives off the wire; parsing must never throw.
+        var rng = new Random(4009);
+        for (var i = 0; i < Iterations; i++)
+        {
+            _ = DesignatedResolver.ParseSvcb(RandomBytes(rng));
+        }
+    }
+
+    [Fact]
+    public void TlsClientHello_parser_is_total_over_random_and_truncated_bytes()
+    {
+        // NET-184: the raw-socket SNI parser reads attacker-influenced bytes.
+        var rng = new Random(4010);
+        for (var i = 0; i < Iterations; i++)
+        {
+            var full = RandomBytes(rng, 300);
+            _ = TlsClientHello.TryParse(full);
+            // Also hammer every truncation of a plausible handshake prefix.
+            var cut = rng.Next(0, full.Length + 1);
+            _ = TlsClientHello.TryParse(full.AsSpan(0, cut));
+        }
+    }
+
+    [Fact]
+    public void PortablePolicy_FromJson_only_throws_documented_types_over_garbage()
+    {
+        // NET-184: policy import is untrusted; malformed input must surface only
+        // the documented failure types, never an unhandled crash (NRE, overflow…).
+        var rng = new Random(4011);
+        var fragments = new[] { "{", "}", "[]", "null", "true", "\"x\"", "{\"version\":", "{\"version\":999999}", "{\"blocked\":[" };
+        for (var i = 0; i < Iterations; i++)
+        {
+            var json = rng.Next(2) == 0 ? RandomJunk(rng, 120) : fragments[rng.Next(fragments.Length)] + RandomJunk(rng, 40);
+            try
+            {
+                _ = PortablePolicy.FromJson(json);
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException
+                or InvalidOperationException or ArgumentException or NotSupportedException)
+            {
+                // Documented, expected failure modes for malformed policy input.
+            }
+        }
+    }
+
     [Fact]
     public void Redaction_never_leaks_planted_public_ips()
     {

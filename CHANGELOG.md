@@ -4,6 +4,12 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Extended the property/fuzz test suite to hammer the untrusted parsers with
+  seeded random and truncated input — domain normalization, the DDR SVCB wire
+  parser, the raw-socket TLS ClientHello reader, and portable-policy JSON import —
+  asserting they stay total (never throw an unhandled exception).
+
 ### Added
 - Encrypted-DNS status now reports whether Windows DNR (Discovery of
   Network-designated Resolvers, RFC 9463) is enabled, so you can see when a
