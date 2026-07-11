@@ -4,6 +4,17 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `tools\e2e-elevated.ps1`: an elevated interactive end-to-end harness for the
+  paths the headless suite cannot reach — it verifies the live LocalSystem
+  service over the pipe, asserts a CLI `block-app` writes a real enabled
+  Windows Firewall rule (and that the blocked executable actually cannot dial
+  out), drives the Security-audit consent path with a synthetic dropped
+  connection, and asserts posture restore both on mode-switch and on service
+  stop. Preflight refuses hosts whose firewall is disabled instead of flipping
+  a profile the operator turned off; Filtering Platform audit policy is
+  enabled for the run and restored afterwards.
+
 ### Changed
 - Structural split of the four largest source files, behavior-preserving:
   the CLI's twenty pipe-connected commands now share one connect/error
