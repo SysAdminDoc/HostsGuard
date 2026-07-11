@@ -17,7 +17,10 @@ public sealed partial class HostsDatabase
                     SELECT id AS Id, scope AS Scope, match AS Match,
                            limit_bytes AS LimitBytes, window_days AS WindowDays, enabled AS Enabled,
                            last_alerted_bytes AS LastAlertedBytes, last_alerted_at AS LastAlertedAt,
-                           created AS Created, updated AS Updated
+                           created AS Created, updated AS Updated,
+                           block_on_exceed AS BlockOnExceed,
+                           blocked_since AS BlockedSince,
+                           blocked_rules AS BlockedRules
                     FROM usage_quota_rules
                     ORDER BY scope COLLATE NOCASE, match COLLATE NOCASE
                     """)
@@ -26,7 +29,7 @@ public sealed partial class HostsDatabase
         }
     }
 
-    public UsageQuotaRuleRow UpsertUsageQuotaRule(string scope, string match, long limitBytes, int windowDays, bool enabled)
+    public UsageQuotaRuleRow UpsertUsageQuotaRule(string scope, string match, long limitBytes, int windowDays, bool enabled, bool blockOnExceed = false)
     {
         scope = NormalizeUsageQuotaScope(scope);
         match = CleanUsageQuotaMatch(scope, match);
@@ -51,12 +54,13 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT INTO usage_quota_rules(scope,match,limit_bytes,window_days,enabled,last_alerted_bytes,last_alerted_at,created,updated)
-                VALUES(@scope,@match,@limitBytes,@windowDays,@enabled,0,'',@now,@now)
+                INSERT INTO usage_quota_rules(scope,match,limit_bytes,window_days,enabled,block_on_exceed,last_alerted_bytes,last_alerted_at,created,updated)
+                VALUES(@scope,@match,@limitBytes,@windowDays,@enabled,@blockOnExceed,0,'',@now,@now)
                 ON CONFLICT(scope,match) DO UPDATE SET
                     limit_bytes=excluded.limit_bytes,
                     window_days=excluded.window_days,
                     enabled=excluded.enabled,
+                    block_on_exceed=excluded.block_on_exceed,
                     updated=excluded.updated,
                     last_alerted_bytes=CASE
                         WHEN usage_quota_rules.limit_bytes != excluded.limit_bytes THEN 0
@@ -74,6 +78,7 @@ public sealed partial class HostsDatabase
                     limitBytes,
                     windowDays,
                     enabled = enabled ? 1 : 0,
+                    blockOnExceed = blockOnExceed ? 1 : 0,
                     now,
                 });
 
@@ -82,7 +87,10 @@ public sealed partial class HostsDatabase
                     SELECT id AS Id, scope AS Scope, match AS Match,
                            limit_bytes AS LimitBytes, window_days AS WindowDays, enabled AS Enabled,
                            last_alerted_bytes AS LastAlertedBytes, last_alerted_at AS LastAlertedAt,
-                           created AS Created, updated AS Updated
+                           created AS Created, updated AS Updated,
+                           block_on_exceed AS BlockOnExceed,
+                           blocked_since AS BlockedSince,
+                           blocked_rules AS BlockedRules
                     FROM usage_quota_rules
                     WHERE scope=@scope AND match=@match
                     """,
@@ -122,7 +130,7 @@ public sealed partial class HostsDatabase
         }
     }
 
-    public void ReplaceUsageQuotaRules(IEnumerable<(string Scope, string Match, long LimitBytes, int WindowDays, bool Enabled)> rules)
+    public void ReplaceUsageQuotaRules(IEnumerable<(string Scope, string Match, long LimitBytes, int WindowDays, bool Enabled, bool BlockOnExceed)> rules)
     {
         ArgumentNullException.ThrowIfNull(rules);
         lock (_gate)
@@ -141,13 +149,14 @@ public sealed partial class HostsDatabase
                 var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
                 _conn.Execute(
                     """
-                    INSERT INTO usage_quota_rules(scope,match,limit_bytes,window_days,enabled,last_alerted_bytes,last_alerted_at,created,updated)
-                    VALUES(@scope,@match,@limitBytes,@windowDays,@enabled,0,'',@now,@now)
+                    INSERT INTO usage_quota_rules(scope,match,limit_bytes,window_days,enabled,block_on_exceed,last_alerted_bytes,last_alerted_at,created,updated)
+                    VALUES(@scope,@match,@limitBytes,@windowDays,@enabled,@blockOnExceed,0,'',@now,@now)
                     """,
                     new
                     {
                         scope,
                         match,
+                        blockOnExceed = rule.BlockOnExceed ? 1 : 0,
                         limitBytes = rule.LimitBytes,
                         windowDays = Math.Clamp(rule.WindowDays <= 0 ? 30 : rule.WindowDays, 1, 365),
                         enabled = rule.Enabled ? 1 : 0,
@@ -169,7 +178,10 @@ public sealed partial class HostsDatabase
                     SELECT id AS Id, scope AS Scope, match AS Match,
                            limit_bytes AS LimitBytes, window_days AS WindowDays, enabled AS Enabled,
                            last_alerted_bytes AS LastAlertedBytes, last_alerted_at AS LastAlertedAt,
-                           created AS Created, updated AS Updated
+                           created AS Created, updated AS Updated,
+                           block_on_exceed AS BlockOnExceed,
+                           blocked_since AS BlockedSince,
+                           blocked_rules AS BlockedRules
                     FROM usage_quota_rules
                     WHERE enabled=1
                     ORDER BY scope COLLATE NOCASE, match COLLATE NOCASE
@@ -201,7 +213,7 @@ public sealed partial class HostsDatabase
         }
 
         var rule = new UsageQuotaRuleRow(0, scope, match, 1, Math.Clamp(windowDays <= 0 ? 30 : windowDays, 1, 365),
-            true, 0, string.Empty, string.Empty, string.Empty);
+            true, 0, string.Empty, string.Empty, string.Empty, false, string.Empty, string.Empty);
         lock (_gate)
         {
             return GetUsageBytesForRuleNoLock(rule, now);
@@ -370,7 +382,36 @@ public sealed partial class HostsDatabase
             row.LastAlertedBytes,
             row.LastAlertedAt ?? string.Empty,
             row.Created ?? string.Empty,
-            row.Updated ?? string.Empty);
+            row.Updated ?? string.Empty,
+            row.BlockOnExceed != 0,
+            row.BlockedSince ?? string.Empty,
+            row.BlockedRules ?? string.Empty);
+
+    /// <summary>Record or clear a quota rule's active enforcement block (NET-172).</summary>
+    public void SetUsageQuotaBlockState(long id, string blockedSince, string blockedRules)
+    {
+        if (id <= 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _conn.Execute(
+                """
+                UPDATE usage_quota_rules
+                SET blocked_since=@blockedSince, blocked_rules=@blockedRules, updated=@now
+                WHERE id=@id
+                """,
+                new
+                {
+                    id,
+                    blockedSince = blockedSince ?? string.Empty,
+                    blockedRules = blockedRules ?? string.Empty,
+                    now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                });
+        }
+    }
 
     private static string NormalizeUsageQuotaScope(string scope)
     {
@@ -400,5 +441,8 @@ public sealed partial class HostsDatabase
         long LastAlertedBytes,
         string? LastAlertedAt,
         string? Created,
-        string? Updated);
+        string? Updated,
+        long BlockOnExceed,
+        string? BlockedSince,
+        string? BlockedRules);
 }

@@ -174,6 +174,7 @@ public static class PolicyPortability
                 LimitBytes = r.LimitBytes,
                 WindowDays = r.WindowDays,
                 Enabled = r.Enabled,
+                BlockOnExceed = r.BlockOnExceed,
             })
             .ToList();
 
@@ -894,12 +895,16 @@ public static class PolicyPortability
             return;
         }
 
+        // Replacing the rule set orphans any active enforcement blocks — lift
+        // them first; the next sweep re-applies blocks the new rules justify.
+        state.QuotaEnforcer.ClearAllBlocks("policy import replaced quota rules");
         state.Db.ReplaceUsageQuotaRules(quotas.Select(q => (
             q.Scope,
             q.Match,
             q.LimitBytes,
             q.WindowDays,
-            q.Enabled)));
+            q.Enabled,
+            q.BlockOnExceed)));
         summary.Add($"{quotas.Count} usage quota rule{(quotas.Count == 1 ? string.Empty : "s")}");
     }
 

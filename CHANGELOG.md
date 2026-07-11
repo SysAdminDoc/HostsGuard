@@ -5,6 +5,15 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Usage budgets can now enforce, not just alert: a quota rule can opt into
+  "Block on exceed" (default off). Crossing the rolling-window limit applies a
+  scoped block — a hosts-file entry for a domain rule, `HG_QuotaBlock_*`
+  outbound firewall rules for an app rule (resolved from the matching running
+  processes) — raises an alert, and ledgers the action. The block clears
+  automatically when the window slides back under the limit, and lifting it is
+  one click: disable the rule, delete it, or reset quota history. Manual
+  allowlists and manual blocks are never overridden. Exposed in the FW
+  Activity quota editor and `usage-quota set --block`.
 - IP-format blocklists: subscribe HTTPS sources of IPv4/IPv6/CIDR entries
   (e.g. HaGeZi `ips/doh`, `ips/tif`) and enforce them as chunked `HG_IPBlock_*`
   Windows Firewall outbound block rules — this stops hardcoded-IP C2 and

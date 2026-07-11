@@ -340,15 +340,37 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
             });
         }
 
-        var rule = _state.Db.UpsertUsageQuotaRule(scope, match, request.LimitBytes, request.WindowDays, request.Enabled);
+        var rule = _state.Db.UpsertUsageQuotaRule(scope, match, request.LimitBytes, request.WindowDays, request.Enabled, request.BlockOnExceed);
+        if (rule.BlockedSince.Length != 0 && (!rule.Enabled || !rule.BlockOnExceed))
+        {
+            _state.QuotaEnforcer.ClearBlockById(rule.Id, "rule disabled or block-on-exceed turned off");
+        }
+
         _state.Db.LogEvent(rule.Match, "usage_quota_saved", process: scope == "app" ? rule.Match : string.Empty,
-            details: $"{rule.Scope} quota {FormatBytes(rule.LimitBytes)} over {rule.WindowDays} day{(rule.WindowDays == 1 ? string.Empty : "s")} ({(rule.Enabled ? "enabled" : "disabled")})",
+            details: $"{rule.Scope} quota {FormatBytes(rule.LimitBytes)} over {rule.WindowDays} day{(rule.WindowDays == 1 ? string.Empty : "s")} ({(rule.Enabled ? "enabled" : "disabled")}{(rule.BlockOnExceed ? ", block-on-exceed" : string.Empty)})",
             reason: "usage_budget");
         return Task.FromResult(new Ack { Ok = true, Message = $"usage quota saved for {rule.Scope} {rule.Match}" });
     }
 
     public override Task<Ack> DeleteUsageQuotaRule(UsageQuotaRule request, ServerCallContext context)
     {
+        // Lift any active enforcement block before the rule row disappears,
+        // otherwise its HG_QuotaBlock_* rules / hosts entry would be orphaned.
+        if (request.Id > 0)
+        {
+            _state.QuotaEnforcer.ClearBlockById(request.Id, "quota rule deleted");
+        }
+        else
+        {
+            var target = _state.Db.GetUsageQuotaRules().FirstOrDefault(r =>
+                string.Equals(r.Scope, NormalizeQuotaScope(request.Scope), StringComparison.Ordinal) &&
+                string.Equals(r.Match, Clean(request.Match), StringComparison.OrdinalIgnoreCase));
+            if (target is not null)
+            {
+                _state.QuotaEnforcer.ClearBlockById(target.Id, "quota rule deleted");
+            }
+        }
+
         var removed = _state.Db.DeleteUsageQuotaRule(request.Id, request.Scope, request.Match);
         if (removed == 0)
         {
@@ -366,9 +388,17 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> ResetUsageQuotaHistory(Empty request, ServerCallContext context)
     {
+        var unblocked = _state.QuotaEnforcer.ClearAllBlocks("quota history reset");
         var changed = _state.Db.ResetUsageQuotaHistory();
-        _state.Db.LogEvent("usage_quota", "usage_quota_reset", details: $"{changed} quota alert cursor(s) reset", reason: "usage_budget");
-        return Task.FromResult(new Ack { Ok = true, Message = $"reset {changed} usage quota alert cursor{(changed == 1 ? string.Empty : "s")}" });
+        _state.Db.LogEvent("usage_quota", "usage_quota_reset",
+            details: $"{changed} quota alert cursor(s) reset{(unblocked != 0 ? $", {unblocked} enforcement block(s) lifted" : string.Empty)}",
+            reason: "usage_budget");
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = $"reset {changed} usage quota alert cursor{(changed == 1 ? string.Empty : "s")}"
+                + (unblocked != 0 ? $"; lifted {unblocked} enforcement block{(unblocked == 1 ? string.Empty : "s")}" : string.Empty),
+        });
     }
 
     public override Task<UsageQuotaHistoryExport> ExportUsageQuotaHistory(UsageQuotaHistoryRequest request, ServerCallContext context)
@@ -418,6 +448,9 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
             UsedBytes = usedBytes,
             LastAlertedBytes = row.LastAlertedBytes,
             LastAlertedAt = row.LastAlertedAt,
+            BlockOnExceed = row.BlockOnExceed,
+            BlockActive = row.BlockedSince.Length != 0,
+            BlockedSince = row.BlockedSince,
         };
 
     private static string BuildUsageQuotaHistoryJson(IEnumerable<UsageQuotaHistoryRow> rows)

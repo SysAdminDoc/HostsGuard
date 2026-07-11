@@ -764,6 +764,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private bool _usageQuotaEnabled = true;
 
     [ObservableProperty]
+    private bool _usageQuotaBlockOnExceed;
+
+    [ObservableProperty]
     private string _usageQuotaStatus = "Click Load quotas to show usage-budget alerts.";
 
     [ObservableProperty]
@@ -1073,6 +1076,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                     UsedBytes = rule.UsedBytes,
                     LastAlertedBytes = rule.LastAlertedBytes,
                     LastAlertedAt = rule.LastAlertedAt,
+                    BlockOnExceed = rule.BlockOnExceed,
+                    BlockActive = rule.BlockActive,
                 });
             }
 
@@ -1105,6 +1110,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                 LimitBytes = limitBytes,
                 WindowDays = UsageQuotaWindowDays,
                 Enabled = UsageQuotaEnabled,
+                BlockOnExceed = UsageQuotaBlockOnExceed,
             });
             UsageQuotaStatus = ack.Message;
             await LoadUsageQuotasAsync();

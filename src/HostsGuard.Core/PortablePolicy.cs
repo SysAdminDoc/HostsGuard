@@ -318,6 +318,8 @@ public sealed class PolicyUsageQuota
 
     public string Match { get; set; } = string.Empty;
 
+    public bool BlockOnExceed { get; set; }
+
     public long LimitBytes { get; set; }
 
     public int WindowDays { get; set; } = 30;

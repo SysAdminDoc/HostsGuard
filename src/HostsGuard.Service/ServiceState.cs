@@ -54,6 +54,7 @@ public sealed class ServiceState : IDisposable
             firewall,
             lanSurfaceStore ?? NullLanAttackSurfaceStore.Instance);
         Schedules = new ScheduleEnforcer(hosts, db, firewall);
+        QuotaEnforcer = new UsageQuotaEnforcer(db, hosts, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);
@@ -95,6 +96,9 @@ public sealed class ServiceState : IDisposable
     public string DataDir { get; }
 
     public ScheduleEnforcer Schedules { get; }
+
+    /// <summary>Opt-in usage-budget block-on-exceed enforcement (NET-172).</summary>
+    public UsageQuotaEnforcer QuotaEnforcer { get; }
 
     public ListImporter? Lists { get; }
 

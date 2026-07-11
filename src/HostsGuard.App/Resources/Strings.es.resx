@@ -98,4 +98,10 @@
   <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>truncada</value></data>
   <data name="Common_Enabled" xml:space="preserve"><value>Activada</value></data>
   <data name="Common_Disabled" xml:space="preserve"><value>Desactivada</value></data>
+  <data name="UsageQuota_BlockOnExceed" xml:space="preserve"><value>Bloquear al exceder</value></data>
+  <data name="UsageQuota_BlockOnExceedName" xml:space="preserve"><value>Bloquear cuando se exceda el presupuesto de uso</value></data>
+  <data name="UsageQuota_BlockOnExceedTip" xml:space="preserve"><value>Cuando la ventana movil cruza el limite, aplica un bloqueo acotado (entrada hosts para un dominio, reglas de firewall para una aplicacion). Se levanta automaticamente cuando el uso vuelve a caer bajo el limite; desactive o restablezca la regla para levantarlo de inmediato.</value></data>
+  <data name="UsageQuota_Block" xml:space="preserve"><value>Bloqueo</value></data>
+  <data name="Quota_BlockActive" xml:space="preserve"><value>Bloqueado</value></data>
+  <data name="Quota_BlockArmed" xml:space="preserve"><value>Armado</value></data>
 </root>

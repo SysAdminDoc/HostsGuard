@@ -90,7 +90,7 @@ static int Usage()
                                [--process app] [--action name] [--protocol tcp|udp]
           HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
           HostsGuard.Cli usage-quota list
-          HostsGuard.Cli usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled]
+          HostsGuard.Cli usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled] [--block|--no-block]
           HostsGuard.Cli usage-quota delete --id N
           HostsGuard.Cli usage-quota reset
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
@@ -1198,11 +1198,12 @@ static async Task<int> UsageQuotaListAsync(Monitoring.MonitoringClient client)
 {
     var list = await client.GetUsageQuotaRulesAsync(new Empty());
     Console.WriteLine($"usage quotas: {list.Rules.Count} rule{(list.Rules.Count == 1 ? string.Empty : "s")}");
-    Console.WriteLine("id\tscope\tmatch\tenabled\twindow\tused\tlimit\tlast_alerted");
+    Console.WriteLine("id\tscope\tmatch\tenabled\twindow\tused\tlimit\tblock\tblocked_since\tlast_alerted");
     foreach (var rule in list.Rules.OrderBy(r => r.Scope, StringComparer.OrdinalIgnoreCase)
                  .ThenBy(r => r.Match, StringComparer.OrdinalIgnoreCase))
     {
-        Console.WriteLine($"{rule.Id}\t{rule.Scope}\t{rule.Match}\t{rule.Enabled}\t{rule.WindowDays}d\t{FormatBytes(rule.UsedBytes)}\t{FormatBytes(rule.LimitBytes)}\t{rule.LastAlertedAt}");
+        var block = rule.BlockOnExceed ? (rule.BlockActive ? "BLOCKED" : "armed") : "off";
+        Console.WriteLine($"{rule.Id}\t{rule.Scope}\t{rule.Match}\t{rule.Enabled}\t{rule.WindowDays}d\t{FormatBytes(rule.UsedBytes)}\t{FormatBytes(rule.LimitBytes)}\t{block}\t{rule.BlockedSince}\t{rule.LastAlertedAt}");
     }
 
     return 0;
@@ -1215,6 +1216,7 @@ static async Task<int> UsageQuotaSetAsync(Monitoring.MonitoringClient client, st
     long limitBytes = 0;
     var days = 30;
     var enabled = true;
+    var blockOnExceed = false;
     for (var i = 2; i < args.Length; i++)
     {
         var arg = args[i];
@@ -1273,13 +1275,25 @@ static async Task<int> UsageQuotaSetAsync(Monitoring.MonitoringClient client, st
             continue;
         }
 
+        if (string.Equals(arg, "--block", StringComparison.OrdinalIgnoreCase))
+        {
+            blockOnExceed = true;
+            continue;
+        }
+
+        if (string.Equals(arg, "--no-block", StringComparison.OrdinalIgnoreCase))
+        {
+            blockOnExceed = false;
+            continue;
+        }
+
         Console.Error.WriteLine($"Unknown usage-quota set option: {arg}");
         return 1;
     }
 
     if (scope.Length == 0 || match.Length == 0 || limitBytes <= 0)
     {
-        Console.Error.WriteLine("Usage: usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled]");
+        Console.Error.WriteLine("Usage: usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled] [--block|--no-block]");
         return 1;
     }
 
@@ -1290,6 +1304,7 @@ static async Task<int> UsageQuotaSetAsync(Monitoring.MonitoringClient client, st
         LimitBytes = limitBytes,
         WindowDays = days,
         Enabled = enabled,
+        BlockOnExceed = blockOnExceed,
     });
     Console.WriteLine(ack.Message);
     return ack.Ok ? 0 : 2;

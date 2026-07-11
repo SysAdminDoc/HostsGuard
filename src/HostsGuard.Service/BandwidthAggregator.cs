@@ -41,6 +41,9 @@ public sealed class BandwidthAggregator : IDisposable
 
     public bool CountersActive => _source.Active;
 
+    /// <summary>Optional block-on-exceed enforcement swept after every flush (NET-172).</summary>
+    public UsageQuotaEnforcer? QuotaEnforcer { get; set; }
+
     public void Start() => _loop ??= Task.Run(() => LoopAsync(_cts.Token));
 
     private async Task LoopAsync(CancellationToken ct)
@@ -116,6 +119,10 @@ public sealed class BandwidthAggregator : IDisposable
         {
             EmitUsageBudgetAlerts(now);
         }
+
+        // Runs every flush (not only on new usage): auto-clear depends on the
+        // rolling window sliding under the limit even when traffic has stopped.
+        QuotaEnforcer?.Sweep(now);
 
         if (++_flushes % PruneEveryFlushes == 0)
         {

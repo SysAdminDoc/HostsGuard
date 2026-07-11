@@ -1190,6 +1190,9 @@ message UsageQuotaRule {
   int64 used_bytes = 7;   // current usage in the rule window
   int64 last_alerted_bytes = 8;
   string last_alerted_at = 9;
+  bool block_on_exceed = 10;  // NET-172: enforce, not just alert (default off)
+  bool block_active = 11;     // an enforcement block is currently applied
+  string blocked_since = 12;  // ISO timestamp of the active block; "" when none
 }
 
 message UsageQuotaRuleList {

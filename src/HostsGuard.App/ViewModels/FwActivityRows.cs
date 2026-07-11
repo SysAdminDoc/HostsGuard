@@ -292,6 +292,20 @@ public sealed partial class UsageQuotaRuleViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(LastAlertedText))]
     private string _lastAlertedAt = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BlockText))]
+    private bool _blockOnExceed;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(BlockText))]
+    private bool _blockActive;
+
+    public string BlockText => !BlockOnExceed
+        ? string.Empty
+        : BlockActive
+            ? I18n.T("Quota_BlockActive", "Blocked")
+            : I18n.T("Quota_BlockArmed", "Armed");
+
     public string LimitText => FwActivityViewModel.FormatBytes(LimitBytes);
 
     public string UsedText => FwActivityViewModel.FormatBytes(UsedBytes);

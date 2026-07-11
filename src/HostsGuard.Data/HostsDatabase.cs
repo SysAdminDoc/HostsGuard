@@ -172,7 +172,10 @@ public sealed record UsageQuotaRuleRow(
     long LastAlertedBytes,
     string LastAlertedAt,
     string Created,
-    string Updated);
+    string Updated,
+    bool BlockOnExceed = false,
+    string BlockedSince = "",
+    string BlockedRules = "");
 
 /// <summary>A quota rule evaluated against retained daily usage.</summary>
 public sealed record UsageQuotaEvaluation(UsageQuotaRuleRow Rule, long UsedBytes, bool Triggered);
@@ -350,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 30;
+    public const int SchemaVersion = 31;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -674,6 +677,9 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("blocklist_subs", "last_checkpoint_id", "INTEGER DEFAULT 0");
         AddColumnIfMissing("blocklist_subs", "last_attempt_hash", "TEXT DEFAULT ''");
         AddColumnIfMissing("blocklist_subs", "last_attempt_domain_count", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("usage_quota_rules", "block_on_exceed", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("usage_quota_rules", "blocked_since", "TEXT DEFAULT ''");
+        AddColumnIfMissing("usage_quota_rules", "blocked_rules", "TEXT DEFAULT ''");
         AddColumnIfMissing("fw_state", "remote_ports", "TEXT");
         AddColumnIfMissing("fw_state", "local_ports", "TEXT");
         AddColumnIfMissing("fw_state", "service_name", "TEXT");

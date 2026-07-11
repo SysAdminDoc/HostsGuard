@@ -122,6 +122,7 @@ var bandwidthStatus = bandwidthMonitor.Start();
 // NET-108: resolveHost maps a connection's remote IP → its resolved domain
 // (ETW forward-DNS cache → persistent store) so bytes attribute to a domain.
 using var bandwidth = new BandwidthAggregator(db, bandwidthMonitor, resolveHost: state.ResolveKnownHost);
+bandwidth.QuotaEnforcer = state.QuotaEnforcer;
 if (bandwidthStatus == DnsMonitorStatus.Started)
 {
     bandwidth.Start();

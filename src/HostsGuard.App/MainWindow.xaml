@@ -2167,6 +2167,10 @@
                                         <CheckBox Content="{svc:Loc Key=UsageQuota_Enabled}" Margin="0,2,6,6"
                                                   IsChecked="{Binding UsageQuotaEnabled}"
                                                   AutomationProperties.Name="{svc:Loc Key=UsageQuota_EnabledName}" />
+                                        <CheckBox Content="{svc:Loc Key=UsageQuota_BlockOnExceed}" Margin="0,2,6,6"
+                                                  IsChecked="{Binding UsageQuotaBlockOnExceed}"
+                                                  AutomationProperties.Name="{svc:Loc Key=UsageQuota_BlockOnExceedName}"
+                                                  ToolTip="{svc:Loc Key=UsageQuota_BlockOnExceedTip}" />
                                     </WrapPanel>
                                     <DataGrid ItemsSource="{Binding UsageQuotaRules}" MaxHeight="170" Margin="0,2,0,0"
                                               AutomationProperties.Name="{svc:Loc Key=UsageQuota_TableName}">
@@ -2178,6 +2182,7 @@
                                             <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Used}" Binding="{Binding UsedText}" Width="86" />
                                             <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Limit}" Binding="{Binding LimitText}" Width="86" />
                                             <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Percent}" Binding="{Binding PercentText}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_Block}" Binding="{Binding BlockText}" Width="70" />
                                             <DataGridTextColumn Header="{svc:Loc Key=UsageQuota_LastAlert}" Binding="{Binding LastAlertedText}" Width="1.2*" />
                                             <DataGridTemplateColumn Header="{svc:Loc Key=UsageQuota_Actions}" Width="82">
                                                 <DataGridTemplateColumn.CellTemplate>
