@@ -37,6 +37,8 @@ public sealed class AppConfigStore
         ("", "System default"),
         ("en", "English"),
         ("es", "Español"),
+        ("de", "Deutsch"),
+        ("fr", "Français"),
     };
 
     /// <summary>Learning mode: surface trust prompts for unknown processes.</summary>

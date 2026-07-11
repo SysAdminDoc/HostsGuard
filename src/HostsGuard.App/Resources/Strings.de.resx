@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Status.Connecting" xml:space="preserve"><value>Verbindung zum Dienst wird hergestellt…</value></data>
+  <data name="Status.Connected" xml:space="preserve"><value>Verbunden — Dienst v{0}</value></data>
+  <data name="Status.Unavailable" xml:space="preserve"><value>Dienst nicht verfügbar: HostsGuardSvc starten oder neu starten und erneut verbinden. Details: {0}</value></data>
+  <data name="Status.Ready" xml:space="preserve"><value>Bereit</value></data>
+  <data name="Tab_HostsActivity" xml:space="preserve"><value>Hosts-Aktivität</value></data>
+  <data name="Tab_HostsFile" xml:space="preserve"><value>Hosts-Datei</value></data>
+  <data name="Tab_FirewallActivity" xml:space="preserve"><value>Firewall-Aktivität</value></data>
+  <data name="Tab_FirewallRules" xml:space="preserve"><value>Firewall-Regeln</value></data>
+  <data name="Tab_Tools" xml:space="preserve"><value>Werkzeuge</value></data>
+  <data name="Tab_ManagedDomains" xml:space="preserve"><value>Verwaltete Domains</value></data>
+  <data name="Tab_Blocklists" xml:space="preserve"><value>Blocklisten</value></data>
+  <data name="Tab_RawEditor" xml:space="preserve"><value>Roh-Editor</value></data>
+  <data name="FwRules_TargetKind" xml:space="preserve"><value>Typ</value></data>
+  <data name="FwRules_Target" xml:space="preserve"><value>Ziel</value></data>
+  <data name="FwRules_Package" xml:space="preserve"><value>Paket</value></data>
+  <data name="FwRules_NewRulePackage" xml:space="preserve"><value>Paket der neuen Firewall-Regel</value></data>
+  <data name="FwRules_PackageTip" xml:space="preserve"><value>Optionaler MSIX-Paketfamilienname oder Paket-SID. Paket oder Programm verwenden, nicht beides.</value></data>
+  <data name="FwRules_IncludeWindowsRules" xml:space="preserve"><value>Windows-Regeln einbeziehen</value></data>
+  <data name="FwRules_IncludeWindowsRulesTip" xml:space="preserve"><value>Indiziert die aktuellen Windows-Firewall-Regeln in dieser Ansicht. Nur lesend, ändert die aktive Firewall nicht.</value></data>
+  <data name="FwRules_HostsGuardOnlyTip" xml:space="preserve"><value>Nur die von HostsGuard erstellten und verwalteten Regeln anzeigen.</value></data>
+  <data name="FwRules_CreateNeedsName" xml:space="preserve"><value>Geben Sie einen Namen ein, um diese Regel zu erstellen.</value></data>
+  <data name="FwRules_CreateChooseOneTarget" xml:space="preserve"><value>Wählen Sie ein Paket oder einen Programmpfad, aber nicht beides.</value></data>
+  <data name="FwRules_CreateReady" xml:space="preserve"><value>Bereit, diese von HostsGuard verwaltete Regel zu erstellen.</value></data>
+  <data name="Menu_File" xml:space="preserve"><value>Datei</value></data>
+  <data name="Menu_View" xml:space="preserve"><value>Ansicht</value></data>
+  <data name="Menu_Help" xml:space="preserve"><value>Hilfe</value></data>
+  <data name="Menu_Language" xml:space="preserve"><value>Sprache</value></data>
+  <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Richtlinien-Prüfpunkt wiederherstellen</value></data>
+  <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Stellt den zuletzt vor einem Import erfassten Richtlinienzustand wieder her</value></data>
+  <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Reputation nachschlagen</value></data>
+  <data name="Consent_Inbound" xml:space="preserve"><value>Eingehend</value></data>
+  <data name="Consent_Outbound" xml:space="preserve"><value>Ausgehend</value></data>
+  <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
+  <data name="Consent_PidUnknown" xml:space="preserve"><value>PID unbekannt</value></data>
+  <data name="Consent_ScopeRemote" xml:space="preserve"><value>Nur auf {0} anwenden</value></data>
+  <data name="Consent_CountryUnknown" xml:space="preserve"><value>unbekannt</value></data>
+  <data name="Consent_SignerUnknown" xml:space="preserve"><value>unsigniert / unbekannt</value></data>
+  <data name="Consent_TrustPublisher" xml:space="preserve"><value>Aller von "{0}" signierten Software vertrauen</value></data>
+  <data name="Consent_TrustFolder" xml:space="preserve"><value>Aller Software in "{0}" vertrauen</value></data>
+  <data name="Consent_ScopeService" xml:space="preserve"><value>Nur der Dienst '{0}'</value></data>
+  <data name="Consent_NoPtr" xml:space="preserve"><value>kein PTR-Eintrag</value></data>
+  <data name="Consent_Countdown" xml:space="preserve"><value>schließt in {0:0} s</value></data>
+  <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Entscheidung nicht angewendet</value></data>
+  <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Ihre Entscheidung für {0} konnte nicht angewendet werden — der Dienst hat sie nicht akzeptiert. Die Verbindung bleibt blockiert; beim nächsten Versuch wird erneut gefragt.</value></data>
+  <data name="About_Title" xml:space="preserve"><value>Über HostsGuard</value></data>
+  <data name="About_AutomationName" xml:space="preserve"><value>Über HostsGuard</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>Netzwerk-Privatsphäre-Kontrolle für Windows</value></data>
+  <data name="About_Description" xml:space="preserve"><value>Hosts-Datei-Schutz, Firewall-Kontrolle, Live-Netzwerksicht und Ausgehend-Zustimmung in einer lokalen Anwendung.</value></data>
+  <data name="About_ProtectionTitle" xml:space="preserve"><value>Schutz mit geteiltem Vertrauen</value></data>
+  <data name="About_ProtectionBody" xml:space="preserve"><value>Der erhöhte Dienst kontrolliert Richtlinienänderungen; die Desktop-Anwendung bleibt ohne Erhöhung.</value></data>
+  <data name="About_PrivacyTitle" xml:space="preserve"><value>Lokal-zuerst-Design</value></data>
+  <data name="About_PrivacyBody" xml:space="preserve"><value>Richtlinien, Überwachung und Diagnosen bleiben auf diesem PC, sofern Sie sie nicht ausdrücklich exportieren.</value></data>
+  <data name="About_OpenGitHub" xml:space="preserve"><value>GitHub öffnen</value></data>
+  <data name="About_Close" xml:space="preserve"><value>Schließen</value></data>
+  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
+  <data name="IpBlock_Title" xml:space="preserve"><value>IP-Blocklisten (Firewall-Regeln)</value></data>
+  <data name="IpBlock_Help" xml:space="preserve"><value>Setzt Blocklisten im IP-Format (eine IPv4/IPv6 oder CIDR pro Zeile, z. B. HaGeZi ips/doh oder ips/tif) als HG_IPBlock_*-Blockregeln der Windows-Firewall durch — stoppt Endpunkte mit fester IP und DoH-Bootstrap-IPs, die die Hosts-Datei nicht blockieren kann. Tägliche Aktualisierung; eine verdächtige Änderung wird abgefangen und jede Aktualisierung ist rückgängig zu machen.</value></data>
+  <data name="IpBlock_NameHint" xml:space="preserve"><value>Listenname</value></data>
+  <data name="IpBlock_NameName" xml:space="preserve"><value>Name der IP-Blockliste</value></data>
+  <data name="IpBlock_NameTip" xml:space="preserve"><value>Ein kurzer Name für diese IP-Listenquelle.</value></data>
+  <data name="IpBlock_UrlHint" xml:space="preserve"><value>https://…-Listen-URL</value></data>
+  <data name="IpBlock_UrlName" xml:space="preserve"><value>URL der IP-Blockliste</value></data>
+  <data name="IpBlock_UrlTip" xml:space="preserve"><value>HTTPS-URL einer Liste im IP-Format: eine IP-Adresse oder CIDR pro Zeile.</value></data>
+  <data name="IpBlock_Import" xml:space="preserve"><value>Importieren</value></data>
+  <data name="IpBlock_RefreshNow" xml:space="preserve"><value>Alle aktualisieren</value></data>
+  <data name="IpBlock_Toggle" xml:space="preserve"><value>Aktivieren/Deaktivieren</value></data>
+  <data name="IpBlock_Rollback" xml:space="preserve"><value>Zurücksetzen</value></data>
+  <data name="IpBlock_TableName" xml:space="preserve"><value>Abonnierte IP-Blocklisten</value></data>
+  <data name="IpBlock_Empty" xml:space="preserve"><value>Noch keine IP-Blocklisten. Importieren Sie eine Liste im IP-Format, um Firewall-Regeln gegen Endpunkte mit fester IP zu erstellen.</value></data>
+  <data name="IpBlock_ColState" xml:space="preserve"><value>Status</value></data>
+  <data name="IpBlock_ColHealth" xml:space="preserve"><value>Zustand</value></data>
+  <data name="IpBlock_ColAddresses" xml:space="preserve"><value>Adressen</value></data>
+  <data name="IpBlock_ColRules" xml:space="preserve"><value>Regeln</value></data>
+  <data name="IpBlock_ColRefreshed" xml:space="preserve"><value>Aktualisiert</value></data>
+  <data name="IpBlock_ColError" xml:space="preserve"><value>Letzter Fehler</value></data>
+  <data name="IpBlock_StatusHint" xml:space="preserve"><value>Abonnieren Sie eine Liste im IP-Format (eine IP oder CIDR pro Zeile), um Endpunkte mit fester IP per Firewall zu blockieren, die die Hosts-Datei nicht stoppen kann.</value></data>
+  <data name="IpBlock_StatusLoaded" xml:space="preserve"><value>{0} IP-Blocklisten · {1} Adressen in {2} Firewall-Regeln.</value></data>
+  <data name="IpBlock_ActionLoad" xml:space="preserve"><value>IP-Blocklisten laden</value></data>
+  <data name="IpBlock_ActionImport" xml:space="preserve"><value>IP-Blockliste importieren</value></data>
+  <data name="IpBlock_ActionRefresh" xml:space="preserve"><value>IP-Blocklisten aktualisieren</value></data>
+  <data name="IpBlock_ActionToggle" xml:space="preserve"><value>IP-Blockliste umschalten</value></data>
+  <data name="IpBlock_ActionRemove" xml:space="preserve"><value>IP-Blockliste entfernen</value></data>
+  <data name="IpBlock_ActionRollback" xml:space="preserve"><value>IP-Blockliste zurücksetzen</value></data>
+  <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>gekürzt</value></data>
+  <data name="Common_Enabled" xml:space="preserve"><value>Aktiviert</value></data>
+  <data name="Common_Disabled" xml:space="preserve"><value>Deaktiviert</value></data>
+  <data name="UsageQuota_BlockOnExceed" xml:space="preserve"><value>Bei Überschreitung blockieren</value></data>
+  <data name="UsageQuota_BlockOnExceedName" xml:space="preserve"><value>Blockieren, wenn das Nutzungsbudget überschritten wird</value></data>
+  <data name="UsageQuota_BlockOnExceedTip" xml:space="preserve"><value>Überschreitet das gleitende Fenster das Limit, wird ein begrenzter Block angewendet (Hosts-Eintrag für eine Domain, Firewall-Regeln für eine Anwendung). Er wird automatisch aufgehoben, sobald die Nutzung wieder unter das Limit fällt; deaktivieren oder zurücksetzen hebt ihn sofort auf.</value></data>
+  <data name="UsageQuota_Block" xml:space="preserve"><value>Block</value></data>
+  <data name="Quota_BlockActive" xml:space="preserve"><value>Blockiert</value></data>
+  <data name="Quota_BlockArmed" xml:space="preserve"><value>Scharf</value></data>
+  <data name="BlockGallery_Tags" xml:space="preserve"><value>Schlagwörter</value></data>
+  <data name="BlockGallery_License" xml:space="preserve"><value>Lizenz</value></data>
+  <data name="BlockGallery_Homepage" xml:space="preserve"><value>Website</value></data>
+</root>

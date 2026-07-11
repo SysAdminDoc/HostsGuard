@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- German (Deutsch) and French (Français) UI locales: both translate the same
+  curated core-string set as the Spanish satellite (tabs, menus, consent
+  prompt, About, IP blocklists, usage-budget blocking), with English fallback
+  for the rest, and appear in View → Language. New gates keep every satellite
+  key valid against the neutral resources and keep new locales tracking the
+  Spanish core-key set so no language silently lags.
 - Cross-pipe log correlation: every GUI-initiated RPC now runs inside a W3C
   activity whose `traceparent` travels over the named pipe, so the app's
   "rpc sent" log line and the elevated service's "rpc handled" line share one

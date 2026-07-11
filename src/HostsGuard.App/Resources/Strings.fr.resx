@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Status.Connecting" xml:space="preserve"><value>Connexion au service…</value></data>
+  <data name="Status.Connected" xml:space="preserve"><value>Connecté — service v{0}</value></data>
+  <data name="Status.Unavailable" xml:space="preserve"><value>Service indisponible : démarrez ou redémarrez HostsGuardSvc puis reconnectez-vous. Détails : {0}</value></data>
+  <data name="Status.Ready" xml:space="preserve"><value>Prêt</value></data>
+  <data name="Tab_HostsActivity" xml:space="preserve"><value>Activité hosts</value></data>
+  <data name="Tab_HostsFile" xml:space="preserve"><value>Fichier hosts</value></data>
+  <data name="Tab_FirewallActivity" xml:space="preserve"><value>Activité du pare-feu</value></data>
+  <data name="Tab_FirewallRules" xml:space="preserve"><value>Règles du pare-feu</value></data>
+  <data name="Tab_Tools" xml:space="preserve"><value>Outils</value></data>
+  <data name="Tab_ManagedDomains" xml:space="preserve"><value>Domaines gérés</value></data>
+  <data name="Tab_Blocklists" xml:space="preserve"><value>Listes de blocage</value></data>
+  <data name="Tab_RawEditor" xml:space="preserve"><value>Éditeur brut</value></data>
+  <data name="FwRules_TargetKind" xml:space="preserve"><value>Type</value></data>
+  <data name="FwRules_Target" xml:space="preserve"><value>Cible</value></data>
+  <data name="FwRules_Package" xml:space="preserve"><value>Paquet</value></data>
+  <data name="FwRules_NewRulePackage" xml:space="preserve"><value>Paquet de la nouvelle règle de pare-feu</value></data>
+  <data name="FwRules_PackageTip" xml:space="preserve"><value>Nom de famille de paquet MSIX ou SID de paquet facultatif. Utilisez un paquet ou un programme, pas les deux.</value></data>
+  <data name="FwRules_IncludeWindowsRules" xml:space="preserve"><value>Inclure les règles Windows</value></data>
+  <data name="FwRules_IncludeWindowsRulesTip" xml:space="preserve"><value>Indexe les règles actuelles du Pare-feu Windows dans cette vue. Lecture seule, ne modifie pas le pare-feu actif.</value></data>
+  <data name="FwRules_HostsGuardOnlyTip" xml:space="preserve"><value>Afficher uniquement les règles créées et gérées par HostsGuard.</value></data>
+  <data name="FwRules_CreateNeedsName" xml:space="preserve"><value>Saisissez un nom pour créer cette règle.</value></data>
+  <data name="FwRules_CreateChooseOneTarget" xml:space="preserve"><value>Choisissez un paquet ou un chemin de programme, mais pas les deux.</value></data>
+  <data name="FwRules_CreateReady" xml:space="preserve"><value>Prêt à créer cette règle gérée par HostsGuard.</value></data>
+  <data name="Menu_File" xml:space="preserve"><value>Fichier</value></data>
+  <data name="Menu_View" xml:space="preserve"><value>Affichage</value></data>
+  <data name="Menu_Help" xml:space="preserve"><value>Aide</value></data>
+  <data name="Menu_Language" xml:space="preserve"><value>Langue</value></data>
+  <data name="Xaml_Restore_policy_checkpoint_74b7d23a" xml:space="preserve"><value>Restaurer le point de contrôle de politique</value></data>
+  <data name="Xaml_Restore_the_latest_policy_state_captured_74b7d23a" xml:space="preserve"><value>Restaure le dernier état de politique capturé avant une importation</value></data>
+  <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Consulter la réputation</value></data>
+  <data name="Consent_Inbound" xml:space="preserve"><value>Entrant</value></data>
+  <data name="Consent_Outbound" xml:space="preserve"><value>Sortant</value></data>
+  <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
+  <data name="Consent_PidUnknown" xml:space="preserve"><value>PID inconnu</value></data>
+  <data name="Consent_ScopeRemote" xml:space="preserve"><value>Appliquer uniquement à {0}</value></data>
+  <data name="Consent_CountryUnknown" xml:space="preserve"><value>inconnu</value></data>
+  <data name="Consent_SignerUnknown" xml:space="preserve"><value>non signé / inconnu</value></data>
+  <data name="Consent_TrustPublisher" xml:space="preserve"><value>Faire confiance à tout logiciel signé par « {0} »</value></data>
+  <data name="Consent_TrustFolder" xml:space="preserve"><value>Faire confiance à tout logiciel dans « {0} »</value></data>
+  <data name="Consent_ScopeService" xml:space="preserve"><value>Uniquement le service '{0}'</value></data>
+  <data name="Consent_NoPtr" xml:space="preserve"><value>aucun enregistrement PTR</value></data>
+  <data name="Consent_Countdown" xml:space="preserve"><value>se ferme dans {0:0} s</value></data>
+  <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Décision non appliquée</value></data>
+  <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Votre décision pour {0} n'a pas pu être appliquée — le service ne l'a pas acceptée. La connexion reste bloquée ; une nouvelle demande sera faite à sa prochaine tentative.</value></data>
+  <data name="About_Title" xml:space="preserve"><value>À propos de HostsGuard</value></data>
+  <data name="About_AutomationName" xml:space="preserve"><value>À propos de HostsGuard</value></data>
+  <data name="About_Tagline" xml:space="preserve"><value>Contrôle de la confidentialité réseau pour Windows</value></data>
+  <data name="About_Description" xml:space="preserve"><value>Protection du fichier hosts, contrôle du pare-feu, visibilité réseau en direct et consentement sortant dans une application locale.</value></data>
+  <data name="About_ProtectionTitle" xml:space="preserve"><value>Protection à confiance partagée</value></data>
+  <data name="About_ProtectionBody" xml:space="preserve"><value>Le service élevé contrôle les changements de politique ; l'application de bureau reste sans élévation.</value></data>
+  <data name="About_PrivacyTitle" xml:space="preserve"><value>Conception locale d'abord</value></data>
+  <data name="About_PrivacyBody" xml:space="preserve"><value>La politique, la surveillance et les diagnostics restent sur ce PC sauf si vous les exportez explicitement.</value></data>
+  <data name="About_OpenGitHub" xml:space="preserve"><value>Ouvrir GitHub</value></data>
+  <data name="About_Close" xml:space="preserve"><value>Fermer</value></data>
+  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
+  <data name="IpBlock_Title" xml:space="preserve"><value>Listes de blocage d'IP (règles de pare-feu)</value></data>
+  <data name="IpBlock_Help" xml:space="preserve"><value>Applique des listes de blocage au format IP (une IPv4/IPv6 ou CIDR par ligne, p. ex. HaGeZi ips/doh ou ips/tif) comme règles de blocage HG_IPBlock_* du Pare-feu Windows — arrête les points de terminaison à IP fixe et les IP d'amorçage DoH que le fichier hosts ne peut pas bloquer. Actualisation quotidienne ; un changement suspect est retenu et chaque actualisation est réversible.</value></data>
+  <data name="IpBlock_NameHint" xml:space="preserve"><value>Nom de la liste</value></data>
+  <data name="IpBlock_NameName" xml:space="preserve"><value>Nom de la liste d'IP</value></data>
+  <data name="IpBlock_NameTip" xml:space="preserve"><value>Un nom court pour cette source de liste d'IP.</value></data>
+  <data name="IpBlock_UrlHint" xml:space="preserve"><value>URL https://… de la liste</value></data>
+  <data name="IpBlock_UrlName" xml:space="preserve"><value>URL de la liste d'IP</value></data>
+  <data name="IpBlock_UrlTip" xml:space="preserve"><value>URL HTTPS d'une liste au format IP : une adresse IP ou un CIDR par ligne.</value></data>
+  <data name="IpBlock_Import" xml:space="preserve"><value>Importer</value></data>
+  <data name="IpBlock_RefreshNow" xml:space="preserve"><value>Tout actualiser</value></data>
+  <data name="IpBlock_Toggle" xml:space="preserve"><value>Activer/Désactiver</value></data>
+  <data name="IpBlock_Rollback" xml:space="preserve"><value>Annuler</value></data>
+  <data name="IpBlock_TableName" xml:space="preserve"><value>Listes d'IP abonnées</value></data>
+  <data name="IpBlock_Empty" xml:space="preserve"><value>Pas encore de listes d'IP. Importez une liste au format IP pour créer des règles de pare-feu contre les points de terminaison à IP fixe.</value></data>
+  <data name="IpBlock_ColState" xml:space="preserve"><value>État</value></data>
+  <data name="IpBlock_ColHealth" xml:space="preserve"><value>Santé</value></data>
+  <data name="IpBlock_ColAddresses" xml:space="preserve"><value>Adresses</value></data>
+  <data name="IpBlock_ColRules" xml:space="preserve"><value>Règles</value></data>
+  <data name="IpBlock_ColRefreshed" xml:space="preserve"><value>Actualisée</value></data>
+  <data name="IpBlock_ColError" xml:space="preserve"><value>Dernière erreur</value></data>
+  <data name="IpBlock_StatusHint" xml:space="preserve"><value>Abonnez-vous à une liste au format IP (une IP ou un CIDR par ligne) pour bloquer par pare-feu les points de terminaison à IP fixe que le fichier hosts ne peut pas arrêter.</value></data>
+  <data name="IpBlock_StatusLoaded" xml:space="preserve"><value>{0} listes d'IP · {1} adresses dans {2} règles de pare-feu.</value></data>
+  <data name="IpBlock_ActionLoad" xml:space="preserve"><value>Charger les listes d'IP</value></data>
+  <data name="IpBlock_ActionImport" xml:space="preserve"><value>Importer une liste d'IP</value></data>
+  <data name="IpBlock_ActionRefresh" xml:space="preserve"><value>Actualiser les listes d'IP</value></data>
+  <data name="IpBlock_ActionToggle" xml:space="preserve"><value>Basculer la liste d'IP</value></data>
+  <data name="IpBlock_ActionRemove" xml:space="preserve"><value>Supprimer la liste d'IP</value></data>
+  <data name="IpBlock_ActionRollback" xml:space="preserve"><value>Annuler la liste d'IP</value></data>
+  <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>tronquée</value></data>
+  <data name="Common_Enabled" xml:space="preserve"><value>Activée</value></data>
+  <data name="Common_Disabled" xml:space="preserve"><value>Désactivée</value></data>
+  <data name="UsageQuota_BlockOnExceed" xml:space="preserve"><value>Bloquer en cas de dépassement</value></data>
+  <data name="UsageQuota_BlockOnExceedName" xml:space="preserve"><value>Bloquer lorsque le budget d'utilisation est dépassé</value></data>
+  <data name="UsageQuota_BlockOnExceedTip" xml:space="preserve"><value>Lorsque la fenêtre glissante dépasse la limite, un blocage ciblé est appliqué (entrée hosts pour un domaine, règles de pare-feu pour une application). Il se lève automatiquement lorsque l'utilisation repasse sous la limite ; désactivez ou réinitialisez la règle pour le lever immédiatement.</value></data>
+  <data name="UsageQuota_Block" xml:space="preserve"><value>Blocage</value></data>
+  <data name="Quota_BlockActive" xml:space="preserve"><value>Bloqué</value></data>
+  <data name="Quota_BlockArmed" xml:space="preserve"><value>Armé</value></data>
+  <data name="BlockGallery_Tags" xml:space="preserve"><value>Étiquettes</value></data>
+  <data name="BlockGallery_License" xml:space="preserve"><value>Licence</value></data>
+  <data name="BlockGallery_Homepage" xml:space="preserve"><value>Site</value></data>
+</root>

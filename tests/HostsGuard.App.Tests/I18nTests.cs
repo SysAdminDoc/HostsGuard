@@ -24,22 +24,65 @@ public sealed class I18nTests
 
     // ─── NET-098: real satellite locale + markup extension ───────────────────
 
-    [Fact]
-    public void Spanish_locale_renders_a_real_translation()
+    [Theory]
+    [InlineData("es", "Herramientas", "Reglas del firewall")]
+    [InlineData("de", "Werkzeuge", "Firewall-Regeln")]
+    [InlineData("fr", "Outils", "Règles du pare-feu")]
+    public void Satellite_locales_render_real_translations(string culture, string tools, string fwRules)
     {
         var original = CultureInfo.CurrentUICulture;
         try
         {
-            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("es");
-            I18n.T("Tab_Tools", "Tools").Should().Be("Herramientas");
-            I18n.T("Tab_FirewallRules", "Firewall Rules").Should().Be("Reglas del firewall");
-            // A key the Spanish resx omits still falls back to English.
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+            I18n.T("Tab_Tools", "Tools").Should().Be(tools);
+            I18n.T("Tab_FirewallRules", "Firewall Rules").Should().Be(fwRules);
+            // A key the satellite omits still falls back to English.
             I18n.T("Nope_Missing", "English fallback").Should().Be("English fallback");
         }
         finally
         {
             CultureInfo.CurrentUICulture = original;
         }
+    }
+
+    /// <summary>
+    /// NET-185: a satellite may translate a subset (fallback covers the rest),
+    /// but every key it DOES define must exist in the neutral resources — a
+    /// misspelled satellite key would silently never be used.
+    /// </summary>
+    [Theory]
+    [InlineData("Strings.es.resx")]
+    [InlineData("Strings.de.resx")]
+    [InlineData("Strings.fr.resx")]
+    public void Satellite_keys_are_a_subset_of_neutral_keys(string resourceFile)
+    {
+        var neutral = NeutralResourceKeys();
+        var satellite = Regex.Matches(
+                File.ReadAllText(Path.Combine(AppDir, "Resources", resourceFile)),
+                "<data name=\"(?<key>[^\"]+)\"")
+            .Select(m => m.Groups["key"].Value)
+            .ToList();
+
+        satellite.Should().NotBeEmpty();
+        satellite.Where(k => !neutral.Contains(k)).Should().BeEmpty(
+            $"every {resourceFile} key must exist in Strings.resx");
+    }
+
+    /// <summary>All satellites translate the same curated core-key set, so no locale silently lags.</summary>
+    [Theory]
+    [InlineData("Strings.de.resx")]
+    [InlineData("Strings.fr.resx")]
+    public void New_satellites_cover_every_spanish_core_key(string resourceFile)
+    {
+        static List<string> Keys(string file) => Regex.Matches(
+                File.ReadAllText(file), "<data name=\"(?<key>[^\"]+)\"")
+            .Select(m => m.Groups["key"].Value)
+            .ToList();
+
+        var spanish = Keys(Path.Combine(AppDir, "Resources", "Strings.es.resx"));
+        var candidate = Keys(Path.Combine(AppDir, "Resources", resourceFile));
+
+        candidate.Should().BeEquivalentTo(spanish, $"{resourceFile} must track the Spanish core-key set");
     }
 
     [Fact]
@@ -194,6 +237,8 @@ public sealed class I18nTests
     [Theory]
     [InlineData("Strings.resx")]
     [InlineData("Strings.es.resx")]
+    [InlineData("Strings.de.resx")]
+    [InlineData("Strings.fr.resx")]
     public void Menu_resources_do_not_define_access_key_markers(string resourceFile)
     {
         var doc = XDocument.Load(Path.Combine(AppDir, "Resources", resourceFile));
