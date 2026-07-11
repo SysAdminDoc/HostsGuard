@@ -38,7 +38,11 @@ public sealed class RedactingSink : ILogEventSink, IDisposable
             logEvent.Level,
             logEvent.Exception,
             template,
-            props);
+            props,
+            // Rebuild must not drop the W3C correlation ids (NET-180) — they are
+            // opaque hex, never sensitive, and the whole point of the trace.
+            logEvent.TraceId ?? default,
+            logEvent.SpanId ?? default);
 
         _inner.Emit(redacted);
     }

@@ -234,7 +234,11 @@ if (state.Webhooks.Enabled)
 var token = SessionToken.Generate();
 SessionToken.WriteHandshake(handshakePath, token);
 
-var app = ServiceHost.Build(state, token);
+// NET-180: redacted rotating file log with W3C TraceId/SpanId, so a GUI action
+// can be followed from the app's log into this service's handling of it.
+using var serviceLog = HostsGuard.Diagnostics.Logging.CreateFileLogger(Path.Combine(baseDir, "logs"));
+var app = ServiceHost.Build(state, token,
+    rpcLog: (method, traceId) => serviceLog.Information("rpc {Method} handled (trace {TraceId})", method, traceId));
 
 // Run as a Windows Service when hosted by the SCM; as a console otherwise.
 app.Lifetime.ApplicationStopping.Register(() =>

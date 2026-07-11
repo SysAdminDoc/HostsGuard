@@ -5,6 +5,13 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- Cross-pipe log correlation: every GUI-initiated RPC now runs inside a W3C
+  activity whose `traceparent` travels over the named pipe, so the app's
+  "rpc sent" log line and the elevated service's "rpc handled" line share one
+  TraceId — a GUI action can be followed into the service's log. Both
+  processes gain a redacted rotating file log (`%APPDATA%`/`%ProgramData%`
+  `HostsGuard\logs`) whose template renders the trace id, and the redaction
+  boundary now preserves correlation ids when it rebuilds an event.
 - `tools\e2e-elevated.ps1`: an elevated interactive end-to-end harness for the
   paths the headless suite cannot reach — it verifies the live LocalSystem
   service over the pipe, asserts a CLI `block-app` writes a real enabled

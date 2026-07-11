@@ -19,7 +19,8 @@ public static class NamedPipeServer
         string token,
         Action<WebApplication> mapServices,
         string pipeName = NamedPipeSecurity.PipeName,
-        Action<IServiceCollection>? configureServices = null)
+        Action<IServiceCollection>? configureServices = null,
+        Action<string, string>? rpcLog = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         ArgumentNullException.ThrowIfNull(mapServices);
@@ -38,8 +39,14 @@ public static class NamedPipeServer
             opts.CurrentUserOnly = false;
         });
 
-        builder.Services.AddGrpc(o => o.Interceptors.Add<TokenAuthInterceptor>());
+        builder.Services.AddGrpc(o =>
+        {
+            o.Interceptors.Add<TokenAuthInterceptor>();
+            // Correlation runs after auth so unauthenticated noise is never traced.
+            o.Interceptors.Add<ServerCorrelationInterceptor>();
+        });
         builder.Services.AddSingleton(new TokenAuthInterceptor(token));
+        builder.Services.AddSingleton(new ServerCorrelationInterceptor(rpcLog));
         configureServices?.Invoke(builder.Services);
 
         var app = builder.Build();

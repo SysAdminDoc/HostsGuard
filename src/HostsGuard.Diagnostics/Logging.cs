@@ -39,7 +39,10 @@ public static class Logging
                 fileSizeLimitBytes: 5_000_000,
                 rollOnFileSizeLimit: true,
                 retainedFileCountLimit: 5,
-                shared: true)
+                shared: true,
+                // NET-180: render the ambient W3C activity so a GUI-initiated RPC
+                // and its service-side handling correlate across both log files.
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {TraceId} {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
         return new LoggerConfiguration()

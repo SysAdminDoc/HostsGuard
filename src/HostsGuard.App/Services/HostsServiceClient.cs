@@ -1,5 +1,6 @@
 using System.IO;
 using System.Runtime.Versioning;
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using HostsGuard.Contracts;
 using HostsGuard.Ipc;
@@ -10,23 +11,31 @@ namespace HostsGuard.App.Services;
 /// The UI's typed connection to the elevated service over the ACL'd named pipe.
 /// Wraps the generated gRPC clients so the ViewModels never touch transport
 /// details. The channel is injectable for testing against an in-process service.
+/// Every call runs through <see cref="ClientCorrelationInterceptor"/> (NET-180)
+/// so the app's log line and the service's handling share one W3C TraceId.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class HostsServiceClient : IDisposable
 {
+    private static readonly Lazy<Serilog.Core.Logger> AppLog = new(() =>
+        HostsGuard.Diagnostics.Logging.CreateFileLogger(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HostsGuard", "logs")));
+
     private readonly GrpcChannel _channel;
 
     public HostsServiceClient(GrpcChannel channel)
     {
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
-        Diagnostics = new Contracts.Diagnostics.DiagnosticsClient(_channel);
-        Hosts = new HostsControl.HostsControlClient(_channel);
-        Firewall = new FirewallControl.FirewallControlClient(_channel);
-        Dns = new DnsControl.DnsControlClient(_channel);
-        Monitoring = new Monitoring.MonitoringClient(_channel);
-        Policy = new Policy.PolicyClient(_channel);
-        Lists = new ListControl.ListControlClient(_channel);
-        Consent = new Consent.ConsentClient(_channel);
+        var invoker = _channel.Intercept(new ClientCorrelationInterceptor(
+            (method, traceId) => AppLog.Value.Information("rpc {Method} sent (trace {TraceId})", method, traceId)));
+        Diagnostics = new Contracts.Diagnostics.DiagnosticsClient(invoker);
+        Hosts = new HostsControl.HostsControlClient(invoker);
+        Firewall = new FirewallControl.FirewallControlClient(invoker);
+        Dns = new DnsControl.DnsControlClient(invoker);
+        Monitoring = new Monitoring.MonitoringClient(invoker);
+        Policy = new Policy.PolicyClient(invoker);
+        Lists = new ListControl.ListControlClient(invoker);
+        Consent = new Consent.ConsentClient(invoker);
     }
 
     public Contracts.Diagnostics.DiagnosticsClient Diagnostics { get; }

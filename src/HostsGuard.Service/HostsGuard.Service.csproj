@@ -6,6 +6,7 @@
     <ProjectReference Include="..\HostsGuard.Ipc\HostsGuard.Ipc.csproj" />
     <ProjectReference Include="..\HostsGuard.Windows\HostsGuard.Windows.csproj" />
     <ProjectReference Include="..\HostsGuard.Data\HostsGuard.Data.csproj" />
+    <ProjectReference Include="..\HostsGuard.Diagnostics\HostsGuard.Diagnostics.csproj" />
   </ItemGroup>
 
   <ItemGroup>

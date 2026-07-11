@@ -15,7 +15,11 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public static class ServiceHost
 {
-    public static WebApplication Build(ServiceState state, string token, string pipeName = NamedPipeSecurity.PipeName)
+    public static WebApplication Build(
+        ServiceState state,
+        string token,
+        string pipeName = NamedPipeSecurity.PipeName,
+        Action<string, string>? rpcLog = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -43,6 +47,7 @@ public static class ServiceHost
                     // lifetime so start/stop/shutdown flow through cleanly.
                     services.AddWindowsService(options => options.ServiceName = "HostsGuardSvc");
                 }
-            });
+            },
+            rpcLog);
     }
 }
