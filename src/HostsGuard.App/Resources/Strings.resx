@@ -880,4 +880,51 @@
   <data name="BlockGallery_Tags" xml:space="preserve"><value>Tags</value></data>
   <data name="BlockGallery_License" xml:space="preserve"><value>License</value></data>
   <data name="BlockGallery_Homepage" xml:space="preserve"><value>Site</value></data>
+  <data name="Health_Title" xml:space="preserve"><value>Service health</value></data>
+  <data name="Health_Help" xml:space="preserve"><value>At-a-glance liveness of the elevated service: monitors, enforcement posture, activity persistence, database schema, and blocklist freshness.</value></data>
+  <data name="Health_TableName" xml:space="preserve"><value>Service health checks</value></data>
+  <data name="Health_ColAspect" xml:space="preserve"><value>Aspect</value></data>
+  <data name="Health_ColState" xml:space="preserve"><value>State</value></data>
+  <data name="Health_ColDetail" xml:space="preserve"><value>Detail</value></data>
+  <data name="Health_Empty" xml:space="preserve"><value>No health data yet. Refresh to query the service.</value></data>
+  <data name="Health_StatusHint" xml:space="preserve"><value>Load the health glance to see monitor liveness, enforcement posture, and database state.</value></data>
+  <data name="Health_ActionLoad" xml:space="preserve"><value>Load service health</value></data>
+  <data name="Health_Up" xml:space="preserve"><value>Up</value></data>
+  <data name="Health_Down" xml:space="preserve"><value>Down</value></data>
+  <data name="Health_Off" xml:space="preserve"><value>Off</value></data>
+  <data name="Health_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Health_Service" xml:space="preserve"><value>Service</value></data>
+  <data name="Health_Running" xml:space="preserve"><value>Running</value></data>
+  <data name="Health_ServiceDetail" xml:space="preserve"><value>v{0} · {1} · up {2}</value></data>
+  <data name="Health_Elevated" xml:space="preserve"><value>elevated</value></data>
+  <data name="Health_NotElevated" xml:space="preserve"><value>not elevated</value></data>
+  <data name="Health_DnsMonitor" xml:space="preserve"><value>DNS monitor</value></data>
+  <data name="Health_ConnMonitor" xml:space="preserve"><value>Connection monitor</value></data>
+  <data name="Health_BandwidthMonitor" xml:space="preserve"><value>Bandwidth monitor</value></data>
+  <data name="Health_SniMonitor" xml:space="preserve"><value>SNI capture</value></data>
+  <data name="Health_MonitorDownDetail" xml:space="preserve"><value>requires the elevated service</value></data>
+  <data name="Health_OptMonitorDetail" xml:space="preserve"><value>elevation-gated; usage budgets need it</value></data>
+  <data name="Health_SniDetail" xml:space="preserve"><value>opt-in</value></data>
+  <data name="Health_Enforcement" xml:space="preserve"><value>Enforcement</value></data>
+  <data name="Health_ModeNormal" xml:space="preserve"><value>normal</value></data>
+  <data name="Health_KillSwitchOn" xml:space="preserve"><value>kill-switch engaged · </value></data>
+  <data name="Health_SecureRulesOn" xml:space="preserve"><value>secure rules armed · </value></data>
+  <data name="Health_PendingConsent" xml:space="preserve"><value>{0} pending consent</value></data>
+  <data name="Health_Persistence" xml:space="preserve"><value>Activity persistence</value></data>
+  <data name="Health_Dropping" xml:space="preserve"><value>Dropping</value></data>
+  <data name="Health_PersistenceDetail" xml:space="preserve"><value>{0} batches written</value></data>
+  <data name="Health_PersistenceDropDetail" xml:space="preserve"><value>{0} writes dropped — the service is shedding DNS/SNI history</value></data>
+  <data name="Health_Database" xml:space="preserve"><value>Database</value></data>
+  <data name="Health_Mismatch" xml:space="preserve"><value>Mismatch</value></data>
+  <data name="Health_SchemaDetail" xml:space="preserve"><value>schema v{0} (on disk v{1})</value></data>
+  <data name="Health_Blocklists" xml:space="preserve"><value>Blocklists</value></data>
+  <data name="Health_Refreshed" xml:space="preserve"><value>Refreshed</value></data>
+  <data name="Health_NeverRefreshed" xml:space="preserve"><value>Never refreshed</value></data>
+  <data name="Health_LastRefreshDetail" xml:space="preserve"><value>last refresh {0}</value></data>
+  <data name="Health_NoSubsDetail" xml:space="preserve"><value>no subscribed sources have refreshed yet</value></data>
+  <data name="Health_HostsScale" xml:space="preserve"><value>Hosts file scale</value></data>
+  <data name="Health_Large" xml:space="preserve"><value>Large</value></data>
+  <data name="Health_HostsScaleDetail" xml:space="preserve"><value>large enough to slow system-wide DNS — prefer firewall IP rules</value></data>
+  <data name="Health_AllOk" xml:space="preserve"><value>All health checks OK.</value></data>
+  <data name="Health_SomeBad" xml:space="preserve"><value>{0} health check(s) need attention.</value></data>
 </root>

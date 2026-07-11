@@ -2526,6 +2526,62 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="8" DataContext="{Binding Tools}">
 
+                            <!-- Service-health glance (NET-186) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="{svc:Loc Key=Health_Title}"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,0,0,4" />
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding LoadHealthCommand}"
+                                                Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=Health_Help}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               Margin="0,0,0,8"
+                                               TextWrapping="Wrap" />
+                                    <DataGrid ItemsSource="{Binding HealthRows}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MaxHeight="230"
+                                              AutomationProperties.Name="{svc:Loc Key=Health_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=Health_ColAspect}" Binding="{Binding Aspect}" Width="1.2*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Health_ColState}" Binding="{Binding State}" Width="110">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Healthy}" Value="False">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                            <DataGridTextColumn Header="{svc:Loc Key=Health_ColDetail}" Binding="{Binding Detail}" Width="2.4*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <Border Style="{StaticResource Hg.EmptyState}"
+                                            Margin="0,8,0,0"
+                                            Visibility="{Binding HealthRows.Count, Converter={StaticResource EmptyStateVis}}">
+                                        <TextBlock Text="{svc:Loc Key=Health_Empty}"
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding HealthStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Settings lock (NET-079) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>

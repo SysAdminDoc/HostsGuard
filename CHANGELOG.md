@@ -5,6 +5,12 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- A Service health card at the top of the Tools tab: at-a-glance service
+  state (version, elevation, uptime), per-monitor up/down (DNS, connections,
+  bandwidth, opt-in SNI), enforcement posture (mode, kill-switch, secure
+  rules, pending consent), activity-persistence drop counters, database
+  schema OK/mismatch, blocklist freshness, and the hosts-file scale warning —
+  unhealthy rows highlight and the summary reads out via a live region.
 - German (Deutsch) and French (Français) UI locales: both translate the same
   curated core-string set as the Spanish satellite (tabs, menus, consent
   prompt, About, IP blocklists, usage-budget blocking), with English fallback
