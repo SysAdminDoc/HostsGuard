@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.67] - 2026-07-10
+
+### Added
+- Portable, install-free builds: each release now ships single-file,
+  self-contained `win-x64` and `win-arm64` portable ZIPs (app + CLI + service,
+  no .NET runtime required) alongside the Inno Setup installers, so HostsGuard
+  can be run or scripted without going through setup. No functional change from
+  0.12.66.
+
 ## [0.12.66] - 2026-07-10
 
 ### Added
