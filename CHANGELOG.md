@@ -4,6 +4,19 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- IP-format blocklists: subscribe HTTPS sources of IPv4/IPv6/CIDR entries
+  (e.g. HaGeZi `ips/doh`, `ips/tif`) and enforce them as chunked `HG_IPBlock_*`
+  Windows Firewall outbound block rules — this stops hardcoded-IP C2 and
+  DoH-bootstrap-IP bypass that hosts-file blocking cannot. Sources refresh
+  daily behind the same churn guard as domain blocklists, keep the previous
+  payload for one-step rollback, round-trip through portable policy, and
+  surface in the decision explainer via live rule matching. Managed from a new
+  Tools card and `HostsGuard.Cli ip-blocklists`. Non-routable targets
+  (loopback, RFC1918, link-local, multicast) and over-wide CIDRs are refused
+  so a hostile list can never block the LAN or all traffic; lists beyond the
+  32,768-address rule cap are truncated with an explicit warning.
+
 ### Changed
 - Extended the property/fuzz test suite to hammer the untrusted parsers with
   seeded random and truncated input — domain normalization, the DDR SVCB wire

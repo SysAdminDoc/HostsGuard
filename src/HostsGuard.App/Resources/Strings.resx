@@ -840,4 +840,35 @@
   <data name="Consent_Countdown" xml:space="preserve"><value>closes in {0:0} s</value></data>
   <data name="Consent_DeliveryFailedTitle" xml:space="preserve"><value>Decision not applied</value></data>
   <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Your decision for {0} could not be applied — the service did not accept it. The connection stays blocked; it will prompt again on its next attempt.</value></data>
+  <data name="IpBlock_Title" xml:space="preserve"><value>IP blocklists (firewall rules)</value></data>
+  <data name="IpBlock_Help" xml:space="preserve"><value>Enforce IP-format blocklists (one IPv4/IPv6 or CIDR per line, e.g. HaGeZi ips/doh or ips/tif) as HG_IPBlock_* Windows Firewall block rules — this stops hardcoded-IP endpoints and DoH-bootstrap IPs the hosts file cannot. Refreshes daily; a suspicious change is guarded and every refresh can be rolled back.</value></data>
+  <data name="IpBlock_NameHint" xml:space="preserve"><value>List name</value></data>
+  <data name="IpBlock_NameName" xml:space="preserve"><value>IP blocklist name</value></data>
+  <data name="IpBlock_NameTip" xml:space="preserve"><value>A short name for this IP blocklist source.</value></data>
+  <data name="IpBlock_UrlHint" xml:space="preserve"><value>https://… list URL</value></data>
+  <data name="IpBlock_UrlName" xml:space="preserve"><value>IP blocklist URL</value></data>
+  <data name="IpBlock_UrlTip" xml:space="preserve"><value>HTTPS URL of an IP-format list: one IP address or CIDR per line.</value></data>
+  <data name="IpBlock_Import" xml:space="preserve"><value>Import</value></data>
+  <data name="IpBlock_RefreshNow" xml:space="preserve"><value>Refresh all</value></data>
+  <data name="IpBlock_Toggle" xml:space="preserve"><value>Enable/disable</value></data>
+  <data name="IpBlock_Rollback" xml:space="preserve"><value>Roll back</value></data>
+  <data name="IpBlock_TableName" xml:space="preserve"><value>Subscribed IP blocklists</value></data>
+  <data name="IpBlock_Empty" xml:space="preserve"><value>No IP blocklists yet. Import an IP-format list to write firewall block rules for hardcoded-IP endpoints.</value></data>
+  <data name="IpBlock_ColState" xml:space="preserve"><value>State</value></data>
+  <data name="IpBlock_ColHealth" xml:space="preserve"><value>Health</value></data>
+  <data name="IpBlock_ColAddresses" xml:space="preserve"><value>Addresses</value></data>
+  <data name="IpBlock_ColRules" xml:space="preserve"><value>Rules</value></data>
+  <data name="IpBlock_ColRefreshed" xml:space="preserve"><value>Refreshed</value></data>
+  <data name="IpBlock_ColError" xml:space="preserve"><value>Last error</value></data>
+  <data name="IpBlock_StatusHint" xml:space="preserve"><value>Subscribe an IP-format list (one IP or CIDR per line) to firewall-block hardcoded-IP endpoints the hosts file cannot stop.</value></data>
+  <data name="IpBlock_StatusLoaded" xml:space="preserve"><value>{0} IP blocklists · {1} addresses across {2} firewall rules.</value></data>
+  <data name="IpBlock_ActionLoad" xml:space="preserve"><value>Load IP blocklists</value></data>
+  <data name="IpBlock_ActionImport" xml:space="preserve"><value>Import IP blocklist</value></data>
+  <data name="IpBlock_ActionRefresh" xml:space="preserve"><value>Refresh IP blocklists</value></data>
+  <data name="IpBlock_ActionToggle" xml:space="preserve"><value>Toggle IP blocklist</value></data>
+  <data name="IpBlock_ActionRemove" xml:space="preserve"><value>Remove IP blocklist</value></data>
+  <data name="IpBlock_ActionRollback" xml:space="preserve"><value>Roll back IP blocklist</value></data>
+  <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>truncated</value></data>
+  <data name="Common_Enabled" xml:space="preserve"><value>Enabled</value></data>
+  <data name="Common_Disabled" xml:space="preserve"><value>Disabled</value></data>
 </root>

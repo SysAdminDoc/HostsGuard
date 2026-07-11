@@ -39,6 +39,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "blocklists" => await BlocklistsAsync(args),
+    "ip-blocklists" => await IpBlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
     "safe-posture" => await SafePostureAsync(),
     "safe-posture-smoke" => await SafePostureSmokeAsync(),
@@ -99,6 +100,9 @@ static int Usage()
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
           HostsGuard.Cli blocklists disable|enable|remove|rollback <name>
+          HostsGuard.Cli ip-blocklists [list|refresh]
+          HostsGuard.Cli ip-blocklists import <name> <https-url>
+          HostsGuard.Cli ip-blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli safe-posture
           HostsGuard.Cli safe-posture-smoke
@@ -1722,6 +1726,117 @@ static async Task<int> BlocklistsAsync(string[] args)
             return PrintRpcFailure(ex);
         }
     }
+}
+
+static async Task<int> IpBlocklistsAsync(string[] args)
+{
+    var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
+    var (channel, error) = Connect();
+    if (channel is null)
+    {
+        PrintServiceUnavailable(error);
+        return 3;
+    }
+
+    using (channel)
+    {
+        try
+        {
+            var client = new ListControl.ListControlClient(channel);
+            switch (subcommand)
+            {
+                case "list":
+                    var sources = await client.ListIpBlocklistsAsync(new Empty());
+                    Console.WriteLine("name\tenabled\thealth\taddresses\trules\tprevious\ttruncated\tlast_refresh\turl");
+                    foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        var health = s.HealthStatus.Length != 0 ? s.HealthStatus : "new";
+                        Console.WriteLine($"{s.Name}\t{s.Enabled}\t{health}\t{s.AddressCount}\t{s.RuleCount}\t{s.PreviousAddressCount}\t{s.Truncated}\t{s.LastRefresh}\t{s.Url}");
+                    }
+
+                    return 0;
+                case "refresh":
+                    return PrintIpBlocklistResult(await client.RefreshIpBlocklistsAsync(new Empty()));
+                case "import":
+                    if (args.Length < 4)
+                    {
+                        Console.Error.WriteLine("Usage: ip-blocklists import <name> <https-url>");
+                        return 1;
+                    }
+
+                    return PrintIpBlocklistResult(
+                        await client.ImportIpBlocklistAsync(new BlocklistRequest { Name = args[2], Url = args[3] }));
+                case "disable":
+                case "enable":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine($"Usage: ip-blocklists {subcommand} <name>");
+                        return 1;
+                    }
+
+                    var toggle = await client.SetIpBlocklistEnabledAsync(new BlocklistToggleRequest
+                    {
+                        Name = args[2],
+                        Enabled = subcommand == "enable",
+                    });
+                    Console.WriteLine(toggle.Message);
+                    return toggle.Ok ? 0 : 2;
+                case "remove":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine("Usage: ip-blocklists remove <name>");
+                        return 1;
+                    }
+
+                    var ack = await client.RemoveIpBlocklistAsync(new BlocklistRequest { Name = args[2] });
+                    Console.WriteLine(ack.Message);
+                    return ack.Ok ? 0 : 2;
+                case "rollback":
+                    if (args.Length < 3)
+                    {
+                        Console.Error.WriteLine("Usage: ip-blocklists rollback <name>");
+                        return 1;
+                    }
+
+                    return PrintIpBlocklistResult(
+                        await client.RollbackIpBlocklistAsync(new BlocklistRequest { Name = args[2] }));
+                default:
+                    Console.Error.WriteLine($"Unknown ip-blocklists command: {subcommand}");
+                    return 1;
+            }
+        }
+        catch (Grpc.Core.RpcException ex)
+        {
+            return PrintRpcFailure(ex);
+        }
+    }
+}
+
+static int PrintIpBlocklistResult(IpBlocklistResult result)
+{
+    Console.WriteLine(result.Message);
+    Console.WriteLine($"  addresses:  {result.Total}");
+    Console.WriteLine($"  rules:      {result.Rules}");
+    Console.WriteLine($"  duplicates: {result.Duplicates}");
+    Console.WriteLine($"  invalid:    {result.Invalid}");
+    Console.WriteLine($"  unsafe:     {result.Unsafe}");
+    if (result.Truncated)
+    {
+        Console.WriteLine("  truncated:  True");
+    }
+
+    if (result.Guarded != 0 || result.Failed != 0)
+    {
+        Console.WriteLine($"  guarded:    {result.Guarded}");
+        Console.WriteLine($"  failed:     {result.Failed}");
+    }
+
+    if (result.Warning.Length != 0)
+    {
+        Console.WriteLine($"  warning:    {result.Warning}");
+    }
+
+    return result.Ok ? 0 : 2;
 }
 
 static int PrintBlocklistResult(BlocklistResult result)

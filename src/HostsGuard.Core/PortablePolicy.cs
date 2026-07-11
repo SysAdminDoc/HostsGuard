@@ -42,6 +42,8 @@ public sealed class PortablePolicy
 
     public List<PolicyBlocklistSub> BlocklistSubs { get; set; } = new();
 
+    public List<PolicyIpBlocklist> IpBlocklists { get; set; } = new();
+
     public List<string> AllowlistSubs { get; set; } = new();
 
     public PolicyConsent? Consent { get; set; }
@@ -102,6 +104,7 @@ public sealed class PortablePolicy
         policy.NetworkProfiles ??= new();
         policy.RuleGroups ??= new();
         policy.BlocklistSubs ??= new();
+        policy.IpBlocklists ??= new();
         policy.AllowlistSubs ??= new();
         policy.AppVpnBindings ??= new();
         policy.LanAttackSurface ??= new();
@@ -241,6 +244,16 @@ public sealed class PolicyBlocklistSub
     public string Name { get; set; } = string.Empty;
 
     public string Url { get; set; } = string.Empty;
+}
+
+/// <summary>A subscribed IP-format blocklist (NET-171; refresh re-applies its HG_IPBlock_* rules).</summary>
+public sealed class PolicyIpBlocklist
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string Url { get; set; } = string.Empty;
+
+    public bool Enabled { get; set; } = true;
 }
 
 /// <summary>Consent-mode posture and trust sets. Null properties mean "not present in this policy".</summary>

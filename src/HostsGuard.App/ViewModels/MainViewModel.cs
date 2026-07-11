@@ -186,6 +186,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadLanAttackSurfaceAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadPolicySubscriptionsAsync();
+            await Tools.LoadIpBlocklistsAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
             await Tools.LoadSecureRulesAsync();
@@ -968,6 +969,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadLanAttackSurfaceAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadPolicySubscriptionsAsync();
+            await Tools.LoadIpBlocklistsAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
             await Tools.LoadSecureRulesAsync();

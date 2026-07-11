@@ -350,7 +350,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 29;
+    public const int SchemaVersion = 30;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -625,6 +625,15 @@ public sealed partial class HostsDatabase : IDisposable
                 type TEXT PRIMARY KEY, label TEXT, surface INTEGER DEFAULT 1);
             CREATE TABLE IF NOT EXISTS policy_import_checkpoints(
                 id INTEGER PRIMARY KEY, created TEXT, json TEXT NOT NULL, summary TEXT);
+            CREATE TABLE IF NOT EXISTS ip_blocklist_sources(
+                name TEXT PRIMARY KEY, url TEXT NOT NULL DEFAULT '', enabled INTEGER DEFAULT 1,
+                address_count INTEGER DEFAULT 0, rule_count INTEGER DEFAULT 0,
+                content_hash TEXT DEFAULT '', previous_hash TEXT DEFAULT '',
+                previous_address_count INTEGER DEFAULT 0,
+                addresses TEXT DEFAULT '', previous_addresses TEXT DEFAULT '',
+                health_status TEXT DEFAULT '', last_error TEXT DEFAULT '',
+                last_error_at TEXT DEFAULT '', last_refresh TEXT DEFAULT '',
+                truncated INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS policy_subscriptions(
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,

@@ -116,6 +116,11 @@ public static class PolicyPortability
             policy.BlocklistSubs.Add(new PolicyBlocklistSub { Name = sub.Name, Url = sub.Url });
         }
 
+        foreach (var source in state.Db.GetIpBlocklistSources())
+        {
+            policy.IpBlocklists.Add(new PolicyIpBlocklist { Name = source.Name, Url = source.Url, Enabled = source.Enabled });
+        }
+
         policy.AllowlistSubs.AddRange(state.Db.GetAllowlistSubs());
 
         policy.Consent = new PolicyConsent
@@ -299,6 +304,10 @@ public static class PolicyPortability
         var currentBlocklists = state.Db.GetBlocklistSubs().Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
         var desiredBlocklists = policy.BlocklistSubs.Select(s => s.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
         AddSetDiff("blocklist subscriptions", currentBlocklists, desiredBlocklists, summary, ref added, ref removed, removeMissing: false);
+
+        var currentIpBlocklists = state.Db.GetIpBlocklistSources().Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+        var desiredIpBlocklists = policy.IpBlocklists.Select(s => s.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        AddSetDiff("IP blocklists", currentIpBlocklists, desiredIpBlocklists, summary, ref added, ref removed, removeMissing: false);
 
         var currentAllow = state.Db.GetAllowlistSubs().ToHashSet(StringComparer.Ordinal);
         var desiredAllow = policy.AllowlistSubs.Where(u => !string.IsNullOrWhiteSpace(u)).ToHashSet(StringComparer.Ordinal);
@@ -534,6 +543,15 @@ public static class PolicyPortability
             }
         }
 
+        // ── IP blocklists (a later refresh re-applies HG_IPBlock_* rules) ──
+        foreach (var b in policy.IpBlocklists)
+        {
+            if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
+            {
+                state.Db.UpsertIpBlocklistSubscription(b.Name, b.Url, b.Enabled);
+            }
+        }
+
         // ── Allowlist subscriptions (replace-all) ──
         state.Db.SetAllowlistSubs(policy.AllowlistSubs.Where(u => !string.IsNullOrWhiteSpace(u)));
         summary.Add($"{policy.BlocklistSubs.Count} blocklist + {policy.AllowlistSubs.Count} allowlist subscriptions");
@@ -677,6 +695,26 @@ public static class PolicyPortability
             if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
             {
                 state.Db.UpsertBlocklistSub(b.Name, b.Url, 0);
+            }
+        }
+
+        foreach (var current in state.Db.GetIpBlocklistSources().Where(s => policy.IpBlocklists.All(p => p.Name != s.Name)).ToList())
+        {
+            if (state.IpBlocklists is { } coordinator)
+            {
+                coordinator.Remove(current.Name);
+            }
+            else
+            {
+                state.Db.RemoveIpBlocklistSource(current.Name);
+            }
+        }
+
+        foreach (var b in policy.IpBlocklists)
+        {
+            if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
+            {
+                state.Db.UpsertIpBlocklistSubscription(b.Name, b.Url, b.Enabled);
             }
         }
 

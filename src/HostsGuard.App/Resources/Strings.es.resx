@@ -67,4 +67,35 @@
   <data name="About_OpenGitHub" xml:space="preserve"><value>Abrir GitHub</value></data>
   <data name="About_Close" xml:space="preserve"><value>Cerrar</value></data>
   <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
+  <data name="IpBlock_Title" xml:space="preserve"><value>Listas de bloqueo de IP (reglas de firewall)</value></data>
+  <data name="IpBlock_Help" xml:space="preserve"><value>Aplica listas de bloqueo en formato IP (una IPv4/IPv6 o CIDR por linea, p. ej. HaGeZi ips/doh o ips/tif) como reglas de bloqueo HG_IPBlock_* del Firewall de Windows: detiene endpoints con IP fija y IPs de arranque DoH que el archivo hosts no puede bloquear. Se actualiza a diario; un cambio sospechoso queda protegido y cada actualizacion puede revertirse.</value></data>
+  <data name="IpBlock_NameHint" xml:space="preserve"><value>Nombre de la lista</value></data>
+  <data name="IpBlock_NameName" xml:space="preserve"><value>Nombre de la lista de IP</value></data>
+  <data name="IpBlock_NameTip" xml:space="preserve"><value>Un nombre corto para esta fuente de lista de IP.</value></data>
+  <data name="IpBlock_UrlHint" xml:space="preserve"><value>URL https://… de la lista</value></data>
+  <data name="IpBlock_UrlName" xml:space="preserve"><value>URL de la lista de IP</value></data>
+  <data name="IpBlock_UrlTip" xml:space="preserve"><value>URL HTTPS de una lista en formato IP: una direccion IP o CIDR por linea.</value></data>
+  <data name="IpBlock_Import" xml:space="preserve"><value>Importar</value></data>
+  <data name="IpBlock_RefreshNow" xml:space="preserve"><value>Actualizar todo</value></data>
+  <data name="IpBlock_Toggle" xml:space="preserve"><value>Activar/desactivar</value></data>
+  <data name="IpBlock_Rollback" xml:space="preserve"><value>Revertir</value></data>
+  <data name="IpBlock_TableName" xml:space="preserve"><value>Listas de IP suscritas</value></data>
+  <data name="IpBlock_Empty" xml:space="preserve"><value>Aun no hay listas de IP. Importe una lista en formato IP para crear reglas de firewall contra endpoints con IP fija.</value></data>
+  <data name="IpBlock_ColState" xml:space="preserve"><value>Estado</value></data>
+  <data name="IpBlock_ColHealth" xml:space="preserve"><value>Salud</value></data>
+  <data name="IpBlock_ColAddresses" xml:space="preserve"><value>Direcciones</value></data>
+  <data name="IpBlock_ColRules" xml:space="preserve"><value>Reglas</value></data>
+  <data name="IpBlock_ColRefreshed" xml:space="preserve"><value>Actualizada</value></data>
+  <data name="IpBlock_ColError" xml:space="preserve"><value>Ultimo error</value></data>
+  <data name="IpBlock_StatusHint" xml:space="preserve"><value>Suscriba una lista en formato IP (una IP o CIDR por linea) para bloquear con el firewall endpoints con IP fija que el archivo hosts no puede detener.</value></data>
+  <data name="IpBlock_StatusLoaded" xml:space="preserve"><value>{0} listas de IP · {1} direcciones en {2} reglas de firewall.</value></data>
+  <data name="IpBlock_ActionLoad" xml:space="preserve"><value>Cargar listas de IP</value></data>
+  <data name="IpBlock_ActionImport" xml:space="preserve"><value>Importar lista de IP</value></data>
+  <data name="IpBlock_ActionRefresh" xml:space="preserve"><value>Actualizar listas de IP</value></data>
+  <data name="IpBlock_ActionToggle" xml:space="preserve"><value>Alternar lista de IP</value></data>
+  <data name="IpBlock_ActionRemove" xml:space="preserve"><value>Quitar lista de IP</value></data>
+  <data name="IpBlock_ActionRollback" xml:space="preserve"><value>Revertir lista de IP</value></data>
+  <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>truncada</value></data>
+  <data name="Common_Enabled" xml:space="preserve"><value>Activada</value></data>
+  <data name="Common_Disabled" xml:space="preserve"><value>Desactivada</value></data>
 </root>

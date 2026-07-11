@@ -77,6 +77,7 @@ public sealed class ServiceState : IDisposable
         {
             Lists = new ListImporter(hosts, db, listFetcher);
             Intel = new BlocklistIntelligence(db, listFetcher);
+            IpBlocklists = new IpBlocklistCoordinator(db, firewall, listFetcher);
         }
     }
 
@@ -96,6 +97,9 @@ public sealed class ServiceState : IDisposable
     public ScheduleEnforcer Schedules { get; }
 
     public ListImporter? Lists { get; }
+
+    /// <summary>IP-format blocklists enforced as HG_IPBlock_* firewall rules (NET-171); null without a fetcher.</summary>
+    public IpBlocklistCoordinator? IpBlocklists { get; }
 
     public DohIntelligence Doh { get; }
 
@@ -355,6 +359,7 @@ public sealed class ServiceState : IDisposable
         Consent.Dispose();
         GeoIp.Dispose();
         Lists?.Dispose();
+        IpBlocklists?.Dispose();
         Schedules.Dispose();
         DomainFirewall.Dispose();
         EnforcementPause.Dispose();

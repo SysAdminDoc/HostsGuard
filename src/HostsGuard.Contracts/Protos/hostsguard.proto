@@ -272,6 +272,50 @@ service ListControl {
   // the reference lists would block. Refreshed on first start and weekly.
   rpc GetBlocklistIntelligence(Empty) returns (BlocklistIntelStatus);
   rpc RefreshBlocklistIntelligence(Empty) returns (Ack);
+  // IP-format blocklists (NET-171): opt-in sources of IPv4/IPv6/CIDR entries
+  // enforced as chunked HG_IPBlock_* Windows Firewall block rules — hosts-file
+  // blocking cannot stop hardcoded-IP C2 or DoH-bootstrap-IP bypass.
+  rpc ListIpBlocklists(Empty) returns (IpBlocklistList);
+  rpc ImportIpBlocklist(BlocklistRequest) returns (IpBlocklistResult);
+  rpc SetIpBlocklistEnabled(BlocklistToggleRequest) returns (Ack);
+  rpc RemoveIpBlocklist(BlocklistRequest) returns (Ack);
+  rpc RefreshIpBlocklists(Empty) returns (IpBlocklistResult);
+  rpc RollbackIpBlocklist(BlocklistRequest) returns (IpBlocklistResult);
+}
+
+message IpBlocklistSource {
+  string name = 1;
+  string url = 2;
+  bool enabled = 3;
+  int64 address_count = 4;   // entries currently enforced
+  int64 rule_count = 5;      // HG_IPBlock_* rules carrying those entries
+  string health_status = 6;  // ok|new|guarded|error|restored
+  string content_hash = 7;
+  string previous_hash = 8;
+  int64 previous_address_count = 9;
+  string last_error = 10;
+  string last_error_at = 11;
+  string last_refresh = 12;
+  bool truncated = 13;       // list exceeded the rule cap; tail entries dropped
+}
+
+message IpBlocklistList {
+  repeated IpBlocklistSource sources = 1;
+}
+
+message IpBlocklistResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  int64 total = 4;       // valid entries parsed from the source
+  int64 invalid = 5;     // unparseable lines dropped
+  int64 duplicates = 6;  // duplicate entries dropped
+  int64 unsafe = 7;      // parseable but non-routable/over-wide entries refused
+  int64 rules = 8;       // firewall rules written
+  bool truncated = 9;    // entries beyond the rule cap were dropped (see warning)
+  int64 guarded = 10;    // refreshes skipped by the churn guard
+  int64 failed = 11;     // refreshes that failed fetch/parse
+  string warning = 12;
 }
 
 message BlocklistIntelStatus {

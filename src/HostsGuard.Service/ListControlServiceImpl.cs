@@ -386,6 +386,198 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         };
     }
 
+    // ─── IP-format blocklists → HG_IPBlock_* firewall rules (NET-171) ────────
+
+    public override Task<IpBlocklistList> ListIpBlocklists(Empty request, ServerCallContext context)
+    {
+        var list = new IpBlocklistList();
+        foreach (var row in _state.Db.GetIpBlocklistSources())
+        {
+            list.Sources.Add(new IpBlocklistSource
+            {
+                Name = row.Name,
+                Url = row.Url,
+                Enabled = row.Enabled,
+                AddressCount = row.AddressCount,
+                RuleCount = row.RuleCount,
+                HealthStatus = row.HealthStatus,
+                ContentHash = row.ContentHash,
+                PreviousHash = row.PreviousHash,
+                PreviousAddressCount = row.PreviousAddressCount,
+                LastError = row.LastError,
+                LastErrorAt = row.LastErrorAt,
+                LastRefresh = row.LastRefresh,
+                Truncated = row.Truncated,
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override async Task<IpBlocklistResult> ImportIpBlocklist(BlocklistRequest request, ServerCallContext context)
+    {
+        if (_state.IpBlocklists is not { } coordinator)
+        {
+            return IpListsUnavailable();
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        var url = (request.Url ?? string.Empty).Trim();
+        if (name.Length == 0 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return new IpBlocklistResult
+            {
+                Ok = false,
+                Message = "a name and an https:// URL are required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            };
+        }
+
+        try
+        {
+            var outcome = await coordinator.ImportAsync(name, url, context.CancellationToken);
+            return ToIpResult(outcome,
+                $"imported {name}: {outcome.Total:N0} addresses across {outcome.Rules} firewall rules");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            return new IpBlocklistResult
+            {
+                Ok = false,
+                Message = $"import failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/import_failed",
+            };
+        }
+    }
+
+    public override Task<Ack> SetIpBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)
+    {
+        if (_state.IpBlocklists is not { } coordinator)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" });
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = "IP blocklist name is required", ErrorCode = "hostsguard.error.v1/invalid_source" });
+        }
+
+        return Task.FromResult(coordinator.SetEnabled(name, request.Enabled));
+    }
+
+    public override Task<Ack> RemoveIpBlocklist(BlocklistRequest request, ServerCallContext context)
+    {
+        if (_state.IpBlocklists is not { } coordinator)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" });
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = "IP blocklist name is required", ErrorCode = "hostsguard.error.v1/invalid_source" });
+        }
+
+        return Task.FromResult(coordinator.Remove(name));
+    }
+
+    public override async Task<IpBlocklistResult> RefreshIpBlocklists(Empty request, ServerCallContext context)
+    {
+        if (_state.IpBlocklists is not { } coordinator)
+        {
+            return IpListsUnavailable();
+        }
+
+        try
+        {
+            var outcome = await coordinator.RefreshAllAsync(context.CancellationToken);
+            var suffix = (outcome.Guarded, outcome.Failed) switch
+            {
+                (0, 0) => string.Empty,
+                (_, 0) => $"; {outcome.Guarded} guarded",
+                (0, _) => $"; {outcome.Failed} failed",
+                _ => $"; {outcome.Guarded} guarded, {outcome.Failed} failed",
+            };
+            return ToIpResult(outcome,
+                $"refreshed IP blocklists: {outcome.Total:N0} addresses across {outcome.Rules} rules{suffix}",
+                ok: outcome.Guarded == 0 && outcome.Failed == 0,
+                errorCode: outcome.Guarded != 0 ? "hostsguard.error.v1/churn_guarded"
+                    : outcome.Failed != 0 ? "hostsguard.error.v1/import_failed" : string.Empty);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        {
+            return new IpBlocklistResult
+            {
+                Ok = false,
+                Message = $"refresh failed: {ex.Message}",
+                ErrorCode = "hostsguard.error.v1/import_failed",
+            };
+        }
+    }
+
+    public override Task<IpBlocklistResult> RollbackIpBlocklist(BlocklistRequest request, ServerCallContext context)
+    {
+        if (_state.IpBlocklists is not { } coordinator)
+        {
+            return Task.FromResult(IpListsUnavailable());
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return Task.FromResult(new IpBlocklistResult
+            {
+                Ok = false,
+                Message = "IP blocklist name is required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        try
+        {
+            var outcome = coordinator.Rollback(name);
+            return Task.FromResult(ToIpResult(outcome,
+                $"rolled back {name}: {outcome.Total:N0} addresses across {outcome.Rules} rules"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Task.FromResult(new IpBlocklistResult
+            {
+                Ok = false,
+                Message = ex.Message,
+                ErrorCode = "hostsguard.error.v1/no_checkpoint",
+            });
+        }
+    }
+
+    private static IpBlocklistResult IpListsUnavailable() => new()
+    {
+        Ok = false,
+        Message = "list engine unavailable",
+        ErrorCode = "hostsguard.error.v1/lists_unavailable",
+    };
+
+    private static IpBlocklistResult ToIpResult(
+        IpImportOutcome outcome,
+        string message,
+        bool ok = true,
+        string errorCode = "") => new()
+    {
+        Ok = ok,
+        Message = message,
+        ErrorCode = errorCode,
+        Total = outcome.Total,
+        Invalid = outcome.Invalid,
+        Duplicates = outcome.Duplicates,
+        Unsafe = outcome.Unsafe,
+        Rules = outcome.Rules,
+        Truncated = outcome.Truncated,
+        Guarded = outcome.Guarded,
+        Failed = outcome.Failed,
+        Warning = outcome.Warning,
+    };
+
     private static BlocklistResult ListsUnavailable() => new()
     {
         Ok = false,

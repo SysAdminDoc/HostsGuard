@@ -1576,11 +1576,191 @@ public sealed partial class ToolsViewModel : ObservableObject
         });
     }
 
+    // ─── IP blocklists → HG_IPBlock_* firewall rules (NET-171) ──────────────
+
+    public ObservableCollection<IpBlocklistRowViewModel> IpBlocklists { get; } = new();
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ImportIpBlocklistCommand))]
+    private string _ipBlocklistName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ImportIpBlocklistCommand))]
+    private string _ipBlocklistUrl = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleIpBlocklistCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveIpBlocklistCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RollbackIpBlocklistCommand))]
+    private IpBlocklistRowViewModel? _selectedIpBlocklist;
+
+    [ObservableProperty]
+    private string _ipBlocklistStatusText = I18n.T(
+        "IpBlock_StatusHint",
+        "Subscribe an IP-format list (one IP or CIDR per line) to firewall-block hardcoded-IP endpoints the hosts file cannot stop.");
+
+    [RelayCommand]
+    public async Task LoadIpBlocklistsAsync()
+    {
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionLoad", "Load IP blocklists"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var selectedName = SelectedIpBlocklist?.Name;
+            var list = await _client.Lists.ListIpBlocklistsAsync(new Empty());
+            IpBlocklists.Clear();
+            foreach (var source in list.Sources)
+            {
+                IpBlocklists.Add(IpBlocklistRowViewModel.From(source));
+            }
+
+            SelectedIpBlocklist = IpBlocklists.FirstOrDefault(s => s.Name == selectedName)
+                ?? IpBlocklists.FirstOrDefault();
+            if (IpBlocklists.Count != 0)
+            {
+                IpBlocklistStatusText = I18n.T("IpBlock_StatusLoaded", "{0} IP blocklists · {1} addresses across {2} firewall rules.",
+                    IpBlocklists.Count, IpBlocklists.Sum(s => s.AddressCount).ToString("N0"), IpBlocklists.Sum(s => s.RuleCount));
+            }
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanImportIpBlocklist))]
+    public async Task ImportIpBlocklistAsync()
+    {
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionImport", "Import IP blocklist"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var result = await _client.Lists.ImportIpBlocklistAsync(new BlocklistRequest
+            {
+                Name = IpBlocklistName.Trim(),
+                Url = IpBlocklistUrl.Trim(),
+            });
+            IpBlocklistStatusText = DescribeIpBlocklistResult(result);
+            StatusText = result.Message;
+            if (result.Ok)
+            {
+                IpBlocklistName = string.Empty;
+                IpBlocklistUrl = string.Empty;
+                await LoadIpBlocklistsAsync();
+                IpBlocklistStatusText = DescribeIpBlocklistResult(result);
+            }
+        });
+    }
+
+    private bool CanImportIpBlocklist() =>
+        !string.IsNullOrWhiteSpace(IpBlocklistName) && !string.IsNullOrWhiteSpace(IpBlocklistUrl);
+
+    [RelayCommand]
+    public async Task RefreshIpBlocklistsAsync()
+    {
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionRefresh", "Refresh IP blocklists"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var result = await _client.Lists.RefreshIpBlocklistsAsync(new Empty());
+            StatusText = result.Message;
+            await LoadIpBlocklistsAsync();
+            IpBlocklistStatusText = DescribeIpBlocklistResult(result);
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedIpBlocklist))]
+    public async Task ToggleIpBlocklistAsync()
+    {
+        if (SelectedIpBlocklist is not { } row)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionToggle", "Toggle IP blocklist"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var ack = await _client.Lists.SetIpBlocklistEnabledAsync(new BlocklistToggleRequest
+            {
+                Name = row.Name,
+                Enabled = !row.Enabled,
+            });
+            StatusText = ack.Message;
+            await LoadIpBlocklistsAsync();
+            IpBlocklistStatusText = ack.Message;
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedIpBlocklist))]
+    public async Task RemoveIpBlocklistAsync()
+    {
+        if (SelectedIpBlocklist is not { } row)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionRemove", "Remove IP blocklist"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var ack = await _client.Lists.RemoveIpBlocklistAsync(new BlocklistRequest { Name = row.Name });
+            StatusText = ack.Message;
+            await LoadIpBlocklistsAsync();
+            IpBlocklistStatusText = ack.Message;
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUseSelectedIpBlocklist))]
+    public async Task RollbackIpBlocklistAsync()
+    {
+        if (SelectedIpBlocklist is not { } row)
+        {
+            return;
+        }
+
+        await RunServiceActionAsync(I18n.T("IpBlock_ActionRollback", "Roll back IP blocklist"), s => IpBlocklistStatusText = s, async () =>
+        {
+            var result = await _client.Lists.RollbackIpBlocklistAsync(new BlocklistRequest { Name = row.Name });
+            StatusText = result.Message;
+            await LoadIpBlocklistsAsync();
+            IpBlocklistStatusText = DescribeIpBlocklistResult(result);
+        });
+    }
+
+    private bool CanUseSelectedIpBlocklist() => SelectedIpBlocklist is not null;
+
+    private static string DescribeIpBlocklistResult(IpBlocklistResult result) =>
+        result.Warning.Length != 0 ? $"{result.Message} — {result.Warning}" : result.Message;
+
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
 
     private static Task RunServiceActionAsync(string action, Action<string> setStatus, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, setStatus, work);
+}
+
+/// <summary>One subscribed IP-format blocklist row (NET-171).</summary>
+public sealed class IpBlocklistRowViewModel
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string Url { get; init; } = string.Empty;
+
+    public bool Enabled { get; init; }
+
+    public long AddressCount { get; init; }
+
+    public long RuleCount { get; init; }
+
+    public string HealthText { get; init; } = string.Empty;
+
+    public string LastRefreshText { get; init; } = string.Empty;
+
+    public string ErrorText { get; init; } = string.Empty;
+
+    public string EnabledText => Enabled
+        ? I18n.T("Common_Enabled", "Enabled")
+        : I18n.T("Common_Disabled", "Disabled");
+
+    public static IpBlocklistRowViewModel From(IpBlocklistSource source) => new()
+    {
+        Name = source.Name,
+        Url = source.Url,
+        Enabled = source.Enabled,
+        AddressCount = source.AddressCount,
+        RuleCount = source.RuleCount,
+        HealthText = (source.HealthStatus.Length != 0 ? source.HealthStatus : "new")
+                     + (source.Truncated ? $" · {I18n.T("IpBlock_TruncatedFlag", "truncated")}" : string.Empty),
+        LastRefreshText = source.LastRefresh.Length != 0 ? TimeText.Compact(source.LastRefresh) : string.Empty,
+        ErrorText = source.LastError,
+    };
 }
 
 public sealed partial class LanAttackSurfaceToggleViewModel : ObservableObject

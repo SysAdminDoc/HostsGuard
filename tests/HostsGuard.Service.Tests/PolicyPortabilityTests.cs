@@ -128,6 +128,11 @@ public sealed class PolicyPortabilityTests : IDisposable
         src.Db.SaveProfile("Work");
         src.Db.SetNetworkProfile("gw-mac-abc", "Work", "Home Wi-Fi");
         src.Db.UpsertBlocklistSub("StevenBlack", "https://example.com/hosts", 1000);
+        src.Db.UpsertIpBlocklistSource(
+            "hagezi-doh-ips", "https://example.com/doh-ips.txt",
+            new[] { "1.2.3.4", "203.0.113.0/24" }, "hash-a", "", 0,
+            Array.Empty<string>(), ruleCount: 1, truncated: false);
+        src.Db.SetIpBlocklistEnabled("hagezi-doh-ips", false);
         src.Db.SetAllowlistSubs(new[] { "https://example.com/allow.txt" });
         src.Db.SetMeta("history_retention_days", "45");
         src.Lock.Enable("s3cret");
@@ -171,6 +176,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         dst.Db.LoadProfile("Work").Should().Contain(r => r.Domain == "work.example.com");
         dst.Db.GetNetworkProfiles().Should().Contain(n => n.Fingerprint == "gw-mac-abc" && n.Profile == "Work");
         dst.Db.GetBlocklistSubs().Should().Contain(b => b.Name == "StevenBlack");
+        dst.Db.GetIpBlocklistSources().Should().ContainSingle(b =>
+            b.Name == "hagezi-doh-ips" && b.Url == "https://example.com/doh-ips.txt" && !b.Enabled);
         dst.Db.GetAllowlistSubs().Should().Contain("https://example.com/allow.txt");
         dst.Db.GetMeta("history_retention_days").Should().Be("45");
         dst.Lock.Enabled.Should().BeTrue();

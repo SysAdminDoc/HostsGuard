@@ -3170,6 +3170,100 @@
 
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="{svc:Loc Key=IpBlock_Title}"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,0,0,4" />
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding LoadIpBlocklistsCommand}"
+                                                Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=IpBlock_Help}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               Margin="0,0,0,8"
+                                               TextWrapping="Wrap" />
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="2*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBox Grid.Row="0" Grid.Column="0" Margin="0,0,8,8"
+                                                 Text="{Binding IpBlocklistName, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=IpBlock_NameHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=IpBlock_NameName}"
+                                                 ToolTip="{svc:Loc Key=IpBlock_NameTip}" />
+                                        <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8"
+                                                 Text="{Binding IpBlocklistUrl, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=IpBlock_UrlHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=IpBlock_UrlName}"
+                                                 ToolTip="{svc:Loc Key=IpBlock_UrlTip}" />
+                                        <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">
+                                            <Button Content="{svc:Loc Key=IpBlock_Import}"
+                                                    Style="{StaticResource Hg.AccentButton}"
+                                                    Command="{Binding ImportIpBlocklistCommand}"
+                                                    Margin="0,0,8,8" />
+                                            <Button Content="{svc:Loc Key=IpBlock_RefreshNow}"
+                                                    Command="{Binding RefreshIpBlocklistsCommand}"
+                                                    Margin="0,0,8,8" />
+                                            <Button Content="{svc:Loc Key=IpBlock_Toggle}"
+                                                    Command="{Binding ToggleIpBlocklistCommand}"
+                                                    Margin="0,0,8,8" />
+                                            <Button Content="{svc:Loc Key=IpBlock_Rollback}"
+                                                    Style="{StaticResource Hg.DangerButton}"
+                                                    Command="{Binding RollbackIpBlocklistCommand}"
+                                                    Margin="0,0,8,8" />
+                                            <Button Content="{svc:Loc Key=Xaml_Remove_e963907d}"
+                                                    Style="{StaticResource Hg.DangerButton}"
+                                                    Command="{Binding RemoveIpBlocklistCommand}"
+                                                    Margin="0,0,8,8" />
+                                        </WrapPanel>
+                                    </Grid>
+
+                                    <DataGrid ItemsSource="{Binding IpBlocklists}"
+                                              SelectedItem="{Binding SelectedIpBlocklist}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              MaxHeight="180"
+                                              Margin="0,4,0,0"
+                                              AutomationProperties.Name="{svc:Loc Key=IpBlock_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="1.2*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColState}" Binding="{Binding EnabledText}" Width="84" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColHealth}" Binding="{Binding HealthText}" Width="110" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColAddresses}" Binding="{Binding AddressCount}" Width="92" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColRules}" Binding="{Binding RuleCount}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColRefreshed}" Binding="{Binding LastRefreshText}" Width="112" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=IpBlock_ColError}" Binding="{Binding ErrorText}" Width="1.4*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <Border Style="{StaticResource Hg.EmptyState}"
+                                            Margin="0,8,0,0"
+                                            Visibility="{Binding IpBlocklists.Count, Converter={StaticResource EmptyStateVis}}">
+                                        <TextBlock Text="{svc:Loc Key=IpBlock_Empty}"
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding IpBlocklistStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
                                     <TextBlock Text="{svc:Loc Key=Xaml_Network_profiles_04269420}" FontWeight="SemiBold" Margin="0,0,0,4" />
                                     <TextBlock Text="{svc:Loc Key=Xaml_Save_named_snapshots_of_the_current_305311f0}"
                                                Style="{StaticResource Hg.HelperText}" Margin="0,0,0,4" />
