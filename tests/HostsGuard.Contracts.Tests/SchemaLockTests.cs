@@ -35,6 +35,8 @@ public class SchemaLockTests
           ExportSupportBundle(SupportBundleRequest) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)
           GetStatus(Empty) returns (ServiceStatus)
+          GetUpdateStatus(Empty) returns (UpdateStatus)
+          StageUpdate(StageUpdateRequest) returns (Ack)
         service DnsControl
           FlushCache(Empty) returns (Ack)
           FlushCacheEntry(DnsCacheEntryRequest) returns (Ack)

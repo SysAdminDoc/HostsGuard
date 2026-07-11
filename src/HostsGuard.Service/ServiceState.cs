@@ -79,6 +79,8 @@ public sealed class ServiceState : IDisposable
             Lists = new ListImporter(hosts, db, listFetcher);
             Intel = new BlocklistIntelligence(db, listFetcher);
             IpBlocklists = new IpBlocklistCoordinator(db, firewall, listFetcher);
+            Updater = new SelfUpdater(db, DataDir, listFetcher,
+                typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0");
         }
     }
 
@@ -104,6 +106,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>IP-format blocklists enforced as HG_IPBlock_* firewall rules (NET-171); null without a fetcher.</summary>
     public IpBlocklistCoordinator? IpBlocklists { get; }
+
+    /// <summary>SHA-256-verified self-update (NET-187); null without a fetcher.</summary>
+    public SelfUpdater? Updater { get; }
 
     public DohIntelligence Doh { get; }
 

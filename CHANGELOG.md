@@ -5,6 +5,16 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- SHA-256-verified service self-update (no code signing, by policy): the
+  service can check the GitHub release feed, download the matching installer
+  asset, verify it against the SHA-256 the feed pins for that asset — a
+  mismatch or a digest-less feed is rejected outright — and stage it under
+  `%ProgramData%\HostsGuard\updates`. The staged installer applies on the next
+  service start; the pending manifest is consumed before launch so a crashing
+  installer can never loop, and the staged bytes are re-verified at apply time
+  so a tampered file is deleted instead of executed. Exposed as a Tools card
+  and `HostsGuard.Cli update check|stage`, with an offline
+  `update stage --path <installer> [--sha256 <hash>]` option.
 - A Service health card at the top of the Tools tab: at-a-glance service
   state (version, elevation, uptime), per-monitor up/down (DNS, connections,
   bandwidth, opt-in SNI), enforcement posture (mode, kill-switch, secure

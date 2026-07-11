@@ -2582,6 +2582,33 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- SHA-256-verified self-update (NET-187) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Update_Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=Update_Help}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               Margin="0,0,0,8"
+                                               TextWrapping="Wrap" />
+                                    <WrapPanel>
+                                        <Button Content="{svc:Loc Key=Update_Check}"
+                                                Command="{Binding CheckUpdateCommand}"
+                                                Margin="0,0,8,8" />
+                                        <Button Content="{svc:Loc Key=Update_Stage}"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding StageUpdateCommand}"
+                                                ToolTip="{svc:Loc Key=Update_StageTip}"
+                                                Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}">
+                                        <TextBlock Text="{Binding UpdateStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Settings lock (NET-079) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>

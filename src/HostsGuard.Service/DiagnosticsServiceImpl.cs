@@ -50,6 +50,58 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         return Task.FromResult(status);
     }
 
+    // ─── NET-187 SHA-256-verified self-update ────────────────────────────────
+
+    public override async Task<UpdateStatus> GetUpdateStatus(Empty request, ServerCallContext context)
+    {
+        if (_state.Updater is not { } updater)
+        {
+            return new UpdateStatus
+            {
+                InstalledVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0",
+                LastError = "updater unavailable (no list fetcher)",
+            };
+        }
+
+        var outcome = await updater.CheckAsync(context.CancellationToken);
+        var staged = updater.Staged;
+        return new UpdateStatus
+        {
+            InstalledVersion = updater.InstalledVersion,
+            LatestVersion = updater.LatestVersion,
+            UpdateAvailable = outcome.UpdateAvailable,
+            StagedVersion = staged?.Version ?? string.Empty,
+            StagedSha256 = staged?.Sha256 ?? string.Empty,
+            StagedAt = staged?.StagedAt ?? string.Empty,
+            LastCheck = updater.LastCheck,
+            LastError = updater.LastError,
+        };
+    }
+
+    public override async Task<Ack> StageUpdate(StageUpdateRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } locked)
+        {
+            return locked;
+        }
+
+        if (_state.Updater is not { } updater)
+        {
+            return new Ack { Ok = false, Message = "updater unavailable (no list fetcher)", ErrorCode = "hostsguard.error.v1/updater_unavailable" };
+        }
+
+        var localPath = (request.LocalPath ?? string.Empty).Trim();
+        var outcome = localPath.Length != 0
+            ? updater.StageLocal(localPath, request.Sha256)
+            : await updater.StageAsync(context.CancellationToken);
+        return new Ack
+        {
+            Ok = outcome.Ok,
+            Message = outcome.Message,
+            ErrorCode = outcome.Ok ? string.Empty : "hostsguard.error.v1/update_stage_failed",
+        };
+    }
+
     /// <summary>
     /// Redacted support bundle: status, recent event log, managed-domain counts,
     /// firewall rule names, and schedules. Every text payload runs through the

@@ -41,6 +41,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "blocklists" => await BlocklistsAsync(args),
     "ip-blocklists" => await IpBlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
+    "update" => await UpdateAsync(args),
     "safe-posture" => await SafePostureAsync(),
     "safe-posture-smoke" => await SafePostureSmokeAsync(),
     "release-smoke" => await ReleaseSmokeAsync(),
@@ -104,6 +105,8 @@ static int Usage()
           HostsGuard.Cli ip-blocklists import <name> <https-url>
           HostsGuard.Cli ip-blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli mode [normal|notify|learning]
+          HostsGuard.Cli update [check|stage]
+          HostsGuard.Cli update stage --path <installer.exe> [--sha256 <hash>]
           HostsGuard.Cli safe-posture
           HostsGuard.Cli safe-posture-smoke
           HostsGuard.Cli release-smoke
@@ -1688,6 +1691,64 @@ static async Task<int> ModeAsync(string? requested)
         var ack = await consent.SetModeAsync(new FilteringMode { Mode = requested });
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
+    });
+}
+
+// NET-187: SHA-256-verified self-update — check the release feed, stage a
+// hash-verified installer (remote or local), applied on the next restart.
+static async Task<int> UpdateAsync(string[] args)
+{
+    var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "check";
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+        switch (subcommand)
+        {
+            case "check":
+            case "status":
+                var status = await client.GetUpdateStatusAsync(new Empty());
+                Console.WriteLine($"installed:  {status.InstalledVersion}");
+                Console.WriteLine($"latest:     {(status.LatestVersion.Length != 0 ? status.LatestVersion : "(unknown)")}");
+                Console.WriteLine($"available:  {status.UpdateAvailable}");
+                if (status.StagedVersion.Length != 0)
+                {
+                    Console.WriteLine($"staged:     {status.StagedVersion} (sha256 {status.StagedSha256}, at {status.StagedAt}) — applies on next service restart");
+                }
+
+                if (status.LastError.Length != 0)
+                {
+                    Console.WriteLine($"last error: {status.LastError}");
+                }
+
+                return status.LastError.Length == 0 ? 0 : 2;
+            case "stage":
+                var request = new StageUpdateRequest();
+                for (var i = 2; i < args.Length; i++)
+                {
+                    var arg = args[i];
+                    if (TryReadOptionValue(args, ref i, arg, "--path", out var value))
+                    {
+                        request.LocalPath = value;
+                        continue;
+                    }
+
+                    if (TryReadOptionValue(args, ref i, arg, "--sha256", out value))
+                    {
+                        request.Sha256 = value;
+                        continue;
+                    }
+
+                    Console.Error.WriteLine($"Unknown update stage option: {arg}");
+                    return 1;
+                }
+
+                var ack = await client.StageUpdateAsync(request);
+                Console.WriteLine(ack.Message);
+                return ack.Ok ? 0 : 2;
+            default:
+                Console.Error.WriteLine($"Unknown update command: {subcommand}");
+                return 1;
+        }
     });
 }
 

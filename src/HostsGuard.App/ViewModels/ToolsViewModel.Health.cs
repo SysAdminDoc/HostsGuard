@@ -147,6 +147,41 @@ public sealed partial class ToolsViewModel
         });
     }
 
+    // ─── SHA-256-verified self-update (NET-187) ──────────────────────────────
+
+    [ObservableProperty]
+    private string _updateStatusText = I18n.T(
+        "Update_StatusHint", "Check the release feed; staging downloads the installer, verifies its pinned SHA-256, and applies it on the next service restart.");
+
+    [RelayCommand]
+    public async Task CheckUpdateAsync()
+    {
+        await RunServiceActionAsync(I18n.T("Update_ActionCheck", "Check for updates"), s => UpdateStatusText = s, async () =>
+        {
+            var status = await _client.Diagnostics.GetUpdateStatusAsync(new Empty());
+            var staged = status.StagedVersion.Length != 0
+                ? I18n.T("Update_StagedSuffix", " · staged {0} — applies on next service restart", status.StagedVersion)
+                : string.Empty;
+            UpdateStatusText = status.LastError.Length != 0
+                ? status.LastError
+                : status.UpdateAvailable
+                    ? I18n.T("Update_Available", "Update available: {0} (installed {1}).{2}", status.LatestVersion, status.InstalledVersion, staged)
+                    : I18n.T("Update_UpToDate", "Up to date: {0} (latest {1}).{2}", status.InstalledVersion, status.LatestVersion, staged);
+            StatusText = UpdateStatusText;
+        });
+    }
+
+    [RelayCommand]
+    public async Task StageUpdateAsync()
+    {
+        await RunServiceActionAsync(I18n.T("Update_ActionStage", "Stage update"), s => UpdateStatusText = s, async () =>
+        {
+            var ack = await _client.Diagnostics.StageUpdateAsync(new StageUpdateRequest());
+            UpdateStatusText = ack.Message;
+            StatusText = ack.Message;
+        });
+    }
+
     private static string FormatUptime(long seconds)
     {
         var span = TimeSpan.FromSeconds(Math.Max(0, seconds));

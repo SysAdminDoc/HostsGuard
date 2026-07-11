@@ -35,6 +35,15 @@ if (quarantinedDb is not null)
     Console.WriteLine($"HostsGuard: state database was unreadable and was quarantined to {quarantinedDb}; a fresh database was created.");
 }
 
+// NET-187: if a hash-verified installer was staged, apply it now — the manifest
+// is consumed before launch so a crashing installer can never loop the service.
+var installedVersion = typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0";
+var updateResult = SelfUpdater.ApplyPendingOnStart(baseDir, installedVersion, db);
+if (updateResult.StartsWith("applying", StringComparison.Ordinal))
+{
+    Console.WriteLine($"HostsGuard: {updateResult} — the installer will restart the service.");
+}
+
 var firewall = new FirewallEngine();
 var identity = new FirewallIdentity(Path.Combine(baseDir, "fw_identities.json"));
 var dns = new DnsConfig();

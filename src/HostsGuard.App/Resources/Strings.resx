@@ -927,4 +927,15 @@
   <data name="Health_HostsScaleDetail" xml:space="preserve"><value>large enough to slow system-wide DNS — prefer firewall IP rules</value></data>
   <data name="Health_AllOk" xml:space="preserve"><value>All health checks OK.</value></data>
   <data name="Health_SomeBad" xml:space="preserve"><value>{0} health check(s) need attention.</value></data>
+  <data name="Update_Title" xml:space="preserve"><value>Service self-update</value></data>
+  <data name="Update_Help" xml:space="preserve"><value>Checks the GitHub release feed. Staging downloads the installer, verifies it against the SHA-256 the feed pins for that asset (rejected on mismatch), and applies it on the next service restart. Ships unsigned by project policy — the hash pin is the integrity check.</value></data>
+  <data name="Update_Check" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="Update_Stage" xml:space="preserve"><value>Download &amp; stage</value></data>
+  <data name="Update_StageTip" xml:space="preserve"><value>Downloads the latest installer, verifies its pinned SHA-256, and stages it; the service applies it the next time it starts.</value></data>
+  <data name="Update_StatusHint" xml:space="preserve"><value>Check the release feed; staging downloads the installer, verifies its pinned SHA-256, and applies it on the next service restart.</value></data>
+  <data name="Update_ActionCheck" xml:space="preserve"><value>Check for updates</value></data>
+  <data name="Update_ActionStage" xml:space="preserve"><value>Stage update</value></data>
+  <data name="Update_Available" xml:space="preserve"><value>Update available: {0} (installed {1}).{2}</value></data>
+  <data name="Update_UpToDate" xml:space="preserve"><value>Up to date: {0} (latest {1}).{2}</value></data>
+  <data name="Update_StagedSuffix" xml:space="preserve"><value> · staged {0} — applies on next service restart</value></data>
 </root>

@@ -1,0 +1,213 @@
+using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text;
+using FluentAssertions;
+using HostsGuard.Data;
+using Microsoft.Data.Sqlite;
+using Xunit;
+
+namespace HostsGuard.Service.Tests;
+
+/// <summary>
+/// NET-187: SHA-256-verified service self-update. Staging verifies the
+/// downloaded installer against the digest the release feed pins (reject on
+/// mismatch, fail closed on a digest-less feed); apply-on-start consumes the
+/// manifest before launching so a crashing installer can never loop.
+/// </summary>
+[SupportedOSPlatform("windows")]
+public sealed class SelfUpdaterTests : IDisposable
+{
+    private const string FeedUrl = "https://api.github.com/repos/SysAdminDoc/HostsGuard/releases/latest";
+    private const string AssetUrl = "https://github.com/SysAdminDoc/HostsGuard/releases/download/v9.9.9/HostsGuard-v9.9.9-win-x64-dotnet-Setup.exe";
+
+    private static readonly byte[] Installer = Encoding.UTF8.GetBytes("fake installer payload");
+    private static readonly string InstallerHash = Convert.ToHexString(SHA256.HashData(Installer)).ToLowerInvariant();
+
+    private readonly string _dir;
+    private readonly HostsDatabase _db;
+    private readonly FakeListFetcher _fetcher = new();
+    private readonly SelfUpdater _updater;
+
+    public SelfUpdaterTests()
+    {
+        _dir = Path.Combine(Path.GetTempPath(), "hg_update_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
+        _db = new HostsDatabase(Path.Combine(_dir, "hostsguard.db"));
+        _updater = new SelfUpdater(_db, _dir, _fetcher, "1.0.0", FeedUrl, assetArch: "x64");
+    }
+
+    private void ServeFeed(string version, string? digest)
+    {
+        _fetcher.Responses[FeedUrl] = $$"""
+            {
+              "tag_name": "{{version}}",
+              "assets": [
+                {
+                  "name": "HostsGuard-{{version}}-win-x64-dotnet-Setup.exe",
+                  "digest": {{(digest is null ? "null" : $"\"sha256:{digest}\"")}},
+                  "browser_download_url": "{{AssetUrl}}"
+                }
+              ]
+            }
+            """;
+        _fetcher.BinaryResponses[AssetUrl] = Installer;
+    }
+
+    [Fact]
+    public async Task Check_reports_a_newer_release()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+
+        var outcome = await _updater.CheckAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeTrue();
+        outcome.UpdateAvailable.Should().BeTrue();
+        outcome.LatestVersion.Should().Be("v9.9.9");
+    }
+
+    [Fact]
+    public async Task Stage_verifies_the_pinned_hash_and_parks_the_installer()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeTrue();
+        var staged = _updater.Staged;
+        staged.Should().NotBeNull();
+        staged!.Version.Should().Be("v9.9.9");
+        staged.Sha256.Should().Be(InstallerHash);
+        File.ReadAllBytes(staged.InstallerPath).Should().Equal(Installer);
+    }
+
+    [Fact]
+    public async Task Stage_rejects_a_hash_mismatch()
+    {
+        ServeFeed("v9.9.9", new string('a', 64)); // feed pins a hash the download won't match
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("REJECTED");
+        _updater.Staged.Should().BeNull("a mismatching installer must never be staged");
+        Directory.Exists(Path.Combine(_dir, "updates")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stage_fails_closed_when_the_feed_pins_no_digest()
+    {
+        ServeFeed("v9.9.9", digest: null);
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("no sha256 digest");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Stage_declines_when_already_up_to_date()
+    {
+        ServeFeed("v0.9.0", InstallerHash);
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeTrue();
+        outcome.Message.Should().Contain("already up to date");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public void Local_staging_rejects_an_expected_hash_mismatch()
+    {
+        var local = Path.Combine(_dir, "local-setup.exe");
+        File.WriteAllBytes(local, Installer);
+
+        var outcome = _updater.StageLocal(local, new string('b', 64));
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("REJECTED");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public void Local_staging_records_the_computed_hash()
+    {
+        var local = Path.Combine(_dir, "local-setup.exe");
+        File.WriteAllBytes(local, Installer);
+
+        var outcome = _updater.StageLocal(local, InstallerHash);
+
+        outcome.Ok.Should().BeTrue();
+        _updater.Staged!.Sha256.Should().Be(InstallerHash);
+        _updater.Staged.Version.Should().Be("(local)");
+    }
+
+    [Fact]
+    public void Apply_on_start_launches_a_newer_staged_installer_once()
+    {
+        var local = Path.Combine(_dir, "HostsGuard-v9.9.9-Setup.exe");
+        File.WriteAllBytes(local, Installer);
+        _updater.StageLocal(local).Ok.Should().BeTrue();
+
+        var launched = new List<string>();
+        var first = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, p => { launched.Add(p); return true; });
+        var second = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, p => { launched.Add(p); return true; });
+
+        first.Should().StartWith("applying");
+        launched.Should().ContainSingle("the manifest is consumed before launch, so a second start never re-runs it");
+        second.Should().Be("no pending update");
+    }
+
+    [Fact]
+    public async Task Apply_on_start_cleans_up_an_already_applied_version()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        (await _updater.StageAsync(CancellationToken.None)).Ok.Should().BeTrue();
+        var installerPath = _updater.Staged!.InstallerPath;
+
+        var launched = 0;
+        var result = SelfUpdater.ApplyPendingOnStart(_dir, "9.9.9", _db, _ => { launched++; return true; });
+
+        result.Should().Contain("already applied");
+        launched.Should().Be(0);
+        File.Exists(installerPath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Apply_on_start_deletes_a_tampered_staged_installer()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        (await _updater.StageAsync(CancellationToken.None)).Ok.Should().BeTrue();
+        var installerPath = _updater.Staged!.InstallerPath;
+        File.WriteAllText(installerPath, "tampered after staging");
+
+        var launched = 0;
+        var result = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, _ => { launched++; return true; });
+
+        result.Should().Contain("re-verification");
+        launched.Should().Be(0);
+        File.Exists(installerPath).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("sha256:ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")]
+    [InlineData("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")]
+    [InlineData("", null)]
+    [InlineData("sha1:abcdef", null)]
+    public void Digest_normalization_accepts_github_and_bare_forms(string digest, string? expected)
+        => SelfUpdater.NormalizeSha256(digest).Should().Be(expected);
+
+    public void Dispose()
+    {
+        _db.Dispose();
+        SqliteConnection.ClearAllPools();
+        try
+        {
+            Directory.Delete(_dir, recursive: true);
+        }
+        catch (IOException)
+        {
+        }
+    }
+}

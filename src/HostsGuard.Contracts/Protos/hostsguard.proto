@@ -28,6 +28,26 @@ service Diagnostics {
   rpc ExportSupportBundle(SupportBundleRequest) returns (Ack);
   // Windows Defender integration: exclusion state + hosts-revert heuristic.
   rpc GetDefenderStatus(Empty) returns (DefenderStatus);
+  // NET-187 SHA-256-verified self-update (no code signing, per project policy):
+  // check the release feed, stage a hash-verified installer, apply on restart.
+  rpc GetUpdateStatus(Empty) returns (UpdateStatus);
+  rpc StageUpdate(StageUpdateRequest) returns (Ack);
+}
+
+message UpdateStatus {
+  string installed_version = 1;
+  string latest_version = 2;   // "" until a feed check has succeeded
+  bool update_available = 3;
+  string staged_version = 4;   // "" when nothing is staged; "(local)" for offline staging
+  string staged_sha256 = 5;
+  string staged_at = 6;
+  string last_check = 7;
+  string last_error = 8;
+}
+
+message StageUpdateRequest {
+  string local_path = 1; // optional: stage this local installer instead of downloading
+  string sha256 = 2;     // optional expected hash for local_path; reject on mismatch
 }
 
 message SupportBundleRequest {
