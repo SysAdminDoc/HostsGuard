@@ -170,7 +170,9 @@ static int PrintRpcFailure(Grpc.Core.RpcException ex)
     return 2;
 }
 
-static async Task<int> StatusAsync()
+// Shared command wrapper: connect to the service, run the body against the
+// channel, and map connect/RPC failures to the standard messages + exit codes.
+static async Task<int> RunCommandAsync(Func<Grpc.Net.Client.GrpcChannel, Task<int>> body)
 {
     var (channel, error) = Connect();
     if (channel is null)
@@ -183,27 +185,35 @@ static async Task<int> StatusAsync()
     {
         try
         {
-            var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel).GetStatusAsync(new Empty());
-            Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
-            Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
-            if (status.HostsOverScaleThreshold)
-            {
-                Console.WriteLine($"  warning:    {status.HostsBlocked} hosts entries can slow system DNS; consider firewall IP rules for very large lists");
-            }
-            Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
-            Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
-            Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");
-            var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
-            Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");
-            var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
-            Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
-            return 0;
+            return await body(channel);
         }
         catch (Grpc.Core.RpcException ex)
         {
             return PrintRpcFailure(ex);
         }
     }
+}
+
+static async Task<int> StatusAsync()
+{
+    return await RunCommandAsync(async channel =>
+    {
+        var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel).GetStatusAsync(new Empty());
+        Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
+        Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
+        if (status.HostsOverScaleThreshold)
+        {
+            Console.WriteLine($"  warning:    {status.HostsBlocked} hosts entries can slow system DNS; consider firewall IP rules for very large lists");
+        }
+        Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
+        Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
+        Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");
+        var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
+        Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");
+        var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
+        Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
+        return 0;
+    });
 }
 
 static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsControlClient, DomainRequest, Task<Ack>> op)
@@ -214,32 +224,18 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         return Usage();
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var request = new DomainRequest
         {
-            var request = new DomainRequest
-            {
-                Domain = args[1],
-                Reason = args.Length > 2 ? args[2] : string.Empty,
-                Source = "cli",
-            };
-            var ack = await op(new HostsControl.HostsControlClient(channel), request);
-            Console.WriteLine(ack.Message);
-            return ack.Ok ? 0 : 2;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+            Domain = args[1],
+            Reason = args.Length > 2 ? args[2] : string.Empty,
+            Source = "cli",
+        };
+        var ack = await op(new HostsControl.HostsControlClient(channel), request);
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 static async Task<int> ExplainAsync(string[] args)
@@ -251,37 +247,23 @@ static async Task<int> ExplainAsync(string[] args)
     }
 
     var request = BuildExplainRequest(args);
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var explanation = await new FirewallControl.FirewallControlClient(channel).ExplainDecisionAsync(request);
+        Console.WriteLine($"{explanation.Verdict}: {explanation.Summary}");
+        Console.WriteLine($"next: {explanation.NextSafeAction}");
+        foreach (var step in explanation.Steps)
         {
-            var explanation = await new FirewallControl.FirewallControlClient(channel).ExplainDecisionAsync(request);
-            Console.WriteLine($"{explanation.Verdict}: {explanation.Summary}");
-            Console.WriteLine($"next: {explanation.NextSafeAction}");
-            foreach (var step in explanation.Steps)
+            Console.WriteLine($"{step.Order}. [{step.Outcome}] {step.Layer} - {step.Owner}");
+            Console.WriteLine($"   {step.Detail}");
+            if (!string.IsNullOrWhiteSpace(step.NextAction))
             {
-                Console.WriteLine($"{step.Order}. [{step.Outcome}] {step.Layer} - {step.Owner}");
-                Console.WriteLine($"   {step.Detail}");
-                if (!string.IsNullOrWhiteSpace(step.NextAction))
-                {
-                    Console.WriteLine($"   action: {step.NextAction}");
-                }
+                Console.WriteLine($"   action: {step.NextAction}");
             }
+        }
 
-            return explanation.Verdict == "Unknown" ? 2 : 0;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        return explanation.Verdict == "Unknown" ? 2 : 0;
+    });
 }
 
 static DecisionExplainRequest BuildExplainRequest(string[] args)
@@ -400,37 +382,23 @@ static async Task<int> ProgramOpAsync(string[] args, bool block)
     var path = args[1];
     var dir = args.Length > 2 && args[2].Trim().ToLowerInvariant() is "in" or "inbound" ? "In" : "Out";
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var fw = new FirewallControl.FirewallControlClient(channel);
+        Ack ack;
+        if (block)
         {
-            var fw = new FirewallControl.FirewallControlClient(channel);
-            Ack ack;
-            if (block)
-            {
-                ack = await fw.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = dir });
-            }
-            else
-            {
-                var name = $"HG_BlockApp_{Path.GetFileNameWithoutExtension(path)}_{dir}";
-                ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = name });
-            }
-
-            Console.WriteLine(ack.Message);
-            return ack.Ok ? 0 : 2;
+            ack = await fw.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = dir });
         }
-        catch (Grpc.Core.RpcException ex)
+        else
         {
-            return PrintRpcFailure(ex);
+            var name = $"HG_BlockApp_{Path.GetFileNameWithoutExtension(path)}_{dir}";
+            ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = name });
         }
-    }
+
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 static async Task<int> ListPackagesAsync(string[] args)
@@ -448,47 +416,33 @@ static async Task<int> ListPackagesAsync(string[] args)
         }
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
+        var list = await new FirewallControl.FirewallControlClient(channel).ListAppPackagesAsync(new Empty());
+        var rows = list.Packages
+            .Where(p => search.Length == 0 ||
+                p.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.PackageFamilyName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.PackageSid.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.PackageFullName.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(p => string.IsNullOrWhiteSpace(p.DisplayName) ? p.PackageFamilyName : p.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-    using (channel)
-    {
-        try
+        foreach (var package in rows)
         {
-            var list = await new FirewallControl.FirewallControlClient(channel).ListAppPackagesAsync(new Empty());
-            var rows = list.Packages
-                .Where(p => search.Length == 0 ||
-                    p.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    p.PackageFamilyName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    p.PackageSid.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    p.PackageFullName.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(p => string.IsNullOrWhiteSpace(p.DisplayName) ? p.PackageFamilyName : p.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (var package in rows)
+            var label = string.IsNullOrWhiteSpace(package.DisplayName) ? package.PackageFamilyName : package.DisplayName;
+            Console.WriteLine($"{label}");
+            Console.WriteLine($"  pfn: {package.PackageFamilyName}");
+            Console.WriteLine($"  sid: {package.PackageSid}");
+            if (!string.IsNullOrWhiteSpace(package.PackageFullName))
             {
-                var label = string.IsNullOrWhiteSpace(package.DisplayName) ? package.PackageFamilyName : package.DisplayName;
-                Console.WriteLine($"{label}");
-                Console.WriteLine($"  pfn: {package.PackageFamilyName}");
-                Console.WriteLine($"  sid: {package.PackageSid}");
-                if (!string.IsNullOrWhiteSpace(package.PackageFullName))
-                {
-                    Console.WriteLine($"  full: {package.PackageFullName}");
-                }
+                Console.WriteLine($"  full: {package.PackageFullName}");
             }
+        }
 
-            Console.WriteLine($"{rows.Count} package(s)");
-            return 0;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        Console.WriteLine($"{rows.Count} package(s)");
+        return 0;
+    });
 }
 
 static async Task<int> PackageOpAsync(string[] args, string action)
@@ -502,142 +456,100 @@ static async Task<int> PackageOpAsync(string[] args, string action)
     var package = args[1].Trim();
     var dir = args.Length > 2 && args[2].Trim().ToLowerInvariant() is "in" or "inbound" ? "In" : "Out";
     var token = FwRuleMapper.RuleToken(package);
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var fw = new FirewallControl.FirewallControlClient(channel);
+        if (action == "Delete")
         {
-            var fw = new FirewallControl.FirewallControlClient(channel);
-            if (action == "Delete")
+            var deleted = 0;
+            foreach (var ruleName in new[] { $"HG_Package_Block_{token}_{dir}", $"HG_Package_Allow_{token}_{dir}" })
             {
-                var deleted = 0;
-                foreach (var ruleName in new[] { $"HG_Package_Block_{token}_{dir}", $"HG_Package_Allow_{token}_{dir}" })
+                var ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = ruleName });
+                if (ack.Ok)
                 {
-                    var ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = ruleName });
-                    if (ack.Ok)
-                    {
-                        deleted++;
-                    }
+                    deleted++;
                 }
-
-                Console.WriteLine(deleted == 0 ? "No matching package rule was removed." : $"Removed {deleted} package rule(s).");
-                return deleted == 0 ? 2 : 0;
             }
 
-            var request = new FirewallRule
-            {
-                Name = $"HG_Package_{action}_{token}_{dir}",
-                Direction = dir,
-                Action = action,
-                Enabled = true,
-                RemoteAddr = "Any",
-                Protocol = "Any",
-            };
-            if (IsPackageSid(package))
-            {
-                request.PackageSid = package;
-            }
-            else
-            {
-                request.PackageFamilyName = package;
-            }
-
-            var create = await fw.CreateRuleAsync(request);
-            Console.WriteLine(create.Message);
-            return create.Ok ? 0 : 2;
+            Console.WriteLine(deleted == 0 ? "No matching package rule was removed." : $"Removed {deleted} package rule(s).");
+            return deleted == 0 ? 2 : 0;
         }
-        catch (Grpc.Core.RpcException ex)
+
+        var request = new FirewallRule
         {
-            return PrintRpcFailure(ex);
+            Name = $"HG_Package_{action}_{token}_{dir}",
+            Direction = dir,
+            Action = action,
+            Enabled = true,
+            RemoteAddr = "Any",
+            Protocol = "Any",
+        };
+        if (IsPackageSid(package))
+        {
+            request.PackageSid = package;
         }
-    }
+        else
+        {
+            request.PackageFamilyName = package;
+        }
+
+        var create = await fw.CreateRuleAsync(request);
+        Console.WriteLine(create.Message);
+        return create.Ok ? 0 : 2;
+    });
 }
 
 static bool IsPackageSid(string value) => value.Trim().StartsWith("S-1-", StringComparison.OrdinalIgnoreCase);
 
 static async Task<int> ExportAsync(string path)
 {
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
+        var list = await new HostsControl.HostsControlClient(channel).ListDomainsAsync(new ListDomainsRequest());
+        var rows = list.Domains.Select(d => new
+        {
+            domain = d.Domain,
+            status = d.Status,
+            source = d.Source,
+            reason = d.Reason,
+            hits = d.Hits,
+            notes = d.Notes,
+        });
+        var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
         try
         {
-            var list = await new HostsControl.HostsControlClient(channel).ListDomainsAsync(new ListDomainsRequest());
-            var rows = list.Domains.Select(d => new
-            {
-                domain = d.Domain,
-                status = d.Status,
-                source = d.Source,
-                reason = d.Reason,
-                hits = d.Hits,
-                notes = d.Notes,
-            });
-            var json = JsonSerializer.Serialize(rows, new JsonSerializerOptions { WriteIndented = true });
-            try
-            {
-                await File.WriteAllTextAsync(path, json);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
-                return 2;
-            }
-
-            Console.WriteLine($"exported {list.Domains.Count} domains to {Path.GetFullPath(path)}");
-            return 0;
+            await File.WriteAllTextAsync(path, json);
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            return PrintRpcFailure(ex);
+            Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
+            return 2;
         }
-    }
+
+        Console.WriteLine($"exported {list.Domains.Count} domains to {Path.GetFullPath(path)}");
+        return 0;
+    });
 }
 
 // NET-089: export the whole machine policy as one versioned JSON document.
 static async Task<int> ExportPolicyAsync(string path)
 {
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
+        var doc = await new Policy.PolicyClient(channel).ExportPolicyAsync(new Empty());
         try
         {
-            var doc = await new Policy.PolicyClient(channel).ExportPolicyAsync(new Empty());
-            try
-            {
-                await File.WriteAllTextAsync(path, doc.Json);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
-                return 2;
-            }
-
-            Console.WriteLine($"exported policy to {Path.GetFullPath(path)}");
-            return 0;
+            await File.WriteAllTextAsync(path, doc.Json);
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            return PrintRpcFailure(ex);
+            Console.Error.WriteLine($"Couldn't write '{path}': {ex.Message}");
+            return 2;
         }
-    }
+
+        Console.WriteLine($"exported policy to {Path.GetFullPath(path)}");
+        return 0;
+    });
 }
 
 // NET-089: reconstruct a machine's policy from an exported JSON document.
@@ -649,59 +561,45 @@ static async Task<int> ImportPolicyAsync(string[] args)
         return Usage();
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
+        var client = new Policy.PolicyClient(channel);
+        if (args[1].Equals("--restore-checkpoint", StringComparison.OrdinalIgnoreCase))
+        {
+            return PrintPolicyImportResult(await client.RestorePolicyCheckpointAsync(new Empty()));
+        }
 
-    using (channel)
-    {
+        var preview = false;
+        var pathIndex = 1;
+        if (args[1].Equals("--preview", StringComparison.OrdinalIgnoreCase))
+        {
+            preview = true;
+            pathIndex = 2;
+        }
+
+        if (args.Length <= pathIndex)
+        {
+            Console.Error.WriteLine("Missing policy file. Usage: import-policy [--preview] <path.json>");
+            return 1;
+        }
+
+        var path = args[pathIndex];
+        string json;
         try
         {
-            var client = new Policy.PolicyClient(channel);
-            if (args[1].Equals("--restore-checkpoint", StringComparison.OrdinalIgnoreCase))
-            {
-                return PrintPolicyImportResult(await client.RestorePolicyCheckpointAsync(new Empty()));
-            }
-
-            var preview = false;
-            var pathIndex = 1;
-            if (args[1].Equals("--preview", StringComparison.OrdinalIgnoreCase))
-            {
-                preview = true;
-                pathIndex = 2;
-            }
-
-            if (args.Length <= pathIndex)
-            {
-                Console.Error.WriteLine("Missing policy file. Usage: import-policy [--preview] <path.json>");
-                return 1;
-            }
-
-            var path = args[pathIndex];
-            string json;
-            try
-            {
-                json = await File.ReadAllTextAsync(path);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                Console.Error.WriteLine($"Couldn't read '{path}': {ex.Message}");
-                return 2;
-            }
-
-            var result = preview
-                ? await client.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = json, Preview = true })
-                : await client.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
-            return PrintPolicyImportResult(result);
+            json = await File.ReadAllTextAsync(path);
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            return PrintRpcFailure(ex);
+            Console.Error.WriteLine($"Couldn't read '{path}': {ex.Message}");
+            return 2;
         }
-    }
+
+        var result = preview
+            ? await client.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = json, Preview = true })
+            : await client.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
+        return PrintPolicyImportResult(result);
+    });
 }
 
 static int PrintPolicyImportResult(ImportPolicyResult result)
@@ -821,48 +719,34 @@ static async Task<int> EventsAsync(string[] args)
         return 1;
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var list = await new Monitoring.MonitoringClient(channel).ListEventsAsync(request);
+        if (!string.IsNullOrEmpty(exportPath))
         {
-            var list = await new Monitoring.MonitoringClient(channel).ListEventsAsync(request);
-            if (!string.IsNullOrEmpty(exportPath))
+            try
             {
-                try
-                {
-                    await File.WriteAllTextAsync(exportPath, BuildEventsCsv(list.Entries));
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-                {
-                    Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
-                    return 2;
-                }
-
-                Console.WriteLine($"exported {list.Entries.Count} of {list.Total} redacted events to {Path.GetFullPath(exportPath)}");
-                return 0;
+                await File.WriteAllTextAsync(exportPath, BuildEventsCsv(list.Entries));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+                return 2;
             }
 
-            Console.WriteLine($"events: {list.Entries.Count} of {list.Total} (offset {list.Offset}){(list.Redacted ? " redacted" : string.Empty)}");
-            Console.WriteLine("when\tcategory\taction\treason\tdomain\tprocess\tdetails");
-            foreach (var e in list.Entries)
-            {
-                Console.WriteLine($"{e.Ts}\t{e.Category}\t{e.Action}\t{e.Reason}\t{e.Domain}\t{e.Process}\t{e.Details}");
-            }
-
+            Console.WriteLine($"exported {list.Entries.Count} of {list.Total} redacted events to {Path.GetFullPath(exportPath)}");
             return 0;
         }
-        catch (Grpc.Core.RpcException ex)
+
+        Console.WriteLine($"events: {list.Entries.Count} of {list.Total} (offset {list.Offset}){(list.Redacted ? " redacted" : string.Empty)}");
+        Console.WriteLine("when\tcategory\taction\treason\tdomain\tprocess\tdetails");
+        foreach (var e in list.Entries)
         {
-            return PrintRpcFailure(ex);
+            Console.WriteLine($"{e.Ts}\t{e.Category}\t{e.Action}\t{e.Reason}\t{e.Domain}\t{e.Process}\t{e.Details}");
         }
-    }
+
+        return 0;
+    });
 }
 
 static async Task<int> TrafficProfileAsync(string[] args)
@@ -937,37 +821,23 @@ static async Task<int> TrafficProfileAsync(string[] args)
             : "json";
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
+        var profile = await new Monitoring.MonitoringClient(channel).ExportTrafficProfileAsync(request);
         try
         {
-            var profile = await new Monitoring.MonitoringClient(channel).ExportTrafficProfileAsync(request);
-            try
-            {
-                await File.WriteAllTextAsync(exportPath, profile.Content);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-            {
-                Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
-                return 2;
-            }
-
-            Console.WriteLine($"exported redacted {profile.Format} traffic profile to {Path.GetFullPath(exportPath)}");
-            Console.WriteLine($"{profile.ConnectionCount} connections, {profile.EventCount} events; {profile.NoPayloadGuarantee}");
-            return 0;
+            await File.WriteAllTextAsync(exportPath, profile.Content);
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            return PrintRpcFailure(ex);
+            Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+            return 2;
         }
-    }
+
+        Console.WriteLine($"exported redacted {profile.Format} traffic profile to {Path.GetFullPath(exportPath)}");
+        Console.WriteLine($"{profile.ConnectionCount} connections, {profile.EventCount} events; {profile.NoPayloadGuarantee}");
+        return 0;
+    });
 }
 
 static async Task<int> SupportBundleAsync(string[] args)
@@ -1020,32 +890,18 @@ static async Task<int> SupportBundleAsync(string[] args)
         return 1;
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
+            .ExportSupportBundleAsync(request);
+        Console.WriteLine(ack.Message);
+        if (ack.Ok)
         {
-            var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
-                .ExportSupportBundleAsync(request);
-            Console.WriteLine(ack.Message);
-            if (ack.Ok)
-            {
-                Console.WriteLine("traffic_profile.json/csv are redacted metadata only; no packet payloads are captured or exported.");
-            }
+            Console.WriteLine("traffic_profile.json/csv are redacted metadata only; no packet payloads are captured or exported.");
+        }
 
-            return ack.Ok ? 0 : 2;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 static bool TryReadOptionValue(string[] args, ref int index, string arg, string name, out string value)
@@ -1124,45 +980,24 @@ static async Task<int> UsageAsync(string[] args)
         return 1;
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var list = await new Monitoring.MonitoringClient(channel).GetUsageRollupsAsync(request);
+        Console.WriteLine($"usage: {list.Entries.Count} rows (retention {list.RetentionDays} days)");
+        Console.WriteLine("day\tprocess\tdomain\tsent\treceived\ttotal");
+        foreach (var e in list.Entries)
         {
-            var list = await new Monitoring.MonitoringClient(channel).GetUsageRollupsAsync(request);
-            Console.WriteLine($"usage: {list.Entries.Count} rows (retention {list.RetentionDays} days)");
-            Console.WriteLine("day\tprocess\tdomain\tsent\treceived\ttotal");
-            foreach (var e in list.Entries)
-            {
-                Console.WriteLine($"{e.Day}\t{e.Process}\t{e.Domain}\t{FormatBytes(e.Sent)}\t{FormatBytes(e.Recv)}\t{FormatBytes(e.Total)}");
-            }
+            Console.WriteLine($"{e.Day}\t{e.Process}\t{e.Domain}\t{FormatBytes(e.Sent)}\t{FormatBytes(e.Recv)}\t{FormatBytes(e.Total)}");
+        }
 
-            return 0;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        return 0;
+    });
 }
 
 static async Task<int> UsageQuotaAsync(string[] args)
 {
     var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
-    var (channel, error) = Connect();
-    if (channel is null)
-    {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
+    return await RunCommandAsync(async channel =>
     {
         var client = new Monitoring.MonitoringClient(channel);
         try
@@ -1177,10 +1012,6 @@ static async Task<int> UsageQuotaAsync(string[] args)
                 _ => UsageQuotaHelp(subcommand),
             };
         }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
         catch (IOException ex)
         {
             Console.Error.WriteLine($"File error: {ex.Message}");
@@ -1191,7 +1022,7 @@ static async Task<int> UsageQuotaAsync(string[] args)
             Console.Error.WriteLine($"File error: {ex.Message}");
             return 2;
         }
-    }
+    });
 }
 
 static async Task<int> UsageQuotaListAsync(Monitoring.MonitoringClient client)
@@ -1500,38 +1331,24 @@ static async Task<int> DnsCacheAsync(string[] args)
         return 1;
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var list = await new DnsControl.DnsControlClient(channel).ListCacheAsync(request);
+        if (!list.Available)
         {
-            var list = await new DnsControl.DnsControlClient(channel).ListCacheAsync(request);
-            if (!list.Available)
-            {
-                Console.Error.WriteLine(list.Message);
-                return 2;
-            }
-
-            Console.WriteLine($"dns-cache: {list.Entries.Count} rows");
-            Console.WriteLine("name\ttype\trole\tdata\tflags");
-            foreach (var e in list.Entries)
-            {
-                Console.WriteLine($"{e.Name}\t{e.Type}\t{e.PrivacyRole}\t{e.DataLength}\t0x{e.Flags:X8}");
-            }
-
-            return 0;
+            Console.Error.WriteLine(list.Message);
+            return 2;
         }
-        catch (Grpc.Core.RpcException ex)
+
+        Console.WriteLine($"dns-cache: {list.Entries.Count} rows");
+        Console.WriteLine("name\ttype\trole\tdata\tflags");
+        foreach (var e in list.Entries)
         {
-            return PrintRpcFailure(ex);
+            Console.WriteLine($"{e.Name}\t{e.Type}\t{e.PrivacyRole}\t{e.DataLength}\t0x{e.Flags:X8}");
         }
-    }
+
+        return 0;
+    });
 }
 
 static async Task<int> DnsFlushEntryAsync(string[] args)
@@ -1542,27 +1359,13 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
         return Usage();
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
-        {
-            var ack = await new DnsControl.DnsControlClient(channel)
-                .FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = args[1] });
-            Console.WriteLine(ack.Message);
-            return ack.Ok ? 0 : 2;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        var ack = await new DnsControl.DnsControlClient(channel)
+            .FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = args[1] });
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
@@ -1647,184 +1450,156 @@ static bool TryParseBytes(string text, out long bytes)
 static async Task<int> BlocklistsAsync(string[] args)
 {
     var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var client = new ListControl.ListControlClient(channel);
+        switch (subcommand)
         {
-            var client = new ListControl.ListControlClient(channel);
-            switch (subcommand)
-            {
-                case "list":
-                    var sources = await client.ListBlocklistSourcesAsync(new Empty());
-                    Console.WriteLine("name\tsubscribed\tenabled\thealth\tdomains\towned\tprevious\tattempt\tcheckpoint\thits_30d\turl");
-                    foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{SourceHealth(s)}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.PreviousDomainCount}\t{s.LastAttemptDomainCount}\t{s.RollbackCheckpointId}\t{s.Hits30D}\t{s.Url}");
-                    }
+            case "list":
+                var sources = await client.ListBlocklistSourcesAsync(new Empty());
+                Console.WriteLine("name\tsubscribed\tenabled\thealth\tdomains\towned\tprevious\tattempt\tcheckpoint\thits_30d\turl");
+                foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{SourceHealth(s)}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.PreviousDomainCount}\t{s.LastAttemptDomainCount}\t{s.RollbackCheckpointId}\t{s.Hits30D}\t{s.Url}");
+                }
 
-                    return 0;
-                case "stats":
-                    var stats = await client.ListBlocklistSourcesAsync(new Empty());
-                    Console.WriteLine("name\thealth\thits_30d\towned\tdomains\tprevious\tcheckpoint\tenabled");
-                    foreach (var s in stats.Sources
-                                 .Where(s => s.Subscribed)
-                                 .OrderByDescending(s => s.Hits30D)
-                                 .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        Console.WriteLine($"{s.Name}\t{SourceHealth(s)}\t{s.Hits30D}\t{s.OwnedDomainCount}\t{s.DomainCount}\t{s.PreviousDomainCount}\t{s.RollbackCheckpointId}\t{s.Enabled}");
-                    }
+                return 0;
+            case "stats":
+                var stats = await client.ListBlocklistSourcesAsync(new Empty());
+                Console.WriteLine("name\thealth\thits_30d\towned\tdomains\tprevious\tcheckpoint\tenabled");
+                foreach (var s in stats.Sources
+                             .Where(s => s.Subscribed)
+                             .OrderByDescending(s => s.Hits30D)
+                             .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"{s.Name}\t{SourceHealth(s)}\t{s.Hits30D}\t{s.OwnedDomainCount}\t{s.DomainCount}\t{s.PreviousDomainCount}\t{s.RollbackCheckpointId}\t{s.Enabled}");
+                }
 
-                    return 0;
-                case "refresh":
-                    return PrintBlocklistResult(await client.RefreshBlocklistsAsync(new Empty()));
-                case "preview":
-                case "import":
-                    if (args.Length < 4)
-                    {
-                        Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <https-url>");
-                        return 1;
-                    }
-
-                    var request = new BlocklistRequest { Name = args[2], Url = args[3] };
-                    return PrintBlocklistResult(subcommand == "preview"
-                        ? await client.PreviewBlocklistAsync(request)
-                        : await client.ImportBlocklistAsync(request));
-                case "disable":
-                case "enable":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine($"Usage: blocklists {subcommand} <name>");
-                        return 1;
-                    }
-
-                    var toggle = await client.SetBlocklistEnabledAsync(new BlocklistToggleRequest
-                    {
-                        Name = args[2],
-                        Enabled = subcommand == "enable",
-                    });
-                    Console.WriteLine(toggle.Message);
-                    return toggle.Ok ? 0 : 2;
-                case "remove":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine("Usage: blocklists remove <name>");
-                        return 1;
-                    }
-
-                    var ack = await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = args[2] });
-                    Console.WriteLine(ack.Message);
-                    return ack.Ok ? 0 : 2;
-                case "rollback":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine("Usage: blocklists rollback <name>");
-                        return 1;
-                    }
-
-                    var rollback = await client.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = args[2] });
-                    Console.WriteLine(rollback.Message);
-                    return rollback.Ok ? 0 : 2;
-                default:
-                    Console.Error.WriteLine($"Unknown blocklists command: {subcommand}");
+                return 0;
+            case "refresh":
+                return PrintBlocklistResult(await client.RefreshBlocklistsAsync(new Empty()));
+            case "preview":
+            case "import":
+                if (args.Length < 4)
+                {
+                    Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <https-url>");
                     return 1;
-            }
+                }
+
+                var request = new BlocklistRequest { Name = args[2], Url = args[3] };
+                return PrintBlocklistResult(subcommand == "preview"
+                    ? await client.PreviewBlocklistAsync(request)
+                    : await client.ImportBlocklistAsync(request));
+            case "disable":
+            case "enable":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine($"Usage: blocklists {subcommand} <name>");
+                    return 1;
+                }
+
+                var toggle = await client.SetBlocklistEnabledAsync(new BlocklistToggleRequest
+                {
+                    Name = args[2],
+                    Enabled = subcommand == "enable",
+                });
+                Console.WriteLine(toggle.Message);
+                return toggle.Ok ? 0 : 2;
+            case "remove":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine("Usage: blocklists remove <name>");
+                    return 1;
+                }
+
+                var ack = await client.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = args[2] });
+                Console.WriteLine(ack.Message);
+                return ack.Ok ? 0 : 2;
+            case "rollback":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine("Usage: blocklists rollback <name>");
+                    return 1;
+                }
+
+                var rollback = await client.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = args[2] });
+                Console.WriteLine(rollback.Message);
+                return rollback.Ok ? 0 : 2;
+            default:
+                Console.Error.WriteLine($"Unknown blocklists command: {subcommand}");
+                return 1;
         }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+    });
 }
 
 static async Task<int> IpBlocklistsAsync(string[] args)
 {
     var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var client = new ListControl.ListControlClient(channel);
+        switch (subcommand)
         {
-            var client = new ListControl.ListControlClient(channel);
-            switch (subcommand)
-            {
-                case "list":
-                    var sources = await client.ListIpBlocklistsAsync(new Empty());
-                    Console.WriteLine("name\tenabled\thealth\taddresses\trules\tprevious\ttruncated\tlast_refresh\turl");
-                    foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        var health = s.HealthStatus.Length != 0 ? s.HealthStatus : "new";
-                        Console.WriteLine($"{s.Name}\t{s.Enabled}\t{health}\t{s.AddressCount}\t{s.RuleCount}\t{s.PreviousAddressCount}\t{s.Truncated}\t{s.LastRefresh}\t{s.Url}");
-                    }
+            case "list":
+                var sources = await client.ListIpBlocklistsAsync(new Empty());
+                Console.WriteLine("name\tenabled\thealth\taddresses\trules\tprevious\ttruncated\tlast_refresh\turl");
+                foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    var health = s.HealthStatus.Length != 0 ? s.HealthStatus : "new";
+                    Console.WriteLine($"{s.Name}\t{s.Enabled}\t{health}\t{s.AddressCount}\t{s.RuleCount}\t{s.PreviousAddressCount}\t{s.Truncated}\t{s.LastRefresh}\t{s.Url}");
+                }
 
-                    return 0;
-                case "refresh":
-                    return PrintIpBlocklistResult(await client.RefreshIpBlocklistsAsync(new Empty()));
-                case "import":
-                    if (args.Length < 4)
-                    {
-                        Console.Error.WriteLine("Usage: ip-blocklists import <name> <https-url>");
-                        return 1;
-                    }
-
-                    return PrintIpBlocklistResult(
-                        await client.ImportIpBlocklistAsync(new BlocklistRequest { Name = args[2], Url = args[3] }));
-                case "disable":
-                case "enable":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine($"Usage: ip-blocklists {subcommand} <name>");
-                        return 1;
-                    }
-
-                    var toggle = await client.SetIpBlocklistEnabledAsync(new BlocklistToggleRequest
-                    {
-                        Name = args[2],
-                        Enabled = subcommand == "enable",
-                    });
-                    Console.WriteLine(toggle.Message);
-                    return toggle.Ok ? 0 : 2;
-                case "remove":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine("Usage: ip-blocklists remove <name>");
-                        return 1;
-                    }
-
-                    var ack = await client.RemoveIpBlocklistAsync(new BlocklistRequest { Name = args[2] });
-                    Console.WriteLine(ack.Message);
-                    return ack.Ok ? 0 : 2;
-                case "rollback":
-                    if (args.Length < 3)
-                    {
-                        Console.Error.WriteLine("Usage: ip-blocklists rollback <name>");
-                        return 1;
-                    }
-
-                    return PrintIpBlocklistResult(
-                        await client.RollbackIpBlocklistAsync(new BlocklistRequest { Name = args[2] }));
-                default:
-                    Console.Error.WriteLine($"Unknown ip-blocklists command: {subcommand}");
+                return 0;
+            case "refresh":
+                return PrintIpBlocklistResult(await client.RefreshIpBlocklistsAsync(new Empty()));
+            case "import":
+                if (args.Length < 4)
+                {
+                    Console.Error.WriteLine("Usage: ip-blocklists import <name> <https-url>");
                     return 1;
-            }
+                }
+
+                return PrintIpBlocklistResult(
+                    await client.ImportIpBlocklistAsync(new BlocklistRequest { Name = args[2], Url = args[3] }));
+            case "disable":
+            case "enable":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine($"Usage: ip-blocklists {subcommand} <name>");
+                    return 1;
+                }
+
+                var toggle = await client.SetIpBlocklistEnabledAsync(new BlocklistToggleRequest
+                {
+                    Name = args[2],
+                    Enabled = subcommand == "enable",
+                });
+                Console.WriteLine(toggle.Message);
+                return toggle.Ok ? 0 : 2;
+            case "remove":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine("Usage: ip-blocklists remove <name>");
+                    return 1;
+                }
+
+                var ack = await client.RemoveIpBlocklistAsync(new BlocklistRequest { Name = args[2] });
+                Console.WriteLine(ack.Message);
+                return ack.Ok ? 0 : 2;
+            case "rollback":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine("Usage: ip-blocklists rollback <name>");
+                    return 1;
+                }
+
+                return PrintIpBlocklistResult(
+                    await client.RollbackIpBlocklistAsync(new BlocklistRequest { Name = args[2] }));
+            default:
+                Console.Error.WriteLine($"Unknown ip-blocklists command: {subcommand}");
+                return 1;
         }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+    });
 }
 
 static int PrintIpBlocklistResult(IpBlocklistResult result)
@@ -1900,34 +1675,20 @@ static async Task<int> ModeAsync(string? requested)
         return 1;
     }
 
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
+        var consent = new Consent.ConsentClient(channel);
+        if (requested is null)
         {
-            var consent = new Consent.ConsentClient(channel);
-            if (requested is null)
-            {
-                var mode = await consent.GetModeAsync(new Empty());
-                Console.WriteLine($"{mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
-                return 0;
-            }
+            var mode = await consent.GetModeAsync(new Empty());
+            Console.WriteLine($"{mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
+            return 0;
+        }
 
-            var ack = await consent.SetModeAsync(new FilteringMode { Mode = requested });
-            Console.WriteLine(ack.Message);
-            return ack.Ok ? 0 : 2;
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+        var ack = await consent.SetModeAsync(new FilteringMode { Mode = requested });
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 // NET-054: pre-release smoke — runtime, dependency versions, service
@@ -1997,71 +1758,57 @@ static async Task<int> SafePostureAsync()
 
 static async Task<int> SafePostureSmokeAsync()
 {
-    var (channel, error) = Connect();
-    if (channel is null)
+    return await RunCommandAsync(async channel =>
     {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
+        var failures = new List<string>();
+        var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+        var consent = new Consent.ConsentClient(channel);
+        var fw = new FirewallControl.FirewallControlClient(channel);
+        var dns = new DnsControl.DnsControlClient(channel);
 
-    using (channel)
-    {
-        try
+        var status = await diagnostics.GetStatusAsync(new Empty());
+        var mode = await consent.GetModeAsync(new Empty());
+        var posture = await fw.GetPostureAsync(new Empty());
+        var doh = await dns.GetDohStatusAsync(new Empty());
+        var teardown = await fw.GetFlowTeardownAsync(new Empty());
+        var killSwitch = await fw.GetKillSwitchAsync(new Empty());
+
+        Console.WriteLine("HostsGuard safe-posture-smoke");
+        Console.WriteLine($"  hosts-file blocks: {status.HostsBlocked} (unchanged by this check)");
+        Check(mode.Mode == "normal", $"filtering mode: {mode.Mode}", "filtering mode is not normal");
+        Check(!mode.DetectionArmed, "detection: disarmed", "detection is armed");
+        Check(
+            posture.Available && posture.Profiles.Count != 0 && !posture.Lockdown && posture.Profiles.All(p => !p.OutboundBlock),
+            "default outbound: Allow on all profiles",
+            "default outbound is not Allow on every profile");
+        Check(!doh.BlockingActive, "encrypted DNS blocks: off", "encrypted DNS blocks are active");
+        Check(!doh.QuicBlocked, "QUIC block: off", "QUIC block is active");
+        Check(!doh.CnameCloak, "CNAME-cloak blocking: off", "CNAME-cloak blocking is active");
+        Check(!teardown.Enabled, "TCP flow teardown: off", "TCP flow teardown is enabled");
+        Check(!killSwitch.Enabled && !killSwitch.Engaged, "VPN kill-switch: off", "VPN kill-switch is enabled or engaged");
+
+        if (failures.Count == 0)
         {
-            var failures = new List<string>();
-            var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
-            var consent = new Consent.ConsentClient(channel);
-            var fw = new FirewallControl.FirewallControlClient(channel);
-            var dns = new DnsControl.DnsControlClient(channel);
+            Console.WriteLine("OK: safe network posture is installed");
+            return 0;
+        }
 
-            var status = await diagnostics.GetStatusAsync(new Empty());
-            var mode = await consent.GetModeAsync(new Empty());
-            var posture = await fw.GetPostureAsync(new Empty());
-            var doh = await dns.GetDohStatusAsync(new Empty());
-            var teardown = await fw.GetFlowTeardownAsync(new Empty());
-            var killSwitch = await fw.GetKillSwitchAsync(new Empty());
+        foreach (var failure in failures)
+        {
+            Console.WriteLine($"FAIL: {failure}");
+        }
 
-            Console.WriteLine("HostsGuard safe-posture-smoke");
-            Console.WriteLine($"  hosts-file blocks: {status.HostsBlocked} (unchanged by this check)");
-            Check(mode.Mode == "normal", $"filtering mode: {mode.Mode}", "filtering mode is not normal");
-            Check(!mode.DetectionArmed, "detection: disarmed", "detection is armed");
-            Check(
-                posture.Available && posture.Profiles.Count != 0 && !posture.Lockdown && posture.Profiles.All(p => !p.OutboundBlock),
-                "default outbound: Allow on all profiles",
-                "default outbound is not Allow on every profile");
-            Check(!doh.BlockingActive, "encrypted DNS blocks: off", "encrypted DNS blocks are active");
-            Check(!doh.QuicBlocked, "QUIC block: off", "QUIC block is active");
-            Check(!doh.CnameCloak, "CNAME-cloak blocking: off", "CNAME-cloak blocking is active");
-            Check(!teardown.Enabled, "TCP flow teardown: off", "TCP flow teardown is enabled");
-            Check(!killSwitch.Enabled && !killSwitch.Engaged, "VPN kill-switch: off", "VPN kill-switch is enabled or engaged");
+        return 2;
 
-            if (failures.Count == 0)
+        void Check(bool ok, string pass, string fail)
+        {
+            Console.WriteLine($"{(ok ? "OK" : "FAIL")}: {(ok ? pass : fail)}");
+            if (!ok)
             {
-                Console.WriteLine("OK: safe network posture is installed");
-                return 0;
-            }
-
-            foreach (var failure in failures)
-            {
-                Console.WriteLine($"FAIL: {failure}");
-            }
-
-            return 2;
-
-            void Check(bool ok, string pass, string fail)
-            {
-                Console.WriteLine($"{(ok ? "OK" : "FAIL")}: {(ok ? pass : fail)}");
-                if (!ok)
-                {
-                    failures.Add(fail);
-                }
+                failures.Add(fail);
             }
         }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
+    });
 }
 
 static async Task<int> ReleaseSmokeAsync()

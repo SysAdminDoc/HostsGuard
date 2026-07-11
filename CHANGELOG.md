@@ -4,6 +4,14 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Structural split of the four largest source files, behavior-preserving:
+  the CLI's twenty pipe-connected commands now share one connect/error
+  wrapper instead of repeating it; ConsentBroker's command-line-rule engine
+  moved to its own partial; FW Activity and Tools ViewModels split into
+  per-feature partial files (history/decisions/posture, policy
+  subscriptions/VPN/AI/IP-blocklists). No XAML binding or RPC changes.
+
 ### Added
 - The blocklist catalog is now a browsable gallery: every curated source
   carries tags, license, homepage, and a description, shown as new
