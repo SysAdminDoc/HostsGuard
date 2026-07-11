@@ -2,7 +2,7 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [Unreleased]
+## [0.12.66] - 2026-07-10
 
 ### Added
 - SHA-256-verified service self-update (no code signing, by policy): the

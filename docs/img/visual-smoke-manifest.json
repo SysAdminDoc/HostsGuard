@@ -1,38 +1,38 @@
 {
-  "schemaVersion": 1,
-  "product": "HostsGuard",
-  "version": "0.12.65",
-  "generatedAtUtc": "2026-07-09T23:23:28.8781956+00:00",
-  "expectedSize": "1600x1000",
-  "app": {
-    "path": "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
-    "fileVersion": "0.12.65.0",
-    "productVersion": "0.12.65+7bec0c4d8f14fd61939bdb4de6d57e94a03a2f81"
-  },
-  "service": {
-    "path": "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
-    "fileVersion": "0.12.65.0",
-    "productVersion": "0.12.65+7bec0c4d8f14fd61939bdb4de6d57e94a03a2f81"
-  },
-  "sourceSummary": "artifacts/visual-smoke-firewall-fix/visual-smoke-summary.json",
-  "readmeScreenshots": [
-    {
-      "theme": "dark",
-      "tab": "Hosts Activity",
-      "path": "docs/img/hosts-activity-dark.png",
-      "sha256": "C4B412708799E1446DF6DE76DDD528D06BDB8A363750CA3DB5AAE5819CEF6350",
-      "bytes": 208217,
-      "width": 1600,
-      "height": 1000
-    },
-    {
-      "theme": "light",
-      "tab": "Hosts Activity",
-      "path": "docs/img/hosts-activity-light.png",
-      "sha256": "C2DE5AE32A445E377ECEA21E73AEFEED2E437514FBBC75E9305F06CE175E35A4",
-      "bytes": 207891,
-      "width": 1600,
-      "height": 1000
-    }
-  ]
+    "schemaVersion":  1,
+    "product":  "HostsGuard",
+    "version":  "0.12.66",
+    "generatedAtUtc":  "2026-07-11T01:58:50.9698760+00:00",
+    "expectedSize":  "1600x1000",
+    "app":  {
+                "path":  "dist/dotnet/win-x64/app/HostsGuard.App.exe",
+                "fileVersion":  "0.12.66.0",
+                "productVersion":  "0.12.66+0ac055b8def9f2c05e17efe7526d030c17485f85"
+            },
+    "service":  {
+                    "path":  "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
+                    "fileVersion":  "0.12.66.0",
+                    "productVersion":  "0.12.66+0ac055b8def9f2c05e17efe7526d030c17485f85"
+                },
+    "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
+    "readmeScreenshots":  [
+                              {
+                                  "theme":  "dark",
+                                  "tab":  "Hosts Activity",
+                                  "path":  "docs/img/hosts-activity-dark.png",
+                                  "sha256":  "97D2CDFC05B727A2AC0595AEA102F016B6A17EF003AA3D9EE5532881D943E110",
+                                  "bytes":  229845,
+                                  "width":  1600,
+                                  "height":  1000
+                              },
+                              {
+                                  "theme":  "light",
+                                  "tab":  "Hosts Activity",
+                                  "path":  "docs/img/hosts-activity-light.png",
+                                  "sha256":  "DD02345D50CB3E94D0BA8FBAF07E0BF23CC045AA5052FA6610231C0E1E194677",
+                                  "bytes":  230470,
+                                  "width":  1600,
+                                  "height":  1000
+                              }
+                          ]
 }
