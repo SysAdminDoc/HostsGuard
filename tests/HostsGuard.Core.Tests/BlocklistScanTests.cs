@@ -61,7 +61,7 @@ public class BlocklistScanTests
     {
         var text = string.Join('\n',
             "@@||allow.example^",
-            "||ads.example^",
+            "||ads.example^",              // NET-174: lossless -> imports as a domain
             "*.wild.example",
             "/tracker\\d+\\.example/",
             "[Adblock Plus 2.0]",
@@ -72,10 +72,67 @@ public class BlocklistScanTests
         var scan = BlocklistCatalog.Scan(text);
 
         scan.Total.Should().Be(8);
-        scan.Domains.Should().Equal(["valid.example"]);
+        scan.Domains.Should().Equal(["ads.example", "valid.example"]);
         scan.Duplicates.Should().Be(0);
-        scan.Invalid.Should().Be(7);
+        scan.Invalid.Should().Be(6);
         scan.HijackFlagged.Should().Be(0);
+        scan.ModifiersStripped.Should().Be(0);
+    }
+
+    // ─── NET-174 import transforms ───────────────────────────────────────────
+
+    [Fact]
+    public void Plain_adblock_domain_rules_convert_to_domains()
+    {
+        var scan = BlocklistCatalog.Scan(string.Join('\n',
+            "||ads.example^",
+            "||Tracker.Example.NET",     // no anchor, mixed case
+            "||dup.example^",
+            "0.0.0.0 dup.example"));     // hosts line duplicates the converted rule
+
+        scan.Domains.Should().Equal(["ads.example", "tracker.example.net", "dup.example"]);
+        scan.Duplicates.Should().Be(1);
+        scan.Invalid.Should().Be(0);
+        scan.ModifiersStripped.Should().Be(0);
+    }
+
+    [Fact]
+    public void Adblock_modifier_rules_are_stripped_never_imported_as_bare_domains()
+    {
+        var scan = BlocklistCatalog.Scan(string.Join('\n',
+            "||conditional.example^$third-party",
+            "||scripty.example^$script,domain=~safe.example",
+            "||plain.example^"));
+
+        scan.ModifiersStripped.Should().Be(2);
+        scan.Domains.Should().Equal(["plain.example"]);
+        scan.Domains.Should().NotContain("conditional.example");
+        scan.Invalid.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("||ads.example^path")]        // trailing path after anchor
+    [InlineData("||ads.example/banner^")]     // path component
+    [InlineData("||*.wild.example^")]         // wildcard
+    [InlineData("||ads.example^|")]           // end anchor
+    [InlineData("||ads.example:8080^")]       // port
+    public void Non_lossless_adblock_rules_stay_invalid(string rule)
+    {
+        var scan = BlocklistCatalog.Scan(rule + "\n");
+        scan.Domains.Should().BeEmpty();
+        scan.Invalid.Should().Be(1);
+        scan.ModifiersStripped.Should().Be(0);
+    }
+
+    [Fact]
+    public void Catalog_entries_carry_gallery_metadata()
+    {
+        foreach (var source in BlocklistCatalog.Sources)
+        {
+            source.Tags.Should().NotBeEmpty($"{source.Name} needs gallery tags");
+            source.Homepage.Should().StartWith("https://", $"{source.Name} needs a homepage");
+            source.Description.Should().NotBeEmpty($"{source.Name} needs a description");
+        }
     }
 
     [Fact]

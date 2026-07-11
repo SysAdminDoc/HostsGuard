@@ -62,6 +62,43 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     [ObservableProperty]
     private long _lastAttemptDomainCount;
 
+    [ObservableProperty]
+    private string _homepage = string.Empty;
+
+    [ObservableProperty]
+    private string _license = string.Empty;
+
+    [ObservableProperty]
+    private string _tags = string.Empty;
+
+    [ObservableProperty]
+    private string _description = string.Empty;
+
+    /// <summary>Gallery tooltip: description + provenance in one hover (NET-174).</summary>
+    public string GalleryTip
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Description.Length != 0)
+            {
+                parts.Add(Description);
+            }
+
+            if (License.Length != 0)
+            {
+                parts.Add($"License: {License}");
+            }
+
+            if (Homepage.Length != 0)
+            {
+                parts.Add(Homepage);
+            }
+
+            return parts.Count == 0 ? Url : string.Join('\n', parts);
+        }
+    }
+
     public string Flags =>
         (!Enabled && Subscribed ? "disabled " : string.Empty)
         + (HealthStatus is "guarded" or "error" ? $"{HealthStatus} " : string.Empty)
@@ -117,6 +154,10 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         PreviousDomainCount = s.PreviousDomainCount,
         RollbackCheckpointId = s.RollbackCheckpointId,
         LastAttemptDomainCount = s.LastAttemptDomainCount,
+        Homepage = s.Homepage,
+        License = s.License,
+        Tags = s.Tags,
+        Description = s.Description,
     };
 }
 
@@ -148,6 +189,18 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [RelayCommand]
     public Task RefreshAsync()
         => RunServiceActionAsync("Refresh blocklists", RefreshCoreAsync);
+
+    [RelayCommand]
+    public void OpenHomepage(BlocklistSourceViewModel? source)
+    {
+        var url = source?.Homepage ?? string.Empty;
+        if (!url.StartsWith("https://", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+    }
 
     [RelayCommand]
     public async Task ImportAsync(BlocklistSourceViewModel? source)
@@ -201,6 +254,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         var report = new List<string>();
         if (r.Duplicates > 0) report.Add($"{r.Duplicates} dup");
         if (r.Invalid > 0) report.Add($"{r.Invalid} invalid");
+        if (r.ModifiersStripped > 0) report.Add($"{r.ModifiersStripped} modifier-stripped");
         if (r.HijackFlagged > 0) report.Add($"{r.HijackFlagged} hijack-flagged");
         if (r.AllowlistOverrides > 0) report.Add($"{r.AllowlistOverrides} allowlist-kept");
         if (r.Removed > 0) report.Add($"{r.Removed} removed");

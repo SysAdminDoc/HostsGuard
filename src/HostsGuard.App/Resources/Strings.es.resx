@@ -104,4 +104,7 @@
   <data name="UsageQuota_Block" xml:space="preserve"><value>Bloqueo</value></data>
   <data name="Quota_BlockActive" xml:space="preserve"><value>Bloqueado</value></data>
   <data name="Quota_BlockArmed" xml:space="preserve"><value>Armado</value></data>
+  <data name="BlockGallery_Tags" xml:space="preserve"><value>Etiquetas</value></data>
+  <data name="BlockGallery_License" xml:space="preserve"><value>Licencia</value></data>
+  <data name="BlockGallery_Homepage" xml:space="preserve"><value>Sitio</value></data>
 </root>

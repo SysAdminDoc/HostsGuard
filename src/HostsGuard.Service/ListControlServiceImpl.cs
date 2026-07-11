@@ -31,6 +31,10 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 Category = src.Category,
                 Name = src.Name,
                 Url = src.Url,
+                Homepage = src.Homepage,
+                License = src.License,
+                Tags = src.Tags,
+                Description = src.Description,
                 Subscribed = subscribed,
                 LastRefresh = lastRefresh,
                 DomainCount = domainCount,
@@ -626,5 +630,6 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         Guarded = outcome.Guarded,
         Failed = outcome.Failed,
         CheckpointId = outcome.CheckpointId,
+        ModifiersStripped = outcome.ModifiersStripped,
     };
 }

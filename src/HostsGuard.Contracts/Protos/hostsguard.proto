@@ -356,6 +356,11 @@ message BlocklistSource {
   int64 rollback_checkpoint_id = 18; // latest checkpoint id, 0 when none
   int64 last_attempt_domain_count = 19;
   string last_attempt_hash = 20;
+  // NET-174 catalog metadata for the "add a list" gallery.
+  string homepage = 21;
+  string license = 22;
+  string tags = 23;        // comma-separated
+  string description = 24;
 }
 
 message BlocklistSources {
@@ -382,6 +387,7 @@ message BlocklistResult {
   int64 guarded = 16;          // refreshes skipped by churn guard
   int64 failed = 17;           // refreshes that failed fetch/parse
   int64 checkpoint_id = 18;    // latest checkpoint created/restored by this operation
+  int64 modifiers_stripped = 19; // adblock $modifier rules stripped, never imported (NET-174)
 }
 
 message AllowlistUrls {

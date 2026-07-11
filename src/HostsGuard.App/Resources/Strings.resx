@@ -877,4 +877,7 @@
   <data name="UsageQuota_Block" xml:space="preserve"><value>Block</value></data>
   <data name="Quota_BlockActive" xml:space="preserve"><value>Blocked</value></data>
   <data name="Quota_BlockArmed" xml:space="preserve"><value>Armed</value></data>
+  <data name="BlockGallery_Tags" xml:space="preserve"><value>Tags</value></data>
+  <data name="BlockGallery_License" xml:space="preserve"><value>License</value></data>
+  <data name="BlockGallery_Homepage" xml:space="preserve"><value>Site</value></data>
 </root>

@@ -1861,6 +1861,7 @@ static int PrintBlocklistResult(BlocklistResult result)
     Console.WriteLine($"  added:       {result.Added}");
     Console.WriteLine($"  duplicates:  {result.Duplicates}");
     Console.WriteLine($"  invalid:     {result.Invalid}");
+    Console.WriteLine($"  stripped:    {result.ModifiersStripped}");
     Console.WriteLine($"  hijack:      {result.HijackFlagged}");
     Console.WriteLine($"  allowlisted: {result.AllowlistOverrides}");
     if (result.Removed != 0 || result.Preserved != 0)

@@ -5,6 +5,15 @@ All notable changes to HostsGuard are documented in this file.
 ## [Unreleased]
 
 ### Added
+- The blocklist catalog is now a browsable gallery: every curated source
+  carries tags, license, homepage, and a description, shown as new
+  Tags/License columns, a hover summary, and a per-row Site button on the
+  Blocklists tab (also served over the RPC surface for the CLI). Imports run
+  an explicit transform pipeline: plain adblock domain rules (`||example.com^`)
+  now convert losslessly to hosts blocks instead of being dropped, while rules
+  with `$modifiers` (third-party, script, …) are stripped and never imported
+  as bare domains — reported as a separate "modifier-stripped" count in
+  preview and import results alongside duplicates/invalid/hijack.
 - Usage budgets can now enforce, not just alert: a quota rule can opt into
   "Block on exceed" (default off). Crossing the rolling-window limit applies a
   scoped block — a hosts-file entry for a domain rule, `HG_QuotaBlock_*`

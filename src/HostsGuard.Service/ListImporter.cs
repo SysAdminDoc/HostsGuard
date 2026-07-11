@@ -14,7 +14,8 @@ public sealed record ImportOutcome(
     long Duplicates = 0, long Invalid = 0, long HijackFlagged = 0,
     long AllowlistOverrides = 0, bool MirrorUsed = false,
     long Removed = 0, long Preserved = 0, bool Preview = false,
-    long Guarded = 0, long Failed = 0, long CheckpointId = 0);
+    long Guarded = 0, long Failed = 0, long CheckpointId = 0,
+    long ModifiersStripped = 0);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -77,7 +78,7 @@ public sealed class ListImporter : IDisposable
                 _db.LogEvent($"list:{name}", "refresh_guarded", details: guard.Message, reason: "blocklist");
                 return new ImportOutcome(0, domains.Count, _hosts.GetBlocked().Count, guard.Message,
                     scan.Duplicates, scan.Invalid, scan.HijackFlagged, MirrorUsed: mirrorUsed,
-                    Guarded: 1);
+                    Guarded: 1, ModifiersStripped: scan.ModifiersStripped);
             }
         }
 
@@ -126,14 +127,15 @@ public sealed class ListImporter : IDisposable
 
         _db.LogEvent($"list:{name}", "blocked",
             details: $"imported {domains.Count} domains ({scan.Duplicates} dup, {scan.Invalid} invalid, " +
-                     $"{scan.HijackFlagged} hijack-flagged, {overrides} allowlist-overridden" +
+                     $"{scan.HijackFlagged} hijack-flagged, {scan.ModifiersStripped} modifier-stripped, " +
+                     $"{overrides} allowlist-overridden" +
                      (mirrorUsed ? ", via mirror" : string.Empty) + ")",
             reason: "blocklist");
 
         return new ImportOutcome(added, domains.Count, entries, warning,
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed,
             Removed: dropped.Removed, Preserved: dropped.Preserved,
-            CheckpointId: checkpointId);
+            CheckpointId: checkpointId, ModifiersStripped: scan.ModifiersStripped);
     }
 
     public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
@@ -149,7 +151,8 @@ public sealed class ListImporter : IDisposable
             ? $"Hosts file would reach {entries:N0} entries - watch DNS Client CPU"
             : string.Empty;
         return new ImportOutcome(wouldAdd, scan.Domains.Count, entries, warning,
-            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed, Preview: true);
+            scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed, Preview: true,
+            ModifiersStripped: scan.ModifiersStripped);
     }
 
     public ImportOutcome RemoveSource(string name)
@@ -198,7 +201,7 @@ public sealed class ListImporter : IDisposable
     {
         long added = 0, total = 0;
         var warning = string.Empty;
-        long duplicates = 0, invalid = 0, hijack = 0, overrides = 0, guarded = 0, failed = 0, checkpointId = 0;
+        long duplicates = 0, invalid = 0, hijack = 0, overrides = 0, guarded = 0, failed = 0, checkpointId = 0, stripped = 0;
         foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled))
         {
             ImportOutcome outcome;
@@ -221,6 +224,7 @@ public sealed class ListImporter : IDisposable
             invalid += outcome.Invalid;
             hijack += outcome.HijackFlagged;
             overrides += outcome.AllowlistOverrides;
+            stripped += outcome.ModifiersStripped;
             guarded += outcome.Guarded;
             if (outcome.CheckpointId != 0)
             {
@@ -234,7 +238,8 @@ public sealed class ListImporter : IDisposable
         }
 
         return new ImportOutcome(added, total, _hosts.GetBlocked().Count, warning,
-            duplicates, invalid, hijack, overrides, Guarded: guarded, Failed: failed, CheckpointId: checkpointId);
+            duplicates, invalid, hijack, overrides, Guarded: guarded, Failed: failed, CheckpointId: checkpointId,
+            ModifiersStripped: stripped);
     }
 
     public async Task<int> RefreshAllowlistsAsync(CancellationToken ct)

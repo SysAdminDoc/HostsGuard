@@ -1238,7 +1238,22 @@
                                           AutomationProperties.Name="{svc:Loc Key=Xaml_Blocklist_sources_47c4f37d}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Category_a3c686e7}" Binding="{Binding Category}" Width="120" />
-                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="*" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="ToolTip" Value="{Binding GalleryTip}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="{svc:Loc Key=BlockGallery_Tags}" Binding="{Binding Tags}" Width="150">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="ToolTip" Value="{Binding GalleryTip}" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="{svc:Loc Key=BlockGallery_License}" Binding="{Binding License}" Width="86" />
                                         <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Subscribed_dd1242a8}" Binding="{Binding Subscribed}" Width="90" IsReadOnly="True" />
                                         <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_Enabled_df174a3f}" Binding="{Binding Enabled}" Width="72" IsReadOnly="True" />
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Domains_a0d641b3}" Binding="{Binding DomainCount}" Width="90" />
@@ -1276,6 +1291,20 @@
                                                                 Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
                                                                 Command="{Binding DataContext.UnsubscribeCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}" />
+                                                        <Button Content="{svc:Loc Key=BlockGallery_Homepage}" Padding="8,2" Margin="6,0,0,0"
+                                                                ToolTip="{Binding Homepage}"
+                                                                Command="{Binding DataContext.OpenHomepageCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Homepage}" Value="">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                        </Button>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
