@@ -126,6 +126,106 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         return Task.FromResult(list);
     }
 
+    public override Task<ListenerExposureList> ListListeners(Empty request, ServerCallContext context)
+    {
+        var snapshot = _state.ConnectionSnapshot();
+        var listeners = snapshot
+            .Where(static row => row.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase) ||
+                row.State.Equals("LISTEN", StringComparison.OrdinalIgnoreCase))
+            .Select(static row => new ListenerEndpoint(
+                row.Protocol, row.LocalAddress, row.LocalPort, row.Pid, row.Process))
+            .ToArray();
+        var owners = snapshot
+            .Where(static row => row.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase) ||
+                row.State.Equals("LISTEN", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(static row => row.Pid)
+            .Select(group =>
+            {
+                var row = group.First();
+                var service = _state.LookupSoleService?.Invoke(row.Pid);
+                return new ListenerOwnerAttribution(
+                    row.Pid,
+                    row.ProcessPath,
+                    service?.Key ?? string.Empty,
+                    service?.Display ?? (_state.LookupService?.Invoke(row.Pid) ?? string.Empty),
+                    row.PackageFamilyName);
+            })
+            .ToArray();
+        var rules = _state.Firewall?.ListRules() ?? Array.Empty<FwRule>();
+        var profiles = _state.Firewall?.GetActiveInboundProfiles() ?? Array.Empty<InboundFirewallProfile>();
+        var analyzed = ListenerExposureAnalyzer.Analyze(listeners, owners, rules, profiles);
+
+        var response = new ListenerExposureList();
+        foreach (var exposure in analyzed)
+        {
+            response.Listeners.Add(new Contracts.ListenerExposure
+            {
+                Protocol = exposure.Endpoint.Protocol,
+                LocalAddress = exposure.Endpoint.LocalAddress,
+                LocalPort = exposure.Endpoint.LocalPort,
+                Process = exposure.Endpoint.ProcessName,
+                Pid = exposure.Endpoint.Pid,
+                Service = exposure.Owner.ServiceDisplayName.Length != 0
+                    ? exposure.Owner.ServiceDisplayName
+                    : exposure.Owner.ServiceName,
+                Package = exposure.Owner.PackageFamilyName,
+                BindScope = exposure.BindScope.ToString().ToLowerInvariant(),
+                ActiveProfiles = string.Join(',', exposure.Profiles.Select(static profile => profile.Profile)),
+                Coverage = FormatListenerCoverage(exposure.Profiles),
+                Risk = ListenerRisk(exposure),
+                Reason = ListenerReason(exposure, profiles.Count),
+            });
+        }
+
+        return Task.FromResult(response);
+    }
+
+    private static string FormatListenerCoverage(IReadOnlyList<ListenerProfileExposure> profiles)
+        => profiles.Count == 0
+            ? "unknown"
+            : string.Join(", ", profiles.Select(static profile =>
+                $"{profile.Profile}:{profile.Action.ToString().ToLowerInvariant()}"));
+
+    private static string ListenerRisk(ListenerExposureAssessment exposure)
+    {
+        if (!exposure.NeedsAttention)
+        {
+            return "low";
+        }
+
+        return exposure.Profiles.Any(static profile => profile.Action is
+                ListenerInboundAction.AllowRule or
+                ListenerInboundAction.FirewallDisabled or
+                ListenerInboundAction.DefaultAllow or
+                ListenerInboundAction.RestrictedAllow or
+                ListenerInboundAction.RestrictedMixed ||
+            !profile.DefaultInboundBlock && profile.Action is
+                ListenerInboundAction.ProfileMismatch or ListenerInboundAction.RestrictedBlock)
+            ? "high"
+            : "medium";
+    }
+
+    private static string ListenerReason(ListenerExposureAssessment exposure, int activeProfileCount)
+    {
+        if (activeProfileCount == 0)
+        {
+            return exposure.PublicBound
+                ? "Public or wildcard bind; active firewall profile coverage is unavailable."
+                : "Local bind; active firewall profile coverage is unavailable.";
+        }
+
+        return exposure.Finding switch
+        {
+            "local_bind" => "Bound to a local-only address; effective inbound policy is shown per active profile.",
+            "public_bound_profile_mismatch" => "Public or wildcard bind has rules, but none apply to an active profile.",
+            "public_bound_unruled" => "Public or wildcard bind has no matching inbound rule; profile defaults apply.",
+            "public_bound_firewall_disabled" => "Public or wildcard bind is on an active profile with Windows Firewall disabled.",
+            "public_bound_permitted_locally" => "Public or wildcard bind is permitted by a matching rule or profile default.",
+            "public_bound_blocked_locally" => "Public or wildcard bind is blocked by effective local firewall policy.",
+            _ => exposure.Finding,
+        };
+    }
+
     public override Task<AlertList> ListAlerts(AlertRequest request, ServerCallContext context)
     {
         var limit = Math.Clamp(request.Limit > 0 ? request.Limit : 200, 1, 2000);

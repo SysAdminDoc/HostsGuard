@@ -61,6 +61,62 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
 
     public string Key => $"{Protocol}|{LocalAddr}:{LocalPort}|{RemoteAddr}:{RemotePort}|{Pid}";
 }
+
+/// <summary>A local listening endpoint and the effective firewall coverage observed for it.</summary>
+public sealed partial class ListenerExposureRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _protocol = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Endpoint))]
+    private string _localAddress = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Endpoint))]
+    private int _localPort;
+
+    [ObservableProperty]
+    private string _process = string.Empty;
+
+    [ObservableProperty]
+    private int _pid;
+
+    [ObservableProperty]
+    private string _service = string.Empty;
+
+    [ObservableProperty]
+    private string _package = string.Empty;
+
+    [ObservableProperty]
+    private string _bindScope = string.Empty;
+
+    [ObservableProperty]
+    private string _activeProfiles = string.Empty;
+
+    [ObservableProperty]
+    private string _coverage = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RiskRank))]
+    private string _risk = string.Empty;
+
+    [ObservableProperty]
+    private string _reason = string.Empty;
+
+    public string Endpoint => LocalAddress.Contains(':', StringComparison.Ordinal)
+        ? $"[{LocalAddress}]:{LocalPort}"
+        : $"{LocalAddress}:{LocalPort}";
+
+    public int RiskRank => Risk.ToUpperInvariant() switch
+    {
+        "CRITICAL" => 4,
+        "HIGH" => 3,
+        "MEDIUM" => 2,
+        "LOW" => 1,
+        _ => 0,
+    };
+}
 /// <summary>Row VM for a recorded consent decision (WFCP-021 history).</summary>
 public sealed partial class DecisionRowViewModel : ObservableObject
 {

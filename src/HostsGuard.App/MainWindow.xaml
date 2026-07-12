@@ -1433,6 +1433,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
@@ -1972,8 +1973,66 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Effective local-listener exposure. Snapshot analysis; never claims external reachability. -->
+                        <Expander Grid.Row="4" Margin="0,8,0,0" IsExpanded="False"
+                                  Header="{svc:Loc Key=ListenerExposure_Title}"
+                                  AutomationProperties.Name="{svc:Loc Key=ListenerExposure_Name}">
+                            <Border Style="{StaticResource Hg.Card}">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=ListenerExposure_Refresh}"
+                                                Command="{Binding LoadListenersCommand}" Padding="10,2"
+                                                AutomationProperties.Name="{svc:Loc Key=ListenerExposure_RefreshName}" />
+                                        <TextBox Width="260" Margin="0,0,8,0"
+                                                 Text="{Binding ListenerFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=ListenerExposure_SearchHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ListenerExposure_SearchName}"
+                                                 ToolTip="{svc:Loc Key=ListenerExposure_SearchTip}" />
+                                        <TextBlock Text="{Binding ListenerStatus}" Style="{StaticResource Hg.DimText}"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=ListenerExposure_Disclaimer}"
+                                               Style="{StaticResource Hg.DimText}" Margin="0,6,0,4"
+                                               TextWrapping="Wrap" />
+                                    <Grid>
+                                        <DataGrid ItemsSource="{Binding ListenerView}" MaxHeight="220"
+                                                  IsReadOnly="True" CanUserSortColumns="True"
+                                                  AutomationProperties.Name="{svc:Loc Key=ListenerExposure_TableName}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Risk}" Binding="{Binding Risk}" Width="72" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="54" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Endpoint}" Binding="{Binding Endpoint}" Width="138" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="100" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_PID_dde57e82}" Binding="{Binding Pid}" Width="52" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding Service}" Width="110" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Package}" Binding="{Binding Package}" Width="110" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_BindScope}" Binding="{Binding BindScope}" Width="92" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Profiles}" Binding="{Binding ActiveProfiles}" Width="110" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Coverage}" Binding="{Binding Coverage}" Width="120" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Reason}" Binding="{Binding Reason}" Width="1.5*">
+                                                    <DataGridTextColumn.ElementStyle>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                                        </Style>
+                                                    </DataGridTextColumn.ElementStyle>
+                                                </DataGridTextColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <Border Visibility="{Binding Listeners.Count, Converter={StaticResource EmptyStateVis}}"
+                                                Style="{StaticResource Hg.EmptyState}" IsHitTestVisible="False">
+                                            <TextBlock Text="{svc:Loc Key=ListenerExposure_Empty}"
+                                                       Style="{StaticResource Hg.EmptyText}" />
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
                         <!-- Persistent connection history + per-app bandwidth (NET-070) -->
-                        <Expander Grid.Row="4" Margin="0,8,0,0" Header="{svc:Loc Key=Xaml_History_bandwidth_fb9e4b19}"
+                        <Expander Grid.Row="5" Margin="0,8,0,0" Header="{svc:Loc Key=Xaml_History_bandwidth_fb9e4b19}"
                                   AutomationProperties.Name="{svc:Loc Key=Xaml_Connection_history_and_bandwidth_90795564}">
                             <Border Style="{StaticResource Hg.Card}">
                                 <StackPanel>
@@ -2294,7 +2353,7 @@
                             </Border>
                         </Expander>
 
-                        <TextBlock Grid.Row="5" Margin="2,6,0,0"
+                        <TextBlock Grid.Row="6" Margin="2,6,0,0"
                                    Text="{Binding StatusText}"
                                    Style="{StaticResource Hg.DimText}"
                                    AutomationProperties.LiveSetting="Polite" />

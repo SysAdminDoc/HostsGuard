@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.82-blue)
+![Version](https://img.shields.io/badge/version-0.12.83-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -88,6 +88,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Group by app + search | Collapsible per-process grouping with a `field:value` search DSL (`port:443 country!=US`, `fw:threat`) |
 | Service attribution | svchost-hosted connections show the responsible Windows service (SCM enumeration) |
 | Blocked-connection watch | Security event log 5157/5152 detection feeds the consent broker |
+| Listener exposure audit | Sort/filter TCP and UDP IPv4/IPv6 local binds with exact process path, service/package identity, active firewall profiles, and blanket/restricted/default inbound coverage; public/wildcard findings describe local policy only and never claim external reachability |
 | Status overlay | Each connection shows blocked-by-hosts/firewall/threat, plus **DIRECT-IP** for raw-IP dials with no preceding DNS lookup |
 | Quick blocking | Block any remote IP or program, block a resolved site through the hosts file, create a per-app DNS-following `HG_Domain_` firewall rule, or scope-block a program to Internet / LAN / localhost / inbound |
 | Immediate flow close | Right-click an established IPv4 TCP row to close it now; opt in to **Close TCP on block** to close matching IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 teardown is reported unsupported. |
@@ -174,6 +175,7 @@ HostsGuard.Cli proxy status
 HostsGuard.Cli proxy accept-baseline
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
+HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
 HostsGuard.Cli traffic-profile [profile.json|profile.csv] [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
 HostsGuard.Cli support-bundle [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
 HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]

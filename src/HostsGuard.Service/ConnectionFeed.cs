@@ -217,6 +217,14 @@ public sealed class ConnectionFeed : IDisposable
         var current = new HashSet<ConnectionKey>();
         foreach (var connection in _snapshot())
         {
+            // IPHLPAPI UDP rows and TCP LISTEN rows are local bind endpoints,
+            // not remote flows. They belong in listener-exposure analysis and
+            // must not enter the live connection/history pipeline.
+            if (connection.RemotePort <= 0 || string.IsNullOrWhiteSpace(connection.RemoteAddress))
+            {
+                continue;
+            }
+
             var key = Key(connection);
             current.Add(key);
             var isNew = !active.TryGetValue(key, out var state);

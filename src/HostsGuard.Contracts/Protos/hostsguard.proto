@@ -1153,6 +1153,9 @@ service Monitoring {
   // Persistent event ledger: every structured block/allow/firewall/policy event
   // the service recorded, with paging, filters, and optional redaction for export.
   rpc ListEvents(EventLogRequest) returns (EventLogList);
+  // Effective inbound exposure of local TCP/UDP listeners, including owning
+  // identity, bind scope, active firewall profiles, and matching-rule coverage.
+  rpc ListListeners(Empty) returns (ListenerExposureList);
   // Stateful in-app alert inbox (NET-153): low-volume unread/read alerts with
   // per-type surface-vs-log-only settings. This is not the toast stack.
   rpc ListAlerts(AlertRequest) returns (AlertList);
@@ -1180,6 +1183,25 @@ service Monitoring {
   // not PCAP and never includes packet payloads.
   rpc ExportTrafficProfile(TrafficProfileRequest) returns (TrafficProfileExport);
   rpc SetHistorySettings(HistorySettings) returns (Ack);
+}
+
+message ListenerExposure {
+  string protocol = 1;        // TCP | UDP
+  string local_address = 2;   // IPv4 or IPv6 bind address
+  int32 local_port = 3;
+  string process = 4;
+  int32 pid = 5;
+  string service = 6;         // Windows service attribution, when available
+  string package = 7;         // app package identity, when available
+  string bind_scope = 8;      // loopback | local | any
+  string active_profiles = 9; // comma-separated Domain,Private,Public
+  string coverage = 10;       // effective inbound firewall coverage
+  string risk = 11;           // low | medium | high
+  string reason = 12;         // concise explanation of effective exposure
+}
+
+message ListenerExposureList {
+  repeated ListenerExposure listeners = 1;
 }
 
 message ConnectionHistoryRequest {

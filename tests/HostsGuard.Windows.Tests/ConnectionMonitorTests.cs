@@ -18,7 +18,8 @@ public class ConnectionMonitorTests
 
         conns.Should().NotBeNull();
         conns.Should().OnlyContain(c =>
-            c.Protocol == "TCP" && c.LocalPort >= 0 && c.LocalPort <= 65535 && c.Pid >= 0);
+            (c.Protocol == "TCP" || c.Protocol == "UDP") &&
+            c.LocalPort >= 0 && c.LocalPort <= 65535 && c.Pid >= 0);
     }
 
     [Fact]
@@ -42,5 +43,22 @@ public class ConnectionMonitorTests
         {
             listener.Stop();
         }
+    }
+
+    [Fact]
+    public void Udp_endpoint_is_observed_with_injected_owner_identity()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)socket.LocalEndPoint!).Port;
+        var owner = new ConnectionOwnerInfo("test-process", @"C:\Apps\test.exe", "Contoso.Test_123");
+
+        var conns = new ConnectionMonitor(_ => owner).Snapshot();
+
+        conns.Should().Contain(c =>
+            c.Protocol == "UDP" && c.LocalPort == port && c.Pid == Environment.ProcessId &&
+            c.State == "LISTEN" && c.Direction == "inbound" &&
+            c.Process == owner.Process && c.ProcessPath == owner.ProcessPath &&
+            c.PackageFamilyName == owner.PackageFamilyName);
     }
 }

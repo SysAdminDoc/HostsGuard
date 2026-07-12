@@ -140,4 +140,21 @@
   <data name="Proxy_NoBaseline" xml:space="preserve"><value>Aún no hay una línea base de proxy aceptada.</value></data>
   <data name="Proxy_Changed" xml:space="preserve"><value>El estado de proxy/PAC difiere de la línea base aceptada.</value></data>
   <data name="Proxy_Unchanged" xml:space="preserve"><value>El estado de proxy/PAC coincide con la línea base aceptada.</value></data>
+  <data name="ListenerExposure_Title" xml:space="preserve"><value>ExposiciÃ³n de puertos locales</value></data>
+  <data name="ListenerExposure_Name" xml:space="preserve"><value>AnÃ¡lisis de exposiciÃ³n de puertos y del firewall local</value></data>
+  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Analizar ahora</value></data>
+  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Analizar puertos locales y cobertura del firewall</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Filtrar puertosâ€¦</value></data>
+  <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Filtrar exposiciÃ³n de puertos locales</value></data>
+  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Busca proceso, extremo, puerto, servicio, paquete, Ã¡mbito, perfil, cobertura, riesgo o motivo. Admite filtros como port:443 y risk:high.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Solo es una instantÃ¡nea: la cobertura refleja las reglas activas del Firewall de Windows. No demuestra accesibilidad a travÃ©s de routers, NAT, VPN ni controles externos.</value></data>
+  <data name="ListenerExposure_TableName" xml:space="preserve"><value>Puertos locales y cobertura efectiva del firewall</value></data>
+  <data name="ListenerExposure_Empty" xml:space="preserve"><value>NingÃºn puerto coincide con el anÃ¡lisis y filtro actuales.</value></data>
+  <data name="ListenerExposure_Risk" xml:space="preserve"><value>Riesgo</value></data>
+  <data name="ListenerExposure_Endpoint" xml:space="preserve"><value>Extremo local</value></data>
+  <data name="ListenerExposure_Package" xml:space="preserve"><value>Paquete</value></data>
+  <data name="ListenerExposure_BindScope" xml:space="preserve"><value>Ãmbito de enlace</value></data>
+  <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Perfiles</value></data>
+  <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Cobertura</value></data>
+  <data name="ListenerExposure_Reason" xml:space="preserve"><value>Motivo</value></data>
 </root>

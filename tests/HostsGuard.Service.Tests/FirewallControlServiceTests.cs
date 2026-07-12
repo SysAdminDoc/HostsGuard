@@ -28,6 +28,10 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public IReadOnlyList<FwAppPackage> ListPackages() => Packages.ToList();
 
+    public List<InboundFirewallProfile> ActiveInboundProfiles { get; } = new();
+
+    public IReadOnlyList<InboundFirewallProfile> GetActiveInboundProfiles() => ActiveInboundProfiles.ToList();
+
     public bool CreateRule(FwRule rule)
     {
         if (Rules.ContainsKey(rule.Name))

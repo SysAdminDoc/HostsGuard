@@ -20,7 +20,9 @@ public sealed record FwRule(
     string PackageSid = "",
     string PackageDisplayName = "",
     string PackageFullName = "",
-    string PackageBinaries = "");
+    string PackageBinaries = "",
+    string Profiles = "Any",
+    string LocalAddresses = "Any");
 
 /// <summary>Installed app-container/MSIX package identity for firewall rule authoring.</summary>
 public sealed record FwAppPackage(
@@ -57,7 +59,9 @@ public static class FwRuleMapper
         string? packageSid = null,
         string? packageDisplayName = null,
         string? packageFullName = null,
-        object? packageBinaries = null)
+        object? packageBinaries = null,
+        object? profiles = null,
+        object? localAddresses = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -77,7 +81,9 @@ public static class FwRuleMapper
             PackageSid: MapPackage(packageSid),
             PackageDisplayName: MapPackage(packageDisplayName),
             PackageFullName: MapPackage(packageFullName),
-            PackageBinaries: MapPackageList(packageBinaries));
+            PackageBinaries: MapPackageList(packageBinaries),
+            Profiles: MapProfiles(profiles),
+            LocalAddresses: MapRemote(localAddresses));
     }
 
     /// <summary>Normalize the COM serviceName value ("*" means any/none for our model).</summary>
@@ -114,6 +120,51 @@ public static class FwRuleMapper
 
         joined = joined.Trim();
         return joined is "" or "*" or "Any" or "any" ? "Any" : joined;
+    }
+
+    /// <summary>Normalize NET_FW_PROFILE2 flags or profile names into a stable list.</summary>
+    public static string MapProfiles(object? value)
+    {
+        if (value is null)
+        {
+            return "Any";
+        }
+
+        if (value is IEnumerable values and not string)
+        {
+            return MapProfiles(string.Join(',', values.Cast<object?>()
+                .Select(static item => item?.ToString()?.Trim() ?? string.Empty)
+                .Where(static item => item.Length != 0)));
+        }
+
+        if (int.TryParse(value.ToString(), out var mask))
+        {
+            if (mask is -1 or 0x7FFFFFFF || (mask & ~7) != 0)
+            {
+                return "Any";
+            }
+
+            var names = new List<string>(3);
+            if ((mask & 1) != 0) names.Add("Domain");
+            if ((mask & 2) != 0) names.Add("Private");
+            if ((mask & 4) != 0) names.Add("Public");
+            return names.Count == 0 ? "Any" : string.Join(',', names);
+        }
+
+        var mapped = value.ToString()!
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(static name => name.ToLowerInvariant() switch
+            {
+                "domain" => "Domain",
+                "private" => "Private",
+                "public" => "Public",
+                _ => name,
+            })
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return mapped.Length == 0 || mapped.Any(static name => name is "*" or "Any" or "All")
+            ? "Any"
+            : string.Join(',', mapped);
     }
 
     public static string MapPackage(string? v)

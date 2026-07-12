@@ -140,4 +140,21 @@
   <data name="Proxy_NoBaseline" xml:space="preserve"><value>Aucune référence proxy acceptée pour le moment.</value></data>
   <data name="Proxy_Changed" xml:space="preserve"><value>L’état proxy/PAC diffère de la référence acceptée.</value></data>
   <data name="Proxy_Unchanged" xml:space="preserve"><value>L’état proxy/PAC correspond à la référence acceptée.</value></data>
+  <data name="ListenerExposure_Title" xml:space="preserve"><value>Exposition des Ã©coutes locales</value></data>
+  <data name="ListenerExposure_Name" xml:space="preserve"><value>Analyse de l'exposition des Ã©coutes et du pare-feu local</value></data>
+  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Analyser</value></data>
+  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Analyser les Ã©coutes locales et la couverture du pare-feu</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Filtrer les Ã©coutesâ€¦</value></data>
+  <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Filtrer l'exposition des Ã©coutes locales</value></data>
+  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Recherchez un processus, point de terminaison, port, service, package, Ã©tendue, profil, couverture, risque ou motif. Les filtres port:443 et risk:high sont pris en charge.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>InstantanÃ© uniquement â€” la couverture reflÃ¨te les rÃ¨gles actives du Pare-feu Windows. Elle ne prouve pas l'accessibilitÃ© via les routeurs, le NAT, les VPN ou les contrÃ´les en amont.</value></data>
+  <data name="ListenerExposure_TableName" xml:space="preserve"><value>Ã‰coutes locales et couverture effective du pare-feu</value></data>
+  <data name="ListenerExposure_Empty" xml:space="preserve"><value>Aucune Ã©coute ne correspond Ã  l'analyse et au filtre actuels.</value></data>
+  <data name="ListenerExposure_Risk" xml:space="preserve"><value>Risque</value></data>
+  <data name="ListenerExposure_Endpoint" xml:space="preserve"><value>Point local</value></data>
+  <data name="ListenerExposure_Package" xml:space="preserve"><value>Package</value></data>
+  <data name="ListenerExposure_BindScope" xml:space="preserve"><value>Ã‰tendue de liaison</value></data>
+  <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profils</value></data>
+  <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Couverture</value></data>
+  <data name="ListenerExposure_Reason" xml:space="preserve"><value>Motif</value></data>
 </root>

@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.83] - 2026-07-12
+
+### Added
+- FW Activity now includes a collapsed, sortable local-listener exposure audit
+  covering TCP/UDP and IPv4/IPv6. Rows show owning process path, exact SCM
+  service when unambiguous, package family, bind scope, active profiles, and
+  effective blanket/restricted/default inbound coverage with explicit snapshot-
+  only wording that never claims outside-host reachability.
+- `HostsGuard.Cli listeners` provides protocol, port, process/identity, and risk
+  filters plus CSV/JSON export. Windows ownership capture now includes UDP
+  OWNER_PID tables, executable paths, and package family names; local listener
+  rows stay out of remote connection history.
+
+### Changed
+- Firewall rule projection now retains COM profile masks and local-address
+  selectors. The pure analyzer applies block precedence and conservatively
+  handles remote-port/address, interface, local-address, program, service,
+  package, profile, and default-inbound constraints. Unknown identity or scoped
+  selectors never become false blanket coverage.
+
 ## [0.12.82] - 2026-07-12
 
 ### Added

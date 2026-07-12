@@ -67,7 +67,9 @@ public sealed class FirewallEngine : IFirewallEngine
                     packageSid,
                     package?.DisplayName,
                     package?.PackageFullName,
-                    package?.Binaries));
+                    package?.Binaries,
+                    SafeProfiles(comRule),
+                    SafeLocalAddresses(comRule)));
             }
             catch (COMException)
             {
@@ -107,10 +109,15 @@ public sealed class FirewallEngine : IFirewallEngine
         com.Direction = rule.Direction == "In" ? DirIn : DirOut;
         com.Action = rule.Action == "Allow" ? ActionAllow : ActionBlock;
         com.Enabled = rule.Enabled;
-        com.Profiles = ProfileAll;
+        com.Profiles = ProfileMask(rule.Profiles);
         if (rule.RemoteAddr is not ("" or "Any"))
         {
             com.RemoteAddresses = rule.RemoteAddr;
+        }
+
+        if (rule.LocalAddresses is not ("" or "Any"))
+        {
+            com.LocalAddresses = rule.LocalAddresses;
         }
 
         com.Protocol = rule.Protocol switch { "TCP" => ProtoTcp, "UDP" => ProtoUdp, _ => ProtoAny };
@@ -218,6 +225,27 @@ public sealed class FirewallEngine : IFirewallEngine
         return result;
     }
 
+    public IReadOnlyList<InboundFirewallProfile> GetActiveInboundProfiles()
+    {
+        var policy = CreatePolicy();
+        var current = (int)policy.CurrentProfileTypes;
+        var result = new List<InboundFirewallProfile>(3);
+        foreach (var (name, value) in PostureProfiles)
+        {
+            if ((current & value) == 0)
+            {
+                continue;
+            }
+
+            result.Add(new InboundFirewallProfile(
+                name,
+                (bool)policy.FirewallEnabled[value],
+                (int)policy.DefaultInboundAction[value] == ActionBlock));
+        }
+
+        return result;
+    }
+
     public void SetDefaultOutboundBlock(bool block)
     {
         var policy = CreatePolicy();
@@ -303,7 +331,19 @@ public sealed class FirewallEngine : IFirewallEngine
         {
             return (string?)comRule.RemotePorts ?? string.Empty;
         }
-        catch (COMException)
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string SafeLocalAddresses(dynamic comRule)
+    {
+        try
+        {
+            return (string?)comRule.LocalAddresses ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
             return string.Empty;
         }
@@ -367,5 +407,39 @@ public sealed class FirewallEngine : IFirewallEngine
         {
             return string.Empty;
         }
+    }
+
+    private static object SafeProfiles(dynamic comRule)
+    {
+        try
+        {
+            return (int)comRule.Profiles;
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+        {
+            return ProfileAll;
+        }
+    }
+
+    private static int ProfileMask(string profiles)
+    {
+        if (profiles is "" or "Any" or "All" or "*")
+        {
+            return ProfileAll;
+        }
+
+        var mask = 0;
+        foreach (var profile in profiles.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            mask |= profile.ToLowerInvariant() switch
+            {
+                "domain" => 1,
+                "private" => 2,
+                "public" => 4,
+                _ => 0,
+            };
+        }
+
+        return mask == 0 ? ProfileAll : mask;
     }
 }

@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using FluentAssertions;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
 using Microsoft.Data.Sqlite;
@@ -74,6 +75,54 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         row.RemotePort.Should().Be(443);
         row.Protocol.Should().Be("TCP");
         row.Host.Should().Be("example.com");
+    }
+
+    [Fact]
+    public async Task ListListeners_returns_effective_profile_coverage_and_owner_identity()
+    {
+        var firewall = new FakeFirewallEngine();
+        firewall.ActiveInboundProfiles.Add(new InboundFirewallProfile("Public", true, false));
+        firewall.Rules["Allow web"] = new FwRule(
+            "Allow web", "In", "Allow", true, "Any", "TCP", @"C:\Apps\web.exe",
+            Source: "test", LocalPorts: "8080", ServiceName: "ContosoWeb", Profiles: "Public");
+        firewall.Rules["Domain-only admin"] = new FwRule(
+            "Domain-only admin", "In", "Allow", true, "Any", "TCP", @"C:\Apps\web.exe",
+            Source: "test", LocalPorts: "9090", ServiceName: "ContosoWeb", Profiles: "Domain");
+        var snapshot = new[]
+        {
+            new ConnectionInfo("TCP", "0.0.0.0", 8080, "0.0.0.0", 0, "LISTEN", 42, "web",
+                ProcessPath: @"C:\Apps\web.exe", PackageFamilyName: "Contoso.Web_123"),
+            new ConnectionInfo("TCP", "0.0.0.0", 9090, "0.0.0.0", 0, "LISTEN", 42, "web",
+                ProcessPath: @"C:\Apps\web.exe", PackageFamilyName: "Contoso.Web_123"),
+            new ConnectionInfo("TCP", "10.0.0.5", 51000, "93.184.216.34", 443, "ESTABLISHED", 42, "web"),
+        };
+        var hostsPath = Path.Combine(_dir, "listener-hosts");
+        File.WriteAllText(hostsPath, "# hosts\n");
+        using var db = new HostsDatabase(Path.Combine(_dir, "listener.db"));
+        using var state = new ServiceState(new HostsEngine(hostsPath), db, firewall,
+            dataDir: Path.Combine(_dir, "listener-data"), connectionSnapshot: () => snapshot);
+        state.LookupService = pid => pid == 42 ? "Contoso Web Service" : string.Empty;
+        state.LookupSoleService = pid => pid == 42 ? ("ContosoWeb", "Contoso Web Service") : null;
+
+        var response = await new MonitoringServiceImpl(state).ListListeners(new Empty(), null!);
+
+        response.Listeners.Should().HaveCount(2);
+        var row = response.Listeners.Single(listener => listener.LocalPort == 8080);
+        row.Protocol.Should().Be("TCP");
+        row.LocalAddress.Should().Be("0.0.0.0");
+        row.LocalPort.Should().Be(8080);
+        row.Process.Should().Be("web");
+        row.Service.Should().Be("Contoso Web Service");
+        row.Package.Should().Be("Contoso.Web_123");
+        row.BindScope.Should().Be("any");
+        row.ActiveProfiles.Should().Be("Public");
+        row.Coverage.Should().Be("Public:allowrule");
+        row.Risk.Should().Be("high");
+        row.Reason.Should().Contain("permitted");
+        var mismatch = response.Listeners.Single(listener => listener.LocalPort == 9090);
+        mismatch.Coverage.Should().Be("Public:profilemismatch");
+        mismatch.Risk.Should().Be("high", "the active Public profile defaults to allow");
+        mismatch.Reason.Should().Contain("none apply");
     }
 
     [Theory]
@@ -159,6 +208,24 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         DrainMatches(subscription, snapshot).Should().Be(0);
         _db.GetConnectionHistory().Should().ContainSingle(row =>
             row.Pid == snapshot.Pid && row.RemoteAddr == snapshot.RemoteAddress);
+    }
+
+    [Fact]
+    public async Task Snapshot_does_not_publish_local_listener_rows_as_remote_connections()
+    {
+        var listeners = new[]
+        {
+            new ConnectionInfo("TCP", "0.0.0.0", 8080, "0.0.0.0", 0, "LISTEN", 42, "web"),
+            new ConnectionInfo("UDP", "::", 5353, string.Empty, 0, "LISTEN", 43, "mdns", "inbound"),
+        };
+        using var subscription = _state.Bus.Subscribe<ConnectionEvent>();
+        using var feed = new ConnectionFeed(_state, () => listeners, TimeSpan.FromMilliseconds(25));
+        feed.Start();
+
+        await Task.Delay(150);
+
+        subscription.Reader.TryRead(out _).Should().BeFalse();
+        _db.GetConnectionHistory().Should().BeEmpty();
     }
 
     [Fact]

@@ -64,6 +64,16 @@ public class FwRuleMapperTests
         FwRuleMapper.MapInterfaces("*").Should().Be("Any");
     }
 
+    [Theory]
+    [InlineData(1, "Domain")]
+    [InlineData(3, "Domain,Private")]
+    [InlineData(7, "Domain,Private,Public")]
+    [InlineData(0x7FFFFFFF, "Any")]
+    [InlineData("public,domain", "Public,Domain")]
+    [InlineData(null, "Any")]
+    public void Profiles_are_normalized(object? input, string expected) =>
+        FwRuleMapper.MapProfiles(input).Should().Be(expected);
+
     [Fact]
     public void Package_list_valued_is_joined_and_deduped()
     {
@@ -82,14 +92,18 @@ public class FwRuleMapperTests
             packageSid: " S-1-15-2-123 ",
             packageDisplayName: " Contoso Reader ",
             packageFullName: " Contoso.Reader_1.0.0.0_x64__123abc ",
-            packageBinaries: new[] { @"C:\Packages\reader.exe" });
+            packageBinaries: new[] { @"C:\Packages\reader.exe" },
+            profiles: 5,
+            localAddresses: " 10.0.0.5 ");
         hg.Should().Be(new FwRule("HG_Block_x", "Out", "Block", true, "1.1.1.1,8.8.8.8", "TCP", @"C:\a.exe", "hostsguard",
             Interfaces: "Ethernet",
             PackageFamilyName: "Contoso.Reader_123abc",
             PackageSid: "S-1-15-2-123",
             PackageDisplayName: "Contoso Reader",
             PackageFullName: "Contoso.Reader_1.0.0.0_x64__123abc",
-            PackageBinaries: @"C:\Packages\reader.exe"));
+            PackageBinaries: @"C:\Packages\reader.exe",
+            Profiles: "Domain,Public",
+            LocalAddresses: "10.0.0.5"));
 
         var sys = FwRuleMapper.FromValues("SomeSystemRule", 1, 1, 0, "Any", 256, "");
         sys.Direction.Should().Be("In");

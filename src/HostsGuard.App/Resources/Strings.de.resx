@@ -140,4 +140,21 @@
   <data name="Proxy_NoBaseline" xml:space="preserve"><value>Noch keine Proxy-Baseline akzeptiert.</value></data>
   <data name="Proxy_Changed" xml:space="preserve"><value>Der Proxy/PAC-Zustand weicht von der akzeptierten Baseline ab.</value></data>
   <data name="Proxy_Unchanged" xml:space="preserve"><value>Der Proxy/PAC-Zustand entspricht der akzeptierten Baseline.</value></data>
+  <data name="ListenerExposure_Title" xml:space="preserve"><value>Lokale Listener-Exposition</value></data>
+  <data name="ListenerExposure_Name" xml:space="preserve"><value>Analyse lokaler Listener und ihrer Firewall-Abdeckung</value></data>
+  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Jetzt prÃ¼fen</value></data>
+  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Lokale Listener und Firewall-Abdeckung prÃ¼fen</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Listener filternâ€¦</value></data>
+  <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Lokale Listener-Exposition filtern</value></data>
+  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Nach Prozess, Endpunkt, Port, Dienst, Paket, Bindungsbereich, Profil, Abdeckung, Risiko oder Grund suchen. Feldfilter wie port:443 und risk:high werden unterstÃ¼tzt.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Nur Momentaufnahme â€” die Abdeckung beruht auf aktiven Windows-Firewallregeln. Sie belegt keine Erreichbarkeit durch Router, NAT, VPNs oder vorgelagerte Kontrollen.</value></data>
+  <data name="ListenerExposure_TableName" xml:space="preserve"><value>Lokale Listener und effektive Firewall-Abdeckung</value></data>
+  <data name="ListenerExposure_Empty" xml:space="preserve"><value>Keine Listener entsprechen dem aktuellen Scan und Filter.</value></data>
+  <data name="ListenerExposure_Risk" xml:space="preserve"><value>Risiko</value></data>
+  <data name="ListenerExposure_Endpoint" xml:space="preserve"><value>Lokaler Endpunkt</value></data>
+  <data name="ListenerExposure_Package" xml:space="preserve"><value>Paket</value></data>
+  <data name="ListenerExposure_BindScope" xml:space="preserve"><value>Bindungsbereich</value></data>
+  <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profile</value></data>
+  <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Abdeckung</value></data>
+  <data name="ListenerExposure_Reason" xml:space="preserve"><value>Grund</value></data>
 </root>

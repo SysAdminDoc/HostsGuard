@@ -25,7 +25,11 @@ public class FirewallEngineTests
         var rules = engine.ListRules();
         rules.Should().NotBeNull();
         rules.Should().OnlyContain(r =>
-            (r.Direction == "In" || r.Direction == "Out") && (r.Action == "Block" || r.Action == "Allow"));
+            (r.Direction == "In" || r.Direction == "Out") && (r.Action == "Block" || r.Action == "Allow") &&
+            r.Profiles.Length != 0 && r.LocalAddresses.Length != 0);
+
+        engine.GetActiveInboundProfiles().Should().OnlyContain(profile =>
+            profile.Name == "Domain" || profile.Name == "Private" || profile.Name == "Public");
     }
 
     [Fact]

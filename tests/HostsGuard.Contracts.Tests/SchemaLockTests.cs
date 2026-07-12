@@ -168,6 +168,7 @@ public class SchemaLockTests
           ListAlertTypes(Empty) returns (AlertTypeList)
           ListAlerts(AlertRequest) returns (AlertList)
           ListEvents(EventLogRequest) returns (EventLogList)
+          ListListeners(Empty) returns (ListenerExposureList)
           ResetUsageQuotaHistory(Empty) returns (Ack)
           SetAlertType(AlertTypeRequest) returns (Ack)
           SetHistorySettings(HistorySettings) returns (Ack)

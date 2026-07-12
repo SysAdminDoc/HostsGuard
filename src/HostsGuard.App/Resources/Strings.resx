@@ -983,4 +983,21 @@
   <data name="Proxy_NoBaseline" xml:space="preserve"><value>No accepted proxy baseline yet.</value></data>
   <data name="Proxy_Changed" xml:space="preserve"><value>Proxy/PAC state differs from the accepted baseline.</value></data>
   <data name="Proxy_Unchanged" xml:space="preserve"><value>Proxy/PAC state matches the accepted baseline.</value></data>
+  <data name="ListenerExposure_Title" xml:space="preserve"><value>Local listener exposure</value></data>
+  <data name="ListenerExposure_Name" xml:space="preserve"><value>Local listener firewall exposure analysis</value></data>
+  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Scan now</value></data>
+  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Scan local listeners and firewall coverage</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Filter listenersâ€¦</value></data>
+  <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Filter local listener exposure</value></data>
+  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Search process, endpoint, port, service, package, bind scope, profile, coverage, risk, or reason. Field filters such as port:443 and risk:high are supported.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Snapshot only â€” coverage reflects active Windows Firewall rules. It does not prove reachability through routers, NAT, VPNs, or upstream controls.</value></data>
+  <data name="ListenerExposure_TableName" xml:space="preserve"><value>Local listeners and effective firewall coverage</value></data>
+  <data name="ListenerExposure_Empty" xml:space="preserve"><value>No listeners match the current scan and filter.</value></data>
+  <data name="ListenerExposure_Risk" xml:space="preserve"><value>Risk</value></data>
+  <data name="ListenerExposure_Endpoint" xml:space="preserve"><value>Local endpoint</value></data>
+  <data name="ListenerExposure_Package" xml:space="preserve"><value>Package</value></data>
+  <data name="ListenerExposure_BindScope" xml:space="preserve"><value>Bind scope</value></data>
+  <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profiles</value></data>
+  <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Coverage</value></data>
+  <data name="ListenerExposure_Reason" xml:space="preserve"><value>Reason</value></data>
 </root>

@@ -295,6 +295,7 @@ if (db.GetMeta("sni_capture") == "on")
 // both the live connection stream and the consent prompt.
 var serviceAttribution = new ServiceAttribution();
 state.LookupService = serviceAttribution.DisplayFor;
+state.LookupSoleService = serviceAttribution.SoleOwner;
 state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
 // Child-process auto-allow (NET-093): resolve a PID's parent so a trusted
 // parent's verdict can inherit to its direct children.

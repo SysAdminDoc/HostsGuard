@@ -33,6 +33,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
     "events" => await EventsAsync(args),
+    "listeners" => await ListListenersAsync(args),
     "traffic-profile" => await TrafficProfileAsync(args),
     "support-bundle" => await SupportBundleAsync(args),
     "snapshot" => await FullStateSnapshotAsync(args),
@@ -90,6 +91,8 @@ static int Usage()
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
+          HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text]
+                               [--risk low|medium|high] [--export path.csv|path.json]
           HostsGuard.Cli traffic-profile [path.json|path.csv] [--format json|csv] [--limit N]
                                [--since ISO] [--until ISO] [--process app] [--action name]
                                [--protocol tcp|udp]
@@ -878,6 +881,133 @@ static async Task<int> EventsAsync(string[] args)
     });
 }
 
+static async Task<int> ListListenersAsync(string[] args)
+{
+    string? protocol = null;
+    string? process = null;
+    string? risk = null;
+    string? exportPath = null;
+    int? port = null;
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--protocol", out var value))
+        {
+            protocol = value.Trim().ToUpperInvariant();
+            if (protocol is not ("TCP" or "UDP"))
+            {
+                Console.Error.WriteLine("Invalid --protocol value; use tcp or udp.");
+                return 1;
+            }
+        }
+        else if (TryReadOptionValue(args, ref i, arg, "--port", out value))
+        {
+            if (!int.TryParse(value, out var parsed) || parsed is < 1 or > 65535)
+            {
+                Console.Error.WriteLine("Invalid --port value; use 1-65535.");
+                return 1;
+            }
+
+            port = parsed;
+        }
+        else if (TryReadOptionValue(args, ref i, arg, "--process", out value))
+        {
+            process = value.Trim();
+        }
+        else if (TryReadOptionValue(args, ref i, arg, "--risk", out value))
+        {
+            risk = value.Trim().ToLowerInvariant();
+            if (risk is not ("low" or "medium" or "high"))
+            {
+                Console.Error.WriteLine("Invalid --risk value; use low, medium, or high.");
+                return 1;
+            }
+        }
+        else if (TryReadOptionValue(args, ref i, arg, "--export", out value))
+        {
+            exportPath = value;
+        }
+        else
+        {
+            Console.Error.WriteLine($"Unknown listeners option: {arg}");
+            return 1;
+        }
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var response = await new Monitoring.MonitoringClient(channel).ListListenersAsync(new Empty());
+        var rows = response.Listeners
+            .Where(r => protocol is null || string.Equals(r.Protocol, protocol, StringComparison.OrdinalIgnoreCase))
+            .Where(r => port is null || r.LocalPort == port)
+            .Where(r => string.IsNullOrEmpty(process) || r.Process.Contains(process, StringComparison.OrdinalIgnoreCase)
+                || r.Service.Contains(process, StringComparison.OrdinalIgnoreCase)
+                || r.Package.Contains(process, StringComparison.OrdinalIgnoreCase))
+            .Where(r => risk is null || string.Equals(r.Risk, risk, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(r => ListenerRiskRank(r.Risk))
+            .ThenBy(r => r.LocalPort)
+            .ThenBy(r => r.Protocol, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!string.IsNullOrEmpty(exportPath))
+        {
+            var content = Path.GetExtension(exportPath).Equals(".json", StringComparison.OrdinalIgnoreCase)
+                ? JsonSerializer.Serialize(rows.Select(ListenerExportRow), new JsonSerializerOptions { WriteIndented = true })
+                : BuildListenersCsv(rows);
+            try
+            {
+                await File.WriteAllTextAsync(exportPath, content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"exported {rows.Count} listener exposures to {Path.GetFullPath(exportPath)}");
+            return 0;
+        }
+
+        Console.WriteLine($"listeners: {rows.Count} of {response.Listeners.Count}");
+        Console.WriteLine("risk\tprotocol\tlocal\tbind\tprofiles\tcoverage\tprocess/service/package\treason");
+        foreach (var row in rows)
+        {
+            var identity = new[] { row.Process, row.Service, row.Package }.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)) ?? "?";
+            Console.WriteLine($"{row.Risk}\t{row.Protocol}\t{FormatLocalEndpoint(row)}\t{row.BindScope}\t{row.ActiveProfiles}\t{row.Coverage}\t{identity}\t{row.Reason}");
+        }
+
+        return 0;
+    });
+}
+
+static int ListenerRiskRank(string risk) => risk.ToLowerInvariant() switch
+{
+    "high" => 3,
+    "medium" => 2,
+    _ => 1,
+};
+
+static string FormatLocalEndpoint(HostsGuard.Contracts.ListenerExposure row)
+    => row.LocalAddress.Contains(':', StringComparison.Ordinal)
+        ? $"[{row.LocalAddress}]:{row.LocalPort}"
+        : $"{row.LocalAddress}:{row.LocalPort}";
+
+static object ListenerExportRow(HostsGuard.Contracts.ListenerExposure row) => new
+{
+    protocol = row.Protocol,
+    local_address = row.LocalAddress,
+    local_port = row.LocalPort,
+    process = row.Process,
+    pid = row.Pid,
+    service = row.Service,
+    package = row.Package,
+    bind_scope = row.BindScope,
+    active_profiles = row.ActiveProfiles,
+    coverage = row.Coverage,
+    risk = row.Risk,
+    reason = row.Reason,
+};
+
 static async Task<int> TrafficProfileAsync(string[] args)
 {
     var request = new TrafficProfileRequest();
@@ -1623,6 +1753,22 @@ static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
     foreach (var e in rows)
     {
         CsvExport.AppendRow(sb, e.Ts, e.Category, e.Action, e.Reason, e.Domain, e.Process, e.Details);
+    }
+
+    return sb.ToString();
+}
+
+static string BuildListenersCsv(IEnumerable<HostsGuard.Contracts.ListenerExposure> rows)
+{
+    var sb = new System.Text.StringBuilder();
+    CsvExport.AppendRow(sb, "Protocol", "LocalAddress", "LocalPort", "Process", "Pid", "Service",
+        "Package", "BindScope", "ActiveProfiles", "Coverage", "Risk", "Reason");
+    foreach (var row in rows)
+    {
+        CsvExport.AppendRow(sb, row.Protocol, row.LocalAddress,
+            row.LocalPort.ToString(System.Globalization.CultureInfo.InvariantCulture), row.Process,
+            row.Pid.ToString(System.Globalization.CultureInfo.InvariantCulture), row.Service, row.Package,
+            row.BindScope, row.ActiveProfiles, row.Coverage, row.Risk, row.Reason);
     }
 
     return sb.ToString();

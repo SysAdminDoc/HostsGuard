@@ -24,6 +24,9 @@ public interface IFirewallEngine
     /// <summary>Per-profile enabled + default-outbound posture (Domain/Private/Public).</summary>
     IReadOnlyList<FwProfilePosture> GetPosture();
 
+    /// <summary>Inbound posture for profiles active on the current network.</summary>
+    IReadOnlyList<InboundFirewallProfile> GetActiveInboundProfiles() => Array.Empty<InboundFirewallProfile>();
+
     /// <summary>
     /// Set DefaultOutboundAction on every profile (lockdown on/off). Idempotent:
     /// profiles already in the requested state are not touched. Never changes

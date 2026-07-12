@@ -52,10 +52,11 @@ public sealed class ServiceState : IDisposable
         TempBlocks.Resume();
         EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
         EnforcementPause.Resume();
+        ConnectionSnapshot = connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot());
         FlowTeardown = new FlowTeardownCoordinator(
             db,
             flowTerminator,
-            connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot()));
+            ConnectionSnapshot);
         DomainFirewall = new DomainFirewallRuleCoordinator(db, firewall, domainResolver);
         LanAttackSurface = new LanAttackSurfaceCoordinator(
             db,
@@ -210,6 +211,9 @@ public sealed class ServiceState : IDisposable
 
     public FlowTeardownCoordinator FlowTeardown { get; }
 
+    /// <summary>Current TCP/UDP endpoint snapshot used by exposure analysis and flow teardown.</summary>
+    public Func<IReadOnlyList<ConnectionInfo>> ConnectionSnapshot { get; }
+
     /// <summary>Reactive domain-scoped firewall rules (NET-154).</summary>
     public DomainFirewallRuleCoordinator DomainFirewall { get; }
 
@@ -220,6 +224,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>PID→service display attribution (NET-073); wired by the host.</summary>
     public Func<int, string>? LookupService { get; set; }
+
+    /// <summary>Exact SCM key/display pair when a PID has one unambiguous service owner.</summary>
+    public Func<int, (string Key, string Display)?>? LookupSoleService { get; set; }
 
     /// <summary>Current-network identity source (NET-083); wired by the host.</summary>
     public Windows.INetworkIdentity? NetworkIdentity { get; set; }
