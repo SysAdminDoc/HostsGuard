@@ -789,6 +789,100 @@ public sealed partial class HostsDatabase : IDisposable
     }
 
     /// <summary>
+    /// Write a transactionally consistent copy of the live database using
+    /// SQLite's online backup API. This includes committed WAL content without
+    /// stopping service writers or copying WAL/SHM sidecars.
+    /// </summary>
+    public void BackupTo(string destinationPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        var directory = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            if (File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+
+            using var destination = new SqliteConnection(new SqliteConnectionStringBuilder
+            {
+                DataSource = destinationPath,
+                Mode = SqliteOpenMode.ReadWriteCreate,
+                Pooling = false,
+            }.ToString());
+            destination.Open();
+            _conn.BackupDatabase(destination);
+            destination.Query("PRAGMA wal_checkpoint(TRUNCATE)").ToList();
+            _ = destination.ExecuteScalar<string>("PRAGMA journal_mode=DELETE");
+            ValidateConnection(destination, SchemaVersion);
+        }
+    }
+
+    /// <summary>
+    /// Replace the live database contents from a verified SQLite backup while
+    /// retaining this instance and its service-owned connection.
+    /// </summary>
+    public void RestoreFrom(string sourcePath)
+    {
+        ValidateBackup(sourcePath, SchemaVersion);
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            using var source = OpenReadOnly(sourcePath);
+            source.BackupDatabase(_conn);
+            ValidateConnection(_conn, SchemaVersion);
+        }
+    }
+
+    /// <summary>Validate structural integrity and the expected schema version of a backup.</summary>
+    public static void ValidateBackup(string path, int expectedSchemaVersion = SchemaVersion)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException("SQLite backup was not found.", path);
+        }
+
+        using var connection = OpenReadOnly(path);
+        ValidateConnection(connection, expectedSchemaVersion);
+    }
+
+    private static SqliteConnection OpenReadOnly(string path)
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = path,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
+        }.ToString());
+        connection.Open();
+        return connection;
+    }
+
+    private static void ValidateConnection(SqliteConnection connection, int expectedSchemaVersion)
+    {
+        var integrity = connection.ExecuteScalar<string>("PRAGMA integrity_check");
+        if (!string.Equals(integrity, "ok", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Database integrity_check failed: {integrity}");
+        }
+
+        var schema = connection.ExecuteScalar<string>(
+            "SELECT value FROM meta WHERE key='schema_version'");
+        if (!int.TryParse(schema, out var actualSchema) || actualSchema != expectedSchemaVersion)
+        {
+            throw new InvalidOperationException(
+                $"Database schema mismatch: expected {expectedSchemaVersion}, found {schema ?? "missing"}.");
+        }
+    }
+
+    /// <summary>
     /// Fail fast with a typed exception if a caller reaches the DB after
     /// <see cref="Dispose"/>. Called under <c>_gate</c> on the paths background
     /// coordinators (SecureRulesGuard/ScheduleEnforcer/TempAllowScheduler) touch,

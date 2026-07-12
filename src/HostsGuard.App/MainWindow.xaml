@@ -3551,6 +3551,45 @@
                                 </StackPanel>
                             </Border>
 
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Recovery_Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=Recovery_Help}"
+                                               Style="{StaticResource Hg.HelperText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <WrapPanel>
+                                        <Button Content="{svc:Loc Key=Recovery_Create}"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding CreateFullStateSnapshotCommand}" Margin="0,0,8,8" />
+                                        <Button Content="{svc:Loc Key=Xaml_Refresh_list_7fe6bbe7}"
+                                                Command="{Binding LoadFullStateSnapshotsCommand}" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <WrapPanel>
+                                        <ComboBox Width="460" Margin="0,0,8,8"
+                                                  ItemsSource="{Binding FullStateSnapshots}"
+                                                  SelectedItem="{Binding SelectedFullStateSnapshot}"
+                                                  DisplayMemberPath="Label"
+                                                  AutomationProperties.Name="{svc:Loc Key=Recovery_SnapshotPicker}" />
+                                        <Button Content="{svc:Loc Key=Recovery_Preview}"
+                                                Command="{Binding PreviewFullStateRestoreCommand}" Margin="0,0,8,8" />
+                                        <Button Content="{svc:Loc Key=Recovery_Restore}"
+                                                Style="{StaticResource Hg.DangerButton}"
+                                                Command="{Binding RestoreFullStateSnapshotCommand}" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,4,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding FullStateSnapshotStatus}"
+                                                       Style="{StaticResource Hg.SubText}"
+                                                       TextWrapping="Wrap"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                            <TextBlock Text="{Binding FullStateRestorePreview}"
+                                                       Style="{StaticResource Hg.DimText}"
+                                                       TextWrapping="Wrap" Margin="0,4,0,0"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Trusted publishers (NET-113) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>

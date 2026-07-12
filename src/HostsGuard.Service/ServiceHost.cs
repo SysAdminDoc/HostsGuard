@@ -29,6 +29,7 @@ public static class ServiceHost
             app =>
             {
                 app.MapGrpcService<DiagnosticsServiceImpl>();
+                app.MapGrpcService<RecoveryServiceImpl>();
                 app.MapGrpcService<HostsControlServiceImpl>();
                 app.MapGrpcService<MonitoringServiceImpl>();
                 app.MapGrpcService<FirewallControlServiceImpl>();

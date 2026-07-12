@@ -138,4 +138,24 @@ public sealed class ToolsViewModelTests
         row.DataLengthText.Should().Be("48 B");
         row.FlagsText.Should().Be("0x00000004");
     }
+
+    [Fact]
+    public void Full_state_snapshot_row_exposes_only_redacted_manifest_metadata()
+    {
+        var row = FullStateSnapshotRowViewModel.From(new FullStateSnapshot
+        {
+            SnapshotId = "20260712T120000Z-abc123",
+            Created = "2026-07-12T12:00:00Z",
+            AppVersion = "0.12.80",
+            SchemaVersion = 33,
+            Sha256 = new string('a', 64),
+            SizeBytes = 2 * 1024 * 1024,
+            Verified = true,
+            Components = { "database", "hosts", "service settings (3)" },
+        });
+
+        row.Label.Should().Contain("20260712T120000Z-abc123").And.Contain("2 MB").And.Contain("verified");
+        row.Components.Should().Equal("database", "hosts", "service settings (3)");
+        row.Sha256.Should().HaveLength(64);
+    }
 }

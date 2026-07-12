@@ -25,4 +25,8 @@
     <ProjectReference Include="..\..\src\HostsGuard.Contracts\HostsGuard.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\hostsguard.schema.b64" />
+  </ItemGroup>
+
 </Project>

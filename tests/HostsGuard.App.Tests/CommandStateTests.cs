@@ -69,12 +69,20 @@ public sealed class CommandStateTests
         vm.DeleteProfileCommand.CanExecute(null).Should().BeFalse();
         vm.RestoreBackupCommand.CanExecute(null).Should().BeFalse();
         vm.FlushDnsCacheEntryCommand.CanExecute(null).Should().BeFalse();
+        vm.PreviewFullStateRestoreCommand.CanExecute(null).Should().BeFalse();
+        vm.RestoreFullStateSnapshotCommand.CanExecute(null).Should().BeFalse();
 
         vm.InspectDomain = "example.com";
         vm.NewProfileName = "Home";
         vm.SelectedProfile = "Home";
         vm.SelectedBackup = new BackupRowViewModel { FileName = "hosts.bak", Created = "now" };
         vm.SelectedDnsCacheEntry = new DnsCacheEntryViewModel { Name = "ads.example.com", Type = "A" };
+        vm.SelectedFullStateSnapshot = new FullStateSnapshotRowViewModel
+        {
+            SnapshotId = "snapshot-1",
+            Sha256 = new string('a', 64),
+            Verified = true,
+        };
 
         vm.InspectCommand.CanExecute(null).Should().BeTrue();
         vm.SaveProfileCommand.CanExecute(null).Should().BeTrue();
@@ -82,5 +90,7 @@ public sealed class CommandStateTests
         vm.DeleteProfileCommand.CanExecute(null).Should().BeTrue();
         vm.RestoreBackupCommand.CanExecute(null).Should().BeTrue();
         vm.FlushDnsCacheEntryCommand.CanExecute(null).Should().BeTrue();
+        vm.PreviewFullStateRestoreCommand.CanExecute(null).Should().BeTrue();
+        vm.RestoreFullStateSnapshotCommand.CanExecute(null).Should().BeFalse("restore requires a fresh service preview");
     }
 }

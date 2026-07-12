@@ -35,6 +35,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "events" => await EventsAsync(args),
     "traffic-profile" => await TrafficProfileAsync(args),
     "support-bundle" => await SupportBundleAsync(args),
+    "snapshot" => await FullStateSnapshotAsync(args),
     "usage" => await UsageAsync(args),
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
@@ -93,6 +94,10 @@ static int Usage()
                                [--protocol tcp|udp]
           HostsGuard.Cli support-bundle [--limit N] [--since ISO] [--until ISO]
                                [--process app] [--action name] [--protocol tcp|udp]
+          HostsGuard.Cli snapshot create
+          HostsGuard.Cli snapshot list
+          HostsGuard.Cli snapshot preview <snapshot-id>
+          HostsGuard.Cli snapshot restore <snapshot-id> --sha256 <previewed-sha256>
           HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]
           HostsGuard.Cli usage-quota list
           HostsGuard.Cli usage-quota set --scope app|domain --match value --limit 1GB [--days 30] [--disabled] [--block|--no-block]
@@ -1450,6 +1455,125 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
     });
+}
+
+static async Task<int> FullStateSnapshotAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new Recovery.RecoveryClient(channel);
+        switch (action)
+        {
+            case "create":
+            {
+                if (args.Length != 2)
+                {
+                    Console.Error.WriteLine("Usage: snapshot create");
+                    return 1;
+                }
+
+                var snapshot = await client.CreateFullStateSnapshotAsync(new Empty());
+                PrintSnapshot(snapshot);
+                return snapshot.Verified ? 0 : 2;
+            }
+            case "list":
+            {
+                var list = await client.ListFullStateSnapshotsAsync(new Empty());
+                if (list.Snapshots.Count == 0)
+                {
+                    Console.WriteLine("No full-state snapshots.");
+                    return 0;
+                }
+
+                foreach (var snapshot in list.Snapshots)
+                {
+                    PrintSnapshot(snapshot);
+                }
+
+                return 0;
+            }
+            case "preview":
+            {
+                if (args.Length != 3)
+                {
+                    Console.Error.WriteLine("Usage: snapshot preview <snapshot-id>");
+                    return 1;
+                }
+
+                var preview = await client.PreviewFullStateRestoreAsync(new FullStateSnapshotRef
+                {
+                    SnapshotId = args[2],
+                });
+                PrintRestorePreview(preview);
+                return preview.Ok ? 0 : 2;
+            }
+            case "restore":
+            {
+                if (args.Length != 5 || !args[3].Equals("--sha256", StringComparison.OrdinalIgnoreCase)
+                    || args[4].Length != 64 || !args[4].All(Uri.IsHexDigit))
+                {
+                    Console.Error.WriteLine("Usage: snapshot restore <snapshot-id> --sha256 <previewed-sha256>");
+                    return 1;
+                }
+
+                var preview = await client.PreviewFullStateRestoreAsync(new FullStateSnapshotRef
+                {
+                    SnapshotId = args[2],
+                });
+                PrintRestorePreview(preview);
+                if (!preview.Ok)
+                {
+                    return 2;
+                }
+
+                if (!preview.Sha256.Equals(args[4], StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Error.WriteLine("Snapshot changed after the supplied hash was reviewed; restore refused.");
+                    return 2;
+                }
+
+                var ack = await client.RestoreFullStateSnapshotAsync(new FullStateRestoreRequest
+                {
+                    SnapshotId = preview.SnapshotId,
+                    ExpectedSha256 = preview.Sha256,
+                    CreatePreRestore = true,
+                });
+                Console.WriteLine(ack.Message);
+                return ack.Ok ? 0 : 2;
+            }
+            default:
+                Console.Error.WriteLine("Usage: snapshot create|list|preview|restore");
+                return 1;
+        }
+    });
+
+    static void PrintSnapshot(FullStateSnapshot snapshot)
+    {
+        Console.WriteLine(snapshot.SnapshotId);
+        Console.WriteLine($"  created={snapshot.Created} version={snapshot.AppVersion} schema={snapshot.SchemaVersion} size={FormatBytes(snapshot.SizeBytes)}");
+        Console.WriteLine($"  sha256={snapshot.Sha256} verified={snapshot.Verified.ToString().ToLowerInvariant()}");
+        foreach (var component in snapshot.Components)
+        {
+            Console.WriteLine($"  component: {component}");
+        }
+    }
+
+    static void PrintRestorePreview(FullStateRestorePreview preview)
+    {
+        Console.WriteLine(preview.Message);
+        if (!preview.Ok)
+        {
+            return;
+        }
+
+        Console.WriteLine($"snapshot={preview.SnapshotId} sha256={preview.Sha256}");
+        Console.WriteLine($"target-version={preview.AppVersion} target-schema={preview.SchemaVersion}");
+        foreach (var change in preview.Changes)
+        {
+            Console.WriteLine($"  {change}");
+        }
+    }
 }
 
 static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)

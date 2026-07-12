@@ -191,6 +191,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadHealthAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
+            await Tools.LoadFullStateSnapshotsAsync();
             await Tools.LoadSecureRulesAsync();
             await Tools.LoadAiStatusAsync();
             await Tools.LoadAdoptionStatusAsync();
@@ -976,6 +977,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadHealthAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
+            await Tools.LoadFullStateSnapshotsAsync();
             await Tools.LoadSecureRulesAsync();
             await Tools.LoadAiStatusAsync();
             await Tools.LoadAdoptionStatusAsync();

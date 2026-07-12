@@ -108,4 +108,10 @@
   <data name="BlockGallery_Tags" xml:space="preserve"><value>Etiquetas</value></data>
   <data name="BlockGallery_License" xml:space="preserve"><value>Licencia</value></data>
   <data name="BlockGallery_Homepage" xml:space="preserve"><value>Sitio</value></data>
+  <data name="Recovery_Title" xml:space="preserve"><value>Recuperación de estado completo</value></data>
+  <data name="Recovery_Help" xml:space="preserve"><value>Cree un punto de recuperación verificado por hash para la base de datos, el estado de hosts y la configuración no secreta del servicio. Se requiere una vista previa antes de restaurar.</value></data>
+  <data name="Recovery_Create" xml:space="preserve"><value>Crear instantánea</value></data>
+  <data name="Recovery_SnapshotPicker" xml:space="preserve"><value>Instantánea de estado completo para revisar o restaurar</value></data>
+  <data name="Recovery_Preview" xml:space="preserve"><value>Vista previa</value></data>
+  <data name="Recovery_Restore" xml:space="preserve"><value>Restaurar estado verificado</value></data>
 </root>

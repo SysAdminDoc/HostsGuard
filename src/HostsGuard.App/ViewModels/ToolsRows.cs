@@ -67,6 +67,33 @@ public sealed partial class BackupRowViewModel : ObservableObject
     public string Label => $"{FileName} — {Created} ({SizeBytes / 1024.0:0.#} KB)";
 }
 
+/// <summary>One verified, non-secret full-state recovery point.</summary>
+public sealed class FullStateSnapshotRowViewModel
+{
+    public string SnapshotId { get; init; } = string.Empty;
+    public string Created { get; init; } = string.Empty;
+    public string AppVersion { get; init; } = string.Empty;
+    public int SchemaVersion { get; init; }
+    public string Sha256 { get; init; } = string.Empty;
+    public long SizeBytes { get; init; }
+    public bool Verified { get; init; }
+    public IReadOnlyList<string> Components { get; init; } = Array.Empty<string>();
+
+    public string Label => $"{SnapshotId} — {Created} · {SizeBytes / 1024.0 / 1024.0:0.##} MB{(Verified ? " · verified" : " · invalid")}";
+
+    public static FullStateSnapshotRowViewModel From(FullStateSnapshot snapshot) => new()
+    {
+        SnapshotId = snapshot.SnapshotId,
+        Created = snapshot.Created,
+        AppVersion = snapshot.AppVersion,
+        SchemaVersion = snapshot.SchemaVersion,
+        Sha256 = snapshot.Sha256,
+        SizeBytes = snapshot.SizeBytes,
+        Verified = snapshot.Verified,
+        Components = snapshot.Components.ToArray(),
+    };
+}
+
 /// <summary>Selectable adapter with its exact pre-change DNS posture.</summary>
 public sealed partial class DnsAdapterRowViewModel : ObservableObject
 {

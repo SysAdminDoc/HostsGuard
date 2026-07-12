@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.79-blue)
+![Version](https://img.shields.io/badge/version-0.12.80-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -105,7 +105,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 |---------|-------------|
 | Managed domains | Database-backed domain management with status, source, hit tracking, and canonical reasons |
 | Raw editor | Direct editing of `drivers\etc\hosts` with clean-and-save (dedupe, validate, normalize) |
-| Backup / restore | Timestamped backups with one-click restore and emergency reset to Windows defaults |
+| Backup / restore | Timestamped hosts backups plus verified full-state recovery points covering SQLite, exact hosts content, and an explicit non-secret settings allowlist; restore is preview/SHA-bound, creates a pre-restore snapshot, and rolls back failed or interrupted startup application |
 | Blocklist import | 12+ curated community blocklists (HaGezi, StevenBlack, OISD, URLhaus, ...) with preview, enable/disable, source-scoped rollback, hosts/adblock-format diagnostics, source-health/churn guard checkpoints, allowlist-wins merge, and per-source hits/30d stats |
 | Allowlist subscriptions | Remote allowlists that whitelist domains and win over blocklists |
 | Blocked services | One-click toggles to block YouTube, TikTok, Facebook, Discord, Netflix, and more |
@@ -165,6 +165,10 @@ HostsGuard.Cli export [path.json]
 HostsGuard.Cli export-policy [path.json]
 HostsGuard.Cli import-policy [--preview] <path.json>
 HostsGuard.Cli import-policy --restore-checkpoint
+HostsGuard.Cli snapshot create
+HostsGuard.Cli snapshot list
+HostsGuard.Cli snapshot preview <snapshot-id>
+HostsGuard.Cli snapshot restore <snapshot-id> --sha256 <previewed-sha256>
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli traffic-profile [profile.json|profile.csv] [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]

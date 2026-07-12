@@ -38,6 +38,30 @@ catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or I
 
 var dbPath = Path.Combine(baseDir, "hostsguard.db");
 var handshakePath = Path.Combine(baseDir, "session_token");
+var installedVersion = typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0";
+
+try
+{
+    var startupRestore = StateSnapshotCoordinator.ApplyPendingAtStartup(
+        dbPath,
+        HostsEngine.DefaultHostsPath,
+        baseDir,
+        installedVersion);
+    if (startupRestore.Restored)
+    {
+        Console.WriteLine($"HostsGuard: restored verified state snapshot {startupRestore.SnapshotId}; fallback {startupRestore.PreRestoreSnapshotId} retained.");
+    }
+    else if (startupRestore.RolledBack)
+    {
+        Console.WriteLine($"HostsGuard: interrupted state restore was rolled back to {startupRestore.PreRestoreSnapshotId}.");
+    }
+}
+catch (StateSnapshotException ex)
+{
+    // This exception means startup validation failed but the coordinator proved
+    // its automatic rollback. Continue from the restored fallback state.
+    Console.WriteLine($"HostsGuard: {ex.Message}");
+}
 
 var hosts = new HostsEngine(HostsEngine.DefaultHostsPath);
 var db = HostsDatabase.OpenWithRecovery(dbPath, out var quarantinedDb);
@@ -48,7 +72,6 @@ if (quarantinedDb is not null)
 
 // NET-187: if a hash-verified installer was staged, apply it now — the manifest
 // is consumed before launch so a crashing installer can never loop the service.
-var installedVersion = typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0";
 var updateResult = SelfUpdater.ApplyPendingOnStart(baseDir, installedVersion, db);
 if (updateResult.StartsWith("applying", StringComparison.Ordinal))
 {

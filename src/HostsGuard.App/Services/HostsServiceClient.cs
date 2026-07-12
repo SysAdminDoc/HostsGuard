@@ -29,6 +29,7 @@ public sealed class HostsServiceClient : IDisposable
         var invoker = _channel.Intercept(new ClientCorrelationInterceptor(
             (method, traceId) => AppLog.Value.Information("rpc {Method} sent (trace {TraceId})", method, traceId)));
         Diagnostics = new Contracts.Diagnostics.DiagnosticsClient(invoker);
+        Recovery = new Contracts.Recovery.RecoveryClient(invoker);
         Hosts = new HostsControl.HostsControlClient(invoker);
         Firewall = new FirewallControl.FirewallControlClient(invoker);
         Dns = new DnsControl.DnsControlClient(invoker);
@@ -39,6 +40,8 @@ public sealed class HostsServiceClient : IDisposable
     }
 
     public Contracts.Diagnostics.DiagnosticsClient Diagnostics { get; }
+
+    public Contracts.Recovery.RecoveryClient Recovery { get; }
 
     public HostsControl.HostsControlClient Hosts { get; }
 

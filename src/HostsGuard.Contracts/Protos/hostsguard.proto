@@ -34,6 +34,52 @@ service Diagnostics {
   rpc StageUpdate(StageUpdateRequest) returns (Ack);
 }
 
+// Coherent local recovery points for the service-owned SQLite database, hosts
+// state, and non-secret ProgramData configuration. Snapshot identifiers are
+// opaque; manifests and restore previews never expose secret values.
+service Recovery {
+  rpc CreateFullStateSnapshot(Empty) returns (FullStateSnapshot);
+  rpc ListFullStateSnapshots(Empty) returns (FullStateSnapshotList);
+  rpc PreviewFullStateRestore(FullStateSnapshotRef) returns (FullStateRestorePreview);
+  rpc RestoreFullStateSnapshot(FullStateRestoreRequest) returns (Ack);
+}
+
+message FullStateSnapshotRef {
+  string snapshot_id = 1; // opaque identifier returned by ListFullStateSnapshots
+}
+
+message FullStateSnapshot {
+  string snapshot_id = 1;
+  string created = 2;
+  string app_version = 3;
+  int32 schema_version = 4;
+  string sha256 = 5;       // lowercase SHA-256 of the immutable snapshot package
+  int64 size_bytes = 6;
+  bool verified = 7;       // manifest and every component hash verified by service
+  repeated string components = 8; // fixed component names/counts; never values/secrets
+}
+
+message FullStateSnapshotList {
+  repeated FullStateSnapshot snapshots = 1;
+}
+
+message FullStateRestorePreview {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  string snapshot_id = 4;
+  string sha256 = 5;       // bind RestoreFullStateSnapshot to this verified package
+  string app_version = 6;
+  int32 schema_version = 7;
+  repeated string changes = 8; // redacted section-level counts and posture changes
+}
+
+message FullStateRestoreRequest {
+  string snapshot_id = 1;
+  string expected_sha256 = 2; // required guard against replacement after preview
+  bool create_pre_restore = 3; // clients set true; service may reject false
+}
+
 message UpdateStatus {
   string installed_version = 1;
   string latest_version = 2;   // "" until a feed check has succeeded

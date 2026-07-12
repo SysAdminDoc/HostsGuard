@@ -2,6 +2,25 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.80] - 2026-07-12
+
+### Added
+- Tools and the CLI can create, list, and preview integrity-protected full-state
+  recovery points containing a SQLite online backup, exact hosts content, and an
+  explicit allowlist of non-secret service JSON. Each manifest records app/schema
+  versions, component sizes, and SHA-256 hashes; secret-bearing AI, webhook,
+  settings-lock, loopback-token, update, and downloaded-intelligence state stays out.
+- Restore requires the exact SHA-256 returned by a fresh preview. The service
+  stages the restore for startup, creates a verified pre-restore snapshot before
+  replacement, and automatically restores that fallback after validation failure
+  or an interrupted partial apply.
+
+### Changed
+- Protobuf compatibility tests now compare the live descriptor against an
+  embedded baseline and reject field or enum renumbering, type/cardinality/oneof
+  changes, unreserved deletion, and removed reservations while permitting additive
+  fields and enum values.
+
 ## [0.12.79] - 2026-07-12
 
 ### Added

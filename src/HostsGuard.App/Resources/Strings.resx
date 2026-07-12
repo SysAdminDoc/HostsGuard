@@ -951,4 +951,10 @@
   <data name="Update_Available" xml:space="preserve"><value>Update available: {0} (installed {1}).{2}</value></data>
   <data name="Update_UpToDate" xml:space="preserve"><value>Up to date: {0} (latest {1}).{2}</value></data>
   <data name="Update_StagedSuffix" xml:space="preserve"><value> · staged {0} — applies on next service restart</value></data>
+  <data name="Recovery_Title" xml:space="preserve"><value>Full-state recovery</value></data>
+  <data name="Recovery_Help" xml:space="preserve"><value>Create a hash-verified recovery point for the database, hosts state, and non-secret service settings. Preview is required before restore.</value></data>
+  <data name="Recovery_Create" xml:space="preserve"><value>Create snapshot</value></data>
+  <data name="Recovery_SnapshotPicker" xml:space="preserve"><value>Full-state snapshot to preview or restore</value></data>
+  <data name="Recovery_Preview" xml:space="preserve"><value>Preview restore</value></data>
+  <data name="Recovery_Restore" xml:space="preserve"><value>Restore verified state</value></data>
 </root>

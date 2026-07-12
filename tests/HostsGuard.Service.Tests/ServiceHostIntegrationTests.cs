@@ -35,7 +35,10 @@ public sealed class ServiceHostIntegrationTests : IAsyncLifetime
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n127.0.0.1 keepserver\n");
 
-        _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "hostsguard.db")));
+        _state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
+            dataDir: _dir);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.SvcTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -93,6 +96,46 @@ public sealed class ServiceHostIntegrationTests : IAsyncLifetime
 
         ack.Ok.Should().BeFalse();
         ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_domain");
+    }
+
+    [Fact]
+    public async Task Full_state_snapshot_round_trip_requires_previewed_hash_and_stages_startup_restore()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var recovery = new Recovery.RecoveryClient(channel);
+
+        var snapshot = await recovery.CreateFullStateSnapshotAsync(new Empty());
+        snapshot.Verified.Should().BeTrue();
+        snapshot.Sha256.Should().HaveLength(64);
+        snapshot.Components.Should().Contain(new[] { "database", "hosts" });
+
+        _state.Hosts.Block("changed-after-snapshot.example.com");
+        _state.Db.AddDomain("changed-after-snapshot.example.com", "blocked", source: "test");
+        var preview = await recovery.PreviewFullStateRestoreAsync(new FullStateSnapshotRef
+        {
+            SnapshotId = snapshot.SnapshotId,
+        });
+        preview.Ok.Should().BeTrue();
+        preview.Sha256.Should().Be(snapshot.Sha256);
+        preview.Changes.Should().Contain(change => change == "database: replace");
+        preview.Changes.Should().Contain(change => change == "hosts: replace");
+
+        var refused = await recovery.RestoreFullStateSnapshotAsync(new FullStateRestoreRequest
+        {
+            SnapshotId = snapshot.SnapshotId,
+            ExpectedSha256 = new string('0', 64),
+            CreatePreRestore = true,
+        });
+        refused.Ok.Should().BeFalse();
+
+        var staged = await recovery.RestoreFullStateSnapshotAsync(new FullStateRestoreRequest
+        {
+            SnapshotId = snapshot.SnapshotId,
+            ExpectedSha256 = preview.Sha256,
+            CreatePreRestore = true,
+        });
+        staged.Ok.Should().BeTrue();
+        File.Exists(Path.Combine(_dir, "pending_state_restore.json")).Should().BeTrue();
     }
 
     [Fact]

@@ -1,4 +1,6 @@
 using System.Text;
+using System.IO.Compression;
+using Google.Protobuf;
 using FluentAssertions;
 using Google.Protobuf.Reflection;
 using Xunit;
@@ -6,10 +8,10 @@ using Xunit;
 namespace HostsGuard.Contracts.Tests;
 
 /// <summary>
-/// Schema lock: snapshots the full RPC surface (package, services, methods,
-/// streaming, request/response types) from the generated file descriptor. Any
-/// breaking or accidental change to hostsguard.proto flips this test red, so the
-/// UI/CLI/Service contract can only change deliberately.
+/// Schema lock: snapshots the RPC surface and verifies every published message
+/// field, enum value, and reservation from the generated file descriptor. Any
+/// breaking change to hostsguard.proto flips this test red while additive fields
+/// and enum values remain wire compatible.
 /// </summary>
 public class SchemaLockTests
 {
@@ -198,6 +200,11 @@ public class SchemaLockTests
           SwitchProfile(ProfileRequest) returns (Ack)
           ToggleService(ServiceToggleRequest) returns (Ack)
           Unlock(LockRequest) returns (Ack)
+        service Recovery
+          CreateFullStateSnapshot(Empty) returns (FullStateSnapshot)
+          ListFullStateSnapshots(Empty) returns (FullStateSnapshotList)
+          PreviewFullStateRestore(FullStateSnapshotRef) returns (FullStateRestorePreview)
+          RestoreFullStateSnapshot(FullStateRestoreRequest) returns (Ack)
         """;
 
     [Fact]
@@ -224,4 +231,132 @@ public class SchemaLockTests
     [Fact]
     public void Package_is_versioned() =>
         HostsguardReflection.Descriptor.Package.Should().Be("hostsguard.v1");
+
+    [Fact]
+    public void Message_fields_and_enum_values_remain_wire_compatible()
+    {
+        var failures = ProtoSchemaCompatibility.FindBreakingChanges(
+            LoadSchemaBaseline(),
+            HostsguardReflection.Descriptor.ToProto());
+
+        failures.Should().BeEmpty(string.Join(Environment.NewLine, failures));
+    }
+
+    [Fact]
+    public void Field_renumbering_is_rejected()
+    {
+        var baseline = FixtureSchema();
+        var current = Clone(baseline);
+        current.MessageType[0].Field[0].Number = 2;
+
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, current)
+            .Should().ContainSingle(x => x.Contains("field removed without reserving", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Field_type_changes_are_rejected()
+    {
+        var baseline = FixtureSchema();
+        var current = Clone(baseline);
+        current.MessageType[0].Field[0].Type = FieldDescriptorProto.Types.Type.Int64;
+
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, current)
+            .Should().ContainSingle(x => x.Contains("field changed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Field_cardinality_and_oneof_membership_changes_are_rejected()
+    {
+        var baseline = FixtureSchema();
+
+        var cardinalityChange = Clone(baseline);
+        cardinalityChange.MessageType[0].Field[0].Label = FieldDescriptorProto.Types.Label.Repeated;
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, cardinalityChange)
+            .Should().ContainSingle(x => x.Contains("cardinality", StringComparison.Ordinal));
+
+        var oneofChange = Clone(baseline);
+        oneofChange.MessageType[0].OneofDecl.Add(new OneofDescriptorProto { Name = "identity" });
+        oneofChange.MessageType[0].Field[0].OneofIndex = 0;
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, oneofChange)
+            .Should().ContainSingle(x => x.Contains("oneof", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Enum_value_renumbering_is_rejected()
+    {
+        var baseline = FixtureSchema();
+        var current = Clone(baseline);
+        current.EnumType[0].Value[0].Number = 1;
+
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, current)
+            .Should().ContainSingle(x => x.Contains("enum value removed or renumbered", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Removing_a_reserved_field_or_enum_value_is_rejected()
+    {
+        var baseline = FixtureSchema();
+        var current = Clone(baseline);
+        current.MessageType[0].ReservedName.Clear();
+        current.MessageType[0].ReservedRange.Clear();
+        current.EnumType[0].ReservedName.Clear();
+        current.EnumType[0].ReservedRange.Clear();
+
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, current).Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void Additive_fields_and_enum_values_are_accepted()
+    {
+        var baseline = FixtureSchema();
+        var current = Clone(baseline);
+        current.MessageType[0].Field.Add(new FieldDescriptorProto
+        {
+            Name = "description",
+            Number = 2,
+            Label = FieldDescriptorProto.Types.Label.Optional,
+            Type = FieldDescriptorProto.Types.Type.String,
+        });
+        current.EnumType[0].Value.Add(new EnumValueDescriptorProto { Name = "STATE_READY", Number = 1 });
+
+        ProtoSchemaCompatibility.FindBreakingChanges(baseline, current).Should().BeEmpty();
+    }
+
+    private static FileDescriptorProto LoadSchemaBaseline()
+    {
+        const string suffix = ".Fixtures.hostsguard.schema.b64";
+        var assembly = typeof(SchemaLockTests).Assembly;
+        var resource = assembly.GetManifestResourceNames().Single(name => name.EndsWith(suffix, StringComparison.Ordinal));
+        using var text = new StreamReader(assembly.GetManifestResourceStream(resource)!);
+        using var compressed = new MemoryStream(Convert.FromBase64String(text.ReadToEnd().Trim()));
+        using var gzip = new GZipStream(compressed, CompressionMode.Decompress);
+        return FileDescriptorProto.Parser.ParseFrom(gzip);
+    }
+
+    private static FileDescriptorProto FixtureSchema()
+    {
+        var message = new DescriptorProto { Name = "Record" };
+        message.Field.Add(new FieldDescriptorProto
+        {
+            Name = "id",
+            Number = 1,
+            Label = FieldDescriptorProto.Types.Label.Optional,
+            Type = FieldDescriptorProto.Types.Type.String,
+        });
+        message.ReservedName.Add("legacy_id");
+        message.ReservedRange.Add(new DescriptorProto.Types.ReservedRange { Start = 3, End = 4 });
+
+        var state = new EnumDescriptorProto { Name = "State" };
+        state.Value.Add(new EnumValueDescriptorProto { Name = "STATE_UNSPECIFIED", Number = 0 });
+        state.ReservedName.Add("STATE_OLD");
+        state.ReservedRange.Add(new EnumDescriptorProto.Types.EnumReservedRange { Start = 2, End = 2 });
+
+        var schema = new FileDescriptorProto { Name = "fixture.proto", Package = "fixture", Syntax = "proto3" };
+        schema.MessageType.Add(message);
+        schema.EnumType.Add(state);
+        return schema;
+    }
+
+    private static FileDescriptorProto Clone(FileDescriptorProto schema) =>
+        FileDescriptorProto.Parser.ParseFrom(schema.ToByteArray());
 }

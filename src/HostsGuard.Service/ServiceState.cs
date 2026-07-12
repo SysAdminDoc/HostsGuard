@@ -37,6 +37,11 @@ public sealed class ServiceState : IDisposable
         Dns = dns;
         DataDir = dataDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
+        Snapshots = new StateSnapshotCoordinator(
+            db,
+            hosts.HostsPath,
+            DataDir,
+            typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0");
         StartedAtUtc = DateTime.UtcNow;
         Bus = new EventBus();
         ActivityPersistence = new ActivityPersistenceQueue(db);
@@ -100,6 +105,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>Service data directory (backups, support bundles). ProgramData in production.</summary>
     public string DataDir { get; }
+
+    /// <summary>Integrity-protected, non-secret full-state recovery points.</summary>
+    public StateSnapshotCoordinator Snapshots { get; }
 
     public ScheduleEnforcer Schedules { get; }
 
