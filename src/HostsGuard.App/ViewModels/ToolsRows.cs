@@ -67,6 +67,39 @@ public sealed partial class BackupRowViewModel : ObservableObject
     public string Label => $"{FileName} — {Created} ({SizeBytes / 1024.0:0.#} KB)";
 }
 
+/// <summary>Selectable adapter with its exact pre-change DNS posture.</summary>
+public sealed partial class DnsAdapterRowViewModel : ObservableObject
+{
+    public string Id { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
+    public bool IsVpn { get; init; }
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    public string Posture { get; init; } = string.Empty;
+    public string Label => $"{Name}{(IsVpn ? " · VPN/tunnel" : string.Empty)} — {Posture}";
+
+    public static DnsAdapterRowViewModel From(ResolverAdapterInfo adapter) => new()
+    {
+        Id = adapter.Id,
+        Name = adapter.Name,
+        Description = adapter.Description,
+        IsVpn = adapter.IsVpn,
+        IsSelected = adapter.IsUp && !adapter.IsVpn,
+        Posture = adapter.UsesDhcp
+            ? $"DHCP · effective {Join(adapter.EffectiveServers)}"
+            : $"Static {Join(adapter.ConfiguredServers)} · effective {Join(adapter.EffectiveServers)}",
+    };
+
+    private static string Join(IEnumerable<string> values)
+    {
+        var text = string.Join(", ", values);
+        return text.Length == 0 ? "none" : text;
+    }
+}
+
 /// <summary>Row VM for one Windows DNS resolver-cache entry.</summary>
 public sealed partial class DnsCacheEntryViewModel : ObservableObject
 {

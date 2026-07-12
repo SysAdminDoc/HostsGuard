@@ -183,6 +183,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadSchedulesAsync();
             await Tools.LoadServicesAsync();
             await Tools.LoadDohStatusAsync();
+            await Tools.LoadDnsAdaptersAsync();
             await Tools.LoadLanAttackSurfaceAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadPolicySubscriptionsAsync();

@@ -43,6 +43,7 @@ public class SchemaLockTests
           GetDohStatus(Empty) returns (DohStatus)
           Inspect(DomainRequest) returns (DnsInspectResult)
           ListCache(DnsCacheRequest) returns (DnsCacheList)
+          ListResolverAdapters(Empty) returns (ResolverAdapterList)
           RefreshDohIntelligence(DohRefreshRequest) returns (Ack)
           ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResult)
           SetCnameCloak(CnameCloakRequest) returns (Ack)

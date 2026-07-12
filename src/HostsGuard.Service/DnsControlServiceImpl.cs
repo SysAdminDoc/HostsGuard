@@ -100,25 +100,116 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         }
     }
 
-    public override Task<Ack> SetResolver(ResolverRequest request, ServerCallContext context)
+    public override Task<ResolverAdapterList> ListResolverAdapters(Empty request, ServerCallContext context)
+    {
+        var result = new ResolverAdapterList();
+        if (_state.Dns is not { } dns)
+        {
+            return Task.FromResult(result);
+        }
+
+        foreach (var adapter in dns.ListResolverAdapters())
+        {
+            var item = new ResolverAdapterInfo
+            {
+                Id = adapter.Id,
+                Name = adapter.Name,
+                Description = adapter.Description,
+                IsUp = adapter.IsUp,
+                IsVpn = adapter.IsVpn,
+                UsesDhcp = adapter.UsesDhcp,
+            };
+            item.ConfiguredServers.AddRange(adapter.ConfiguredResolvers);
+            item.EffectiveServers.AddRange(adapter.EffectiveResolvers);
+            result.Adapters.Add(item);
+        }
+
+        return Task.FromResult(result);
+    }
+
+    public override async Task<Ack> SetResolver(ResolverRequest request, ServerCallContext context)
     {
         if (_state.Dns is not { } dns)
         {
-            return Task.FromResult(Error("dns_unavailable", "DNS engine is not attached to this service instance"));
+            return Error("dns_unavailable", "DNS engine is not attached to this service instance");
         }
 
         var servers = request.Servers.Select(s => s.Trim()).Where(s => s.Length != 0).ToList();
         if (servers.Any(s => !IPAddress.TryParse(s, out _)))
         {
-            return Task.FromResult(Error("invalid_resolver", "resolver list contains a non-IP entry"));
+            return Error("invalid_resolver", "resolver list contains a non-IP entry");
         }
 
-        var changed = dns.SetResolvers(servers);
+        var probeHost = string.IsNullOrWhiteSpace(request.ProbeHost) ? "example.com" : request.ProbeHost.Trim().TrimEnd('.');
+        if (!Domains.LooksLikeDomain(probeHost))
+        {
+            return Error("invalid_probe_host", "resolver probe host must be a valid domain");
+        }
+
+        var adapters = dns.ListResolverAdapters();
+        var adapterIds = request.AdapterIds.Select(id => id.Trim()).Where(id => id.Length != 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (adapterIds.Count == 0)
+        {
+            // Compatibility for older clients: retain the prior physical-adapter
+            // behavior, but never mutate a VPN/tunnel implicitly.
+            adapterIds.AddRange(adapters.Where(adapter => adapter.IsUp && !adapter.IsVpn).Select(adapter => adapter.Id));
+        }
+
+        if (adapterIds.Count == 0)
+        {
+            return Error("no_adapter", "no eligible DNS adapter was selected");
+        }
+
+        Windows.DnsResolverChange change;
+        try
+        {
+            change = dns.SetResolvers(servers, adapterIds);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        {
+            _state.Db.LogEvent("dns", "resolver_apply_rollback",
+                details: $"{ex.GetType().Name}: {ex.Message}", reason: "transaction");
+            return Error("resolver_apply_failed", $"DNS resolver change was not applied: {ex.Message}");
+        }
+
+        Windows.DnsProbeResult probe;
+        try
+        {
+            probe = await dns.ProbeAsync(probeHost, TimeSpan.FromSeconds(5), context.CancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            probe = new Windows.DnsProbeResult(false, TimeSpan.FromSeconds(5), 0, 0, "cancelled");
+        }
+
+        if (!probe.Success || probe.Ipv4Count == 0 || probe.Ipv6Count == 0)
+        {
+            try
+            {
+                dns.RestoreResolvers(change.Prior);
+                _state.Db.LogEvent("dns", "resolver_rollback",
+                    details: $"probe {probeHost} failed ({probe.Error}; A={probe.Ipv4Count}, AAAA={probe.Ipv6Count}); restored {change.Prior.Adapters.Count} adapters",
+                    reason: "health_probe");
+                return Error("resolver_probe_failed",
+                    $"DNS probe failed ({probe.Error}; A={probe.Ipv4Count}, AAAA={probe.Ipv6Count}); restored every selected adapter exactly");
+            }
+            catch (Exception restoreError)
+            {
+                _state.Db.LogEvent("dns", "resolver_rollback_failed",
+                    details: $"{restoreError.GetType().Name}: {restoreError.Message}", reason: "health_probe");
+                return Error("resolver_rollback_failed",
+                    $"DNS probe failed and exact rollback also failed: {restoreError.Message}");
+            }
+        }
+
+        var names = string.Join(", ", change.ChangedAdapters.Select(adapter => adapter.Name));
+        var prior = string.Join("; ", change.Prior.Adapters.Select(adapter =>
+            $"{adapter.Name}={(adapter.UsesDhcp ? "DHCP" : string.Join(",", adapter.ConfiguredResolvers))}"));
         _state.Db.LogEvent("dns", "resolver_switch",
-            details: servers.Count == 0 ? "reset to DHCP" : string.Join(",", servers));
-        return Task.FromResult(Ok(servers.Count == 0
-            ? $"reset {changed.Count} adapters to DHCP DNS"
-            : $"set {string.Join(",", servers)} on {changed.Count} adapters"));
+            details: $"{(servers.Count == 0 ? "DHCP" : string.Join(",", servers))}; adapters={names}; prior={prior}; " +
+                     $"probe={probeHost} {probe.RoundTrip.TotalMilliseconds:F0}ms A={probe.Ipv4Count} AAAA={probe.Ipv6Count}");
+        return Ok($"DNS updated on {names}; {probeHost} A+AAAA probe passed in {probe.RoundTrip.TotalMilliseconds:F0} ms");
     }
 
     public override async Task<DnsInspectResult> Inspect(DomainRequest request, ServerCallContext context)

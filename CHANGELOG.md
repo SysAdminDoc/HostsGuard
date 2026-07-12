@@ -2,6 +2,27 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.79] - 2026-07-12
+
+### Added
+- Tools → DNS now lists each eligible adapter with its exact DHCP/static and
+  effective resolver state before mutation. Physical adapters default selected;
+  VPN, PPP, tunnel, TAP, TUN, and WireGuard-style adapters are visible but require
+  an explicit check so a resolver change cannot silently rewrite VPN topology.
+- Resolver requests carry selected adapter IDs and an optional probe host. The
+  service runs a bounded system-path lookup requiring both A and AAAA answers and
+  reports resolver round-trip time after a successful apply.
+
+### Fixed
+- DNS resolver writes now snapshot `NameServer` presence, value, and registry
+  kind for every selected adapter. Partial write failure rolls back the whole
+  transaction; failed/cancelled health probes restore every adapter exactly even
+  if an interface went down, flush the DNS cache, and record a rollback audit
+  event. Legacy clients still target active physical adapters and never a VPN.
+- Adapter IDs remain deliberately machine-local and are not serialized into the
+  portable policy format; importing policy on another PC cannot target an
+  unrelated interface GUID.
+
 ## [0.12.78] - 2026-07-12
 
 ### Fixed

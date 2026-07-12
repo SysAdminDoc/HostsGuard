@@ -77,6 +77,7 @@
   <data name="IpBlock_UrlTip" xml:space="preserve"><value>URL HTTPS d'une liste au format IP : une adresse IP ou un CIDR par ligne.</value></data>
   <data name="IpBlock_Import" xml:space="preserve"><value>Importer</value></data>
   <data name="IpBlock_RefreshNow" xml:space="preserve"><value>Tout actualiser</value></data>
+  <data name="DnsAdapters_Help" xml:space="preserve"><value>Sélectionnez les adaptateurs. Les interfaces VPN ou tunnel nécessitent une sélection explicite. L’état DHCP ou statique actuel est affiché avant l’application.</value></data>
   <data name="IpBlock_Toggle" xml:space="preserve"><value>Activer/Désactiver</value></data>
   <data name="IpBlock_Rollback" xml:space="preserve"><value>Annuler</value></data>
   <data name="IpBlock_TableName" xml:space="preserve"><value>Listes d'IP abonnées</value></data>

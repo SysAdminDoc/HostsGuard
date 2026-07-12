@@ -947,6 +947,9 @@ service DnsControl {
   // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
   // blocked tracker (uses the ETW resolution chain; opt-in).
   rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
+  // Enumerate the exact adapters and current DHCP/static resolver state before
+  // a transactional resolver change.
+  rpc ListResolverAdapters(Empty) returns (ResolverAdapterList);
   rpc SetResolver(ResolverRequest) returns (Ack);
   // TLS SNI capture (NET-109): recover hostnames for HTTPS connections resolved
   // over DoH by reading the ClientHello SNI (driver-free raw socket). Opt-in;
@@ -1028,6 +1031,23 @@ message DohRefreshRequest {
 
 message ResolverRequest {
   repeated string servers = 1; // empty = reset to DHCP default
+  repeated string adapter_ids = 2; // empty preserves legacy all-eligible behavior
+  string probe_host = 3; // optional; defaults to example.com
+}
+
+message ResolverAdapterInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_up = 4;
+  bool is_vpn = 5;
+  bool uses_dhcp = 6;
+  repeated string configured_servers = 7;
+  repeated string effective_servers = 8;
+}
+
+message ResolverAdapterList {
+  repeated ResolverAdapterInfo adapters = 1;
 }
 
 message DnsRecord {

@@ -1,18 +1,18 @@
 {
   "schemaVersion": 2,
   "product": "HostsGuard",
-  "version": "0.12.78",
-  "generatedAtUtc": "2026-07-12T21:52:40.4280566+00:00",
+  "version": "0.12.79",
+  "generatedAtUtc": "2026-07-12T22:14:26.8281387+00:00",
   "expectedSize": "1600x1000",
   "app": {
     "path": "dist/dotnet/win-x64/app/HostsGuard.App.exe",
-    "fileVersion": "0.12.78.0",
-    "productVersion": "0.12.78+b5abb50d82be552a2d8c8cf1cae7d5c093b09714"
+    "fileVersion": "0.12.79.0",
+    "productVersion": "0.12.79+386cd18b1e1d4fd0637c983f808dacd2532b89fb"
   },
   "service": {
     "path": "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
-    "fileVersion": "0.12.78.0",
-    "productVersion": "0.12.78+b5abb50d82be552a2d8c8cf1cae7d5c093b09714"
+    "fileVersion": "0.12.79.0",
+    "productVersion": "0.12.79+386cd18b1e1d4fd0637c983f808dacd2532b89fb"
   },
   "sourceSummary": "artifacts/visual-smoke/visual-smoke-summary.json",
   "readmeScreenshots": [
@@ -20,25 +20,25 @@
       "theme": "dark",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-dark.png",
-      "sha256": "2A8529D43A9FD7C6BFC45953139A2CB79C6652DC00707BEFB400286DFAC8E669",
-      "bytes": 205668,
+      "sha256": "FF286838A002E37167F0069B143F410B003BE402923A53924AF873F8935B9B14",
+      "bytes": 118035,
       "width": 1600,
       "height": 1000,
-      "averageLuminance": 25,
+      "averageLuminance": 22.1,
       "luminanceRange": 246.4,
       "opaqueRatio": 1,
       "bottomOpaqueRatio": 1,
-      "contentTileRatio": 0.9375
+      "contentTileRatio": 0.6375
     },
     {
       "theme": "light",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-light.png",
-      "sha256": "4BAC631468978A02145CA052AB15B8129D65AD10A9D0BDF19B232AF5BE1B016A",
-      "bytes": 205883,
+      "sha256": "169B93511B4EB43E148A16B678362999D0EC006D14EAC5ADE19252792ADBA2E6",
+      "bytes": 228925,
       "width": 1600,
       "height": 1000,
-      "averageLuminance": 239.9,
+      "averageLuminance": 239.6,
       "luminanceRange": 250,
       "opaqueRatio": 1,
       "bottomOpaqueRatio": 1,

@@ -66,6 +66,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<DnsCacheEntryViewModel> DnsCacheEntries { get; } = new();
 
+    public ObservableCollection<DnsAdapterRowViewModel> DnsAdapters { get; } = new();
+
     public ObservableCollection<PolicySubscriptionViewModel> PolicySubscriptions { get; } = new();
 
     public ObservableCollection<LanAttackSurfaceToggleViewModel> LanAttackSurface { get; } = new();
@@ -218,9 +220,41 @@ public sealed partial class ToolsViewModel : ObservableObject
             var preset = ResolverPresets.FirstOrDefault(p => p.Name == SelectedResolver);
             var request = new ResolverRequest();
             request.Servers.AddRange(preset.Servers ?? Array.Empty<string>());
+            request.AdapterIds.AddRange(DnsAdapters.Where(adapter => adapter.IsSelected).Select(adapter => adapter.Id));
+            if (request.AdapterIds.Count == 0)
+            {
+                StatusText = "Select at least one DNS adapter. VPN/tunnel adapters are never changed implicitly.";
+                return;
+            }
+
             var ack = await _client.Dns.SetResolverAsync(request);
             StatusText = ack.Message;
+            await LoadDnsAdaptersCoreAsync();
         });
+    }
+
+    [RelayCommand]
+    public async Task LoadDnsAdaptersAsync()
+    {
+        await RunServiceActionAsync("Load DNS adapters", LoadDnsAdaptersCoreAsync);
+    }
+
+    private async Task LoadDnsAdaptersCoreAsync()
+    {
+        var response = await _client.Dns.ListResolverAdaptersAsync(new Empty());
+        var selected = DnsAdapters.Where(adapter => adapter.IsSelected)
+            .Select(adapter => adapter.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        DnsAdapters.Clear();
+        foreach (var adapter in response.Adapters)
+        {
+            var row = DnsAdapterRowViewModel.From(adapter);
+            if (selected.Count != 0)
+            {
+                row.IsSelected = selected.Contains(row.Id);
+            }
+
+            DnsAdapters.Add(row);
+        }
     }
 
     [RelayCommand]

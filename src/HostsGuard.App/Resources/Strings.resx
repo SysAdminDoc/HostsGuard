@@ -852,6 +852,7 @@
   <data name="Consent_DeliveryFailedBody" xml:space="preserve"><value>Your decision for {0} could not be applied — the service did not accept it. The connection stays blocked; it will prompt again on its next attempt.</value></data>
   <data name="IpBlock_Title" xml:space="preserve"><value>IP blocklists (firewall rules)</value></data>
   <data name="IpBlock_Help" xml:space="preserve"><value>Enforce IP-format blocklists (one IPv4/IPv6 or CIDR per line, e.g. HaGeZi ips/doh or ips/tif) as HG_IPBlock_* Windows Firewall block rules — this stops hardcoded-IP endpoints and DoH-bootstrap IPs the hosts file cannot. Refreshes daily; a suspicious change is guarded and every refresh can be rolled back.</value></data>
+  <data name="DnsAdapters_Help" xml:space="preserve"><value>Select adapters. VPN/tunnel interfaces require an explicit check. Current DHCP/static state is shown before apply.</value></data>
   <data name="IpBlock_NameHint" xml:space="preserve"><value>List name</value></data>
   <data name="IpBlock_NameName" xml:space="preserve"><value>IP blocklist name</value></data>
   <data name="IpBlock_NameTip" xml:space="preserve"><value>A short name for this IP blocklist source.</value></data>

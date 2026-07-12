@@ -21,6 +21,18 @@ internal sealed class FakeDnsConfig : IDnsConfig
 
     public List<IReadOnlyList<string>> ResolverSets { get; } = new();
 
+    public List<IReadOnlyList<string>> ResolverAdapterSets { get; } = new();
+
+    public List<DnsResolverSnapshot> RestoredSnapshots { get; } = new();
+
+    public List<DnsAdapterState> ResolverAdapters { get; } =
+    [
+        new("ethernet-id", "Ethernet0", "Ethernet", true, false, true, [], ["192.168.1.1"]),
+        new("vpn-id", "Work VPN", "WireGuard tunnel", true, true, false, ["10.0.0.53"], ["10.0.0.53"]),
+    ];
+
+    public DnsProbeResult ProbeResult { get; set; } = new(true, TimeSpan.FromMilliseconds(12), 1, 1, string.Empty);
+
     public bool FlushCache()
     {
         Flushes++;
@@ -49,6 +61,21 @@ internal sealed class FakeDnsConfig : IDnsConfig
         ResolverSets.Add(servers);
         return new[] { "Ethernet0" };
     }
+
+    public IReadOnlyList<DnsAdapterState> ListResolverAdapters() => ResolverAdapters;
+
+    public DnsResolverChange SetResolvers(IReadOnlyList<string> servers, IReadOnlyList<string> adapterIds)
+    {
+        ResolverSets.Add(servers);
+        ResolverAdapterSets.Add(adapterIds);
+        var selected = ResolverAdapters.Where(adapter => adapterIds.Contains(adapter.Id)).ToList();
+        return new DnsResolverChange(new DnsResolverSnapshot(selected), selected);
+    }
+
+    public void RestoreResolvers(DnsResolverSnapshot snapshot) => RestoredSnapshots.Add(snapshot);
+
+    public Task<DnsProbeResult> ProbeAsync(string host, TimeSpan timeout, CancellationToken cancellationToken)
+        => Task.FromResult(ProbeResult);
 }
 
 /// <summary>
@@ -107,10 +134,36 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         var ack = await dns.SetResolverAsync(request);
         ack.Ok.Should().BeTrue();
         _dns.ResolverSets.Should().ContainSingle().Which.Should().Equal("1.1.1.1", "1.0.0.1");
+        _dns.ResolverAdapterSets.Should().ContainSingle().Which.Should().Equal("ethernet-id");
+        ack.Message.Should().Contain("12 ms");
 
         var bad = new ResolverRequest();
         bad.Servers.Add("dns.example.com");
         (await dns.SetResolverAsync(bad)).ErrorCode.Should().Be("hostsguard.error.v1/invalid_resolver");
+    }
+
+    [Fact]
+    public async Task Resolver_adapter_preview_includes_vpn_and_failed_probe_restores_exact_snapshot()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var dns = new DnsControl.DnsControlClient(channel);
+        var adapters = await dns.ListResolverAdaptersAsync(new Empty());
+        adapters.Adapters.Should().HaveCount(2);
+        adapters.Adapters.Should().Contain(adapter => adapter.Id == "vpn-id" && adapter.IsVpn && !adapter.UsesDhcp);
+
+        _dns.ProbeResult = new DnsProbeResult(true, TimeSpan.FromMilliseconds(8), 1, 0, string.Empty);
+        var request = new ResolverRequest();
+        request.Servers.Add("9.9.9.9");
+        request.AdapterIds.Add("vpn-id");
+
+        var ack = await dns.SetResolverAsync(request);
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/resolver_probe_failed");
+        _dns.ResolverAdapterSets.Should().ContainSingle().Which.Should().Equal("vpn-id");
+        _dns.RestoredSnapshots.Should().ContainSingle().Which.Adapters.Should()
+            .ContainSingle(adapter => adapter.Id == "vpn-id");
+        _state.Db.GetLog().Should().Contain(entry => entry.Action == "resolver_rollback");
     }
 
     [Fact]

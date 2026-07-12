@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.78-blue)
+![Version](https://img.shields.io/badge/version-0.12.79-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -132,7 +132,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | DNS-bypass defenses | Block QUIC/UDP-443, block known DoH bootstrap resolvers, and DoT/DoQ port 853 (your own resolver exempt) so apps can't tunnel DNS past hosts blocking |
 | LAN attack-surface hardening | One-click reversible cards block LLMNR, mDNS, NetBIOS-NS, SSDP/UPnP discovery, WPAD, and inbound SMB using registry-backed posture where Windows exposes it plus auditable `HG_LAN_*` firewall rules. Each card shows what may break before you turn it on. |
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |
-| DNS resolver switcher | One-click switch to Cloudflare, Google, Quad9, AdGuard DNS, or NextDNS + DNS flush |
+| DNS resolver switcher | Select physical or explicit VPN/tunnel adapters, preview DHCP/static state, then apply Cloudflare/Google/Quad9 or DHCP transactionally; a bounded A+AAAA probe reports RTT or restores every adapter exactly |
 | DNS resolver-cache viewer | Inspect Windows DNS Client cached names, including HTTPS/SVCB service-binding rows used by modern HTTPS/ECH bootstrap paths, and flush one selected entry when a newly blocked host still resolves |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
