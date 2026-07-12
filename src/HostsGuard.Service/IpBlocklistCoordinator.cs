@@ -35,6 +35,7 @@ public sealed class IpBlocklistCoordinator : IDisposable
     private readonly int _maxRules;
     private readonly Timer _refreshTimer;
     private readonly object _gate = new();
+    private Task _scheduledRefresh = Task.CompletedTask;
     private bool _disposed;
 
     public IpBlocklistCoordinator(
@@ -51,7 +52,26 @@ public sealed class IpBlocklistCoordinator : IDisposable
         _maxAddressesPerRule = maxAddressesPerRule;
         _maxRules = maxRules;
         var interval = refreshInterval ?? TimeSpan.FromHours(24);
-        _refreshTimer = new Timer(_ => _ = SafeScheduledRefreshAsync(), null, interval, interval);
+        _refreshTimer = new Timer(_ => KickScheduledRefresh(), null, interval, interval);
+    }
+
+    /// <summary>
+    /// Timer tick: start a scheduled refresh and remember its Task so
+    /// <see cref="Dispose"/> can drain an in-flight refresh (the callback
+    /// fire-and-forgets an async task, so <c>Timer.Dispose(WaitHandle)</c> alone
+    /// would not wait for the DB/firewall work to finish).
+    /// </summary>
+    internal void KickScheduledRefresh()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _scheduledRefresh = SafeScheduledRefreshAsync();
+        }
     }
 
     public IReadOnlyList<IpBlocklistSourceRow> List() => _db.GetIpBlocklistSources();
@@ -305,7 +325,24 @@ public sealed class IpBlocklistCoordinator : IDisposable
 
     public void Dispose()
     {
-        _disposed = true;
+        Task inFlight;
+        lock (_gate)
+        {
+            _disposed = true;
+            inFlight = _scheduledRefresh;
+        }
+
         _refreshTimer.Dispose();
+        // Drain a timer-driven refresh already running so it can never touch the
+        // database or firewall after Db.Dispose (which runs last on shutdown).
+        try
+        {
+            inFlight.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException)
+        {
+            // SafeScheduledRefreshAsync swallows its own expected exceptions;
+            // anything else surfacing here is benign during teardown.
+        }
     }
 }

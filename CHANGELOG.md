@@ -4,6 +4,12 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [0.12.69] - 2026-07-12
 
+### Fixed
+- The IP-format blocklist coordinator now drains an in-flight scheduled refresh
+  before disposing, so a timer-driven refresh can no longer reach the database
+  or firewall after shutdown has disposed them (the same teardown race fixed for
+  the other background timers, previously missed for this newer coordinator).
+
 ### Security
 - Self-update now refuses a release-feed asset whose name isn't a plain file
   name (path separators or `..`), and always writes the staged installer under

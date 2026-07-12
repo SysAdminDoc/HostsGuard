@@ -202,6 +202,45 @@ public sealed class IpBlocklistCoordinatorTests : IDisposable
         _firewall.Rules[IpBlockRules().Single()].RemoteAddr.Should().Be("1.2.3.4");
     }
 
+    private sealed class BlockingFetcher : IListFetcher
+    {
+        public readonly ManualResetEventSlim Started = new(false);
+        public readonly ManualResetEventSlim Release = new(false);
+
+        public async Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
+        {
+            Started.Set();
+            await Task.Run(() => Release.Wait(ct), ct);
+            return "9.9.9.9";
+        }
+
+        public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
+            => Task.FromResult(System.Text.Encoding.UTF8.GetBytes("9.9.9.9"));
+    }
+
+    [Fact]
+    public async Task Dispose_drains_an_in_flight_scheduled_refresh()
+    {
+        // The timer callback fire-and-forgets an async refresh; Dispose must wait
+        // for it so it can never touch the DB/firewall after Db.Dispose.
+        var fetcher = new BlockingFetcher();
+        var coordinator = new IpBlocklistCoordinator(_db, _firewall, fetcher);
+        _db.UpsertIpBlocklistSource("drain", "https://lists.example.com/x.txt",
+            new[] { "9.9.9.9" }, "seed-hash", string.Empty, 0, Array.Empty<string>(), 1, truncated: false);
+
+        coordinator.KickScheduledRefresh(); // simulate the timer tick
+        fetcher.Started.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("the scheduled refresh should reach the fetcher");
+
+        var dispose = Task.Run(() => coordinator.Dispose());
+        (await Task.WhenAny(dispose, Task.Delay(300))).Should().NotBe(dispose,
+            "Dispose must block while a refresh is in flight");
+
+        fetcher.Release.Set();
+        (await Task.WhenAny(dispose, Task.Delay(TimeSpan.FromSeconds(6)))).Should().Be(dispose,
+            "Dispose returns once the in-flight refresh drains");
+        await dispose;
+    }
+
     public void Dispose()
     {
         _coordinator.Dispose();
