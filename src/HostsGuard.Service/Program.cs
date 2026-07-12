@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using System.Text.Json;
 using HostsGuard.Data;
 using HostsGuard.Ipc;
 using HostsGuard.Service;
@@ -156,6 +157,42 @@ if (HostsTamperWatch.CheckRegistryTamper() is { } redirected)
         "Tcpip DataBasePath",
         $"The TCP/IP DataBasePath registry value points to '{redirected}'.",
         action: "registry_redirect");
+}
+
+// Baseline-and-diff the broader DNS-path registry surface (DoH policy, NetBIOS,
+// name-server overrides) the hosts watch can't see. First run records the
+// baseline; later runs alert on each changed value, then re-baseline so an
+// acknowledged change doesn't re-fire every startup.
+try
+{
+    var dnsSnapshot = DnsRegistryBaseline.Snapshot();
+    var storedBaseline = db.GetMeta("dns_registry_baseline");
+    if (string.IsNullOrEmpty(storedBaseline))
+    {
+        db.SetMeta("dns_registry_baseline", JsonSerializer.Serialize(dnsSnapshot));
+    }
+    else
+    {
+        var baseline = JsonSerializer.Deserialize<Dictionary<string, string>>(storedBaseline)
+            ?? new Dictionary<string, string>();
+        foreach (var change in DnsRegistryBaseline.Diff(baseline, dnsSnapshot))
+        {
+            db.LogEvent("dns", "registry_tamper", details: $"{change.Key}: '{change.Before}' -> '{change.After}'", reason: "tamper");
+            db.AddAlert(
+                "hosts_tamper",
+                "critical",
+                "DNS registry key changed",
+                change.Key,
+                $"The DNS-relevant registry value '{change.Key}' changed from '{change.Before}' to '{change.After}'.",
+                action: "registry_redirect");
+        }
+
+        db.SetMeta("dns_registry_baseline", JsonSerializer.Serialize(dnsSnapshot));
+    }
+}
+catch (Exception ex) when (ex is JsonException or IOException or InvalidOperationException)
+{
+    db.LogEvent("dns", "registry_baseline_failed", details: ex.Message);
 }
 
 using var connectionFeed = new ConnectionFeed(state);

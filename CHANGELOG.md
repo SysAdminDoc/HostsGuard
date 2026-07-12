@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.74] - 2026-07-12
+
+### Added
+- DNS-path registry tamper baseline: HostsGuard now baselines and diffs the
+  DNS-relevant registry surface the hosts-file watch can't see — DoH policy
+  (`EnableAutoDoh`, `DoHPolicy`), NetBIOS / smart-name-resolution policy, and
+  global name-server overrides (Tcpip/Tcpip6 `NameServer`). The first run records
+  the baseline; later runs raise a critical `hosts_tamper` alert with the
+  before/after value for each changed key, then re-baseline so an acknowledged
+  change doesn't re-fire. Complements the existing `DataBasePath` redirect check.
+
 ## [0.12.73] - 2026-07-12
 
 ### Added
