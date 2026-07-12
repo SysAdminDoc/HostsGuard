@@ -21,6 +21,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "block" => await DomainOpAsync(args, (c, r) => c.BlockAsync(r).ResponseAsync),
     "allow" => await DomainOpAsync(args, (c, r) => c.AllowAsync(r).ResponseAsync),
     "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
+    "temp-block" => await TempBlockAsync(args),
     "block-app" => await ProgramOpAsync(args, block: true),
     "unblock-app" => await ProgramOpAsync(args, block: false),
     "firewall-packages" or "packages" => await ListPackagesAsync(args),
@@ -69,6 +70,8 @@ static int Usage()
           HostsGuard.Cli block <domain> [reason]
           HostsGuard.Cli allow <domain> [reason]
           HostsGuard.Cli unblock <domain>
+          HostsGuard.Cli temp-block <domain> <minutes>
+          HostsGuard.Cli temp-block list
           HostsGuard.Cli block-app <exe-path> [out|in]
           HostsGuard.Cli unblock-app <exe-path> [out|in]
           HostsGuard.Cli firewall-packages [--search text]
@@ -239,6 +242,45 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
             Source = "cli",
         };
         var ack = await op(new HostsControl.HostsControlClient(channel), request);
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
+}
+
+// Temp-block: block a domain for N minutes with auto-revert, or list pending windows.
+static async Task<int> TempBlockAsync(string[] args)
+{
+    if (args.Length > 1 && string.Equals(args[1], "list", StringComparison.OrdinalIgnoreCase))
+    {
+        return await RunCommandAsync(async channel =>
+        {
+            var client = new HostsControl.HostsControlClient(channel);
+            var list = await client.ListTempBlocksAsync(new Empty());
+            if (list.Entries.Count == 0)
+            {
+                Console.WriteLine("no pending temp-blocks");
+                return 0;
+            }
+
+            foreach (var e in list.Entries)
+            {
+                Console.WriteLine($"{e.Domain,-40} until {e.Expires.ToDateTime().ToLocalTime():yyyy-MM-dd HH:mm}");
+            }
+
+            return 0;
+        });
+    }
+
+    if (args.Length < 3 || !int.TryParse(args[2], out var minutes) || minutes < 1)
+    {
+        Console.Error.WriteLine("usage: temp-block <domain> <minutes>  |  temp-block list");
+        return Usage();
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new HostsControl.HostsControlClient(channel);
+        var ack = await client.TempBlockAsync(new TempBlockRequest { Domain = args[1], Minutes = minutes, Source = "cli" });
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
     });

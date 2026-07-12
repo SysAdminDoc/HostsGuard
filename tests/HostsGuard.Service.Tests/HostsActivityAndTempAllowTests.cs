@@ -236,6 +236,73 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TempBlock_blocks_now_and_lists_pending_window()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var hosts = Hosts(channel);
+
+        var ack = await hosts.TempBlockAsync(new TempBlockRequest { Domain = "ephemeral.example.com", Minutes = 30 });
+
+        ack.Ok.Should().BeTrue();
+        _state.Hosts.GetBlocked().Should().Contain("ephemeral.example.com");
+        var pending = await hosts.ListTempBlocksAsync(new Empty());
+        pending.Entries.Should().ContainSingle(e => e.Domain == "ephemeral.example.com");
+        pending.Entries[0].Expires.ToDateTime().Should().BeAfter(DateTime.UtcNow.AddMinutes(25));
+    }
+
+    [Fact]
+    public async Task TempBlock_rejects_invalid_duration()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var ack = await Hosts(channel).TempBlockAsync(new TempBlockRequest { Domain = "x.example.com", Minutes = 0 });
+
+        ack.Ok.Should().BeFalse();
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_duration");
+    }
+
+    [Fact]
+    public void Expired_temp_block_reverts_an_unmanaged_domain_to_unmanaged_on_restart()
+    {
+        // A temp-block on a previously-unmanaged domain was persisted, then the
+        // service went down past expiry. On restart it must unblock and forget it.
+        _state.Hosts.Block("temp.example.com");
+        _state.Db.AddDomain("temp.example.com", "blocked", "temp_block");
+        _state.Db.SetTempBlock("temp.example.com", DateTime.UtcNow.AddMinutes(-5), string.Empty);
+
+        using var restarted = new ServiceState(new HostsEngine(_hostsPath), new HostsDatabase(_dbPath));
+
+        restarted.Hosts.GetBlocked().Should().NotContain("temp.example.com");
+        restarted.Db.GetTempBlocks().Should().BeEmpty();
+        restarted.Db.GetDomainStatus("temp.example.com").Should().BeNull();
+    }
+
+    [Fact]
+    public void Expired_temp_block_restores_a_prior_whitelist_on_restart()
+    {
+        _state.Hosts.Block("wl.example.com");
+        _state.Db.AddDomain("wl.example.com", "blocked", "temp_block");
+        _state.Db.SetTempBlock("wl.example.com", DateTime.UtcNow.AddMinutes(-5), "whitelisted");
+
+        using var restarted = new ServiceState(new HostsEngine(_hostsPath), new HostsDatabase(_dbPath));
+
+        restarted.Hosts.GetBlocked().Should().NotContain("wl.example.com");
+        restarted.Db.GetTempBlocks().Should().BeEmpty();
+        restarted.Db.GetDomainStatus("wl.example.com").Should().Be("whitelisted");
+    }
+
+    [Fact]
+    public void Expired_temp_block_does_not_override_a_manual_change()
+    {
+        _state.Db.AddDomain("manualblk.example.com", "whitelisted", "manual"); // user allowed it since
+        _state.Db.SetTempBlock("manualblk.example.com", DateTime.UtcNow.AddMinutes(-5), string.Empty);
+
+        using var restarted = new ServiceState(new HostsEngine(_hostsPath), new HostsDatabase(_dbPath));
+
+        restarted.Db.GetDomainStatus("manualblk.example.com").Should().Be("whitelisted");
+        restarted.Db.GetTempBlocks().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Raw_hosts_text_round_trips_through_the_engine()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

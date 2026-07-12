@@ -353,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 31;
+    public const int SchemaVersion = 32;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -532,6 +532,7 @@ public sealed partial class HostsDatabase : IDisposable
                 id INTEGER PRIMARY KEY, profile TEXT, domain TEXT, status TEXT DEFAULT 'blocked', source TEXT);
             CREATE TABLE IF NOT EXISTS hidden_roots(root TEXT PRIMARY KEY, added TEXT);
             CREATE TABLE IF NOT EXISTS temp_allows(domain TEXT PRIMARY KEY, expires TEXT);
+            CREATE TABLE IF NOT EXISTS temp_blocks(domain TEXT PRIMARY KEY, expires TEXT, prior_status TEXT DEFAULT '');
             CREATE TABLE IF NOT EXISTS schedules(
                 id INTEGER PRIMARY KEY, target TEXT, days TEXT, start TEXT, end TEXT);
             CREATE TABLE IF NOT EXISTS blocklist_subs(

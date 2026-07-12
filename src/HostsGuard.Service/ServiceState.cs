@@ -42,6 +42,8 @@ public sealed class ServiceState : IDisposable
         ActivityPersistence = new ActivityPersistenceQueue(db);
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
+        TempBlocks = new TempBlockScheduler(hosts, db, Bus);
+        TempBlocks.Resume();
         EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
         EnforcementPause.Resume();
         FlowTeardown = new FlowTeardownCoordinator(
@@ -181,6 +183,8 @@ public sealed class ServiceState : IDisposable
     }
 
     public TempAllowScheduler TempAllows { get; }
+
+    public TempBlockScheduler TempBlocks { get; }
 
     public EnforcementPauseCoordinator EnforcementPause { get; }
 
@@ -442,6 +446,7 @@ public sealed class ServiceState : IDisposable
         DomainFirewall.Dispose();
         EnforcementPause.Dispose();
         TempAllows.Dispose();
+        TempBlocks.Dispose();
         ActivityPersistence.Dispose();
         Ai.Dispose();
         Db.Dispose();

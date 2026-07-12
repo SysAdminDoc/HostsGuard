@@ -692,6 +692,17 @@
                                                   Command="{Binding PlacementTarget.DataContext.TempAllow480Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                   CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     </MenuItem>
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Temp_block_e7a19c42}">
+                                        <MenuItem Header="{svc:Loc Key=Xaml_15_minutes_899761ff}"
+                                                  Command="{Binding PlacementTarget.DataContext.TempBlock15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="{svc:Loc Key=Xaml_1_hour_f030c3d6}"
+                                                  Command="{Binding PlacementTarget.DataContext.TempBlock60Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <MenuItem Header="{svc:Loc Key=Xaml_8_hours_191800b7}"
+                                                  Command="{Binding PlacementTarget.DataContext.TempBlock480Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    </MenuItem>
                                     <Separator />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Hide_domain_s_5312c84d}"
                                               Command="{Binding PlacementTarget.DataContext.HideSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"

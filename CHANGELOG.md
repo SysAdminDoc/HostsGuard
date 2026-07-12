@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.70] - 2026-07-12
+
+### Added
+- Temp-block ("block until"): the mirror of temp-allow. Block a domain for a
+  fixed window (15 min / 1 hour / 8 hours from the Hosts activity context menu,
+  or `HostsGuard.Cli temp-block <domain> <minutes>`), and the service reverts it
+  to its prior state automatically at expiry — restoring a prior whitelist,
+  dropping an unmanaged domain back to unmanaged, or leaving a pre-existing
+  permanent block intact. Windows persist and re-arm across service restarts, so
+  a reboot never turns a temporary block into a permanent one, and a manual
+  allow/block during the window wins over the auto-revert. `temp-block list`
+  (CLI) and `ListTempBlocks` (RPC) enumerate pending windows. Schema v32.
+
 ## [0.12.69] - 2026-07-12
 
 ### Added

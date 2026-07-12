@@ -173,6 +173,7 @@
   <data name="Xaml_Unblock_remove_from_hosts_da345a55" xml:space="preserve"><value>Unblock (remove from hosts)</value></data>
   <data name="Xaml_Remove_the_selected_domains_0_0_f3c604ab" xml:space="preserve"><value>Remove the selected domains&apos; 0.0.0.0 entries from the hosts file so they resolve again - useful when a page was over-blocked</value></data>
   <data name="Xaml_Temp_allow_dcb5b93d" xml:space="preserve"><value>Temp allow</value></data>
+  <data name="Xaml_Temp_block_e7a19c42" xml:space="preserve"><value>Temp block</value></data>
   <data name="Xaml_15_minutes_899761ff" xml:space="preserve"><value>15 minutes</value></data>
   <data name="Xaml_1_hour_f030c3d6" xml:space="preserve"><value>1 hour</value></data>
   <data name="Xaml_8_hours_191800b7" xml:space="preserve"><value>8 hours</value></data>

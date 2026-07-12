@@ -700,6 +700,37 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     }
 
     [RelayCommand]
+    public Task TempBlock15Async(string domain) => TempBlockAsync(domain, 15);
+
+    [RelayCommand]
+    public Task TempBlock60Async(string domain) => TempBlockAsync(domain, 60);
+
+    [RelayCommand]
+    public Task TempBlock480Async(string domain) => TempBlockAsync(domain, 480);
+
+    private async Task TempBlockAsync(string domain, int minutes)
+    {
+        if (NoSelection(domain))
+        {
+            return;
+        }
+
+        if (!ConfirmHostsChange(
+            "Temporarily block domain",
+            $"Temporarily block {domain} via the hosts file for {minutes} minutes, then restore its previous state automatically?"))
+        {
+            return;
+        }
+
+        await RunServiceActionAsync("Temporarily block domain", async () =>
+        {
+            var ack = await _client.Hosts.TempBlockAsync(new TempBlockRequest { Domain = domain, Minutes = minutes });
+            StatusText = ack.Message;
+            await RefreshAsync();
+        });
+    }
+
+    [RelayCommand]
     public async Task HideRootAsync(string domain)
     {
         if (NoSelection(domain))

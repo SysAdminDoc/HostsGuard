@@ -119,6 +119,10 @@ service HostsControl {
   // window expires and re-arms persisted windows across service restarts.
   rpc TempAllow(TempAllowRequest) returns (Ack);
   rpc ListTempAllows(Empty) returns (TempAllowList);
+  // The mirror of TempAllow: temporarily block a domain; the service reverts it
+  // to its prior state when the window expires and re-arms across restarts.
+  rpc TempBlock(TempBlockRequest) returns (Ack);
+  rpc ListTempBlocks(Empty) returns (TempBlockList);
   // Raw hosts file access for the editor view. Set routes through the
   // transactional engine (atomic write + self-write hash).
   rpc GetHostsText(Empty) returns (HostsText);
@@ -440,6 +444,21 @@ message TempAllowEntry {
 
 message TempAllowList {
   repeated TempAllowEntry entries = 1;
+}
+
+message TempBlockRequest {
+  string domain = 1;
+  int32 minutes = 2;
+  string source = 3;
+}
+
+message TempBlockEntry {
+  string domain = 1;
+  google.protobuf.Timestamp expires = 2;
+}
+
+message TempBlockList {
+  repeated TempBlockEntry entries = 1;
 }
 
 message HostsText {

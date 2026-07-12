@@ -362,6 +362,44 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return Task.FromResult(list);
     }
 
+    public override Task<Ack> TempBlock(TempBlockRequest request, ServerCallContext context)
+    {
+        var d = Domains.ToAscii(request.Domain);
+        if (!Domains.LooksLikeDomain(d))
+        {
+            return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
+        }
+
+        if (request.Minutes < 1 || request.Minutes > TempBlockScheduler.MaxMinutes)
+        {
+            return Task.FromResult(Error("invalid_duration", $"minutes must be 1..{TempBlockScheduler.MaxMinutes}"));
+        }
+
+        // A temp-block strengthens posture, so — unlike TempAllow — it is NOT
+        // gated behind the settings lock; the lock only guards weakening actions.
+        return GuardHostsWrite(() =>
+        {
+            _state.TempBlocks.Add(d, request.Minutes, string.IsNullOrEmpty(request.Source) ? "temp_block" : request.Source);
+            return Ok($"blocked {d} for {request.Minutes} min");
+        });
+    }
+
+    public override Task<TempBlockList> ListTempBlocks(Empty request, ServerCallContext context)
+    {
+        var list = new TempBlockList();
+        foreach (var (domain, expiresUtc) in _state.TempBlocks.Pending())
+        {
+            list.Entries.Add(new TempBlockEntry
+            {
+                Domain = domain,
+                Expires = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(
+                    DateTime.SpecifyKind(expiresUtc, DateTimeKind.Utc)),
+            });
+        }
+
+        return Task.FromResult(list);
+    }
+
     public override Task<HostsText> GetHostsText(Empty request, ServerCallContext context)
         => Task.FromResult(new HostsText { Text = string.Join("\n", _state.Hosts.GetLines()) });
 

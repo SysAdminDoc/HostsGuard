@@ -40,6 +40,47 @@ public sealed partial class HostsDatabase
         }
     }
 
+    // ─── Temp blocks (mirror of temp allows, reversed) ─────────────────────────
+
+    /// <summary>Persist a temporary block window with the status to restore on revert.</summary>
+    public void SetTempBlock(string domain, DateTime expiresUtc, string priorStatus)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(domain);
+        lock (_gate)
+        {
+            _conn.Execute(
+                "INSERT OR REPLACE INTO temp_blocks(domain,expires,prior_status) VALUES(@d,@e,@p)",
+                new
+                {
+                    d = domain.ToLowerInvariant(),
+                    e = expiresUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                    p = priorStatus ?? string.Empty,
+                });
+        }
+    }
+
+    public void RemoveTempBlock(string domain)
+    {
+        lock (_gate)
+        {
+            _conn.Execute("DELETE FROM temp_blocks WHERE domain=@d", new { d = domain.ToLowerInvariant() });
+        }
+    }
+
+    public IReadOnlyList<(string Domain, DateTime ExpiresUtc, string PriorStatus)> GetTempBlocks()
+    {
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            return _conn.Query<(string, string, string?)>("SELECT domain, expires, prior_status FROM temp_blocks")
+                .Where(r => DateTime.TryParse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out _))
+                .Select(r => (r.Item1, DateTime.Parse(r.Item2, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal), r.Item3 ?? string.Empty))
+                .ToList();
+        }
+    }
+
     // ─── Profiles ─────────────────────────────────────────────────────────────
 
     /// <summary>Snapshot the current managed-domain set as a named profile.</summary>
