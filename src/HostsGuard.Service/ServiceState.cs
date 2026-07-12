@@ -240,6 +240,15 @@ public sealed class ServiceState : IDisposable
 
     public DateTime StartedAtUtc { get; }
 
+    private readonly CancellationTokenSource _shutdown = new();
+
+    /// <summary>
+    /// Cancelled when the service state is disposed (shutdown). Fire-and-forget
+    /// background work (e.g. AI categorization) links to this so it stops with
+    /// the service instead of running past teardown on <c>CancellationToken.None</c>.
+    /// </summary>
+    public CancellationToken ShutdownToken => _shutdown.Token;
+
     /// <summary>
     /// Record a DNS sighting: persist to the activity feed and publish to live
     /// watchers. Called by the ETW pipeline (production) and tests.
@@ -366,6 +375,10 @@ public sealed class ServiceState : IDisposable
 
     public void Dispose()
     {
+        // Signal shutdown FIRST so fire-and-forget background work linked to
+        // ShutdownToken stops before the engines it touches are disposed.
+        try { _shutdown.Cancel(); } catch (AggregateException) { /* callbacks throwing on cancel are benign */ }
+        _shutdown.Dispose();
         Intel?.Dispose();
         FirewallDrift.Dispose();
         SecureRules.Dispose();

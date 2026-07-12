@@ -158,8 +158,20 @@ public sealed class HostsAdoptionCoordinator
         return count;
     }
 
-    private static bool IsNonRoutable(IPAddress ip) =>
-        IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any);
+    private static bool IsNonRoutable(IPAddress ip)
+    {
+        // Fold an IPv4-mapped IPv6 literal (e.g. ::ffff:0.0.0.0) to its IPv4 form
+        // so a mapped sink/loopback address isn't mistaken for a routable redirect.
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
+        return IPAddress.IsLoopback(ip)
+            || ip.Equals(IPAddress.Any)
+            || ip.Equals(IPAddress.IPv6Any)
+            || ip.Equals(IPAddress.Broadcast);
+    }
 
     private void Record(string reason, AdoptionOutcome outcome)
     {

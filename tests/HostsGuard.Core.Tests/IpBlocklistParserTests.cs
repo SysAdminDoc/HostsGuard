@@ -100,4 +100,16 @@ public class IpBlocklistParserTests
         scan.Entries.Should().BeEquivalentTo(new[] { "2001:db8::1" });
         scan.Duplicates.Should().Be(1);
     }
+
+    [Theory]
+    [InlineData("1.2.3.4:443")]      // IPv4 with a port
+    [InlineData("1.2.3.4:443/32")]   // IPv4:port carrying a CIDR suffix
+    public void Ipv4_addresses_carrying_a_port_are_rejected_not_blocked(string token)
+    {
+        // A bracketless IPv6 literal legitimately contains colons, so only IPv4
+        // host:port can be disambiguated — and it must never yield a block entry.
+        var scan = IpBlocklistParser.Scan(token + "\n");
+        scan.Entries.Should().BeEmpty();
+        scan.Invalid.Should().Be(1);
+    }
 }

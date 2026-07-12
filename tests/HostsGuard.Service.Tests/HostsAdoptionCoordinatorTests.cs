@@ -128,6 +128,27 @@ public sealed class HostsAdoptionCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public void IPv4_mapped_IPv6_sink_literals_are_not_flagged_as_redirects()
+    {
+        // ::ffff:0.0.0.0 / ::ffff:127.0.0.1 fold to sink/loopback IPv4 — a block
+        // form, not a routable redirect, so they must not raise a critical alert.
+        var lines = new[]
+        {
+            "::ffff:0.0.0.0 a.example.com",
+            "::ffff:127.0.0.1 b.example.com",
+        };
+
+        HostsAdoptionCoordinator.CountSuspiciousRedirects(lines).Should().Be(0);
+    }
+
+    [Fact]
+    public void A_real_ipv6_redirect_is_still_flagged()
+    {
+        HostsAdoptionCoordinator.CountSuspiciousRedirects(new[] { "2606:4700:4700::1111 evil.example.com" })
+            .Should().Be(1);
+    }
+
+    [Fact]
     public void An_existing_managed_domain_is_not_re_adopted()
     {
         _db.AddDomain("already.example.com", "blocked", "cli");

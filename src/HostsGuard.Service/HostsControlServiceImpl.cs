@@ -50,16 +50,34 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         {
             try
             {
-                await _state.Ai.CategorizeAsync(new[] { domain }, CancellationToken.None);
+                await _state.Ai.CategorizeAsync(new[] { domain }, _state.ShutdownToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on service shutdown — the token is cancelled first.
             }
             catch (Exception ex)
             {
                 // Fire-and-forget: any failure (incl. JsonException/ArgumentException
                 // from a malformed AI response) must be logged, never left as an
-                // unobserved task exception.
-                _state.Db.LogEvent(domain, "ai_categorize_failed", details: ex.Message);
+                // unobserved task exception. Guard the log itself against a
+                // shutdown race where the DB is already disposed.
+                TryLog(domain, ex.Message);
             }
         });
+    }
+
+    /// <summary>Best-effort event log for fire-and-forget failures; never throws on a disposed DB.</summary>
+    private void TryLog(string domain, string message)
+    {
+        try
+        {
+            _state.Db.LogEvent(domain, "ai_categorize_failed", details: message);
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or InvalidOperationException)
+        {
+            // The service is tearing down; nothing to record.
+        }
     }
 
     public override Task<Ack> Allow(DomainRequest request, ServerCallContext context)
@@ -680,11 +698,15 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         {
             try
             {
-                await _state.Ai.CategorizeAsync(domains, CancellationToken.None);
+                await _state.Ai.CategorizeAsync(domains, _state.ShutdownToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on service shutdown — the token is cancelled first.
             }
             catch (Exception ex)
             {
-                _state.Db.LogEvent("hosts", "ai_categorize_failed", details: ex.Message);
+                TryLog("hosts", ex.Message);
             }
         });
     }

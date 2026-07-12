@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.69] - 2026-07-12
 
 ### Fixed
+- Manual-edit adoption no longer flags IPv4-mapped IPv6 sink literals (e.g.
+  `::ffff:0.0.0.0`) as suspicious redirects, so those block forms don't raise a
+  spurious critical tamper alert. Fire-and-forget AI categorization now runs on
+  a shutdown-linked token (and logs failures defensively) so it stops with the
+  service instead of racing teardown.
 - Usage-budget enforcement now re-derives real block state on each sweep, so a
   quota can no longer silently stop enforcing after the user manually deletes a
   block the enforcer had recorded over but didn't own — the next over-limit
