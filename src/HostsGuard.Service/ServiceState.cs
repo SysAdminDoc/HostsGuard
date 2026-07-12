@@ -74,6 +74,7 @@ public sealed class ServiceState : IDisposable
         Defender = defender;
         ResolvedIps = new Core.ResolvedIpCache();
         Ai = new AiCategorizer(db, hosts, aiCompleter ?? new DeepSeekCompleter(), DataDir);
+        Adoption = new HostsAdoptionCoordinator(hosts, db);
         if (listFetcher is not null)
         {
             Lists = new ListImporter(hosts, db, listFetcher);
@@ -131,6 +132,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>DeepSeek domain categorization.</summary>
     public AiCategorizer Ai { get; }
+
+    /// <summary>Adopts hand-added hosts entries into the managed DB (NET-188).</summary>
+    public HostsAdoptionCoordinator Adoption { get; }
 
     /// <summary>Live ETW DNS monitor state (wired by the host; false when unavailable).</summary>
     public bool DnsMonitorActive { get; set; }

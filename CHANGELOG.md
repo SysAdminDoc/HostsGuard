@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.68] - 2026-07-12
+
+### Added
+- Manual-edit adoption (NET-188): when you hand-edit the hosts file in a text
+  editor, HostsGuard now dedupes and organizes the whole file into its canonical
+  category sections, curated-categorizes the entries, and imports the new
+  `0.0.0.0`/`127.0.0.1`/`::` block entries into the managed list as `manual`
+  rows — so hand-added blocks show up in the app exactly like in-app blocks. The
+  AI categorizer (when enabled) fills in categories the curated table doesn't
+  know. Adoption runs automatically on external change and once at service
+  startup (catching edits made while the service was stopped).
+- A hand edit that maps a domain to a **real routable IP** (a redirect, e.g.
+  `93.184.216.34 www.bank.example`) is never adopted and still raises the
+  critical hosts-tamper alert — only additive sink/loopback block entries are
+  imported silently (as an informational "manual edits adopted" alert).
+- New `HostsControl` RPCs `AdoptHostsEntries`, `SetHostsAdoption`, and
+  `GetHostsAdoptionStatus`; a `HostsGuard.Cli adopt-hosts [status|now|on|off]`
+  command; a **Tools → Adopt manual hosts edits** card (toggle + "Adopt &
+  organize now"); and portable-policy round-trip of the toggle. Default: on.
+
 ## [0.12.67] - 2026-07-10
 
 ### Added

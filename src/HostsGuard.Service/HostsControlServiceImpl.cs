@@ -614,6 +614,81 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
     }
 
+    // ─── Manual-edit adoption (NET-188) ──────────────────────────────────────
+
+    public override Task<AdoptResult> AdoptHostsEntries(Empty request, ServerCallContext context)
+    {
+        try
+        {
+            var outcome = _state.Adoption.AdoptNow("manual_trigger");
+            AutoCategorizeMany(outcome.AdoptedDomains);
+            return Task.FromResult(new AdoptResult
+            {
+                Ok = true,
+                Adopted = outcome.Adopted,
+                Total = outcome.FileBlocked,
+                Message = outcome.Adopted == 0 && outcome.Organized == 0
+                    ? "no new manual entries — hosts file already adopted and organized"
+                    : $"adopted {outcome.Adopted} manual {(outcome.Adopted == 1 ? "entry" : "entries")}, "
+                        + $"organized {outcome.Organized}",
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(new AdoptResult
+            {
+                Ok = false,
+                ErrorCode = "hostsguard.error.v1/hosts_locked",
+                Message = "the hosts file is locked by another program (usually antivirus) — wait a few seconds and retry",
+            });
+        }
+    }
+
+    public override Task<Ack> SetHostsAdoption(HostsAdoptionRequest request, ServerCallContext context)
+    {
+        _state.Adoption.SetEnabled(request.Enabled);
+        _state.Db.LogEvent("hosts", "adopt_toggle", details: request.Enabled ? "on" : "off");
+        return Task.FromResult(Ok(request.Enabled
+            ? "manual-edit adoption on — hand edits to the hosts file are deduped, organized, and imported automatically"
+            : "manual-edit adoption off — hand edits raise a tamper alert instead of being imported"));
+    }
+
+    public override Task<HostsAdoptionStatus> GetHostsAdoptionStatus(Empty request, ServerCallContext context)
+        => Task.FromResult(new HostsAdoptionStatus
+        {
+            Enabled = _state.Adoption.Enabled,
+            LastRun = _state.Adoption.LastRun,
+            LastResult = _state.Adoption.LastResult,
+            Unadopted = _state.Adoption.CountUnadopted(),
+        });
+
+    /// <summary>Fire-and-forget AI categorization for a batch of freshly adopted domains.</summary>
+    private void AutoCategorizeMany(IReadOnlyList<string> domains)
+    {
+        if (domains.Count == 0)
+        {
+            return;
+        }
+
+        var settings = _state.Ai.Settings;
+        if (!settings.Enabled || settings.ApiKey.Length == 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _state.Ai.CategorizeAsync(domains, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _state.Db.LogEvent("hosts", "ai_categorize_failed", details: ex.Message);
+            }
+        });
+    }
+
     public override async Task<Sparkline> GetSparkline(DomainRequest request, ServerCallContext context)
     {
         await _state.FlushActivityPersistenceAsync(context.CancellationToken);

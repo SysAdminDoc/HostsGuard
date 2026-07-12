@@ -91,6 +91,7 @@ public class SchemaLockTests
           UnblockQuic(Empty) returns (Ack)
         service HostsControl
           AddDefenderExclusion(Empty) returns (Ack)
+          AdoptHostsEntries(Empty) returns (AdoptResult)
           Allow(DomainRequest) returns (Ack)
           AllowMany(BulkDomainsRequest) returns (BulkResult)
           BackupHosts(Empty) returns (Ack)
@@ -102,6 +103,7 @@ public class SchemaLockTests
           ExportAiKnowledge(Empty) returns (HostsText)
           GetActivity(ActivityRequest) returns (ActivityList)
           GetAiStatus(Empty) returns (AiStatus)
+          GetHostsAdoptionStatus(Empty) returns (HostsAdoptionStatus)
           GetHostsText(Empty) returns (HostsText)
           GetSparkline(DomainRequest) returns (Sparkline)
           HardenAcl(Empty) returns (Ack)
@@ -118,6 +120,7 @@ public class SchemaLockTests
           ResearchPurposes(Empty) returns (CategorizeResult)
           RestoreBackup(BackupRequest) returns (Ack)
           SetAiConfig(AiConfig) returns (Ack)
+          SetHostsAdoption(HostsAdoptionRequest) returns (Ack)
           SetHostsText(HostsText) returns (Ack)
           TempAllow(TempAllowRequest) returns (Ack)
           Unblock(DomainRequest) returns (Ack)

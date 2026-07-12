@@ -70,10 +70,73 @@ catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
     Console.WriteLine($"HostsGuard: category normalization skipped ({ex.Message}).");
 }
 
+// NET-188: on startup, adopt any hand edits made while the service was stopped —
+// dedupe/organize the file and import new sink-block domains as managed rows.
+// Best-effort: an AV hold must never block startup.
+if (state.Adoption.Enabled)
+{
+    try
+    {
+        var startupAdopt = state.Adoption.AdoptNow("startup");
+        if (startupAdopt.Adopted != 0 || startupAdopt.Organized != 0)
+        {
+            Console.WriteLine($"HostsGuard: adopted {startupAdopt.Adopted} manual hosts entries, organized {startupAdopt.Organized}.");
+        }
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.WriteLine($"HostsGuard: manual-edit adoption skipped ({ex.Message}).");
+    }
+}
+
 using var hostsTamper = new HostsTamperWatch(hosts);
 hostsTamper.ExternalChangeDetected += (_, e) =>
 {
     db.LogEvent("hosts", "external_tamper", details: $"{e.Path}; sha512={e.Sha512Hex}", reason: "tamper");
+
+    // NET-188: when adoption is enabled and the edit is a plain set of hand-added
+    // block entries (no domain→real-IP redirect), import them instead of alarming.
+    // A redirect to a routable IP is a hijack signal — keep the critical alert.
+    if (state.Adoption.Enabled)
+    {
+        try
+        {
+            var outcome = state.Adoption.AdoptNow("external_edit");
+            hostsTamper.AcceptCurrentState(); // our organize-rewrite isn't a fresh tamper
+            if (!outcome.HasSuspiciousRedirect)
+            {
+                if (outcome.Adopted != 0 || outcome.Organized != 0)
+                {
+                    db.AddAlert(
+                        "hosts_tamper",
+                        "info",
+                        "Manual hosts edits adopted",
+                        e.Path,
+                        $"Imported {outcome.Adopted} hand-added {(outcome.Adopted == 1 ? "entry" : "entries")} "
+                            + $"and organized {outcome.Organized} into categories.",
+                        action: "manual_adopted");
+                }
+
+                return;
+            }
+
+            db.AddAlert(
+                "hosts_tamper",
+                "critical",
+                "Hosts file redirect detected",
+                e.Path,
+                $"A hand edit mapped {outcome.Suspicious} domain(s) to a real IP address (a redirect, not a block). "
+                    + $"SHA-512: {e.Sha512Hex}",
+                action: "external_change");
+            return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            db.LogEvent("hosts", "adopt_failed", details: ex.Message, reason: "manual_edit");
+            // fall through to the tamper alert below
+        }
+    }
+
     db.AddAlert(
         "hosts_tamper",
         "critical",

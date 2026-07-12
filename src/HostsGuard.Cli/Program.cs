@@ -38,6 +38,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
+    "adopt-hosts" => await AdoptHostsAsync(args),
     "blocklists" => await BlocklistsAsync(args),
     "ip-blocklists" => await IpBlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
@@ -97,6 +98,7 @@ static int Usage()
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-flush-entry <cached-name>
+          HostsGuard.Cli adopt-hosts [status|now|on|off]
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
@@ -238,6 +240,42 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         var ack = await op(new HostsControl.HostsControlClient(channel), request);
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
+    });
+}
+
+// NET-188: adopt hand-edited hosts entries into the managed DB.
+static async Task<int> AdoptHostsAsync(string[] args)
+{
+    var sub = (args.Length > 1 ? args[1] : "status").ToLowerInvariant();
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new HostsControl.HostsControlClient(channel);
+        switch (sub)
+        {
+            case "now":
+                var result = await client.AdoptHostsEntriesAsync(new Empty());
+                Console.WriteLine(result.Message);
+                return result.Ok ? 0 : 2;
+            case "on":
+            case "off":
+                var ack = await client.SetHostsAdoptionAsync(new HostsAdoptionRequest { Enabled = sub == "on" });
+                Console.WriteLine(ack.Message);
+                return ack.Ok ? 0 : 2;
+            case "status":
+                var status = await client.GetHostsAdoptionStatusAsync(new Empty());
+                Console.WriteLine($"automatic adoption: {(status.Enabled ? "on" : "off")}");
+                Console.WriteLine($"unadopted manual entries: {status.Unadopted}");
+                Console.WriteLine($"last run: {(status.LastRun.Length == 0 ? "never" : status.LastRun)}");
+                if (status.LastResult.Length != 0)
+                {
+                    Console.WriteLine($"last result: {status.LastResult}");
+                }
+
+                return 0;
+            default:
+                Console.Error.WriteLine($"unknown adopt-hosts subcommand '{sub}' (use status|now|on|off)");
+                return 2;
+        }
     });
 }
 

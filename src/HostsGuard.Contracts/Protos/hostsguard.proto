@@ -147,6 +147,14 @@ service HostsControl {
   // all_uncategorized is set), persist categories, and reorganize the managed
   // hosts entries under "# <Category>" section headers.
   rpc CategorizeDomains(CategorizeRequest) returns (CategorizeResult);
+  // Manual-edit adoption (NET-188): when the user hand-edits the hosts file in a
+  // text editor, dedupe + organize the whole file, curated-categorize, and adopt
+  // the newly-added sink-block domains into the managed DB as "manual" entries.
+  // AdoptHostsEntries runs the pass now; SetHostsAdoption toggles the automatic
+  // on-external-change adoption; GetHostsAdoptionStatus reports the toggle + last run.
+  rpc AdoptHostsEntries(Empty) returns (AdoptResult);
+  rpc SetHostsAdoption(HostsAdoptionRequest) returns (Ack);
+  rpc GetHostsAdoptionStatus(Empty) returns (HostsAdoptionStatus);
   // AI-research purpose descriptions for feed domains that have none (curated
   // or learned). Results persist to the ai_knowledge store.
   rpc ResearchPurposes(Empty) returns (CategorizeResult);
@@ -854,6 +862,17 @@ message AdoptResult {
   string error_code = 3;
   int32 adopted = 4;   // newly-adopted rules this run
   int32 total = 5;     // existing non-HG_ WF rules seen
+}
+
+message HostsAdoptionRequest {
+  bool enabled = 1;    // adopt hand-added hosts entries automatically on external change
+}
+
+message HostsAdoptionStatus {
+  bool enabled = 1;         // automatic on-external-change adoption is on
+  string last_run = 2;      // ISO timestamp of the last adoption pass; "" = never
+  string last_result = 3;   // human summary of the last pass
+  int32 unadopted = 4;      // sink-blocked hosts domains not yet in the managed DB
 }
 
 message RuleGroupAssignment {

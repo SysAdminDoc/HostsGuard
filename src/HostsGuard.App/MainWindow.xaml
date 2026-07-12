@@ -3011,6 +3011,31 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Manual-edit adoption (NET-188) -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Adopt_manual_hosts_edits, Default=Adopt manual hosts edits}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Adopt_manual_helper}"
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,8" />
+                                    <DockPanel LastChildFill="False">
+                                        <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Auto_adopt_hand_edits, Default=Auto-import hand edits on change}" VerticalAlignment="Center"
+                                                  IsChecked="{Binding AdoptManualEdits}" Margin="0,0,12,0"
+                                                  ToolTip="{svc:Loc Key=Xaml_Auto_adopt_tooltip}" />
+                                        <Button DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Save_adoption, Default=Save}"
+                                                Command="{Binding SaveAdoptionConfigCommand}" Margin="0,0,12,0" />
+                                        <Button DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Adopt_and_organize_now, Default=Adopt and organize now}"
+                                                Command="{Binding AdoptHostsNowCommand}"
+                                                ToolTip="{svc:Loc Key=Xaml_Adopt_now_tooltip}" />
+                                    </DockPanel>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding AdoptionStatusText}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- AI domain categorization (DeepSeek) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>

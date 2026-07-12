@@ -753,6 +753,13 @@
   <data name="Xaml_DohUrlHint" xml:space="preserve"><value>Resolver-list URL (optional, https)</value></data>
   <data name="Xaml_DohSha256Hint" xml:space="preserve"><value>SHA-256 of the list</value></data>
   <data name="Xaml_ModelHint" xml:space="preserve"><value>Model</value></data>
+  <data name="Xaml_Adopt_manual_hosts_edits" xml:space="preserve"><value>Adopt manual hosts edits</value></data>
+  <data name="Xaml_Adopt_manual_helper" xml:space="preserve"><value>When you edit the hosts file in a text editor, HostsGuard dedupes and organizes the whole file, categorizes entries, and imports the hand-added blocks into the managed list.</value></data>
+  <data name="Xaml_Auto_adopt_hand_edits" xml:space="preserve"><value>Auto-import hand edits on change</value></data>
+  <data name="Xaml_Auto_adopt_tooltip" xml:space="preserve"><value>When on, hand-added block entries are imported automatically; a domain redirected to a real IP still raises a tamper alert.</value></data>
+  <data name="Xaml_Save_adoption" xml:space="preserve"><value>Save</value></data>
+  <data name="Xaml_Adopt_and_organize_now" xml:space="preserve"><value>Adopt &amp; organize now</value></data>
+  <data name="Xaml_Adopt_now_tooltip" xml:space="preserve"><value>Dedupe, organize, categorize, and import any hand-added hosts entries right now.</value></data>
   <data name="Xaml_CorrectionDomainHint" xml:space="preserve"><value>domain.example.com</value></data>
   <data name="Xaml_CorrectionValueHint" xml:space="preserve"><value>new label (blank clears)</value></data>
   <data name="Xaml_SeeEverythingOffButton" xml:space="preserve"><value>See everything (force browser DNS to OS resolver)</value></data>
