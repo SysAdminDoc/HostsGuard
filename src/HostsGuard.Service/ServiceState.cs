@@ -362,6 +362,67 @@ public sealed class ServiceState : IDisposable
         }
     }
 
+    private readonly HashSet<string> _dnsBypassAlerted = new(StringComparer.OrdinalIgnoreCase);
+
+    // The Windows DNS Client (dnscache) legitimately owns the system resolver's
+    // port-53 egress; those processes are not "bypassing" anything.
+    private static readonly HashSet<string> SystemResolverProcesses =
+        new(StringComparer.OrdinalIgnoreCase) { "svchost.exe", "system", "system idle process", string.Empty };
+
+    /// <summary>
+    /// Opt-in (default off) detector: a process that talks DNS itself — direct
+    /// port-53 to a public resolver, or a known DoH endpoint — is dodging the
+    /// system resolver (and therefore the hosts-file blocklist). Deduped once per
+    /// process+kind so a browser rotating resolvers alerts only once.
+    /// </summary>
+    private void MaybeAlertDnsBypass(ConnectionInfo info, string category)
+    {
+        var process = info.Process ?? string.Empty;
+        if (SystemResolverProcesses.Contains(process.Trim()))
+        {
+            return;
+        }
+
+        string kind;
+        if (string.Equals(category, "DoH/DoT", StringComparison.Ordinal))
+        {
+            kind = "DoH/DoT";
+        }
+        else if (info.RemotePort == 53
+                 && System.Net.IPAddress.TryParse(info.RemoteAddress, out var ip)
+                 && SsrfGuard.IsPublic(ip))
+        {
+            kind = "direct DNS (port 53)";
+        }
+        else
+        {
+            return;
+        }
+
+        if (!Db.IsAlertTypeSurfaced("dns_bypass"))
+        {
+            return;
+        }
+
+        bool fresh;
+        lock (_dnsBypassAlerted)
+        {
+            fresh = _dnsBypassAlerted.Add($"{process}|{kind}");
+        }
+
+        if (fresh)
+        {
+            Db.AddAlert(
+                "dns_bypass",
+                "warning",
+                "App bypassing system DNS",
+                process.Length != 0 ? process : info.RemoteAddress,
+                $"{(process.Length != 0 ? process : "a process")} used {kind} to {info.RemoteAddress}:{info.RemotePort}, bypassing the system resolver and the hosts blocklist.",
+                action: "dns_bypass",
+                process: process);
+        }
+    }
+
     /// <summary>
     /// Publish a live connection sighting to WatchConnections streams; first
     /// sightings also land in the retention-bounded connection history (NET-070).
@@ -374,6 +435,8 @@ public sealed class ServiceState : IDisposable
         {
             category = "DoH/DoT"; // browser/app DNS tunneling detection
         }
+
+        MaybeAlertDnsBypass(info, category);
 
         var country = GeoIp.Lookup(info.RemoteAddress);
         var asn = Asn.Lookup(info.RemoteAddress);

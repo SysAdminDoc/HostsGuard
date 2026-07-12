@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.73] - 2026-07-12
+
+### Added
+- Detect apps bypassing system DNS: an opt-in "Apps bypassing system DNS" alert
+  type (off by default) flags a process that talks DNS itself — direct UDP/TCP
+  port 53 to a public resolver, or a known DoH/DoT endpoint — instead of using
+  the system resolver (and therefore evading the hosts-file blocklist). The
+  Windows DNS Client (svchost) and LAN/loopback resolvers are never flagged; each
+  process fires once per bypass kind.
+
 ## [0.12.72] - 2026-07-12
 
 ### Added

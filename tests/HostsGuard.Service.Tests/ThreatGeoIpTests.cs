@@ -126,6 +126,31 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
         => _state.GeoIp.Lookup("8.8.8.8").Should().BeEmpty();
 
     [Fact]
+    public void Dns_bypass_alert_is_opt_in_flags_direct_port53_and_ignores_the_system_resolver()
+    {
+        // Off by default: an app's direct port-53 to a public resolver records nothing.
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55000, "1.1.1.1", 53, "ESTABLISHED", 4321, "curl.exe"));
+        _state.Db.GetAlerts(new AlertFilter(SurfaceOnly: false, Type: "dns_bypass")).Rows.Should().BeEmpty();
+
+        // Enable the opt-in type.
+        _state.Db.SetAlertTypeSurface("dns_bypass", true);
+
+        // The Windows DNS Client (svchost) owns the system resolver — never flagged.
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55001, "8.8.8.8", 53, "ESTABLISHED", 900, "svchost.exe"));
+        _state.Db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows.Should().BeEmpty();
+
+        // A private/LAN resolver on 53 is the normal path — not a bypass.
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55002, "192.168.1.1", 53, "ESTABLISHED", 4321, "curl.exe"));
+        _state.Db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows.Should().BeEmpty();
+
+        // An app talking DNS directly to a public resolver IS a bypass; fires once.
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55003, "1.1.1.1", 53, "ESTABLISHED", 4321, "curl.exe"));
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55004, "9.9.9.9", 53, "ESTABLISHED", 4321, "curl.exe"));
+        _state.Db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows
+            .Should().ContainSingle(a => a.Process == "curl.exe");
+    }
+
+    [Fact]
     public void Gzip_expansion_cap_stops_bombs()
     {
         var payload = new byte[1_000_000]; // zeros compress extremely well
