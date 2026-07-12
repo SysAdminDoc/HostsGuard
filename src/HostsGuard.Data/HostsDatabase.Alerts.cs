@@ -16,7 +16,26 @@ public sealed partial class HostsDatabase
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
         ("suspicious_domain", "Algorithmic / DGA-looking domains", true),
+        // Opt-in (off by default): a first-contact signal is high-volume, so it
+        // only records/surfaces once the user enables the type.
+        ("newly_observed_domain", "Newly observed domains", false),
     };
+
+    /// <summary>Whether alerts of <paramref name="type"/> currently surface (opt-in gating for high-volume types).</summary>
+    public bool IsAlertTypeSurfaced(string type)
+    {
+        type = CleanToken(type, string.Empty);
+        if (type.Length == 0)
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            EnsureAlertTypeNoLock(type);
+            return AlertTypeSurfaceNoLock(type);
+        }
+    }
 
     public long AddAlert(
         string type,

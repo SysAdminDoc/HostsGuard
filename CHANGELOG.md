@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.71] - 2026-07-12
+
+### Added
+- Newly-observed-domain flag: a purely local "never seen before on this machine"
+  signal (no cloud NRD feed). Domains whose `first_seen` falls within a
+  meta-configurable window (`newly_observed_window_hours`, default 24h) render a
+  green "NEW" cue in the Hosts activity grid. An opt-in "Newly observed domains"
+  alert type (off by default, since a fresh install would otherwise flag
+  everything) fires exactly once on a domain's first contact when enabled.
+
 ## [0.12.70] - 2026-07-12
 
 ### Added

@@ -266,6 +266,9 @@ public sealed class ServiceState : IDisposable
         }
 
         var root = Core.Domains.GetRoot(d);
+        // Capture first-contact BEFORE the (async) feed write so a brand-new
+        // domain is detectable for the newly-observed alert.
+        var firstContact = !Db.FeedContains(d);
         ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot
@@ -285,9 +288,43 @@ public sealed class ServiceState : IDisposable
         Bus.Publish(ev);
 
         MaybeAlertSuspiciousDomain(d, root, process);
+        MaybeAlertNewlyObserved(d, process, firstContact);
     }
 
     private readonly HashSet<string> _dgaAlerted = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _newlyObservedAlerted = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Opt-in first-contact signal: when a domain is observed that this machine
+    /// has never seen before, raise a "newly observed" alert. Gated on the type
+    /// being enabled (off by default — a fresh install would otherwise flag
+    /// everything), and deduped in-memory so the pre-flush window can't double-fire.
+    /// </summary>
+    private void MaybeAlertNewlyObserved(string domain, string process, bool firstContact)
+    {
+        if (!firstContact || !Db.IsAlertTypeSurfaced("newly_observed_domain"))
+        {
+            return;
+        }
+
+        bool fresh;
+        lock (_newlyObservedAlerted)
+        {
+            fresh = _newlyObservedAlerted.Add(domain);
+        }
+
+        if (fresh)
+        {
+            Db.AddAlert(
+                "newly_observed_domain",
+                "info",
+                "Newly observed domain",
+                domain,
+                $"{domain} was contacted for the first time on this machine.",
+                action: "newly_observed_domain",
+                process: process);
+        }
+    }
 
     /// <summary>
     /// NET-201: raise a one-time alert when a domain's registrable name looks

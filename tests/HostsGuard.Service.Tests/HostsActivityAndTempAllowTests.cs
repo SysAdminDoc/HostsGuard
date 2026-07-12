@@ -236,6 +236,43 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Activity_flags_domains_first_seen_within_the_window_as_new()
+    {
+        // A domain first observed 48h ago is established; one seen just now is new.
+        _state.Db.RecordDnsSightings(new[]
+        {
+            new DnsSightingWrite("established.example.com", "app.exe", null, DateTime.Now.AddHours(-48)),
+            new DnsSightingWrite("fresh.example.com", "app.exe", null, DateTime.Now),
+        });
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var list = await Hosts(channel).GetActivityAsync(new ActivityRequest());
+
+        list.Rows.Single(r => r.Domain == "fresh.example.com").IsNew.Should().BeTrue();
+        list.Rows.Single(r => r.Domain == "established.example.com").IsNew.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Newly_observed_alert_is_opt_in_and_fires_once_on_first_contact()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        // Off by default: a first contact records no alert.
+        _state.RecordDns("silent.example.com");
+        _state.Db.GetAlerts(new AlertFilter(SurfaceOnly: false, Type: "newly_observed_domain"))
+            .Rows.Should().BeEmpty();
+
+        // Enable the opt-in type, then a brand-new domain fires exactly one alert.
+        _state.Db.SetAlertTypeSurface("newly_observed_domain", true);
+        _state.RecordDns("brandnew.example.com", "edge.exe");
+        _state.RecordDns("brandnew.example.com", "edge.exe"); // repeat must not double-fire
+
+        var alerts = _state.Db.GetAlerts(new AlertFilter(Type: "newly_observed_domain")).Rows;
+        alerts.Should().ContainSingle(a => a.Subject == "brandnew.example.com");
+        await Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task TempBlock_blocks_now_and_lists_pending_window()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

@@ -55,6 +55,14 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     /// <summary>Humanized data volume ("" when nothing has been attributed yet).</summary>
     public string DataText => Bytes <= 0 ? string.Empty : FormatBytes(Bytes);
 
+    /// <summary>First observed on this machine within the newly-observed window (server-computed).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NewText))]
+    private bool _isNew;
+
+    /// <summary>Compact "NEW" cue for the activity grid; "" for established domains.</summary>
+    public string NewText => IsNew ? "NEW" : string.Empty;
+
     private static string FormatBytes(long bytes)
     {
         string[] units = { "B", "KB", "MB", "GB", "TB" };
@@ -115,5 +123,6 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         Purpose = r.Purpose.Length != 0 ? r.Purpose : Core.DomainPurpose.Lookup(r.Domain),
         Blocklists = r.Blocklists.ToList(),
         Bytes = r.Bytes,
+        IsNew = r.IsNew,
     };
 }

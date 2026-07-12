@@ -634,6 +634,23 @@ public sealed partial class HostsDatabase
         return buckets;
     }
 
+    /// <summary>True if the domain already has a feed row (i.e. it has been observed before).</summary>
+    public bool FeedContains(string domain)
+    {
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            ThrowIfDisposed();
+            return _conn.ExecuteScalar<long>(
+                "SELECT COUNT(1) FROM feed WHERE domain=@d",
+                new { d = domain.ToLowerInvariant() }) != 0;
+        }
+    }
+
     public IReadOnlyList<FeedRow> GetFeed(int limit = 500)
     {
         lock (_gate)

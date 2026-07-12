@@ -791,6 +791,16 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="95" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_a6179b4c}" Binding="{Binding Hits}" Width="45" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Data_e5e429bc}" Binding="{Binding DataText}" Width="64" IsReadOnly="True" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_New_c2a1f0e3}" Binding="{Binding NewText}" Width="44" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <!-- Green "NEW" = first observed on this machine within the window. -->
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
+                                            <Setter Property="FontSize" Value="10" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_24h_02779596}" Width="96">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>

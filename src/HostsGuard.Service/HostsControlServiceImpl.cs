@@ -496,6 +496,9 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var overriddenPurposes = _state.Db.GetUserOverrides("purpose", feed.Select(r => r.Domain));
         // Per-domain data volume (NET-108), one batched query for the page.
         var usage = _state.Db.GetDomainUsageTotals(feed.Select(r => r.Domain));
+        // First-seen cue: a domain observed for the first time within this window
+        // renders a local "new" flag. The window is meta-configurable (default 24h).
+        var newlyObservedCutoff = DateTime.Now - NewlyObservedWindow();
         var list = new ActivityList();
         foreach (var row in feed)
         {
@@ -530,6 +533,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 LastSeen = row.LastSeen ?? string.Empty,
                 Hidden = hidden,
                 Reason = row.Reason ?? string.Empty,
+                IsNew = IsNewlyObserved(row.FirstSeen, newlyObservedCutoff),
             };
             if (membership.TryGetValue(row.Domain, out var lists))
             {
@@ -555,6 +559,29 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         return list;
+    }
+
+    /// <summary>The newly-observed cue window; meta-configurable, default 24h, clamped 1h..30d.</summary>
+    private TimeSpan NewlyObservedWindow()
+    {
+        var hours = 24.0;
+        var raw = _state.Db.GetMeta("newly_observed_window_hours");
+        if (!string.IsNullOrWhiteSpace(raw)
+            && double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed)
+            && parsed > 0)
+        {
+            hours = parsed;
+        }
+
+        return TimeSpan.FromHours(Math.Clamp(hours, 1, 24 * 30));
+    }
+
+    private static bool IsNewlyObserved(string? firstSeen, DateTime cutoffLocal)
+    {
+        return !string.IsNullOrWhiteSpace(firstSeen)
+            && DateTime.TryParse(firstSeen, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var seen)
+            && seen >= cutoffLocal;
     }
 
     // ─── AI categorization (DeepSeek) ─────────────────────────────────────────

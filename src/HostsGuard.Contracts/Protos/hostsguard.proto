@@ -518,6 +518,9 @@ message ActivityRow {
   // Per-domain data volume in bytes (sent+recv), attributed via the resolved
   // remote IP (NET-108); 0 when no bytes have been attributed yet.
   int64 bytes = 12;
+  // True when first_seen falls within the newly-observed window (default 24h) —
+  // a purely local "never seen before on this machine until recently" cue.
+  bool is_new = 13;
 }
 
 message ActivityList {
