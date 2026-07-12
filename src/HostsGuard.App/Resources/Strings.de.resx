@@ -114,4 +114,30 @@
   <data name="Recovery_SnapshotPicker" xml:space="preserve"><value>Vollständigen Snapshot auswählen</value></data>
   <data name="Recovery_Preview" xml:space="preserve"><value>Wiederherstellung prüfen</value></data>
   <data name="Recovery_Restore" xml:space="preserve"><value>Geprüften Status wiederherstellen</value></data>
+  <data name="Proxy_Title" xml:space="preserve"><value>Proxy- und PAC-Baseline</value></data>
+  <data name="Proxy_Help" xml:space="preserve"><value>Vergleicht WinINET pro Benutzer und WinHTTP des Computers. Akzeptieren speichert den aktuellen Zustand, ändert aber keine Windows-Einstellungen.</value></data>
+  <data name="Proxy_Check" xml:space="preserve"><value>Prüfen</value></data>
+  <data name="Proxy_CheckName" xml:space="preserve"><value>Proxy- und PAC-Baseline prüfen</value></data>
+  <data name="Proxy_Accept" xml:space="preserve"><value>Aktuell akzeptieren</value></data>
+  <data name="Proxy_AcceptName" xml:space="preserve"><value>Aktuellen Proxy- und PAC-Zustand als Baseline akzeptieren</value></data>
+  <data name="Proxy_AcceptTip" xml:space="preserve"><value>Legitime Unternehmens- oder Administratoränderungen erfassen, ohne sie zu verändern.</value></data>
+  <data name="Proxy_TableName" xml:space="preserve"><value>Vergleich der Proxy- und PAC-Baseline</value></data>
+  <data name="Proxy_ColScope" xml:space="preserve"><value>Bereich</value></data>
+  <data name="Proxy_ColIdentity" xml:space="preserve"><value>Identität</value></data>
+  <data name="Proxy_ColSetting" xml:space="preserve"><value>Einstellung</value></data>
+  <data name="Proxy_ColState" xml:space="preserve"><value>Status</value></data>
+  <data name="Proxy_StateChanged" xml:space="preserve"><value>Geändert</value></data>
+  <data name="Proxy_StateMatch" xml:space="preserve"><value>Stimmt überein</value></data>
+  <data name="Proxy_ColBaseline" xml:space="preserve"><value>Baseline</value></data>
+  <data name="Proxy_ColCurrent" xml:space="preserve"><value>Aktuell</value></data>
+  <data name="Proxy_Empty" xml:space="preserve"><value>Es wurden noch keine Proxy-Einstellungen geprüft.</value></data>
+  <data name="Proxy_StatusHint" xml:space="preserve"><value>Aktuellen WinINET- und WinHTTP-Proxy/PAC-Zustand mit der akzeptierten Baseline vergleichen.</value></data>
+  <data name="Proxy_ActionInspect" xml:space="preserve"><value>Proxy-Baseline prüfen</value></data>
+  <data name="Proxy_ActionAccept" xml:space="preserve"><value>Proxy-Baseline akzeptieren</value></data>
+  <data name="Proxy_Machine" xml:space="preserve"><value>Computer</value></data>
+  <data name="Proxy_NotRecorded" xml:space="preserve"><value>Nicht erfasst</value></data>
+  <data name="Proxy_NotSet" xml:space="preserve"><value>Nicht gesetzt</value></data>
+  <data name="Proxy_NoBaseline" xml:space="preserve"><value>Noch keine Proxy-Baseline akzeptiert.</value></data>
+  <data name="Proxy_Changed" xml:space="preserve"><value>Der Proxy/PAC-Zustand weicht von der akzeptierten Baseline ab.</value></data>
+  <data name="Proxy_Unchanged" xml:space="preserve"><value>Der Proxy/PAC-Zustand entspricht der akzeptierten Baseline.</value></data>
 </root>

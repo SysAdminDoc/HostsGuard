@@ -34,10 +34,12 @@ public class SchemaLockTests
           SetTrustedPublishers(PublisherList) returns (Ack)
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics
+          AcceptProxyBaseline(Empty) returns (Ack)
           ExportSupportBundle(SupportBundleRequest) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)
           GetStatus(Empty) returns (ServiceStatus)
           GetUpdateStatus(Empty) returns (UpdateStatus)
+          InspectProxyBaseline(Empty) returns (ProxyBaselineReport)
           StageUpdate(StageUpdateRequest) returns (Ack)
         service DnsControl
           FlushCache(Empty) returns (Ack)

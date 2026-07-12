@@ -114,4 +114,30 @@
   <data name="Recovery_SnapshotPicker" xml:space="preserve"><value>Instantané complet à prévisualiser ou restaurer</value></data>
   <data name="Recovery_Preview" xml:space="preserve"><value>Prévisualiser</value></data>
   <data name="Recovery_Restore" xml:space="preserve"><value>Restaurer l’état vérifié</value></data>
+  <data name="Proxy_Title" xml:space="preserve"><value>Référence proxy et PAC</value></data>
+  <data name="Proxy_Help" xml:space="preserve"><value>Compare les paramètres WinINET par utilisateur et WinHTTP de l’ordinateur. Accepter enregistre l’état actuel sans modifier Windows.</value></data>
+  <data name="Proxy_Check" xml:space="preserve"><value>Vérifier</value></data>
+  <data name="Proxy_CheckName" xml:space="preserve"><value>Vérifier la référence proxy et PAC</value></data>
+  <data name="Proxy_Accept" xml:space="preserve"><value>Accepter l’état actuel</value></data>
+  <data name="Proxy_AcceptName" xml:space="preserve"><value>Accepter l’état proxy et PAC actuel comme référence</value></data>
+  <data name="Proxy_AcceptTip" xml:space="preserve"><value>Enregistrer les changements légitimes de l’entreprise ou de l’administrateur sans les modifier.</value></data>
+  <data name="Proxy_TableName" xml:space="preserve"><value>Comparaison de la référence proxy et PAC</value></data>
+  <data name="Proxy_ColScope" xml:space="preserve"><value>Étendue</value></data>
+  <data name="Proxy_ColIdentity" xml:space="preserve"><value>Identité</value></data>
+  <data name="Proxy_ColSetting" xml:space="preserve"><value>Paramètre</value></data>
+  <data name="Proxy_ColState" xml:space="preserve"><value>État</value></data>
+  <data name="Proxy_StateChanged" xml:space="preserve"><value>Modifié</value></data>
+  <data name="Proxy_StateMatch" xml:space="preserve"><value>Conforme</value></data>
+  <data name="Proxy_ColBaseline" xml:space="preserve"><value>Référence</value></data>
+  <data name="Proxy_ColCurrent" xml:space="preserve"><value>Actuel</value></data>
+  <data name="Proxy_Empty" xml:space="preserve"><value>Aucun paramètre proxy n’a encore été inspecté.</value></data>
+  <data name="Proxy_StatusHint" xml:space="preserve"><value>Comparer l’état proxy/PAC WinINET et WinHTTP actuel à la référence acceptée.</value></data>
+  <data name="Proxy_ActionInspect" xml:space="preserve"><value>Vérifier la référence proxy</value></data>
+  <data name="Proxy_ActionAccept" xml:space="preserve"><value>Accepter la référence proxy</value></data>
+  <data name="Proxy_Machine" xml:space="preserve"><value>Ordinateur</value></data>
+  <data name="Proxy_NotRecorded" xml:space="preserve"><value>Non enregistré</value></data>
+  <data name="Proxy_NotSet" xml:space="preserve"><value>Non défini</value></data>
+  <data name="Proxy_NoBaseline" xml:space="preserve"><value>Aucune référence proxy acceptée pour le moment.</value></data>
+  <data name="Proxy_Changed" xml:space="preserve"><value>L’état proxy/PAC diffère de la référence acceptée.</value></data>
+  <data name="Proxy_Unchanged" xml:space="preserve"><value>L’état proxy/PAC correspond à la référence acceptée.</value></data>
 </root>

@@ -32,6 +32,30 @@ service Diagnostics {
   // check the release feed, stage a hash-verified installer, apply on restart.
   rpc GetUpdateStatus(Empty) returns (UpdateStatus);
   rpc StageUpdate(StageUpdateRequest) returns (Ack);
+  // Read-only comparison of current per-user WinINET and machine WinHTTP
+  // proxy/PAC state against the last explicitly accepted baseline.
+  rpc InspectProxyBaseline(Empty) returns (ProxyBaselineReport);
+  // Accepts the current observed state without changing any Windows setting.
+  rpc AcceptProxyBaseline(Empty) returns (Ack);
+}
+
+message ProxyBaselineEntry {
+  string scope = 1;          // "WinINET" or "WinHTTP"
+  string sid = 2;            // user SID for WinINET; empty for machine state
+  string setting = 3;        // stable setting key, e.g. ProxyServer
+  bool baseline_present = 4;
+  string baseline_value = 5; // display-safe value supplied by the service
+  bool current_present = 6;
+  string current_value = 7;  // display-safe value supplied by the service
+  bool changed = 8;
+}
+
+message ProxyBaselineReport {
+  repeated ProxyBaselineEntry entries = 1;
+  bool baseline_exists = 2;
+  bool changed = 3;
+  string checked_at = 4;
+  string message = 5;
 }
 
 // Coherent local recovery points for the service-owned SQLite database, hosts

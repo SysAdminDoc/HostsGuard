@@ -189,6 +189,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadPolicySubscriptionsAsync();
             await Tools.LoadIpBlocklistsAsync();
             await Tools.LoadHealthAsync();
+            await Tools.InspectProxyBaselineAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
             await Tools.LoadFullStateSnapshotsAsync();
@@ -975,6 +976,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadPolicySubscriptionsAsync();
             await Tools.LoadIpBlocklistsAsync();
             await Tools.LoadHealthAsync();
+            await Tools.InspectProxyBaselineAsync();
             await Tools.LoadDefenderStatusAsync();
             await Tools.LoadBackupsAsync();
             await Tools.LoadFullStateSnapshotsAsync();

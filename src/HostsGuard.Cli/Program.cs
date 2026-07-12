@@ -40,6 +40,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
+    "proxy" => await ProxyBaselineAsync(args),
     "adopt-hosts" => await AdoptHostsAsync(args),
     "blocklists" => await BlocklistsAsync(args),
     "ip-blocklists" => await IpBlocklistsAsync(args),
@@ -106,6 +107,7 @@ static int Usage()
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-flush-entry <cached-name>
+          HostsGuard.Cli proxy [status|accept-baseline]
           HostsGuard.Cli adopt-hosts [status|now|on|off]
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
@@ -249,6 +251,44 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
         var ack = await op(new HostsControl.HostsControlClient(channel), request);
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
+    });
+}
+
+static async Task<int> ProxyBaselineAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].ToLowerInvariant() : "status";
+    if (action is not ("status" or "check" or "accept-baseline"))
+    {
+        Console.Error.WriteLine("usage: HostsGuard.Cli proxy [status|accept-baseline]");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+        if (action == "accept-baseline")
+        {
+            var ack = await client.AcceptProxyBaselineAsync(new Empty());
+            Console.WriteLine(ack.Message);
+            return ack.Ok ? 0 : 2;
+        }
+
+        var report = await client.InspectProxyBaselineAsync(new Empty());
+        Console.WriteLine(report.Message.Length == 0
+            ? report.BaselineExists
+                ? report.Changed ? "proxy/PAC baseline changed" : "proxy/PAC baseline unchanged"
+                : "no accepted proxy/PAC baseline"
+            : report.Message);
+        foreach (var entry in report.Entries)
+        {
+            var identity = entry.Sid.Length == 0 ? "machine" : entry.Sid;
+            var baseline = entry.BaselinePresent ? entry.BaselineValue : "<not recorded>";
+            var current = entry.CurrentPresent ? entry.CurrentValue : "<not set>";
+            var marker = entry.Changed ? "CHANGED" : "ok";
+            Console.WriteLine($"{marker,-7} {entry.Scope,-8} {identity} {entry.Setting}: {baseline} -> {current}");
+        }
+
+        return report.Changed ? 2 : 0;
     });
 }
 

@@ -104,6 +104,68 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         };
     }
 
+    public override Task<ProxyBaselineReport> InspectProxyBaseline(Empty request, ServerCallContext context)
+    {
+        if (_state.ProxyBaseline is not { } monitor)
+        {
+            return Task.FromResult(new ProxyBaselineReport
+            {
+                Message = "proxy baseline monitor unavailable",
+                CheckedAt = DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            });
+        }
+
+        var inspection = monitor.Inspect();
+        var report = new ProxyBaselineReport
+        {
+            BaselineExists = inspection.BaselineExists,
+            Changed = inspection.Changed,
+            CheckedAt = inspection.CheckedAtUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            Message = !inspection.BaselineExists
+                ? "No proxy baseline has been recorded yet."
+                : inspection.Changed
+                    ? "Proxy or PAC state differs from the accepted baseline."
+                    : "Proxy and PAC state matches the accepted baseline.",
+        };
+        report.Entries.AddRange(inspection.Entries.Select(entry => new ProxyBaselineEntry
+        {
+            Scope = entry.Scope,
+            Sid = entry.Principal == "machine" ? string.Empty : entry.Principal,
+            Setting = entry.Name,
+            BaselinePresent = entry.BaselinePresent,
+            BaselineValue = entry.BaselineValue,
+            CurrentPresent = entry.CurrentPresent,
+            CurrentValue = entry.CurrentValue,
+            Changed = entry.Changed,
+        }));
+        return Task.FromResult(report);
+    }
+
+    public override Task<Ack> AcceptProxyBaseline(Empty request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } locked)
+        {
+            return Task.FromResult(locked);
+        }
+
+        if (_state.ProxyBaseline is not { } monitor)
+        {
+            return Task.FromResult(new Ack
+            {
+                Ok = false,
+                Message = "proxy baseline monitor unavailable",
+                ErrorCode = "hostsguard.error.v1/proxy_monitor_unavailable",
+            });
+        }
+
+        var count = monitor.AcceptCurrent();
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = $"accepted {count} WinINET/WinHTTP proxy and PAC setting(s) as the new baseline",
+        });
+    }
+
     /// <summary>
     /// Redacted support bundle: status, recent event log, managed-domain counts,
     /// firewall rule names, and schedules. Every text payload runs through the

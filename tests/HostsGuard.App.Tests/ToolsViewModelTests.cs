@@ -158,4 +158,26 @@ public sealed class ToolsViewModelTests
         row.Components.Should().Equal("database", "hosts", "service settings (3)");
         row.Sha256.Should().HaveLength(64);
     }
+
+    [Fact]
+    public void Proxy_baseline_row_preserves_presence_and_change_semantics()
+    {
+        var row = ProxyBaselineRowViewModel.From(new ProxyBaselineEntry
+        {
+            Scope = "WinINET",
+            Sid = "S-1-5-21-test",
+            Setting = "AutoConfigURL",
+            BaselinePresent = false,
+            CurrentPresent = true,
+            CurrentValue = "https://proxy.example/pac",
+            Changed = true,
+        });
+
+        row.Scope.Should().Be("WinINET");
+        row.Identity.Should().Be("S-1-5-21-test");
+        row.Baseline.Should().Be(I18n.T("Proxy_NotRecorded", "Not recorded"));
+        row.Current.Should().Be("https://proxy.example/pac");
+        row.Changed.Should().BeTrue();
+        row.State.Should().Be(I18n.T("Proxy_StateChanged", "Changed"));
+    }
 }

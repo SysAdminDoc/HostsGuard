@@ -114,4 +114,30 @@
   <data name="Recovery_SnapshotPicker" xml:space="preserve"><value>Instantánea de estado completo para revisar o restaurar</value></data>
   <data name="Recovery_Preview" xml:space="preserve"><value>Vista previa</value></data>
   <data name="Recovery_Restore" xml:space="preserve"><value>Restaurar estado verificado</value></data>
+  <data name="Proxy_Title" xml:space="preserve"><value>Línea base de proxy y PAC</value></data>
+  <data name="Proxy_Help" xml:space="preserve"><value>Compare la configuración WinINET por usuario y WinHTTP del equipo. Aceptar registra el estado actual; nunca cambia la configuración de Windows.</value></data>
+  <data name="Proxy_Check" xml:space="preserve"><value>Comprobar</value></data>
+  <data name="Proxy_CheckName" xml:space="preserve"><value>Comprobar la línea base de proxy y PAC</value></data>
+  <data name="Proxy_Accept" xml:space="preserve"><value>Aceptar actual</value></data>
+  <data name="Proxy_AcceptName" xml:space="preserve"><value>Aceptar el estado actual de proxy y PAC como línea base</value></data>
+  <data name="Proxy_AcceptTip" xml:space="preserve"><value>Registre cambios legítimos de la empresa o del administrador sin modificarlos.</value></data>
+  <data name="Proxy_TableName" xml:space="preserve"><value>Comparación de la línea base de proxy y PAC</value></data>
+  <data name="Proxy_ColScope" xml:space="preserve"><value>Ámbito</value></data>
+  <data name="Proxy_ColIdentity" xml:space="preserve"><value>Identidad</value></data>
+  <data name="Proxy_ColSetting" xml:space="preserve"><value>Ajuste</value></data>
+  <data name="Proxy_ColState" xml:space="preserve"><value>Estado</value></data>
+  <data name="Proxy_StateChanged" xml:space="preserve"><value>Cambiado</value></data>
+  <data name="Proxy_StateMatch" xml:space="preserve"><value>Coincide</value></data>
+  <data name="Proxy_ColBaseline" xml:space="preserve"><value>Línea base</value></data>
+  <data name="Proxy_ColCurrent" xml:space="preserve"><value>Actual</value></data>
+  <data name="Proxy_Empty" xml:space="preserve"><value>Aún no se ha inspeccionado ninguna configuración de proxy.</value></data>
+  <data name="Proxy_StatusHint" xml:space="preserve"><value>Compare el estado actual de proxy/PAC de WinINET y WinHTTP con la línea base aceptada.</value></data>
+  <data name="Proxy_ActionInspect" xml:space="preserve"><value>Comprobar línea base de proxy</value></data>
+  <data name="Proxy_ActionAccept" xml:space="preserve"><value>Aceptar línea base de proxy</value></data>
+  <data name="Proxy_Machine" xml:space="preserve"><value>Equipo</value></data>
+  <data name="Proxy_NotRecorded" xml:space="preserve"><value>No registrado</value></data>
+  <data name="Proxy_NotSet" xml:space="preserve"><value>Sin establecer</value></data>
+  <data name="Proxy_NoBaseline" xml:space="preserve"><value>Aún no hay una línea base de proxy aceptada.</value></data>
+  <data name="Proxy_Changed" xml:space="preserve"><value>El estado de proxy/PAC difiere de la línea base aceptada.</value></data>
+  <data name="Proxy_Unchanged" xml:space="preserve"><value>El estado de proxy/PAC coincide con la línea base aceptada.</value></data>
 </root>

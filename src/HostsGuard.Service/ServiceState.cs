@@ -28,7 +28,8 @@ public sealed class ServiceState : IDisposable
         IFlowTerminator? flowTerminator = null,
         Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null,
         Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null,
-        ILanAttackSurfaceStore? lanSurfaceStore = null)
+        ILanAttackSurfaceStore? lanSurfaceStore = null,
+        IProxyConfigurationSnapshotSource? proxySnapshotSource = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -75,6 +76,11 @@ public sealed class ServiceState : IDisposable
         };
         SecureRules = new SecureRulesGuard(firewall, db);
         FirewallDrift = new FirewallDriftMonitor(firewall, db);
+        if (proxySnapshotSource is not null)
+        {
+            ProxyBaseline = new ProxyBaselineMonitor(proxySnapshotSource, db);
+            ProxyBaseline.Start();
+        }
         CnameCloak = new CnameCloakGuard(hosts, db);
         Lock = new SettingsLock(DataDir);
         Webhooks = WebhookConfig.Load(DataDir);
@@ -165,6 +171,9 @@ public sealed class ServiceState : IDisposable
     public SecureRulesGuard SecureRules { get; }
 
     public FirewallDriftMonitor FirewallDrift { get; }
+
+    /// <summary>Report-only WinINET/WinHTTP proxy and PAC drift monitor.</summary>
+    public ProxyBaselineMonitor? ProxyBaseline { get; }
 
     public CnameCloakGuard CnameCloak { get; }
 
@@ -555,6 +564,7 @@ public sealed class ServiceState : IDisposable
         _shutdown.Dispose();
         Intel?.Dispose();
         FirewallDrift.Dispose();
+        ProxyBaseline?.Dispose();
         SecureRules.Dispose();
         Consent.Dispose();
         GeoIp.Dispose();

@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.81] - 2026-07-12
+
+### Added
+- A report-only proxy/PAC monitor snapshots `ProxyEnable`, `ProxyServer`,
+  `ProxyOverride`, and `AutoConfigURL` for every loaded user SID plus machine
+  WinHTTP manual/advanced proxy state. It polls every two minutes and emits one
+  deduplicated before/after alert when the observed state diverges from the last
+  explicitly accepted baseline; no proxy setting is auto-reverted.
+- Tools and `HostsGuard.Cli proxy status|accept-baseline` expose the comparison
+  and let an operator accept a legitimate enterprise change. Proxy credentials
+  and PAC URL userinfo/query/fragment data are redacted before persistence,
+  logging, RPC, UI, or recovery capture; fingerprints retain secret-only drift
+  detection without retaining raw values.
+
 ## [0.12.80] - 2026-07-12
 
 ### Added

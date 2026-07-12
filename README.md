@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.80-blue)
+![Version](https://img.shields.io/badge/version-0.12.81-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -134,6 +134,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |
 | DNS resolver switcher | Select physical or explicit VPN/tunnel adapters, preview DHCP/static state, then apply Cloudflare/Google/Quad9 or DHCP transactionally; a bounded A+AAAA probe reports RTT or restores every adapter exactly |
 | DNS resolver-cache viewer | Inspect Windows DNS Client cached names, including HTTPS/SVCB service-binding rows used by modern HTTPS/ECH bootstrap paths, and flush one selected entry when a newly blocked host still resolves |
+| Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
@@ -169,6 +170,8 @@ HostsGuard.Cli snapshot create
 HostsGuard.Cli snapshot list
 HostsGuard.Cli snapshot preview <snapshot-id>
 HostsGuard.Cli snapshot restore <snapshot-id> --sha256 <previewed-sha256>
+HostsGuard.Cli proxy status
+HostsGuard.Cli proxy accept-baseline
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli traffic-profile [profile.json|profile.csv] [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]

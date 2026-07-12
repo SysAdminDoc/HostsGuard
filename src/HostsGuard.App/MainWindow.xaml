@@ -2605,6 +2605,61 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Proxy/PAC tamper baseline -->
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="{svc:Loc Key=Proxy_Title}"
+                                                   FontWeight="SemiBold" />
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=Proxy_Accept}"
+                                                Command="{Binding AcceptProxyBaselineCommand}"
+                                                AutomationProperties.Name="{svc:Loc Key=Proxy_AcceptName}"
+                                                ToolTip="{svc:Loc Key=Proxy_AcceptTip}"
+                                                Margin="8,0,0,0"
+                                                Padding="10,2" />
+                                        <Button DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=Proxy_Check}"
+                                                Command="{Binding InspectProxyBaselineCommand}"
+                                                AutomationProperties.Name="{svc:Loc Key=Proxy_CheckName}"
+                                                Padding="10,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=Proxy_Help}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               Margin="0,4,0,8"
+                                               TextWrapping="Wrap" />
+                                    <DataGrid ItemsSource="{Binding ProxyBaselineRows}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              HeadersVisibility="Column"
+                                              MaxHeight="190"
+                                              AutomationProperties.Name="{svc:Loc Key=Proxy_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColScope}" Binding="{Binding Scope}" Width="88" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColIdentity}" Binding="{Binding Identity}" Width="1.1*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColSetting}" Binding="{Binding Setting}" Width="1.1*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColState}" Binding="{Binding State}" Width="82" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColBaseline}" Binding="{Binding Baseline}" Width="1.4*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Proxy_ColCurrent}" Binding="{Binding Current}" Width="1.4*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <Border Style="{StaticResource Hg.EmptyState}"
+                                            Margin="0,8,0,0"
+                                            Visibility="{Binding ProxyBaselineRows.Count, Converter={StaticResource EmptyStateVis}}">
+                                        <TextBlock Text="{svc:Loc Key=Proxy_Empty}" Style="{StaticResource Hg.EmptyText}" />
+                                    </Border>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                        <TextBlock Text="{Binding ProxyBaselineStatus}"
+                                                   Style="{StaticResource Hg.SubText}"
+                                                   TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
                             <!-- SHA-256-verified self-update (NET-187) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
