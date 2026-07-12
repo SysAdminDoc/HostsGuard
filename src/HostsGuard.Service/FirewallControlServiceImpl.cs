@@ -2,6 +2,8 @@ using System.IO;
 using System.Net;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -448,6 +450,215 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
         return Task.FromResult(list);
     }
+
+    public override Task<FirewallRuleAnalysisResult> AnalyzeRules(FirewallRuleAnalysisRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(new FirewallRuleAnalysisResult { LocalPolicyModifyState = "unavailable" });
+        }
+
+        var snapshot = CaptureRuleAnalysis(fw);
+        var response = new FirewallRuleAnalysisResult
+        {
+            AnalysisHash = snapshot.Hash,
+            LocalPolicyModifyState = Snake(snapshot.Context.LocalPolicyModifyState.ToString()),
+            RulesAnalyzed = snapshot.Rules.Count,
+        };
+        response.ActiveProfiles.AddRange(snapshot.Context.ActiveProfiles);
+        var kind = CleanFilter(request.Kind);
+        var remediation = CleanFilter(request.Remediation);
+        var search = CleanFilter(request.Search);
+        foreach (var finding in snapshot.Findings.Where(finding =>
+                     (kind.Length == 0 || finding.Kind.ToString().Equals(kind, StringComparison.OrdinalIgnoreCase)) &&
+                     (remediation.Length == 0 || finding.Remediation.ToString().Equals(remediation, StringComparison.OrdinalIgnoreCase)) &&
+                     (search.Length == 0 || finding.RuleName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                      finding.RelatedRuleName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                      finding.Reason.Contains(search, StringComparison.OrdinalIgnoreCase)) &&
+                     (!request.CleanupEligibleOnly || IsCleanupEligible(finding))))
+        {
+            response.Findings.Add(ToContract(finding));
+        }
+
+        return Task.FromResult(response);
+    }
+
+    public override Task<FirewallRuleCleanupResult> ApplyRuleCleanup(FirewallRuleCleanupRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(CleanupError(request.Preview, "firewall_unavailable", "firewall engine is not attached"));
+        }
+
+        if (!request.Preview && _state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(CleanupError(false, "locked", gate.Message));
+        }
+
+        var selected = request.SelectedNames
+            .Select(static name => name.Trim())
+            .Where(static name => name.Length != 0)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (selected.Length == 0 || !IsSha256(request.AnalysisHash))
+        {
+            return Task.FromResult(CleanupError(request.Preview, "invalid_request",
+                "selected rule names and a valid analysis hash are required"));
+        }
+
+        var snapshot = CaptureRuleAnalysis(fw);
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(snapshot.Hash), Encoding.ASCII.GetBytes(request.AnalysisHash.ToLowerInvariant())))
+        {
+            return Task.FromResult(CleanupError(request.Preview, "analysis_changed",
+                "firewall rules or active policy changed; analyze again before cleanup", snapshot.Hash));
+        }
+
+        var eligible = snapshot.Findings
+            .Where(IsCleanupEligible)
+            .Select(static finding => finding.RuleName)
+            .ToHashSet(StringComparer.Ordinal);
+        var liveNames = snapshot.Rules.Select(static rule => rule.Name).ToHashSet(StringComparer.Ordinal);
+        var rejected = selected.Where(name =>
+                !name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal) ||
+                !liveNames.Contains(name) || !eligible.Contains(name))
+            .ToArray();
+        if (rejected.Length != 0)
+        {
+            var result = CleanupError(request.Preview, "unsafe_selection",
+                "cleanup only accepts currently analyzed exact-duplicate HG_ rules", snapshot.Hash);
+            result.RejectedNames.AddRange(rejected);
+            return Task.FromResult(result);
+        }
+
+        var previewHash = CleanupPreviewHash(snapshot.Hash, selected);
+        if (request.Preview)
+        {
+            var preview = new FirewallRuleCleanupResult
+            {
+                Ok = true,
+                Preview = true,
+                Message = $"previewed removal of {selected.Length} selected HostsGuard rule{(selected.Length == 1 ? string.Empty : "s")}",
+                AnalysisHash = snapshot.Hash,
+                PreviewHash = previewHash,
+            };
+            preview.SelectedNames.AddRange(selected);
+            return Task.FromResult(preview);
+        }
+
+        if (!IsSha256(request.PreviewHash) || !CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(previewHash), Encoding.ASCII.GetBytes(request.PreviewHash.ToLowerInvariant())))
+        {
+            return Task.FromResult(CleanupError(false, "preview_mismatch",
+                "preview hash does not bind this analysis and exact selected rule set", snapshot.Hash));
+        }
+
+        var deletedRules = new List<FwRule>(selected.Length);
+        var byName = snapshot.Rules.ToDictionary(static rule => rule.Name, StringComparer.Ordinal);
+        foreach (var name in selected)
+        {
+            if (!fw.DeleteRule(name))
+            {
+                foreach (var removed in deletedRules)
+                {
+                    _ = fw.CreateRule(removed);
+                }
+
+                return Task.FromResult(CleanupError(false, "delete_failed",
+                    $"cleanup failed at {name}; previously removed rules were restored", snapshot.Hash));
+            }
+
+            deletedRules.Add(byName[name]);
+        }
+
+        foreach (var name in selected)
+        {
+            _state.Db.RemoveFwState(name);
+            if (name.StartsWith("HG_VPNBind_", StringComparison.Ordinal))
+            {
+                _state.Db.RemoveAppVpnBindingByRuleName(name);
+            }
+        }
+
+        _state.Db.LogEvent("firewall_rules", "rule_cleanup", process: "firewall",
+            details: $"deleted {deletedRules.Count} preview-bound exact duplicate HG_ rule(s)", reason: "rule_analysis");
+        var applied = new FirewallRuleCleanupResult
+        {
+            Ok = true,
+            Preview = false,
+            Message = $"deleted {deletedRules.Count} selected duplicate rule{(deletedRules.Count == 1 ? string.Empty : "s")}",
+            AnalysisHash = snapshot.Hash,
+            PreviewHash = previewHash,
+            Deleted = deletedRules.Count,
+        };
+        applied.SelectedNames.AddRange(selected);
+        return Task.FromResult(applied);
+    }
+
+    private RuleAnalysisSnapshot CaptureRuleAnalysis(IFirewallEngine fw)
+    {
+        var rules = fw.ListRules().OrderBy(static rule => rule.Name, StringComparer.Ordinal).ToArray();
+        var profiles = fw.GetActiveInboundProfiles().Select(static profile => profile.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        var context = new FirewallRuleAnalysisContext(profiles, fw.GetLocalPolicyModifyState());
+        var report = FirewallRuleAnalyzer.Analyze(rules, context);
+        return new RuleAnalysisSnapshot(rules, context, report.Findings, report.AnalysisHash);
+    }
+
+    private static Contracts.FirewallRuleAnalysisFinding ToContract(Core.FirewallRuleAnalysisFinding finding) => new()
+    {
+        Kind = finding.Kind,
+        RuleName = finding.RuleName,
+        RelatedRuleName = finding.RelatedRuleName,
+        CanonicalFingerprint = finding.CanonicalFingerprint,
+        Reason = finding.Reason,
+        Remediation = finding.Remediation,
+        CleanupEligible = IsCleanupEligible(finding),
+    };
+
+    private static bool IsCleanupEligible(Core.FirewallRuleAnalysisFinding finding) =>
+        finding.CleanupEligible &&
+        finding.Kind.Equals("exact_duplicate", StringComparison.Ordinal) &&
+        finding.Remediation.Equals("delete_duplicate", StringComparison.Ordinal) &&
+        finding.RuleName.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal);
+
+    private static FirewallRuleCleanupResult CleanupError(bool preview, string code, string message,
+        string analysisHash = "", int deleted = 0) => new()
+    {
+        Ok = false,
+        Preview = preview,
+        Message = message,
+        ErrorCode = $"hostsguard.error.v1/{code}",
+        AnalysisHash = analysisHash,
+        Deleted = deleted,
+    };
+
+    private static string CleanupPreviewHash(string analysisHash, IReadOnlyList<string> selected) =>
+        Sha256(JsonSerializer.Serialize(new { analysisHash, selected }));
+
+    private static bool IsSha256(string value) => value.Length == 64 && value.All(Uri.IsHexDigit);
+
+    private static string Sha256(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private static string CleanFilter(string value) => (value ?? string.Empty).Trim();
+
+    private static string Snake(string value)
+    {
+        var sb = new StringBuilder(value.Length + 4);
+        foreach (var ch in value)
+        {
+            if (char.IsUpper(ch) && sb.Length != 0) sb.Append('_');
+            sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
+    private sealed record RuleAnalysisSnapshot(
+        IReadOnlyList<FwRule> Rules,
+        FirewallRuleAnalysisContext Context,
+        IReadOnlyList<Core.FirewallRuleAnalysisFinding> Findings,
+        string Hash);
 
     public override Task<Ack> CloseConnection(FlowCloseRequest request, ServerCallContext context)
         => Task.FromResult(_state.FlowTeardown.CloseManual(new FlowTuple(

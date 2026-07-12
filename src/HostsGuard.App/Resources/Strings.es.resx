@@ -157,4 +157,39 @@
   <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Perfiles</value></data>
   <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Cobertura</value></data>
   <data name="ListenerExposure_Reason" xml:space="preserve"><value>Motivo</value></data>
+  <data name="RuleAnalysis_Title" xml:space="preserve"><value>AnÃ¡lisis de reglas y limpieza protegida</value></data>
+  <data name="RuleAnalysis_Name" xml:space="preserve"><value>AnÃ¡lisis de reglas del firewall y limpieza protegida</value></data>
+  <data name="RuleAnalysis_Run" xml:space="preserve"><value>Analizar</value></data>
+  <data name="RuleAnalysis_RunName" xml:space="preserve"><value>Analizar las reglas del firewall</value></data>
+  <data name="RuleAnalysis_Preview" xml:space="preserve"><value>Previsualizar limpieza</value></data>
+  <data name="RuleAnalysis_PreviewName" xml:space="preserve"><value>Previsualizar la limpieza de duplicados seleccionados de HostsGuard</value></data>
+  <data name="RuleAnalysis_Apply" xml:space="preserve"><value>Aplicar vista previa</value></data>
+  <data name="RuleAnalysis_ApplyName" xml:space="preserve"><value>Aplicar la limpieza de HostsGuard previsualizada sin cambios</value></data>
+  <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>Solo se activa cuando los duplicados HG_ seleccionados superan la validaciÃ³n. Si cambia la selecciÃ³n, repita la vista previa.</value></data>
+  <data name="RuleAnalysis_GroupProvenance" xml:space="preserve"><value>Agrupar por procedencia</value></data>
+  <data name="RuleAnalysis_GroupProvenanceName" xml:space="preserve"><value>Agrupar hallazgos por procedencia en vez de motivo</value></data>
+  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Filtrar hallazgosâ€¦</value></data>
+  <data name="RuleAnalysis_SearchName" xml:space="preserve"><value>Filtrar hallazgos de reglas del firewall</value></data>
+  <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Busca motivo, regla, regla relacionada, procedencia o correcciÃ³n. Admite filtros como source:HostsGuard y type:ExactDuplicate.</value></data>
+  <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>El anÃ¡lisis es de solo lectura. La limpieza solo admite duplicados exactos HG_ seleccionados; los hallazgos externos, semÃ¡nticos, contradictorios, ineficaces y de directiva de grupo son solo para revisiÃ³n.</value></data>
+  <data name="RuleAnalysis_TableName" xml:space="preserve"><value>Hallazgos del anÃ¡lisis de reglas del firewall</value></data>
+  <data name="RuleAnalysis_Empty" xml:space="preserve"><value>NingÃºn hallazgo coincide con el anÃ¡lisis y filtro actuales.</value></data>
+  <data name="RuleAnalysis_Select" xml:space="preserve"><value>Limpiar</value></data>
+  <data name="RuleAnalysis_SelectName" xml:space="preserve"><value>Seleccionar duplicado elegible de HostsGuard para limpieza protegida</value></data>
+  <data name="RuleAnalysis_Kind" xml:space="preserve"><value>Hallazgo</value></data>
+  <data name="RuleAnalysis_Related" xml:space="preserve"><value>Regla relacionada</value></data>
+  <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>CorrecciÃ³n</value></data>
+  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Analizando las reglas efectivas del firewallâ€¦</value></data>
+  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} reglas Â· perfiles {1} Â· directiva {2}</value></data>
+  <data name="RuleAnalysis_None" xml:space="preserve"><value>No se encontraron reglas duplicadas, contradictorias ni ineficaces</value></data>
+  <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} hallazgos; solo revisiÃ³n salvo que seleccione un duplicado exacto HG_</value></data>
+  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>Validando la limpieza HG_ seleccionadaâ€¦</value></data>
+  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>Aplicando la limpieza HG_ previsualizadaâ€¦</value></data>
+  <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>La selecciÃ³n cambiÃ³; repita la vista previa antes de limpiar.</value></data>
+  <data name="RuleAnalysis_ProvenanceHostsGuard" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="RuleAnalysis_ProvenancePolicy" xml:space="preserve"><value>Directiva de grupo</value></data>
+  <data name="RuleAnalysis_ProvenanceOther" xml:space="preserve"><value>Windows / otros</value></data>
+  <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Duplicado exacto HG_ elegible</value></data>
+  <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Los hallazgos de directiva de grupo son solo para revisiÃ³n</value></data>
+  <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Los hallazgos externos y no exactos son solo para revisiÃ³n</value></data>
 </root>

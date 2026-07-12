@@ -2376,6 +2376,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
@@ -2589,7 +2590,105 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock Grid.Row="4" Margin="2,6,0,0"
+                        <Expander Grid.Row="4" Margin="0,8,0,0" IsExpanded="False"
+                                  Header="{svc:Loc Key=RuleAnalysis_Title}"
+                                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_Name}">
+                            <Border Style="{StaticResource Hg.Card}">
+                                <StackPanel>
+                                    <DockPanel LastChildFill="False">
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Apply}"
+                                                Command="{Binding ApplyRuleCleanupCommand}" Padding="10,2" Margin="6,0,0,0"
+                                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_ApplyName}"
+                                                ToolTip="{svc:Loc Key=RuleAnalysis_ApplyTip}" />
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Preview}"
+                                                Command="{Binding PreviewRuleCleanupCommand}" Padding="10,2" Margin="6,0,0,0"
+                                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_PreviewName}" />
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Run}"
+                                                Command="{Binding AnalyzeRulesCommand}" Padding="10,2" Margin="6,0,0,0"
+                                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_RunName}" />
+                                        <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_GroupProvenance}"
+                                                  IsChecked="{Binding GroupAnalysisByProvenance}" Margin="8,0,4,0"
+                                                  VerticalAlignment="Center"
+                                                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_GroupProvenanceName}" />
+                                        <TextBox Width="260" Text="{Binding AnalysisFilter, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=RuleAnalysis_SearchHint}"
+                                                 AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_SearchName}"
+                                                 ToolTip="{svc:Loc Key=RuleAnalysis_SearchTip}" />
+                                    </DockPanel>
+                                    <DockPanel Margin="0,6,0,4">
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding AnalysisContext}"
+                                                   Style="{StaticResource Hg.DimText}" />
+                                        <TextBlock Text="{Binding AnalysisStatus}" Style="{StaticResource Hg.DimText}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </DockPanel>
+                                    <TextBlock Text="{svc:Loc Key=RuleAnalysis_Disclaimer}"
+                                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,5"
+                                               TextWrapping="Wrap" />
+                                    <Grid>
+                                        <DataGrid ItemsSource="{Binding AnalysisView}" MaxHeight="220"
+                                                  IsReadOnly="True" CanUserSortColumns="True"
+                                                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_TableName}">
+                                            <DataGrid.GroupStyle>
+                                                <GroupStyle>
+                                                    <GroupStyle.ContainerStyle>
+                                                        <Style TargetType="{x:Type GroupItem}">
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                                        <Expander IsExpanded="True" Margin="0,2,0,0">
+                                                                            <Expander.Header>
+                                                                                <StackPanel Orientation="Horizontal">
+                                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                                                                                               Style="{StaticResource Hg.DimText}" />
+                                                                                </StackPanel>
+                                                                            </Expander.Header>
+                                                                            <ItemsPresenter />
+                                                                        </Expander>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </GroupStyle.ContainerStyle>
+                                                </GroupStyle>
+                                            </DataGrid.GroupStyle>
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="{svc:Loc Key=RuleAnalysis_Select}" Width="58">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                      IsEnabled="{Binding CleanupEligible}"
+                                                                      ToolTip="{Binding SelectionHelp}"
+                                                                      AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_SelectName}" />
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Kind}" Binding="{Binding Kind}" Width="124" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding RuleName}" Width="1.2*" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Related}" Binding="{Binding RelatedRuleName}" Width="1.1*" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Provenance}" Width="104" />
+                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Reason}" Binding="{Binding Reason}" Width="1.6*">
+                                                    <DataGridTextColumn.ElementStyle>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                                        </Style>
+                                                    </DataGridTextColumn.ElementStyle>
+                                                </DataGridTextColumn>
+                                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Remediation}" Binding="{Binding Remediation}" Width="116" />
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <Border Visibility="{Binding AnalysisFindings.Count, Converter={StaticResource EmptyStateVis}}"
+                                                Style="{StaticResource Hg.EmptyState}" IsHitTestVisible="False">
+                                            <TextBlock Text="{svc:Loc Key=RuleAnalysis_Empty}" Style="{StaticResource Hg.EmptyText}" />
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+
+                        <TextBlock Grid.Row="5" Margin="2,6,0,0"
                                    Text="{Binding StatusText}"
                                    Style="{StaticResource Hg.DimText}"
                                    AutomationProperties.LiveSetting="Polite" />

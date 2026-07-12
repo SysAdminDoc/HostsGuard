@@ -55,6 +55,8 @@ public class SchemaLockTests
           SetSniCapture(SniCaptureRequest) returns (Ack)
         service FirewallControl
           AdoptFirewallRules(Empty) returns (AdoptResult)
+          AnalyzeRules(FirewallRuleAnalysisRequest) returns (FirewallRuleAnalysisResult)
+          ApplyRuleCleanup(FirewallRuleCleanupRequest) returns (FirewallRuleCleanupResult)
           AssignRuleGroup(RuleGroupAssignment) returns (Ack)
           BlockAppScope(AppScopeRequest) returns (Ack)
           BlockEncryptedDns(DohBlockRequest) returns (Ack)

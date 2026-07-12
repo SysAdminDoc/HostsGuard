@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.83-blue)
+![Version](https://img.shields.io/badge/version-0.12.84-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -121,6 +121,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable, including DNS-following `HG_Domain_` per-app rules, `HG_LAN_*` attack-surface hardening rules, and `HG_VPNBind_*` interface-scoped app rules |
 | UWP/MSIX package rules | Lists installed app-container packages and creates package-scoped allow/block rules by package family name or package SID, without changing hosts-file blocking defaults |
 | Full-firewall drift baseline | Snapshots every Windows Firewall rule and ledgers when foreign rules appear, change, or vanish without auto-reverting non-HostsGuard rules |
+| Rule effectiveness analysis | Read-only grouping of exact/semantic duplicates, allow/block overlaps, shadowed allows, inactive/disabled rules, and local-policy overrides; only selected exact-duplicate `HG_` rules can be removed after an unchanged analysis plus preview-hash guard, while foreign/policy rules remain review-only |
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back (only HostsGuard's own rules — your other configuration is never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
 | Rule groups | Assign `HG_` rules to a named group and toggle the whole group on/off atomically; groups round-trip through the portable policy |
@@ -176,6 +177,8 @@ HostsGuard.Cli proxy accept-baseline
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
+HostsGuard.Cli firewall-analyze [--kind name] [--remediation name] [--search text] [--export path.csv|path.json]
+HostsGuard.Cli firewall-cleanup preview|apply --analysis-hash SHA256 [--preview-hash SHA256] --name HG_Rule
 HostsGuard.Cli traffic-profile [profile.json|profile.csv] [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
 HostsGuard.Cli support-bundle [--since ISO] [--until ISO] [--process app] [--action name] [--protocol tcp|udp]
 HostsGuard.Cli usage [--days N] [--limit N] [--search text] [--app process] [--domain domain]

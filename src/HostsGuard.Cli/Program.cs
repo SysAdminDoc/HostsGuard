@@ -25,6 +25,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "block-app" => await ProgramOpAsync(args, block: true),
     "unblock-app" => await ProgramOpAsync(args, block: false),
     "firewall-packages" or "packages" => await ListPackagesAsync(args),
+    "firewall-analyze" => await AnalyzeFirewallRulesAsync(args),
+    "firewall-cleanup" => await CleanupFirewallRulesAsync(args),
     "block-package" => await PackageOpAsync(args, "Block"),
     "allow-package" => await PackageOpAsync(args, "Allow"),
     "unblock-package" => await PackageOpAsync(args, "Delete"),
@@ -78,6 +80,10 @@ static int Usage()
           HostsGuard.Cli block-app <exe-path> [out|in]
           HostsGuard.Cli unblock-app <exe-path> [out|in]
           HostsGuard.Cli firewall-packages [--search text]
+          HostsGuard.Cli firewall-analyze [--kind name] [--remediation name] [--search text]
+                               [--cleanup-eligible] [--export path.csv|path.json]
+          HostsGuard.Cli firewall-cleanup preview --analysis-hash SHA256 --name HG_Rule [--name HG_Other]
+          HostsGuard.Cli firewall-cleanup apply --analysis-hash SHA256 --preview-hash SHA256 --name HG_Rule [--name HG_Other]
           HostsGuard.Cli block-package <package-family-name|sid> [out|in]
           HostsGuard.Cli allow-package <package-family-name|sid> [out|in]
           HostsGuard.Cli unblock-package <package-family-name|sid> [out|in]
@@ -632,6 +638,117 @@ static async Task<int> PackageOpAsync(string[] args, string action)
 }
 
 static bool IsPackageSid(string value) => value.Trim().StartsWith("S-1-", StringComparison.OrdinalIgnoreCase);
+
+static async Task<int> AnalyzeFirewallRulesAsync(string[] args)
+{
+    var request = new FirewallRuleAnalysisRequest();
+    string? exportPath = null;
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--kind", out var value)) request.Kind = value;
+        else if (TryReadOptionValue(args, ref i, arg, "--remediation", out value)) request.Remediation = value;
+        else if (TryReadOptionValue(args, ref i, arg, "--search", out value)) request.Search = value;
+        else if (TryReadOptionValue(args, ref i, arg, "--export", out value)) exportPath = value;
+        else if (arg == "--cleanup-eligible") request.CleanupEligibleOnly = true;
+        else
+        {
+            Console.Error.WriteLine($"Unknown firewall-analyze option: {arg}");
+            return 1;
+        }
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var result = await new FirewallControl.FirewallControlClient(channel).AnalyzeRulesAsync(request);
+        if (!string.IsNullOrEmpty(exportPath))
+        {
+            var content = Path.GetExtension(exportPath).Equals(".json", StringComparison.OrdinalIgnoreCase)
+                ? JsonSerializer.Serialize(new
+                {
+                    analysis_hash = result.AnalysisHash,
+                    local_policy_modify_state = result.LocalPolicyModifyState,
+                    active_profiles = result.ActiveProfiles,
+                    rules_analyzed = result.RulesAnalyzed,
+                    findings = result.Findings.Select(static finding => new
+                    {
+                        kind = finding.Kind,
+                        rule_name = finding.RuleName,
+                        related_rule_name = finding.RelatedRuleName,
+                        canonical_fingerprint = finding.CanonicalFingerprint,
+                        reason = finding.Reason,
+                        remediation = finding.Remediation,
+                        cleanup_eligible = finding.CleanupEligible,
+                    }),
+                }, new JsonSerializerOptions { WriteIndented = true })
+                : BuildFirewallAnalysisCsv(result.Findings);
+            try
+            {
+                await File.WriteAllTextAsync(exportPath, content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                Console.Error.WriteLine($"Couldn't write '{exportPath}': {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"exported {result.Findings.Count} firewall findings to {Path.GetFullPath(exportPath)}");
+            Console.WriteLine($"analysis-hash: {result.AnalysisHash}");
+            return 0;
+        }
+
+        Console.WriteLine($"firewall analysis: {result.Findings.Count} findings across {result.RulesAnalyzed} rules");
+        Console.WriteLine($"policy: {result.LocalPolicyModifyState}; active profiles: {string.Join(',', result.ActiveProfiles)}");
+        Console.WriteLine($"analysis-hash: {result.AnalysisHash}");
+        Console.WriteLine("kind\trule\trelated\tremediation\tcleanup\treason");
+        foreach (var finding in result.Findings)
+        {
+            Console.WriteLine($"{finding.Kind}\t{finding.RuleName}\t{finding.RelatedRuleName}\t{finding.Remediation}\t{finding.CleanupEligible}\t{finding.Reason}");
+        }
+
+        return 0;
+    });
+}
+
+static async Task<int> CleanupFirewallRulesAsync(string[] args)
+{
+    if (args.Length < 2 || args[1].ToLowerInvariant() is not ("preview" or "apply"))
+    {
+        Console.Error.WriteLine("Usage: firewall-cleanup preview|apply --analysis-hash SHA256 [--preview-hash SHA256] --name HG_Rule");
+        return 1;
+    }
+
+    var request = new FirewallRuleCleanupRequest { Preview = args[1].Equals("preview", StringComparison.OrdinalIgnoreCase) };
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--analysis-hash", out var value)) request.AnalysisHash = value;
+        else if (TryReadOptionValue(args, ref i, arg, "--preview-hash", out value)) request.PreviewHash = value;
+        else if (TryReadOptionValue(args, ref i, arg, "--name", out value)) request.SelectedNames.Add(value);
+        else
+        {
+            Console.Error.WriteLine($"Unknown firewall-cleanup option: {arg}");
+            return 1;
+        }
+    }
+
+    if (request.SelectedNames.Count == 0 || string.IsNullOrWhiteSpace(request.AnalysisHash) ||
+        (!request.Preview && string.IsNullOrWhiteSpace(request.PreviewHash)))
+    {
+        Console.Error.WriteLine("Cleanup requires selected --name values and an analysis hash; apply also requires the preview hash.");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var result = await new FirewallControl.FirewallControlClient(channel).ApplyRuleCleanupAsync(request);
+        Console.WriteLine(result.Message);
+        Console.WriteLine($"analysis-hash: {result.AnalysisHash}");
+        Console.WriteLine($"preview-hash: {result.PreviewHash}");
+        if (result.RejectedNames.Count != 0) Console.WriteLine($"rejected: {string.Join(", ", result.RejectedNames)}");
+        return result.Ok ? 0 : 2;
+    });
+}
 
 static async Task<int> ExportAsync(string path)
 {
@@ -1769,6 +1886,20 @@ static string BuildListenersCsv(IEnumerable<HostsGuard.Contracts.ListenerExposur
             row.LocalPort.ToString(System.Globalization.CultureInfo.InvariantCulture), row.Process,
             row.Pid.ToString(System.Globalization.CultureInfo.InvariantCulture), row.Service, row.Package,
             row.BindScope, row.ActiveProfiles, row.Coverage, row.Risk, row.Reason);
+    }
+
+    return sb.ToString();
+}
+
+static string BuildFirewallAnalysisCsv(IEnumerable<HostsGuard.Contracts.FirewallRuleAnalysisFinding> findings)
+{
+    var sb = new System.Text.StringBuilder();
+    CsvExport.AppendRow(sb, "Kind", "Rule", "RelatedRule", "CanonicalFingerprint", "Reason", "Remediation", "CleanupEligible");
+    foreach (var finding in findings)
+    {
+        CsvExport.AppendRow(sb, finding.Kind, finding.RuleName, finding.RelatedRuleName,
+            finding.CanonicalFingerprint, finding.Reason, finding.Remediation,
+            finding.CleanupEligible ? "true" : "false");
     }
 
     return sb.ToString();

@@ -643,6 +643,9 @@ service FirewallControl {
   // Subscribable rule groups (NET-103): assign HG_ rules to a named group and
   // enable/disable the whole group atomically.
   rpc AssignRuleGroup(RuleGroupAssignment) returns (Ack);
+  // Report-only duplicate/contradictory/ineffective-rule analysis. The
+  // fingerprint binds any later selected cleanup to this exact rule snapshot.
+  rpc AnalyzeRules(FirewallRuleAnalysisRequest) returns (FirewallRuleAnalysisResult);
   rpc ListRuleGroups(Empty) returns (RuleGroupList);
   rpc ToggleRuleGroup(RuleGroupToggle) returns (Ack);
   rpc BlockIp(FirewallIpRequest) returns (Ack);
@@ -656,6 +659,10 @@ service FirewallControl {
   // AppContainer/MSIX package inventory for package-family firewall rules.
   rpc ListAppPackages(Empty) returns (AppPackageList);
   rpc ListRules(Empty) returns (FirewallRuleList);
+  // Cleanup is never automatic: preview validates selected HG_ findings and
+  // returns a selection fingerprint; apply requires the unchanged analysis,
+  // exact selected names, and that preview fingerprint.
+  rpc ApplyRuleCleanup(FirewallRuleCleanupRequest) returns (FirewallRuleCleanupResult);
   rpc BlockEncryptedDns(DohBlockRequest) returns (Ack);
   rpc UnblockEncryptedDns(Empty) returns (Ack);
   // QUIC/HTTP3 (outbound UDP/443) blocking. Forces clients to fall back to
@@ -939,6 +946,50 @@ message FirewallRule {
 
 message FirewallRuleList {
   repeated FirewallRule rules = 1;
+}
+
+message FirewallRuleAnalysisRequest {
+  string kind = 1;             // optional exact finding-kind filter
+  string remediation = 2;      // optional exact remediation filter
+  string search = 3;           // rule/reason substring
+  bool cleanup_eligible_only = 4;
+}
+
+message FirewallRuleAnalysisFinding {
+  string kind = 1;
+  string rule_name = 2;
+  string related_rule_name = 3;
+  string canonical_fingerprint = 4;
+  string reason = 5;
+  string remediation = 6;
+  bool cleanup_eligible = 7;   // exact duplicate + HG_ ownership only
+}
+
+message FirewallRuleAnalysisResult {
+  string analysis_hash = 1;    // SHA-256 of normalized live rules + policy context
+  string local_policy_modify_state = 2;
+  repeated string active_profiles = 3;
+  repeated FirewallRuleAnalysisFinding findings = 4;
+  int32 rules_analyzed = 5;
+}
+
+message FirewallRuleCleanupRequest {
+  repeated string selected_names = 1;
+  string analysis_hash = 2;
+  string preview_hash = 3; // required when preview=false
+  bool preview = 4;
+}
+
+message FirewallRuleCleanupResult {
+  bool ok = 1;
+  bool preview = 2;
+  string message = 3;
+  string error_code = 4;
+  string analysis_hash = 5;
+  string preview_hash = 6;
+  repeated string selected_names = 7;
+  repeated string rejected_names = 8;
+  int32 deleted = 9;
 }
 
 message AppPackage {

@@ -32,6 +32,10 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public IReadOnlyList<InboundFirewallProfile> GetActiveInboundProfiles() => ActiveInboundProfiles.ToList();
 
+    public FirewallLocalPolicyModifyState LocalPolicyModifyState { get; set; } = FirewallLocalPolicyModifyState.Ok;
+
+    public FirewallLocalPolicyModifyState GetLocalPolicyModifyState() => LocalPolicyModifyState;
+
     public bool CreateRule(FwRule rule)
     {
         if (Rules.ContainsKey(rule.Name))
@@ -43,7 +47,9 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
         return true;
     }
 
-    public bool DeleteRule(string name) => Rules.Remove(name);
+    public HashSet<string> DeleteFailures { get; } = new(StringComparer.Ordinal);
+
+    public bool DeleteRule(string name) => !DeleteFailures.Contains(name) && Rules.Remove(name);
 
     public bool SetRuleEnabled(string name, bool enabled)
     {
@@ -773,6 +779,130 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         explanation.Verdict.Should().Be("Blocked");
         explanation.Steps.Should().Contain(s => s.Layer == "Posture" && s.Owner == "VPN kill-switch" && s.Outcome == "Block");
     }
+
+    [Fact]
+    public async Task Rule_analysis_filters_findings_and_cleanup_requires_unchanged_preview_binding()
+    {
+        _fw.ActiveInboundProfiles.Add(new InboundFirewallProfile("Public", true, true));
+        _fw.LocalPolicyModifyState = FirewallLocalPolicyModifyState.GroupPolicyOverride;
+        _fw.Rules["System DNS"] = AnalysisRule("System DNS", "system");
+        _fw.Rules["HG_DuplicateDns"] = AnalysisRule("HG_DuplicateDns", "hostsguard");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        var analysis = await client.AnalyzeRulesAsync(new FirewallRuleAnalysisRequest
+        {
+            Kind = "exact_duplicate",
+            CleanupEligibleOnly = true,
+        });
+
+        analysis.AnalysisHash.Should().HaveLength(64);
+        analysis.LocalPolicyModifyState.Should().Be("group_policy_override");
+        analysis.ActiveProfiles.Should().Equal("Public");
+        analysis.RulesAnalyzed.Should().Be(2);
+        analysis.Findings.Should().ContainSingle(finding =>
+            finding.RuleName == "HG_DuplicateDns" && finding.RelatedRuleName == "System DNS" &&
+            finding.CleanupEligible && finding.Remediation == "delete_duplicate");
+
+        var unsafePreview = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            Preview = true,
+            AnalysisHash = analysis.AnalysisHash,
+            SelectedNames = { "System DNS" },
+        });
+        unsafePreview.Ok.Should().BeFalse();
+        unsafePreview.ErrorCode.Should().EndWith("/unsafe_selection");
+        unsafePreview.RejectedNames.Should().Equal("System DNS");
+
+        var preview = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            Preview = true,
+            AnalysisHash = analysis.AnalysisHash,
+            SelectedNames = { "HG_DuplicateDns" },
+        });
+        preview.Ok.Should().BeTrue();
+        preview.PreviewHash.Should().HaveLength(64);
+        _fw.Rules.Should().ContainKey("HG_DuplicateDns");
+
+        _fw.Rules["Unrelated"] = AnalysisRule("Unrelated", "system") with { LocalPorts = "8443" };
+        var stale = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            AnalysisHash = analysis.AnalysisHash,
+            PreviewHash = preview.PreviewHash,
+            SelectedNames = { "HG_DuplicateDns" },
+        });
+        stale.Ok.Should().BeFalse();
+        stale.ErrorCode.Should().EndWith("/analysis_changed");
+        _fw.Rules.Should().ContainKey("HG_DuplicateDns");
+
+        _fw.Rules.Remove("Unrelated");
+        analysis = await client.AnalyzeRulesAsync(new FirewallRuleAnalysisRequest());
+        preview = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            Preview = true,
+            AnalysisHash = analysis.AnalysisHash,
+            SelectedNames = { "HG_DuplicateDns" },
+        });
+        var applied = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            AnalysisHash = analysis.AnalysisHash,
+            PreviewHash = preview.PreviewHash,
+            SelectedNames = { "HG_DuplicateDns" },
+        });
+
+        applied.Ok.Should().BeTrue();
+        applied.Deleted.Should().Be(1);
+        _fw.Rules.Should().ContainKey("System DNS").And.NotContainKey("HG_DuplicateDns");
+    }
+
+    [Fact]
+    public async Task Rule_cleanup_rolls_back_live_deletes_when_selected_batch_cannot_complete()
+    {
+        _fw.Rules["System DNS"] = AnalysisRule("System DNS", "system");
+        _fw.Rules["HG_DuplicateA"] = AnalysisRule("HG_DuplicateA", "hostsguard");
+        _fw.Rules["HG_DuplicateB"] = AnalysisRule("HG_DuplicateB", "hostsguard");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        var analysis = await client.AnalyzeRulesAsync(new FirewallRuleAnalysisRequest());
+        var singlePreview = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            Preview = true,
+            AnalysisHash = analysis.AnalysisHash,
+            SelectedNames = { "HG_DuplicateA" },
+        });
+        var selectionMismatch = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            AnalysisHash = analysis.AnalysisHash,
+            PreviewHash = singlePreview.PreviewHash,
+            SelectedNames = { "HG_DuplicateA", "HG_DuplicateB" },
+        });
+        selectionMismatch.Ok.Should().BeFalse();
+        selectionMismatch.ErrorCode.Should().EndWith("/preview_mismatch");
+        _fw.Rules.Should().ContainKey("HG_DuplicateA").And.ContainKey("HG_DuplicateB");
+
+        var preview = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            Preview = true,
+            AnalysisHash = analysis.AnalysisHash,
+            SelectedNames = { "HG_DuplicateA", "HG_DuplicateB" },
+        });
+        _fw.DeleteFailures.Add("HG_DuplicateB");
+
+        var applied = await client.ApplyRuleCleanupAsync(new FirewallRuleCleanupRequest
+        {
+            AnalysisHash = analysis.AnalysisHash,
+            PreviewHash = preview.PreviewHash,
+            SelectedNames = { "HG_DuplicateA", "HG_DuplicateB" },
+        });
+
+        applied.Ok.Should().BeFalse();
+        applied.ErrorCode.Should().EndWith("/delete_failed");
+        _fw.Rules.Should().ContainKey("HG_DuplicateA").And.ContainKey("HG_DuplicateB");
+    }
+
+    private static FwRule AnalysisRule(string name, string source) => new(
+        name, "In", "Allow", true, "Any", "TCP", @"C:\Apps\dns.exe", source,
+        LocalPorts: "53", Profiles: "Public");
 
     [Fact]
     public async Task WatchConnections_streams_published_sightings()

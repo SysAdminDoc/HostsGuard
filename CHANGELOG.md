@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.84] - 2026-07-12
+
+### Added
+- FW Rules now offers read-only analysis for exact and semantic duplicates,
+  provable allow/block overlaps, fully shadowed allows, disabled rules, inactive
+  profile rules, Group Policy override, and inbound-block policy. Canonicalization
+  covers profile/local/remote/interface, identity, address, and merged port-range
+  selectors; unknown Windows special selectors remain review-only rather than
+  producing speculative contradictions.
+- `HostsGuard.Cli firewall-analyze` filters and exports findings. Exact-duplicate
+  `HG_` rules alone can be selected for cleanup: preview binds the full live rule
+  set, active profiles, policy-modify state, and sorted selection to SHA-256;
+  apply refuses stale/mismatched state and restores earlier deletions if a batch
+  fails. Semantic/foreign/policy-managed findings are never cleanup-eligible.
+
 ## [0.12.83] - 2026-07-12
 
 ### Added

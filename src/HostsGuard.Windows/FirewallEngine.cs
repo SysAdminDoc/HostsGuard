@@ -246,6 +246,18 @@ public sealed class FirewallEngine : IFirewallEngine
         return result;
     }
 
+    public FirewallLocalPolicyModifyState GetLocalPolicyModifyState()
+    {
+        var value = (int)CreatePolicy().LocalPolicyModifyState;
+        return value switch
+        {
+            0 => FirewallLocalPolicyModifyState.Ok,
+            1 => FirewallLocalPolicyModifyState.GroupPolicyOverride,
+            2 => FirewallLocalPolicyModifyState.InboundBlocked,
+            _ => FirewallLocalPolicyModifyState.GroupPolicyOverride,
+        };
+    }
+
     public void SetDefaultOutboundBlock(bool block)
     {
         var policy = CreatePolicy();

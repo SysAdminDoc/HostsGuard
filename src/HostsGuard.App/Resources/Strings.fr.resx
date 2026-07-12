@@ -157,4 +157,39 @@
   <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profils</value></data>
   <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Couverture</value></data>
   <data name="ListenerExposure_Reason" xml:space="preserve"><value>Motif</value></data>
+  <data name="RuleAnalysis_Title" xml:space="preserve"><value>Analyse des rÃ¨gles et nettoyage protÃ©gÃ©</value></data>
+  <data name="RuleAnalysis_Name" xml:space="preserve"><value>Analyse des rÃ¨gles du pare-feu et nettoyage protÃ©gÃ©</value></data>
+  <data name="RuleAnalysis_Run" xml:space="preserve"><value>Analyser</value></data>
+  <data name="RuleAnalysis_RunName" xml:space="preserve"><value>Analyser les rÃ¨gles du pare-feu</value></data>
+  <data name="RuleAnalysis_Preview" xml:space="preserve"><value>PrÃ©visualiser</value></data>
+  <data name="RuleAnalysis_PreviewName" xml:space="preserve"><value>PrÃ©visualiser le nettoyage des doublons HostsGuard sÃ©lectionnÃ©s</value></data>
+  <data name="RuleAnalysis_Apply" xml:space="preserve"><value>Appliquer l'aperÃ§u</value></data>
+  <data name="RuleAnalysis_ApplyName" xml:space="preserve"><value>Appliquer sans modification le nettoyage HostsGuard prÃ©visualisÃ©</value></data>
+  <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>ActivÃ© uniquement aprÃ¨s validation des doublons HG_ sÃ©lectionnÃ©s. Toute modification de la sÃ©lection exige un nouvel aperÃ§u.</value></data>
+  <data name="RuleAnalysis_GroupProvenance" xml:space="preserve"><value>Grouper par provenance</value></data>
+  <data name="RuleAnalysis_GroupProvenanceName" xml:space="preserve"><value>Grouper les rÃ©sultats par provenance plutÃ´t que par motif</value></data>
+  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Filtrer les rÃ©sultatsâ€¦</value></data>
+  <data name="RuleAnalysis_SearchName" xml:space="preserve"><value>Filtrer les rÃ©sultats des rÃ¨gles du pare-feu</value></data>
+  <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Recherchez un motif, une rÃ¨gle, une rÃ¨gle liÃ©e, une provenance ou une correction. Les filtres source:HostsGuard et type:ExactDuplicate sont pris en charge.</value></data>
+  <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>L'analyse est en lecture seule. Seuls les doublons exacts HG_ sÃ©lectionnÃ©s peuvent Ãªtre nettoyÃ©s ; les rÃ©sultats externes, sÃ©mantiques, contradictoires, inefficaces et de stratÃ©gie de groupe restent consultatifs.</value></data>
+  <data name="RuleAnalysis_TableName" xml:space="preserve"><value>RÃ©sultats de l'analyse des rÃ¨gles du pare-feu</value></data>
+  <data name="RuleAnalysis_Empty" xml:space="preserve"><value>Aucun rÃ©sultat ne correspond Ã  l'analyse et au filtre actuels.</value></data>
+  <data name="RuleAnalysis_Select" xml:space="preserve"><value>Nettoyer</value></data>
+  <data name="RuleAnalysis_SelectName" xml:space="preserve"><value>SÃ©lectionner le doublon HostsGuard admissible au nettoyage protÃ©gÃ©</value></data>
+  <data name="RuleAnalysis_Kind" xml:space="preserve"><value>RÃ©sultat</value></data>
+  <data name="RuleAnalysis_Related" xml:space="preserve"><value>RÃ¨gle liÃ©e</value></data>
+  <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>Correction</value></data>
+  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Analyse des rÃ¨gles effectives du pare-feuâ€¦</value></data>
+  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} rÃ¨gles Â· profils {1} Â· stratÃ©gie {2}</value></data>
+  <data name="RuleAnalysis_None" xml:space="preserve"><value>Aucune rÃ¨gle en double, contradictoire ou inefficace dÃ©tectÃ©e</value></data>
+  <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} rÃ©sultats ; consultation seule sauf si un doublon exact HG_ est sÃ©lectionnÃ©</value></data>
+  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>Validation du nettoyage HG_ sÃ©lectionnÃ©â€¦</value></data>
+  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>Application du nettoyage HG_ prÃ©visualisÃ©â€¦</value></data>
+  <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>SÃ©lection modifiÃ©e ; prÃ©visualisez Ã  nouveau avant le nettoyage.</value></data>
+  <data name="RuleAnalysis_ProvenanceHostsGuard" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="RuleAnalysis_ProvenancePolicy" xml:space="preserve"><value>StratÃ©gie de groupe</value></data>
+  <data name="RuleAnalysis_ProvenanceOther" xml:space="preserve"><value>Windows / autre</value></data>
+  <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Doublon exact HG_ admissible</value></data>
+  <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Les rÃ©sultats de stratÃ©gie de groupe sont uniquement consultatifs</value></data>
+  <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Les rÃ©sultats externes et non exacts sont uniquement consultatifs</value></data>
 </root>

@@ -157,4 +157,39 @@
   <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profile</value></data>
   <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Abdeckung</value></data>
   <data name="ListenerExposure_Reason" xml:space="preserve"><value>Grund</value></data>
+  <data name="RuleAnalysis_Title" xml:space="preserve"><value>Regelanalyse und geschÃ¼tzte Bereinigung</value></data>
+  <data name="RuleAnalysis_Name" xml:space="preserve"><value>Firewall-Regelanalyse und geschÃ¼tzte Bereinigung</value></data>
+  <data name="RuleAnalysis_Run" xml:space="preserve"><value>Analysieren</value></data>
+  <data name="RuleAnalysis_RunName" xml:space="preserve"><value>Firewallregeln analysieren</value></data>
+  <data name="RuleAnalysis_Preview" xml:space="preserve"><value>Bereinigung prÃ¼fen</value></data>
+  <data name="RuleAnalysis_PreviewName" xml:space="preserve"><value>Bereinigung ausgewÃ¤hlter HostsGuard-Duplikate prÃ¼fen</value></data>
+  <data name="RuleAnalysis_Apply" xml:space="preserve"><value>Vorschau anwenden</value></data>
+  <data name="RuleAnalysis_ApplyName" xml:space="preserve"><value>UnverÃ¤nderte geprÃ¼fte HostsGuard-Bereinigung anwenden</value></data>
+  <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>Nur aktiv, nachdem die ausgewÃ¤hlten HG_-Duplikate geprÃ¼ft wurden. Eine geÃ¤nderte Auswahl muss erneut geprÃ¼ft werden.</value></data>
+  <data name="RuleAnalysis_GroupProvenance" xml:space="preserve"><value>Nach Herkunft gruppieren</value></data>
+  <data name="RuleAnalysis_GroupProvenanceName" xml:space="preserve"><value>Ergebnisse nach Regelherkunft statt Grund gruppieren</value></data>
+  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Ergebnisse filternâ€¦</value></data>
+  <data name="RuleAnalysis_SearchName" xml:space="preserve"><value>Firewall-Regelergebnisse filtern</value></data>
+  <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Nach Grund, Regel, Bezugsregel, Herkunft oder MaÃŸnahme suchen. Feldfilter wie source:HostsGuard und type:ExactDuplicate werden unterstÃ¼tzt.</value></data>
+  <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>Die Analyse ist schreibgeschÃ¼tzt. Nur ausgewÃ¤hlte exakte HG_-Duplikate kÃ¶nnen bereinigt werden; fremde, semantische, widersprÃ¼chliche, unwirksame und Gruppenrichtlinien-Ergebnisse bleiben nur zur PrÃ¼fung.</value></data>
+  <data name="RuleAnalysis_TableName" xml:space="preserve"><value>Ergebnisse der Firewall-Regelanalyse</value></data>
+  <data name="RuleAnalysis_Empty" xml:space="preserve"><value>Keine Ergebnisse entsprechen der aktuellen Analyse und dem Filter.</value></data>
+  <data name="RuleAnalysis_Select" xml:space="preserve"><value>Bereinigen</value></data>
+  <data name="RuleAnalysis_SelectName" xml:space="preserve"><value>Berechtigtes HostsGuard-Duplikat zur geschÃ¼tzten Bereinigung auswÃ¤hlen</value></data>
+  <data name="RuleAnalysis_Kind" xml:space="preserve"><value>Ergebnis</value></data>
+  <data name="RuleAnalysis_Related" xml:space="preserve"><value>Bezugsregel</value></data>
+  <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>MaÃŸnahme</value></data>
+  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Effektive Firewallregeln werden analysiertâ€¦</value></data>
+  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} Regeln Â· Profile {1} Â· Richtlinie {2}</value></data>
+  <data name="RuleAnalysis_None" xml:space="preserve"><value>Keine doppelten, widersprÃ¼chlichen oder unwirksamen Regeln gefunden</value></data>
+  <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} Ergebnisse; nur PrÃ¼fung, auÃŸer ein exaktes HG_-Duplikat ist ausgewÃ¤hlt</value></data>
+  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>AusgewÃ¤hlte HG_-Bereinigung wird geprÃ¼ftâ€¦</value></data>
+  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>GeprÃ¼fte HG_-Bereinigung wird angewendetâ€¦</value></data>
+  <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>Auswahl geÃ¤ndert; vor der Bereinigung erneut prÃ¼fen.</value></data>
+  <data name="RuleAnalysis_ProvenanceHostsGuard" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="RuleAnalysis_ProvenancePolicy" xml:space="preserve"><value>Gruppenrichtlinie</value></data>
+  <data name="RuleAnalysis_ProvenanceOther" xml:space="preserve"><value>Windows / andere</value></data>
+  <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Berechtigtes exaktes HG_-Duplikat</value></data>
+  <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Gruppenrichtlinien-Ergebnisse dienen nur zur PrÃ¼fung</value></data>
+  <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Fremde und nicht exakte Ergebnisse dienen nur zur PrÃ¼fung</value></data>
 </root>

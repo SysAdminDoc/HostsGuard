@@ -27,6 +27,9 @@ public interface IFirewallEngine
     /// <summary>Inbound posture for profiles active on the current network.</summary>
     IReadOnlyList<InboundFirewallProfile> GetActiveInboundProfiles() => Array.Empty<InboundFirewallProfile>();
 
+    /// <summary>Whether local firewall policy can be modified or is overridden by machine policy.</summary>
+    FirewallLocalPolicyModifyState GetLocalPolicyModifyState() => FirewallLocalPolicyModifyState.Ok;
+
     /// <summary>
     /// Set DefaultOutboundAction on every profile (lockdown on/off). Idempotent:
     /// profiles already in the requested state are not touched. Never changes
