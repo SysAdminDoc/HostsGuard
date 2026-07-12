@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.76] - 2026-07-12
+
+### Fixed
+- Scheduled domain-list, blocklist-intelligence, and domain-firewall refreshes
+  are now tracked instead of fire-and-forgotten. A shared lifecycle guard
+  suppresses overlapping ticks, rejects callbacks after disposal, propagates
+  shutdown cancellation, and drains the active task for up to five seconds
+  before the owning service component releases its database/firewall resources.
+- Disposal is idempotent for all three coordinators. Lifecycle tests hold each
+  refresh inside its fetch/resolve operation and verify teardown cannot finish
+  until the accepted task drains, preventing post-disposal database, hosts-file,
+  and Windows Firewall access.
+
 ## [0.12.75] - 2026-07-12
 
 ### Fixed

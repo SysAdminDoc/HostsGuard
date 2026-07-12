@@ -22,6 +22,7 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
     private readonly IFirewallEngine? _firewall;
     private readonly Func<string, CancellationToken, Task<IReadOnlyList<string>>> _resolver;
     private readonly object _gate = new();
+    private readonly ScheduledTaskDrain _scheduledRefresh = new();
     private Timer? _timer;
     private bool _refreshing;
 
@@ -43,7 +44,7 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
         }
 
         var every = interval ?? DefaultRefreshInterval;
-        _timer = new Timer(_ => SafeRefreshAll(), null, every, every);
+        _timer = new Timer(_ => KickScheduledRefresh(), null, every, every);
     }
 
     public IReadOnlyList<DomainFirewallRuleRow> List() => _db.ListDomainFirewallRules();
@@ -160,13 +161,19 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
         }
     }
 
-    private async void SafeRefreshAll()
+    internal void KickScheduledRefresh() => _scheduledRefresh.TryRun(SafeRefreshAllAsync);
+
+    private async Task SafeRefreshAllAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await RefreshAllAsync(CancellationToken.None);
+            await RefreshAllAsync(cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Owner disposal cancels an in-flight scheduled refresh.
+        }
+        catch (Exception ex)
         {
             try
             {
@@ -251,5 +258,6 @@ public sealed class DomainFirewallRuleCoordinator : IDisposable
     {
         _timer?.Dispose();
         _timer = null;
+        _scheduledRefresh.Dispose();
     }
 }

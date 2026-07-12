@@ -34,7 +34,7 @@ public sealed class ListImporter : IDisposable
     private readonly HostsDatabase _db;
     private readonly IListFetcher _fetcher;
     private readonly Timer _refreshTimer;
-    private bool _disposed;
+    private readonly ScheduledTaskDrain _scheduledRefresh = new();
 
     public ListImporter(HostsEngine hosts, HostsDatabase db, IListFetcher fetcher, TimeSpan? refreshInterval = null)
     {
@@ -42,7 +42,7 @@ public sealed class ListImporter : IDisposable
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         var interval = refreshInterval ?? TimeSpan.FromHours(24);
-        _refreshTimer = new Timer(_ => _ = SafeScheduledRefreshAsync(), null, interval, interval);
+        _refreshTimer = new Timer(_ => KickScheduledRefresh(), null, interval, interval);
     }
 
     public async Task<ImportOutcome> ImportBlocklistAsync(string name, string url, CancellationToken ct)
@@ -288,21 +288,29 @@ public sealed class ListImporter : IDisposable
         return overrides;
     }
 
-    private async Task SafeScheduledRefreshAsync()
-    {
-        if (_disposed)
-        {
-            return;
-        }
+    internal void KickScheduledRefresh() => _scheduledRefresh.TryRun(SafeScheduledRefreshAsync);
 
+    private async Task SafeScheduledRefreshAsync(CancellationToken cancellationToken)
+    {
         try
         {
-            await RefreshAllAsync(CancellationToken.None);
-            await RefreshAllowlistsAsync(CancellationToken.None);
+            await RefreshAllAsync(cancellationToken);
+            await RefreshAllowlistsAsync(cancellationToken);
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _db.LogEvent("lists", "refresh_failed", details: ex.GetType().Name);
+            // Owner disposal cancels an in-flight scheduled refresh.
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _db.LogEvent("lists", "refresh_failed", details: $"{ex.GetType().Name}: {ex.Message}");
+            }
+            catch (Exception)
+            {
+                // Teardown diagnostics must not fault the tracked task.
+            }
         }
     }
 
@@ -343,7 +351,7 @@ public sealed class ListImporter : IDisposable
 
     public void Dispose()
     {
-        _disposed = true;
         _refreshTimer.Dispose();
+        _scheduledRefresh.Dispose();
     }
 }

@@ -23,14 +23,14 @@ public sealed class BlocklistIntelligence : IDisposable
     private readonly HostsDatabase _db;
     private readonly IListFetcher _fetcher;
     private readonly Timer _timer;
+    private readonly ScheduledTaskDrain _scheduledRefresh = new();
     private int _refreshing;
-    private bool _disposed;
 
     public BlocklistIntelligence(HostsDatabase db, IListFetcher fetcher)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
-        _timer = new Timer(_ => _ = RefreshIfStaleAsync(), null, RefreshInterval, RefreshInterval);
+        _timer = new Timer(_ => KickScheduledRefresh(), null, RefreshInterval, RefreshInterval);
     }
 
     public bool IsRefreshing => Volatile.Read(ref _refreshing) == 1;
@@ -38,23 +38,38 @@ public sealed class BlocklistIntelligence : IDisposable
     public string LastRefreshed => _db.GetMeta(RefreshedMetaKey) ?? string.Empty;
 
     /// <summary>Kick a background refresh when the index is empty or older than a week.</summary>
-    public void StartIfStale() => _ = RefreshIfStaleAsync();
+    public void StartIfStale() => KickScheduledRefresh();
 
-    private async Task RefreshIfStaleAsync()
+    internal void KickScheduledRefresh() => _scheduledRefresh.TryRun(RefreshIfStaleAsync);
+
+    private async Task RefreshIfStaleAsync(CancellationToken cancellationToken)
     {
-        if (_disposed)
+        try
         {
-            return;
+            var (lists, _) = _db.GetListIndexStats();
+            var fresh = lists > 0 &&
+                        DateTime.TryParse(LastRefreshed, CultureInfo.InvariantCulture,
+                            DateTimeStyles.RoundtripKind, out var at) &&
+                        DateTime.UtcNow - at.ToUniversalTime() < RefreshInterval;
+            if (!fresh)
+            {
+                await RefreshAsync(cancellationToken);
+            }
         }
-
-        var (lists, _) = _db.GetListIndexStats();
-        var fresh = lists > 0 &&
-                    DateTime.TryParse(LastRefreshed, CultureInfo.InvariantCulture,
-                        DateTimeStyles.RoundtripKind, out var at) &&
-                    DateTime.UtcNow - at.ToUniversalTime() < RefreshInterval;
-        if (!fresh)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await RefreshAsync(CancellationToken.None);
+            // Owner disposal cancels an in-flight scheduled refresh.
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _db.LogEvent("intel", "index_failed", details: $"{ex.GetType().Name}: {ex.Message}");
+            }
+            catch (Exception)
+            {
+                // Teardown diagnostics must not fault the tracked task.
+            }
         }
     }
 
@@ -121,7 +136,7 @@ public sealed class BlocklistIntelligence : IDisposable
 
     public void Dispose()
     {
-        _disposed = true;
         _timer.Dispose();
+        _scheduledRefresh.Dispose();
     }
 }
