@@ -1025,6 +1025,7 @@
                             </Grid.ColumnDefinitions>
 
                             <DataGrid Grid.Column="0" x:Name="AlertsGrid" ItemsSource="{Binding Alerts}"
+                                      SelectedItem="{Binding SelectedAlert, Mode=TwoWay}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Low_volume_alerts_cad2ca46}"
                                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                       IsVisibleChanged="OnGridVisible">
@@ -1094,10 +1095,30 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Text="{svc:Loc Key=Xaml_Alert_type_settings_8e403573}" FontWeight="SemiBold" />
-                                    <DataGrid Grid.Row="1" ItemsSource="{Binding AlertTypes}" Margin="0,8,0,0"
+                                    <Border Grid.Row="1" Margin="0,8,0,2" Style="{StaticResource Hg.StatusStrip}"
+                                            Visibility="{Binding SelectedAlert.IsIdnHomograph, Converter={StaticResource BoolToVis}}"
+                                            AutomationProperties.Name="{svc:Loc Key=IdnHomograph_AlertExplainerName}">
+                                        <StackPanel>
+                                            <TextBlock Text="{svc:Loc Key=IdnHomograph_AlertExplainerTitle}"
+                                                       FontWeight="SemiBold" />
+                                            <TextBlock Text="{svc:Loc Key=IdnHomograph_ObservedLabel}"
+                                                       Style="{StaticResource Hg.FieldLabel}" Margin="0,7,0,2" />
+                                            <TextBlock Text="{Binding SelectedAlert.Subject}" TextWrapping="Wrap"
+                                                       AutomationProperties.Name="{svc:Loc Key=IdnHomograph_ObservedName}" />
+                                            <TextBlock Text="{svc:Loc Key=IdnHomograph_EvidenceLabel}"
+                                                       Style="{StaticResource Hg.FieldLabel}" Margin="0,7,0,2" />
+                                            <TextBlock Text="{Binding SelectedAlert.Details}" TextWrapping="Wrap"
+                                                       AutomationProperties.Name="{svc:Loc Key=IdnHomograph_EvidenceName}" />
+                                            <TextBlock Text="{svc:Loc Key=IdnHomograph_NoBlockAlert}"
+                                                       Style="{StaticResource Hg.HelperText}" Margin="0,7,0,0"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                    <DataGrid Grid.Row="2" ItemsSource="{Binding AlertTypes}" Margin="0,8,0,0"
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_Alert_type_settings_8e403573}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Type_4f6f5f0b}" Binding="{Binding Label}" Width="*" />
@@ -3100,6 +3121,31 @@
                                         <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                                    Style="{StaticResource Hg.DimText}"
                                                    Text="{svc:Loc Key=Xaml_Blocks_first_party_hosts_that_alias_700a14d5}" />
+                                    </DockPanel>
+                                    <DockPanel LastChildFill="False" Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Left" Margin="0,0,10,0"
+                                                Command="{Binding ToggleIdnHomographCommand}"
+                                                AutomationProperties.Name="{svc:Loc Key=IdnHomograph_ToggleName}"
+                                                ToolTip="{svc:Loc Key=IdnHomograph_ToggleTip}">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Setter Property="Content" Value="{svc:Loc Key=IdnHomograph_EnableButton}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IdnHomographEnabled}" Value="True">
+                                                            <Setter Property="Content" Value="{svc:Loc Key=IdnHomograph_DisableButton}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <StackPanel>
+                                            <TextBlock Text="{svc:Loc Key=IdnHomograph_ToolsHelp}"
+                                                       Style="{StaticResource Hg.DimText}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding IdnHomographStatus}"
+                                                       Style="{StaticResource Hg.SubText}" TextWrapping="Wrap"
+                                                       Margin="0,3,0,0"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">
                                         <Button DockPanel.Dock="Left" Margin="0,0,10,0"

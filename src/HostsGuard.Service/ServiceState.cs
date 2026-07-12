@@ -33,6 +33,7 @@ public sealed class ServiceState : IDisposable
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
+        IdnHomographs = new IdnHomographMonitor(db);
         Firewall = firewall;
         Identity = identity;
         Dns = dns;
@@ -103,6 +104,8 @@ public sealed class ServiceState : IDisposable
     public HostsEngine Hosts { get; }
 
     public HostsDatabase Db { get; }
+
+    public IdnHomographMonitor IdnHomographs { get; }
 
     public IFirewallEngine? Firewall { get; }
 
@@ -286,7 +289,7 @@ public sealed class ServiceState : IDisposable
     /// </summary>
     public void RecordDns(string domain, string process = "", int pid = 0, bool blocked = false)
     {
-        var d = domain.ToLowerInvariant().Trim();
+        var d = Core.Domains.ToAscii(domain);
         if (d.Length == 0)
         {
             return;
@@ -296,6 +299,7 @@ public sealed class ServiceState : IDisposable
         // Capture first-contact BEFORE the (async) feed write so a brand-new
         // domain is detectable for the newly-observed alert.
         var firstContact = !Db.FeedContains(d);
+        IdnHomographs.Observe(d, process);
         ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot

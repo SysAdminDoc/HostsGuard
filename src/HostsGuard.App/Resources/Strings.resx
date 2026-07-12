@@ -1035,4 +1035,19 @@
   <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Eligible HG_ exact duplicate</value></data>
   <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Group Policy findings are review-only</value></data>
   <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Foreign and non-exact findings are review-only</value></data>
+  <data name="IdnHomograph_AlertExplainerName" xml:space="preserve"><value>IDN homograph alert evidence</value></data>
+  <data name="IdnHomograph_AlertExplainerTitle" xml:space="preserve"><value>Why this IDN looks confusable</value></data>
+  <data name="IdnHomograph_ObservedLabel" xml:space="preserve"><value>Observed domain (ASCII/punycode)</value></data>
+  <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Observed international domain in stable ASCII or punycode form</value></data>
+  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Scripts, restriction level, skeleton, and confusable target</value></data>
+  <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>IDN script and confusability evidence</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Alert only â€” HostsGuard did not block or rewrite this domain. Review the evidence before taking action.</value></data>
+  <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Toggle alert-only IDN homograph detection</value></data>
+  <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Opt in to Unicode UTS #39 confusability alerts. Detection never blocks a domain automatically.</value></data>
+  <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>Enable IDN alerts</value></data>
+  <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>Disable IDN alerts</value></data>
+  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>Explains decoded IDNs, scripts, restriction level, and confusable targets in Alerts. Default off; alert-only.</value></data>
+  <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>IDN homograph detection status not loaded.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Alert-only detection is on Â· {0} comparison targets Â· {1}. No automatic block is applied.</value></data>
+  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>Off by default. When enabled, structured evidence appears in Alerts; no automatic block is applied.</value></data>
 </root>

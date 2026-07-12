@@ -19,6 +19,33 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
     public DnsControlServiceImpl(ServiceState state) => _state = state;
 
+    public override Task<IdnHomographStatus> GetIdnHomographStatus(Empty request, ServerCallContext context)
+        => Task.FromResult(new IdnHomographStatus
+        {
+            Enabled = _state.IdnHomographs.Enabled,
+            CorpusSize = _state.IdnHomographs.CorpusSize,
+            Standard = $"Unicode {IdnHomographDetector.UnicodeVersion} / UTS #39",
+        });
+
+    public override Task<Ack> SetIdnHomograph(IdnHomographRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        _state.IdnHomographs.SetEnabled(request.Enabled);
+        _state.Db.LogEvent("idn_homograph", request.Enabled ? "enabled" : "disabled",
+            process: "dns", details: "alert-only IDN homograph detection", reason: "dns_security");
+        return Task.FromResult(new Ack
+        {
+            Ok = true,
+            Message = request.Enabled
+                ? "IDN homograph detection enabled (alert only; no automatic blocking)"
+                : "IDN homograph detection disabled",
+        });
+    }
+
     public override Task<Ack> FlushCache(Empty request, ServerCallContext context)
     {
         if (_state.Dns is not { } dns)

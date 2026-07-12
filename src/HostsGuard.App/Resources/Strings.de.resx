@@ -192,4 +192,19 @@
   <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Berechtigtes exaktes HG_-Duplikat</value></data>
   <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Gruppenrichtlinien-Ergebnisse dienen nur zur PrÃ¼fung</value></data>
   <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Fremde und nicht exakte Ergebnisse dienen nur zur PrÃ¼fung</value></data>
+  <data name="IdnHomograph_AlertExplainerName" xml:space="preserve"><value>Belege zur IDN-Homograph-Warnung</value></data>
+  <data name="IdnHomograph_AlertExplainerTitle" xml:space="preserve"><value>Warum diese IDN verwechselbar wirkt</value></data>
+  <data name="IdnHomograph_ObservedLabel" xml:space="preserve"><value>Beobachtete Domain (ASCII/Punycode)</value></data>
+  <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Beobachtete internationale Domain in stabiler ASCII- oder Punycode-Form</value></data>
+  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Schriften, EinschrÃ¤nkungsstufe, Skelett und verwechselbares Ziel</value></data>
+  <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>IDN-Schrift- und Verwechselbarkeitsbelege</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Nur Warnung â€” HostsGuard hat diese Domain weder blockiert noch umgeschrieben. PrÃ¼fen Sie die Belege, bevor Sie handeln.</value></data>
+  <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Reine IDN-Homograph-Warnungen umschalten</value></data>
+  <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Unicode-UTS-#39-Verwechselbarkeitswarnungen aktivieren. Die Erkennung blockiert Domains nie automatisch.</value></data>
+  <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>IDN-Warnungen aktivieren</value></data>
+  <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>IDN-Warnungen deaktivieren</value></data>
+  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>ErklÃ¤rt dekodierte IDNs, Schriften, EinschrÃ¤nkungsstufe und verwechselbare Ziele unter Warnungen. StandardmÃ¤ÃŸig aus; nur Warnung.</value></data>
+  <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Status der IDN-Homograph-Erkennung nicht geladen.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Reine Warnungserkennung ist aktiv Â· {0} Vergleichsziele Â· {1}. Keine automatische Blockierung.</value></data>
+  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>StandardmÃ¤ÃŸig aus. Nach Aktivierung erscheinen strukturierte Belege unter Warnungen; keine automatische Blockierung.</value></data>
 </root>

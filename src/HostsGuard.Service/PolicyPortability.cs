@@ -236,7 +236,7 @@ public static class PolicyPortability
     }
 
     /// <summary>Meta keys carried in a portable policy (reconstructable settings).</summary>
-    private static readonly string[] PortableMetaKeys = { "active_profile", "history_retention_days", "flow_teardown_enabled", HostsAdoptionCoordinator.EnabledMetaKey };
+    private static readonly string[] PortableMetaKeys = { "active_profile", "history_retention_days", "flow_teardown_enabled", HostsAdoptionCoordinator.EnabledMetaKey, IdnHomographMonitor.EnabledMetaKey };
 
     public static PolicyImportPreview PreviewImport(ServiceState state, PortablePolicy policy)
     {

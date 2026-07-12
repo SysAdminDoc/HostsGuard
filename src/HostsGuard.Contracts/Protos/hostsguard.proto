@@ -1058,6 +1058,7 @@ service DnsControl {
   rpc FlushCacheEntry(DnsCacheEntryRequest) returns (Ack);
   // DoH resolver intelligence (doh_resolvers.json): status + gated refresh.
   rpc GetDohStatus(Empty) returns (DohStatus);
+  rpc GetIdnHomographStatus(Empty) returns (IdnHomographStatus);
   rpc Inspect(DomainRequest) returns (DnsInspectResult);
   rpc ListCache(DnsCacheRequest) returns (DnsCacheList);
   rpc RefreshDohIntelligence(DohRefreshRequest) returns (Ack);
@@ -1068,6 +1069,7 @@ service DnsControl {
   // CNAME-cloak reactive blocking: block a first-party host that CNAMEs to a
   // blocked tracker (uses the ETW resolution chain; opt-in).
   rpc SetCnameCloak(CnameCloakRequest) returns (Ack);
+  rpc SetIdnHomograph(IdnHomographRequest) returns (Ack);
   // Enumerate the exact adapters and current DHCP/static resolver state before
   // a transactional resolver change.
   rpc ListResolverAdapters(Empty) returns (ResolverAdapterList);
@@ -1188,6 +1190,16 @@ message DnsInspectResult {
   int32 https_records = 7;
   int32 svcb_records = 8;
   bool service_binding_observed = 9;
+}
+
+message IdnHomographRequest {
+  bool enabled = 1;
+}
+
+message IdnHomographStatus {
+  bool enabled = 1;       // opt-in; false by default
+  int32 corpus_size = 2;  // bounded whitelist + recent-domain comparison corpus
+  string standard = 3;    // Unicode/UTS #39 data version used by the detector
 }
 
 // ─── Monitoring (server-streaming live feeds) ────────────────────────────────

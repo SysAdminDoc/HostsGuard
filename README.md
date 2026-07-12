@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.84-blue)
+![Version](https://img.shields.io/badge/version-0.12.85-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -137,6 +137,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | DNS resolver switcher | Select physical or explicit VPN/tunnel adapters, preview DHCP/static state, then apply Cloudflare/Google/Quad9 or DHCP transactionally; a bounded A+AAAA probe reports RTT or restores every adapter exactly |
 | DNS resolver-cache viewer | Inspect Windows DNS Client cached names, including HTTPS/SVCB service-binding rows used by modern HTTPS/ECH bootstrap paths, and flush one selected entry when a newly blocked host still resolves |
 | Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
+| IDN homograph alerts | Opt-in, alert-only comparison of observed IDNs against allowlisted, trusted, and recent domains using embedded Unicode 17.0.0 UTS #39 confusable data; Alerts shows decoded Unicode, punycode, scripts, restriction evidence, and the matching domain without auto-blocking |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
@@ -174,6 +175,7 @@ HostsGuard.Cli snapshot preview <snapshot-id>
 HostsGuard.Cli snapshot restore <snapshot-id> --sha256 <previewed-sha256>
 HostsGuard.Cli proxy status
 HostsGuard.Cli proxy accept-baseline
+HostsGuard.Cli idn-homograph [status|enable|disable]
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
@@ -206,7 +208,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 951 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1338 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

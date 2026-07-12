@@ -31,6 +31,9 @@ public sealed partial class AlertsViewModel : ObservableObject
     [ObservableProperty]
     private string _statusText = "Alerts not loaded";
 
+    [ObservableProperty]
+    private AlertRowViewModel? _selectedAlert;
+
     public AlertsViewModel(HostsServiceClient client)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -56,25 +59,16 @@ public sealed partial class AlertsViewModel : ObservableObject
                 Type = TypeFilter,
             });
 
+            var selectedId = SelectedAlert?.Id;
             Alerts.Clear();
             foreach (var row in list.Entries)
             {
-                Alerts.Add(new AlertRowViewModel
-                {
-                    Id = row.Id,
-                    Created = row.Created,
-                    Updated = row.Updated,
-                    Type = row.Type,
-                    Severity = row.Severity,
-                    Title = row.Title,
-                    Subject = row.Subject,
-                    Details = row.Details,
-                    Action = row.Action,
-                    Process = row.Process,
-                    IsRead = row.IsRead,
-                    Surfaced = row.Surfaced,
-                });
+                Alerts.Add(AlertRowViewModel.From(row));
             }
+
+            SelectedAlert = selectedId is { } id
+                ? Alerts.FirstOrDefault(alert => alert.Id == id)
+                : Alerts.FirstOrDefault();
 
             UnreadCount = list.Unread;
             StatusText = $"Loaded {list.Entries.Count} of {list.Total} alerts";
@@ -168,7 +162,10 @@ public sealed partial class AlertRowViewModel : ObservableObject
     public string UpdatedText => TimeText.Compact(Updated);
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIdnHomograph))]
     private string _type = string.Empty;
+
+    public bool IsIdnHomograph => Type.Equals("idn_homograph", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private string _severity = string.Empty;
@@ -193,6 +190,26 @@ public sealed partial class AlertRowViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _surfaced;
+
+    public static AlertRowViewModel From(AlertEntry row)
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        return new()
+        {
+            Id = row.Id,
+            Created = row.Created,
+            Updated = row.Updated,
+            Type = row.Type,
+            Severity = row.Severity,
+            Title = row.Title,
+            Subject = row.Subject,
+            Details = row.Details,
+            Action = row.Action,
+            Process = row.Process,
+            IsRead = row.IsRead,
+            Surfaced = row.Surfaced,
+        };
+    }
 }
 
 public sealed partial class AlertTypeRowViewModel : ObservableObject

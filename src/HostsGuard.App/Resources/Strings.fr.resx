@@ -192,4 +192,19 @@
   <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Doublon exact HG_ admissible</value></data>
   <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Les rÃ©sultats de stratÃ©gie de groupe sont uniquement consultatifs</value></data>
   <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Les rÃ©sultats externes et non exacts sont uniquement consultatifs</value></data>
+  <data name="IdnHomograph_AlertExplainerName" xml:space="preserve"><value>Preuves de l'alerte d'homographe IDN</value></data>
+  <data name="IdnHomograph_AlertExplainerTitle" xml:space="preserve"><value>Pourquoi cet IDN prÃªte Ã  confusion</value></data>
+  <data name="IdnHomograph_ObservedLabel" xml:space="preserve"><value>Domaine observÃ© (ASCII/punycode)</value></data>
+  <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Domaine international observÃ© sous forme ASCII ou punycode stable</value></data>
+  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Ã‰critures, niveau de restriction, squelette et cible ressemblante</value></data>
+  <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>Preuves d'Ã©criture et de ressemblance de l'IDN</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Alerte uniquement â€” HostsGuard n'a ni bloquÃ© ni rÃ©Ã©crit ce domaine. Examinez les preuves avant d'agir.</value></data>
+  <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Activer ou dÃ©sactiver les alertes d'homographes IDN</value></data>
+  <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Active les alertes de ressemblance Unicode UTS #39. La dÃ©tection ne bloque jamais automatiquement un domaine.</value></data>
+  <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>Activer les alertes IDN</value></data>
+  <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>DÃ©sactiver les alertes IDN</value></data>
+  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>Explique les IDN dÃ©codÃ©s, les Ã©critures, le niveau de restriction et les cibles ressemblantes dans Alertes. DÃ©sactivÃ© par dÃ©faut ; alerte uniquement.</value></data>
+  <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Ã‰tat de la dÃ©tection des homographes IDN non chargÃ©.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>DÃ©tection par alerte activÃ©e Â· {0} cibles de comparaison Â· {1}. Aucun blocage automatique.</value></data>
+  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>DÃ©sactivÃ© par dÃ©faut. Une fois activÃ©e, la preuve structurÃ©e apparaÃ®t dans Alertes ; aucun blocage automatique.</value></data>
 </root>

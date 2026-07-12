@@ -17,6 +17,7 @@ public sealed partial class HostsDatabase
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
         ("suspicious_domain", "Algorithmic / DGA-looking domains", true),
         ("port_scan", "Blocked inbound port scans", true),
+        ("idn_homograph", "IDN homograph alerts", true),
         // Opt-in (off by default): a first-contact signal is high-volume, so it
         // only records/surfaces once the user enables the type.
         ("newly_observed_domain", "Newly observed domains", false),

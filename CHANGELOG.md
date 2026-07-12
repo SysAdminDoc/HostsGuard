@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.85] - 2026-07-12
+
+### Added
+- Opt-in, alert-only IDN homograph detection compares observed registrable
+  domains with allowlisted, trusted, and recent local domains using embedded,
+  version-pinned Unicode 17.0.0 UTS #39 confusable and script data. Structured
+  alerts retain safe ASCII/punycode subjects and explain decoded Unicode,
+  scripts, restriction level, skeleton collision, and matching corpus source;
+  no domain is blocked automatically.
+- Tools and `HostsGuard.Cli idn-homograph` expose the default-off setting,
+  local comparison-corpus size, and standard version. The setting persists and
+  round-trips with portable policy exports.
+
 ## [0.12.84] - 2026-07-12
 
 ### Added

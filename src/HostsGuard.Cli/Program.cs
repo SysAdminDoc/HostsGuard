@@ -43,6 +43,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
+    "idn-homograph" => await IdnHomographAsync(args),
     "proxy" => await ProxyBaselineAsync(args),
     "adopt-hosts" => await AdoptHostsAsync(args),
     "blocklists" => await BlocklistsAsync(args),
@@ -116,6 +117,7 @@ static int Usage()
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-flush-entry <cached-name>
+          HostsGuard.Cli idn-homograph [status|enable|disable]
           HostsGuard.Cli proxy [status|accept-baseline]
           HostsGuard.Cli adopt-hosts [status|now|on|off]
           HostsGuard.Cli blocklists [list|stats|refresh]
@@ -1741,6 +1743,33 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
             .FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = args[1] });
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
+    });
+}
+
+static async Task<int> IdnHomographAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].Trim().ToLowerInvariant() : "status";
+    if (args.Length > 2 || action is not ("status" or "enable" or "disable"))
+    {
+        Console.Error.WriteLine("Usage: idn-homograph [status|enable|disable]");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new DnsControl.DnsControlClient(channel);
+        if (action != "status")
+        {
+            var ack = await client.SetIdnHomographAsync(new IdnHomographRequest { Enabled = action == "enable" });
+            Console.WriteLine(ack.Message);
+            if (!ack.Ok) return 2;
+        }
+
+        var status = await client.GetIdnHomographStatusAsync(new Empty());
+        Console.WriteLine($"IDN homograph detection: {(status.Enabled ? "enabled" : "disabled")}");
+        Console.WriteLine($"corpus: {status.CorpusSize} local domains; standard: {status.Standard}");
+        Console.WriteLine("report-only: detections create alerts and never block domains automatically");
+        return 0;
     });
 }
 

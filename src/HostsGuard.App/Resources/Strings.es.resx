@@ -192,4 +192,19 @@
   <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Duplicado exacto HG_ elegible</value></data>
   <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Los hallazgos de directiva de grupo son solo para revisiÃ³n</value></data>
   <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Los hallazgos externos y no exactos son solo para revisiÃ³n</value></data>
+  <data name="IdnHomograph_AlertExplainerName" xml:space="preserve"><value>Evidencia de alerta de homÃ³grafo IDN</value></data>
+  <data name="IdnHomograph_AlertExplainerTitle" xml:space="preserve"><value>Por quÃ© este IDN puede confundirse</value></data>
+  <data name="IdnHomograph_ObservedLabel" xml:space="preserve"><value>Dominio observado (ASCII/punycode)</value></data>
+  <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Dominio internacional observado en forma ASCII o punycode estable</value></data>
+  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Escrituras, nivel de restricciÃ³n, esqueleto y objetivo confundible</value></data>
+  <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>Evidencia de escritura y confusiÃ³n del IDN</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Solo alerta: HostsGuard no bloqueÃ³ ni reescribiÃ³ este dominio. Revise la evidencia antes de actuar.</value></data>
+  <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Alternar detecciÃ³n de homÃ³grafos IDN solo con alertas</value></data>
+  <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Activa alertas de confusiÃ³n Unicode UTS #39. La detecciÃ³n nunca bloquea dominios automÃ¡ticamente.</value></data>
+  <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>Activar alertas IDN</value></data>
+  <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>Desactivar alertas IDN</value></data>
+  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>Explica IDN decodificados, escrituras, nivel de restricciÃ³n y objetivos confundibles en Alertas. Desactivado por defecto; solo alerta.</value></data>
+  <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Estado de detecciÃ³n de homÃ³grafos IDN no cargado.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>DetecciÃ³n solo con alertas activada Â· {0} objetivos de comparaciÃ³n Â· {1}. No se aplica ningÃºn bloqueo automÃ¡tico.</value></data>
+  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>Desactivado por defecto. Al activarlo, la evidencia estructurada aparece en Alertas; no se bloquea automÃ¡ticamente.</value></data>
 </root>
