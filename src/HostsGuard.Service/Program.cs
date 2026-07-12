@@ -10,6 +10,16 @@ using HostsGuard.Windows;
 // HostsGuard elevated engine service. Owns all privileged mutation and exposes
 // the gRPC control surface over the ACL'd named pipe.
 
+if (args is ["--sqlite-version"])
+{
+    using var versionProbe = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+    versionProbe.Open();
+    using var versionCommand = versionProbe.CreateCommand();
+    versionCommand.CommandText = "SELECT sqlite_version()";
+    Console.WriteLine(versionCommand.ExecuteScalar());
+    return;
+}
+
 var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 var baseDir = Path.Combine(programData, "HostsGuard");
 // Lock the data dir down BEFORE any state file is created (the DB, consent

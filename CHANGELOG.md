@@ -2,6 +2,27 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.77] - 2026-07-12
+
+### Security
+- The bundled native SQLite engine is pinned to SourceGear.sqlite3 3.53.3 for
+  both win-x64 and win-arm64, replacing 3.50.4.5 and incorporating SQLite's
+  WAL-reset corruption fix. A runtime-only service probe (`--sqlite-version`)
+  reports the engine that actually loads; the version floor now rejects anything
+  below 3.53.3 and verifies native assets for both release architectures.
+
+### Changed
+- Direct Serilog references in production diagnostics and its tests are upgraded
+  from 4.3.1 to 4.4.0. Redaction coverage now proves ambient W3C TraceId and SpanId
+  survive sink reconstruction, while the existing file-sink test verifies events
+  drain on logger disposal.
+
+### Tests
+- Added two-connection WAL write/RESTART-checkpoint stress, recovery from a copied
+  uncheckpointed WAL crash image, online backup/restore with schema and policy
+  verification, and full integrity checks. The package-hygiene and vulnerability
+  gates now report no vulnerable or undeferred outdated direct packages.
+
 ## [0.12.76] - 2026-07-12
 
 ### Fixed

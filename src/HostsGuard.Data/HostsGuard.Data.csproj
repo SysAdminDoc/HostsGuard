@@ -7,9 +7,10 @@
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.79" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
-    <!-- Pin the native SQLite bundle past GHSA-2m69-gcr7-jv3q (High): the 2.1.11
-         bundle shipped a vulnerable e_sqlite3. 3.0.3 carries the patched engine. -->
+    <!-- Keep the managed bundle on 3.x, and override its native SourceGear asset
+         so the loaded engine includes SQLite's WAL-reset corruption fix. -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <PackageReference Include="SourceGear.sqlite3" Version="3.53.3" />
   </ItemGroup>
 
   <PropertyGroup>

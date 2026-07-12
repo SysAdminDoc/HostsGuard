@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FluentAssertions;
 using HostsGuard.Diagnostics;
 using Serilog;
@@ -71,5 +72,21 @@ public class RedactingSinkTests
         var (logger, sink) = Build();
         logger.Information("blocked count is {count}", 42);
         sink.Rendered[0].Should().Contain("42");
+    }
+
+    [Fact]
+    public void Redaction_preserves_ambient_trace_and_span_ids()
+    {
+        using var activity = new Activity("redaction-test");
+        activity.SetIdFormat(ActivityIdFormat.W3C);
+        activity.Start();
+        var (logger, sink) = Build();
+
+        logger.Information("blocked {Target}", "example.com");
+
+        var logEvent = sink.Events.Should().ContainSingle().Subject;
+        logEvent.TraceId?.ToHexString().Should().Be(activity.TraceId.ToHexString());
+        logEvent.SpanId?.ToHexString().Should().Be(activity.SpanId.ToHexString());
+        (logger as IDisposable)?.Dispose();
     }
 }

@@ -5,10 +5,9 @@ using Xunit;
 namespace HostsGuard.Data.Tests;
 
 /// <summary>
-/// NET-122: the entire basis for GHSA-2m69-gcr7-jv3q (CVE-2025-6965) not applying
-/// is that the direct SQLitePCLRaw.bundle_e_sqlite3 3.0.3 pin overrides the
-/// vulnerable 2.1.11 transitive (SQLite ~3.44). This gate fails the build if the
-/// resolved native SQLite ever regresses below the fixed 3.50.2 floor.
+/// The direct bundle/native pins keep both the 2025 security fixes and SQLite's
+/// later WAL-reset corruption fix. This gate validates the engine that actually
+/// loads, not merely the NuGet graph.
 /// </summary>
 public class SqliteVersionPinTests
 {
@@ -26,9 +25,9 @@ public class SqliteVersionPinTests
         var minor = int.Parse(parts[1]);
         var patch = parts.Length > 2 ? int.Parse(parts[2]) : 0;
 
-        // >= 3.50.2 closes CVE-2025-6965 (and 3.49.1 closed CVE-2025-29087).
-        (major, minor, patch).Should().BeGreaterThanOrEqualTo((3, 50, 2),
-            $"the bundled SQLite ({version}) must stay >= 3.50.2 — a drop to the 2.1.x bundle reopens CVE-2025-6965");
+        // >= 3.53.3 includes the WAL-reset corruption fix and all earlier floors.
+        (major, minor, patch).Should().BeGreaterThanOrEqualTo((3, 53, 3),
+            $"the bundled SQLite ({version}) must stay >= 3.53.3 to retain the WAL-reset corruption fix");
     }
 
     [Fact]
@@ -46,5 +45,22 @@ public class SqliteVersionPinTests
             SqliteConnection.ClearAllPools();
             try { System.IO.File.Delete(path); } catch (System.IO.IOException) { }
         }
+    }
+
+    [Theory]
+    [InlineData("win-x64")]
+    [InlineData("win-arm64")]
+    public void Native_package_contains_each_release_runtime_asset(string runtimeIdentifier)
+    {
+        var packages = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+        if (string.IsNullOrWhiteSpace(packages))
+        {
+            packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        }
+
+        var native = Path.Combine(packages, "sourcegear.sqlite3", "3.53.3", "runtimes",
+            runtimeIdentifier, "native", "e_sqlite3.dll");
+        File.Exists(native).Should().BeTrue($"SourceGear.sqlite3 3.53.3 must ship {runtimeIdentifier} e_sqlite3.dll");
+        new FileInfo(native).Length.Should().BeGreaterThan(1_000_000);
     }
 }
