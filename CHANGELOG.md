@@ -26,6 +26,9 @@ All notable changes to HostsGuard are documented in this file.
   the other background timers, previously missed for this newer coordinator).
 
 ### Security
+- Self-update JSON parsing (the remote GitHub release feed and the on-disk
+  manifest) now rejects duplicate keys, closing duplicate-key smuggling on the
+  updater's only untrusted-remote input.
 - Self-update now refuses a release-feed asset whose name isn't a plain file
   name (path separators or `..`), and always writes the staged installer under
   `Path.GetFileName`. Previously a crafted/compromised feed could place the

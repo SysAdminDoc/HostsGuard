@@ -28,7 +28,12 @@ public sealed class SelfUpdater
     /// <summary>Installer download ceiling; the win-x64 setup is ~80 MB today.</summary>
     private const int MaxInstallerBytes = 300_000_000;
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    // AllowDuplicateProperties=false hardens parsing of the (remote, untrusted)
+    // release feed and the on-disk manifest against duplicate-key smuggling.
+    // Unmapped members stay allowed — the GitHub release feed carries many fields
+    // we don't map, so rejecting them would break the updater entirely.
+    private static readonly JsonSerializerOptions JsonOptions =
+        new(JsonSerializerDefaults.Web) { WriteIndented = true, AllowDuplicateProperties = false };
 
     private readonly HostsDatabase _db;
     private readonly string _updatesDir;

@@ -147,6 +147,19 @@ public sealed class SelfUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task Stage_rejects_a_release_feed_with_duplicate_keys()
+    {
+        // Duplicate-key smuggling is rejected (AllowDuplicateProperties=false); the
+        // JsonException is caught and staging fails gracefully.
+        _fetcher.Responses[FeedUrl] = """{ "tag_name": "v9.9.9", "tag_name": "v0.0.1", "assets": [] }""";
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeFalse();
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Stage_fails_closed_when_the_installed_version_is_unparseable()
     {
         // A garbled build stamp must never make every remote look "newer".
