@@ -2,6 +2,23 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.78] - 2026-07-12
+
+### Fixed
+- Offscreen WPF capture now sizes and renders the window content surface rather
+  than the non-client window bounds. Dark and light README images therefore
+  contain the complete 1600×1000 shell and footer instead of a transparent/black
+  bottom band that previously passed dimension and file-size checks.
+- Every tab capture now fails on transparent edge bands, implausible theme
+  luminance, insufficient luminance range, or too few detailed image tiles.
+  Manifest schema 2 persists these measurements, and the release gate enforces
+  them alongside dimensions and hashes.
+- README installer examples use an explicit `<version>` filename template so
+  they cannot silently retain an old release number. The release gate now keeps
+  source/version/render checks green during development while reserving current
+  installer, hash, and winget-version enforcement for `-RequireArtifacts` release
+  cuts; published winget manifests remain internally validated in both modes.
+
 ## [0.12.77] - 2026-07-12
 
 ### Security

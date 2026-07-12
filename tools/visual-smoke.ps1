@@ -210,11 +210,16 @@ foreach ($theme in @("dark", "light")) {
         bytes = $file.Length
         width = $size.width
         height = $size.height
+        averageLuminance = $capture.averageLuminance
+        luminanceRange = $capture.luminanceRange
+        opaqueRatio = $capture.opaqueRatio
+        bottomOpaqueRatio = $capture.bottomOpaqueRatio
+        contentTileRatio = $capture.contentTileRatio
     }
 }
 
 $manifest = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     product = "HostsGuard"
     version = $productVersion
     generatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")

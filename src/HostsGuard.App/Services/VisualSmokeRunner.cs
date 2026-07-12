@@ -51,8 +51,10 @@ internal static class VisualSmokeRunner
         };
 
         await WaitForLayoutAsync(window, settleMs, cancellationToken).ConfigureAwait(true);
-        result.ActualSize = $"{Math.Round(window.ActualWidth)}x{Math.Round(window.ActualHeight)}";
-        if (!SizeMatches(window, expectedWidth, expectedHeight))
+        await SizeCaptureSurfaceAsync(window, expectedWidth, expectedHeight, cancellationToken).ConfigureAwait(true);
+        var captureSurface = CaptureSurface(window);
+        result.ActualSize = $"{Math.Round(captureSurface.ActualWidth)}x{Math.Round(captureSurface.ActualHeight)}";
+        if (!SizeMatches(captureSurface, expectedWidth, expectedHeight))
         {
             result.Failures.Add(
                 $"Window rendered at {result.ActualSize}; expected {expectedWidth}x{expectedHeight}.");
@@ -80,17 +82,24 @@ internal static class VisualSmokeRunner
 
             var fileName = $"{theme}-{Slug(TabNames[i])}.png";
             var path = Path.Combine(outputDir, fileName);
-            var luma = Capture(window, path, 0, 90);
+            var metrics = Capture(captureSurface, path);
             result.Captures.Add(new VisualSmokeCapture
             {
                 Tab = TabNames[i],
                 Path = path,
-                ChromeLuminance = Math.Round(luma, 1),
+                ChromeLuminance = Math.Round(AverageLuma(captureSurface, 0, 90), 1),
+                AverageLuminance = Math.Round(metrics.AverageLuminance, 1),
+                LuminanceRange = Math.Round(metrics.LuminanceRange, 1),
+                OpaqueRatio = Math.Round(metrics.OpaqueRatio, 4),
+                BottomOpaqueRatio = Math.Round(metrics.BottomOpaqueRatio, 4),
+                ContentTileRatio = Math.Round(metrics.ContentTileRatio, 4),
             });
+
+            ValidateCapture(theme, TabNames[i], metrics, result.Failures);
 
             if (i == 0)
             {
-                ValidateChromeLuminance(theme, luma, result.Failures);
+                ValidateChromeLuminance(theme, AverageLuma(captureSurface, 0, 90), result.Failures);
             }
         }
 
@@ -123,10 +132,35 @@ internal static class VisualSmokeRunner
         await window.Dispatcher.InvokeAsync(window.UpdateLayout).Task.ConfigureAwait(true);
     }
 
-    private static bool SizeMatches(Window window, int expectedWidth, int expectedHeight)
+    private static async Task SizeCaptureSurfaceAsync(
+        Window window,
+        int expectedWidth,
+        int expectedHeight,
+        CancellationToken cancellationToken)
     {
-        return (int)Math.Round(window.ActualWidth) == expectedWidth
-            && (int)Math.Round(window.ActualHeight) == expectedHeight;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var surface = CaptureSurface(window);
+            var widthDelta = expectedWidth - surface.ActualWidth;
+            var heightDelta = expectedHeight - surface.ActualHeight;
+            if (Math.Abs(widthDelta) < 0.5 && Math.Abs(heightDelta) < 0.5)
+            {
+                return;
+            }
+
+            window.Width = Math.Max(window.MinWidth, window.ActualWidth + widthDelta);
+            window.Height = Math.Max(window.MinHeight, window.ActualHeight + heightDelta);
+            await WaitForLayoutAsync(window, 50, cancellationToken).ConfigureAwait(true);
+        }
+    }
+
+    private static FrameworkElement CaptureSurface(Window window) =>
+        window.Content as FrameworkElement ?? window;
+
+    private static bool SizeMatches(FrameworkElement surface, int expectedWidth, int expectedHeight)
+    {
+        return (int)Math.Round(surface.ActualWidth) == expectedWidth
+            && (int)Math.Round(surface.ActualHeight) == expectedHeight;
     }
 
     private static async Task CaptureDialogsAsync(
@@ -178,12 +212,13 @@ internal static class VisualSmokeRunner
 
                 var fileName = $"{theme}-dialog-{Slug(name)}.png";
                 var path = Path.Combine(outputDir, fileName);
-                _ = Capture(dialog, path, 0, Math.Min(90, (int)dialog.ActualHeight));
+                var dialogSurface = CaptureSurface(dialog);
+                _ = Capture(dialogSurface, path);
                 result.DialogCaptures.Add(new VisualSmokeDialogCapture
                 {
                     Dialog = name,
                     Path = path,
-                    ActualSize = $"{Math.Round(dialog.ActualWidth)}x{Math.Round(dialog.ActualHeight)}",
+                    ActualSize = $"{Math.Round(dialogSurface.ActualWidth)}x{Math.Round(dialogSurface.ActualHeight)}",
                 });
             }
             catch (Exception ex)
@@ -217,12 +252,12 @@ internal static class VisualSmokeRunner
         }
     }
 
-    private static double Capture(Window window, string path, int yStart, int sampleHeight)
+    private static CaptureMetrics Capture(FrameworkElement surface, string path)
     {
-        var width = Math.Max(1, (int)Math.Round(window.ActualWidth));
-        var height = Math.Max(1, (int)Math.Round(window.ActualHeight));
+        var width = Math.Max(1, (int)Math.Round(surface.ActualWidth));
+        var height = Math.Max(1, (int)Math.Round(surface.ActualHeight));
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(window);
+        bitmap.Render(surface);
 
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -231,6 +266,15 @@ internal static class VisualSmokeRunner
             encoder.Save(stream);
         }
 
+        return Analyze(bitmap);
+    }
+
+    private static double AverageLuma(FrameworkElement surface, int yStart, int sampleHeight)
+    {
+        var width = Math.Max(1, (int)Math.Round(surface.ActualWidth));
+        var height = Math.Max(1, (int)Math.Round(surface.ActualHeight));
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(surface);
         return AverageLuma(bitmap, yStart, sampleHeight);
     }
 
@@ -261,6 +305,92 @@ internal static class VisualSmokeRunner
         }
 
         return count == 0 ? 0 : total / count;
+    }
+
+    private static CaptureMetrics Analyze(BitmapSource bitmap)
+    {
+        var stride = bitmap.PixelWidth * 4;
+        var pixels = new byte[stride * bitmap.PixelHeight];
+        bitmap.CopyPixels(pixels, stride, 0);
+        var step = Math.Max(1, Math.Min(bitmap.PixelWidth, bitmap.PixelHeight) / 250);
+        var bottomStart = (int)(bitmap.PixelHeight * 0.95);
+        long samples = 0, opaque = 0, bottomSamples = 0, bottomOpaque = 0;
+        double total = 0, minimum = 255, maximum = 0;
+        const int tileColumns = 10;
+        const int tileRows = 8;
+        var tileMinimum = Enumerable.Repeat(255d, tileColumns * tileRows).ToArray();
+        var tileMaximum = new double[tileColumns * tileRows];
+
+        for (var y = 0; y < bitmap.PixelHeight; y += step)
+        {
+            var row = y * stride;
+            for (var x = 0; x < bitmap.PixelWidth; x += step)
+            {
+                var offset = row + (x * 4);
+                var alpha = pixels[offset + 3];
+                var luma = (0.2126 * pixels[offset + 2]) + (0.7152 * pixels[offset + 1]) +
+                           (0.0722 * pixels[offset]);
+                samples++;
+                total += luma;
+                if (alpha >= 250)
+                {
+                    opaque++;
+                    minimum = Math.Min(minimum, luma);
+                    maximum = Math.Max(maximum, luma);
+                }
+
+                if (y >= bottomStart)
+                {
+                    bottomSamples++;
+                    if (alpha >= 250)
+                    {
+                        bottomOpaque++;
+                    }
+                }
+
+                var tileX = Math.Min(tileColumns - 1, x * tileColumns / bitmap.PixelWidth);
+                var tileY = Math.Min(tileRows - 1, y * tileRows / bitmap.PixelHeight);
+                var tile = (tileY * tileColumns) + tileX;
+                tileMinimum[tile] = Math.Min(tileMinimum[tile], luma);
+                tileMaximum[tile] = Math.Max(tileMaximum[tile], luma);
+            }
+        }
+
+        var contentTiles = tileMaximum.Zip(tileMinimum).Count(pair => pair.First - pair.Second >= 12);
+        return new CaptureMetrics(
+            samples == 0 ? 0 : total / samples,
+            maximum - minimum,
+            samples == 0 ? 0 : opaque / (double)samples,
+            bottomSamples == 0 ? 0 : bottomOpaque / (double)bottomSamples,
+            contentTiles / (double)(tileColumns * tileRows));
+    }
+
+    private static void ValidateCapture(
+        string theme,
+        string tab,
+        CaptureMetrics metrics,
+        IList<string> failures)
+    {
+        if (metrics.OpaqueRatio < 0.995 || metrics.BottomOpaqueRatio < 0.995)
+        {
+            failures.Add($"{tab} {theme} capture contains transparent/blank pixels " +
+                         $"(opaque {metrics.OpaqueRatio:P1}, bottom {metrics.BottomOpaqueRatio:P1}).");
+        }
+
+        if (metrics.LuminanceRange < 60 || metrics.ContentTileRatio < 0.10)
+        {
+            failures.Add($"{tab} {theme} capture lacks rendered UI detail " +
+                         $"(range {metrics.LuminanceRange:F1}, detailed tiles {metrics.ContentTileRatio:P1}).");
+        }
+
+        var dark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        var invalidAverage = dark
+            ? metrics.AverageLuminance is < 5 or > 100
+            : metrics.AverageLuminance is < 100 or > 250;
+        if (invalidAverage)
+        {
+            failures.Add($"{tab} {theme} average luminance {metrics.AverageLuminance:F1} is outside the theme bounds.");
+        }
     }
 
     private static void ValidateChromeLuminance(string theme, double luma, IList<string> failures)
@@ -340,7 +470,24 @@ internal static class VisualSmokeRunner
         public string Path { get; init; } = "";
 
         public double ChromeLuminance { get; init; }
+
+        public double AverageLuminance { get; init; }
+
+        public double LuminanceRange { get; init; }
+
+        public double OpaqueRatio { get; init; }
+
+        public double BottomOpaqueRatio { get; init; }
+
+        public double ContentTileRatio { get; init; }
     }
+
+    private sealed record CaptureMetrics(
+        double AverageLuminance,
+        double LuminanceRange,
+        double OpaqueRatio,
+        double BottomOpaqueRatio,
+        double ContentTileRatio);
 
     private sealed class VisualSmokeDialogCapture
     {

@@ -75,8 +75,8 @@ function Test-ScreenshotManifest([string]$Version) {
     }
 
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    if ($manifest.schemaVersion -ne 1) {
-        Add-Error "visual smoke manifest schemaVersion must be 1"
+    if ($manifest.schemaVersion -ne 2) {
+        Add-Error "visual smoke manifest schemaVersion must be 2"
     }
 
     if ($manifest.version -ne $Version) {
@@ -138,6 +138,22 @@ function Test-ScreenshotManifest([string]$Version) {
         if ((Get-Item -LiteralPath $fullPath).Length -lt 50000) {
             Add-Error "visual smoke $theme screenshot is unexpectedly small: $path"
         }
+
+        $average = [double]$shot.averageLuminance
+        $range = [double]$shot.luminanceRange
+        $opaque = [double]$shot.opaqueRatio
+        $bottomOpaque = [double]$shot.bottomOpaqueRatio
+        $contentTiles = [double]$shot.contentTileRatio
+        if ($opaque -lt 0.995 -or $bottomOpaque -lt 0.995) {
+            Add-Error "visual smoke $theme screenshot contains transparent/blank pixels (opaque=$opaque, bottom=$bottomOpaque)"
+        }
+        if ($range -lt 60 -or $contentTiles -lt 0.10) {
+            Add-Error "visual smoke $theme screenshot lacks rendered detail (range=$range, tiles=$contentTiles)"
+        }
+        if (($theme -eq 'dark' -and ($average -lt 5 -or $average -gt 100)) -or
+            ($theme -eq 'light' -and ($average -lt 100 -or $average -gt 250))) {
+            Add-Error "visual smoke $theme average luminance is outside theme bounds: $average"
+        }
     }
 }
 
@@ -156,29 +172,46 @@ if ($iss -notmatch "#define\s+MyAppVersionInfo\s+`"$([regex]::Escape($version))\
 }
 
 Require-Contains 'README.md' "version-$version-blue" 'README badge'
-Require-Contains 'README.md' "HostsGuard-v$version-win-x64-dotnet-Setup.exe" 'README x64 artifact'
-Require-Contains 'README.md' "HostsGuard-v$version-win-arm64-dotnet-Setup.exe" 'README arm64 artifact'
+$readme = Read-Text 'README.md'
+foreach ($rid in @('win-x64', 'win-arm64')) {
+    $currentName = "HostsGuard-v$version-$rid-dotnet-Setup.exe"
+    $templateName = "HostsGuard-v<version>-$rid-dotnet-Setup.exe"
+    if (-not $readme.Contains($currentName) -and -not $readme.Contains($templateName)) {
+        Add-Error "README $rid artifact must use the current or explicit <version> filename template"
+    }
+}
 Require-Contains 'CHANGELOG.md' "## [$version] -" 'CHANGELOG heading'
 Test-ScreenshotManifest $version
 
-foreach ($manifest in @(
+$wingetManifests = @(
     'winget/SysAdminDoc.HostsGuard.yaml',
     'winget/SysAdminDoc.HostsGuard.locale.en-US.yaml',
     'winget/SysAdminDoc.HostsGuard.installer.yaml'
-)) {
-    Require-Contains $manifest "PackageVersion: $version" "winget package version"
+)
+$wingetRoot = Read-Text $wingetManifests[0]
+$wingetMatch = [regex]::Match($wingetRoot, '(?m)^PackageVersion:\s*(\S+)\s*$')
+$wingetVersion = if ($wingetMatch.Success) { $wingetMatch.Groups[1].Value } else { '' }
+if ([string]::IsNullOrWhiteSpace($wingetVersion)) {
+    Add-Error 'winget root manifest has no PackageVersion'
+}
+foreach ($manifest in $wingetManifests) {
+    Require-Contains $manifest "PackageVersion: $wingetVersion" "winget package version"
+}
+if ($RequireArtifacts -and $wingetVersion -ne $version) {
+    Add-Error "winget package version '$wingetVersion' must match release artifact version $version"
 }
 
 $installerManifest = Read-Text 'winget/SysAdminDoc.HostsGuard.installer.yaml'
 foreach ($rid in @('win-x64', 'win-arm64')) {
-    $fileName = "HostsGuard-v$version-$rid-dotnet-Setup.exe"
-    $url = "https://github.com/SysAdminDoc/HostsGuard/releases/download/v$version/$fileName"
+    $wingetFileName = "HostsGuard-v$wingetVersion-$rid-dotnet-Setup.exe"
+    $url = "https://github.com/SysAdminDoc/HostsGuard/releases/download/v$wingetVersion/$wingetFileName"
     if (-not $installerManifest.Contains("InstallerUrl: $url")) {
         Add-Error "winget installer URL missing $url"
     }
 
+    $fileName = "HostsGuard-v$version-$rid-dotnet-Setup.exe"
     $artifact = Join-Path $repo "installer_output\$fileName"
-    if (Test-Path -LiteralPath $artifact) {
+    if ($RequireArtifacts -and (Test-Path -LiteralPath $artifact)) {
         $hash = Get-Sha256 $artifact
         if (-not $installerManifest.Contains("InstallerSha256: $hash")) {
             Add-Error "winget $rid SHA256 does not match $hash"
@@ -190,7 +223,7 @@ foreach ($rid in @('win-x64', 'win-arm64')) {
 }
 
 if ($errors.Count -ne 0) {
-    $errors | ForEach-Object { Write-Error $_ }
+    $errors | ForEach-Object { [Console]::Error.WriteLine("Release gate: $_") }
     exit 1
 }
 
