@@ -5,6 +5,10 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.69] - 2026-07-12
 
 ### Fixed
+- Usage-budget enforcement now re-derives real block state on each sweep, so a
+  quota can no longer silently stop enforcing after the user manually deletes a
+  block the enforcer had recorded over but didn't own — the next over-limit
+  sweep re-applies a quota-owned block instead of trusting a stale timestamp.
 - The IP-format blocklist coordinator now drains an in-flight scheduled refresh
   before disposing, so a timer-driven refresh can no longer reach the database
   or firewall after shutdown has disposed them (the same teardown race fixed for

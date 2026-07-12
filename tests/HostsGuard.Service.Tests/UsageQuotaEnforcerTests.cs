@@ -166,6 +166,32 @@ public sealed class UsageQuotaEnforcerTests : IDisposable
         _hosts.GetBlocked().Should().Contain("manual.example.com");
     }
 
+    [Fact]
+    public void Quota_re_blocks_after_a_pre_existing_block_is_manually_deleted()
+    {
+        // Domain is blocked manually first; the quota is over the limit but the
+        // block is already in place, so the quota leaves ownership alone.
+        _hosts.Block("cdn.example.com");
+        _db.AddDomain("cdn.example.com", "blocked", "manual");
+        _db.UpsertUsageQuotaRule("domain", "cdn.example.com", limitBytes: 100, windowDays: 2, enabled: true, blockOnExceed: true);
+        _db.AddUsageRollup("cdn.example.com", "chrome", Today.Date, 500, 0);
+        _enforcer.Sweep(Today);
+        _db.GetDomainSource("cdn.example.com").Should().Be("manual"); // ownership untouched
+
+        // The user manually deletes that block while still over the limit.
+        _hosts.Unblock("cdn.example.com");
+        _db.RemoveDomain("cdn.example.com");
+        _db.GetDomainStatus("cdn.example.com").Should().BeNull();
+
+        // The next sweep must re-derive real state and re-apply the block (now
+        // quota-owned) instead of trusting a stale blockedSince and lapsing.
+        _enforcer.Sweep(Today);
+
+        _db.GetDomainStatus("cdn.example.com").Should().Be("blocked");
+        _db.GetDomainSource("cdn.example.com").Should().Be(UsageQuotaEnforcer.DomainSource);
+        _hosts.GetBlocked().Should().Contain("cdn.example.com");
+    }
+
     public void Dispose()
     {
         _db.Dispose();

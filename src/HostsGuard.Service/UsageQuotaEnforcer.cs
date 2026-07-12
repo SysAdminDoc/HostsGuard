@@ -59,11 +59,20 @@ public sealed class UsageQuotaEnforcer
                 }
 
                 var used = _db.GetUsageBytesForQuota(rule.Scope, rule.Match, rule.WindowDays, now);
-                if (used >= rule.LimitBytes && !blockActive)
+                if (used >= rule.LimitBytes)
                 {
-                    ApplyBlock(rule, used, now);
+                    // Re-derive from real state rather than trusting blockedSince:
+                    // the block can go missing while blockedSince is still set —
+                    // e.g. the enforcer recorded blockedSince over a pre-existing
+                    // block it didn't own, and the user later deleted that block.
+                    // Without this the quota silently stops enforcing until the
+                    // window slides. Only (re-)apply when the block isn't in place.
+                    if (!IsBlockInPlace(rule))
+                    {
+                        ApplyBlock(rule, used, now);
+                    }
                 }
-                else if (used < rule.LimitBytes && blockActive)
+                else if (blockActive)
                 {
                     ClearBlock(rule, "usage window fell back under the limit");
                 }
@@ -98,6 +107,31 @@ public sealed class UsageQuotaEnforcer
 
             return cleared;
         }
+    }
+
+    /// <summary>
+    /// True when the rule's block is actually in force right now — so an over-limit
+    /// sweep only (re-)applies when the block has genuinely gone missing, not just
+    /// because <c>blockedSince</c> is set.
+    /// </summary>
+    private bool IsBlockInPlace(UsageQuotaRuleRow rule)
+    {
+        if (rule.Scope == "domain")
+        {
+            // Blocked (by us or anyone) or manually whitelisted → nothing to apply.
+            var status = _db.GetDomainStatus(rule.Match);
+            return status is "blocked" or "whitelisted";
+        }
+
+        // App scope: in place only if we recorded rule names and every one still
+        // exists in the firewall (a manual rule delete drops us back to not-in-place).
+        if (rule.BlockedRules.Length == 0 || _firewall is not { } fw)
+        {
+            return false;
+        }
+
+        var names = rule.BlockedRules.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return names.Length != 0 && names.All(fw.RuleExists);
     }
 
     private void ApplyBlock(UsageQuotaRuleRow rule, long used, DateTime now)
