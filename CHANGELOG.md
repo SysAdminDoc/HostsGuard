@@ -4,6 +4,12 @@ All notable changes to HostsGuard are documented in this file.
 
 ## [0.12.69] - 2026-07-12
 
+### Added
+- Diagnostics now surface the actual .NET runtime version and the loaded SQLite
+  engine version — in the service status (`HostsGuard.Cli status`), the Tools
+  health glance, and `diagnostics.json` — so the deployed patch level is provable
+  at runtime instead of inferred from the app version.
+
 ### Fixed
 - Manual-edit adoption no longer flags IPv4-mapped IPv6 sink literals (e.g.
   `::ffff:0.0.0.0`) as suspicious redirects, so those block forms don't raise a

@@ -46,6 +46,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             SchemaVersion = HostsDatabase.SchemaVersion,
             SchemaVersionOnDisk = _state.Db.SchemaVersionOnDisk(),
             FilteringMode = _state.Consent.Mode,
+            RuntimeVersion = Environment.Version.ToString(),
+            SqliteVersion = _state.Db.SqliteEngineVersion(),
         };
         return Task.FromResult(status);
     }
@@ -196,6 +198,9 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         return JsonSerializer.Serialize(new
         {
             generated = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            app_version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
+            runtime_version = Environment.Version.ToString(),
+            sqlite_version = _state.Db.SqliteEngineVersion(),
             filtering_mode = _state.Consent.Mode,
             detection_armed = _state.Consent.DetectionArmed,
             default_outbound = posture,

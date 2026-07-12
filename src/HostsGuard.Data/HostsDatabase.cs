@@ -777,6 +777,15 @@ public sealed partial class HostsDatabase : IDisposable
     public int SchemaVersionOnDisk() =>
         int.TryParse(_conn.ExecuteScalar<string>("SELECT value FROM meta WHERE key='schema_version'"), out var v) ? v : 0;
 
+    /// <summary>The SQLite engine version actually loaded (e.g. "3.50.2") — provable at runtime.</summary>
+    public string SqliteEngineVersion()
+    {
+        lock (_gate)
+        {
+            return _conn.ExecuteScalar<string>("SELECT sqlite_version()") ?? string.Empty;
+        }
+    }
+
     /// <summary>
     /// Fail fast with a typed exception if a caller reaches the DB after
     /// <see cref="Dispose"/>. Called under <c>_gate</c> on the paths background

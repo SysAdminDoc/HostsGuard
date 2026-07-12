@@ -118,6 +118,18 @@ public sealed partial class ToolsViewModel
                 Detail = I18n.T("Health_SchemaDetail", "schema v{0} (on disk v{1})", status.SchemaVersion, status.SchemaVersionOnDisk),
                 Healthy = status.SchemaVersion == status.SchemaVersionOnDisk,
             });
+            if (status.RuntimeVersion.Length != 0 || status.SqliteVersion.Length != 0)
+            {
+                HealthRows.Add(new HealthRowViewModel
+                {
+                    Aspect = I18n.T("Health_Runtime", "Runtime"),
+                    State = I18n.T("Health_Ok", "OK"),
+                    Detail = I18n.T("Health_RuntimeDetail", ".NET {0} · SQLite {1}",
+                        status.RuntimeVersion, status.SqliteVersion),
+                    Healthy = true,
+                });
+            }
+
             HealthRows.Add(new HealthRowViewModel
             {
                 Aspect = I18n.T("Health_Blocklists", "Blocklists"),

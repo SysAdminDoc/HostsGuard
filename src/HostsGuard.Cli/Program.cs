@@ -215,6 +215,7 @@ static async Task<int> StatusAsync()
         Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");
         var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
         Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");
+        Console.WriteLine($"runtime:      .NET {status.RuntimeVersion}, SQLite {status.SqliteVersion}");
         var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
         Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
         return 0;

@@ -94,6 +94,11 @@ message ServiceStatus {
   // NET-183: hosts file is large enough to slow system-wide DNS resolution;
   // the UI/CLI suggests firewall IP rules for very large lists.
   bool hosts_over_scale_threshold = 22;
+  // Provable runtime state: the .NET runtime the self-contained build bundles
+  // and the SQLite engine version actually loaded, so support can confirm the
+  // deployed patch level without guessing from the app version.
+  string runtime_version = 23;
+  string sqlite_version = 24;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────

@@ -30,4 +30,21 @@ public class SqliteVersionPinTests
         (major, minor, patch).Should().BeGreaterThanOrEqualTo((3, 50, 2),
             $"the bundled SQLite ({version}) must stay >= 3.50.2 — a drop to the 2.1.x bundle reopens CVE-2025-6965");
     }
+
+    [Fact]
+    public void Engine_version_is_surfaced_for_diagnostics()
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "hg_sqlver_" + System.Guid.NewGuid().ToString("N") + ".db");
+        try
+        {
+            using var db = new HostsDatabase(path);
+            var reported = db.SqliteEngineVersion();
+            reported.Should().MatchRegex(@"^\d+\.\d+\.\d+");
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            try { System.IO.File.Delete(path); } catch (System.IO.IOException) { }
+        }
+    }
 }

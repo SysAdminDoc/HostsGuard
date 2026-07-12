@@ -924,6 +924,8 @@
   <data name="Health_Database" xml:space="preserve"><value>Database</value></data>
   <data name="Health_Mismatch" xml:space="preserve"><value>Mismatch</value></data>
   <data name="Health_SchemaDetail" xml:space="preserve"><value>schema v{0} (on disk v{1})</value></data>
+  <data name="Health_Runtime" xml:space="preserve"><value>Runtime</value></data>
+  <data name="Health_RuntimeDetail" xml:space="preserve"><value>.NET {0} · SQLite {1}</value></data>
   <data name="Health_Blocklists" xml:space="preserve"><value>Blocklists</value></data>
   <data name="Health_Refreshed" xml:space="preserve"><value>Refreshed</value></data>
   <data name="Health_NeverRefreshed" xml:space="preserve"><value>Never refreshed</value></data>
