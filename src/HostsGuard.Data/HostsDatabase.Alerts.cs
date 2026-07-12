@@ -15,6 +15,7 @@ public sealed partial class HostsDatabase
         ("unknown_lan", "Unknown LAN / gateway", true),
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
+        ("suspicious_domain", "Algorithmic / DGA-looking domains", true),
     };
 
     public long AddAlert(

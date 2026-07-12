@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.69] - 2026-07-12
 
 ### Added
+- Algorithmic/DGA domain detection: a local, offline heuristic scores the
+  registrable name (not subdomains, so random CDN subdomains are ignored) and
+  raises a one-time, user-mutable "Algorithmic / DGA-looking domains" alert when
+  an observed domain's registered name looks machine-generated (DGA malware /
+  DNS tunnel). Curated-known domains are never flagged.
 - DNS-rebinding detection: when a public registrable domain resolves to a
   private-LAN address (RFC1918/CGNAT/link-local), HostsGuard raises a
   user-mutable "DNS rebinding / out-of-scope answers" alert. Alert-only

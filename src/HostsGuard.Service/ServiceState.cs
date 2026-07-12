@@ -279,6 +279,43 @@ public sealed class ServiceState : IDisposable
         };
         ev.Blocklists.AddRange(Db.GetBlocklistsFor(d));
         Bus.Publish(ev);
+
+        MaybeAlertSuspiciousDomain(d, root, process);
+    }
+
+    private readonly HashSet<string> _dgaAlerted = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// NET-201: raise a one-time alert when a domain's registrable name looks
+    /// algorithmically generated (DGA / DNS-tunnel). Cheap fast-reject first
+    /// (short/normal labels never match), then skip curated-known domains, then
+    /// alert once per flagged root so the set stays small over long uptime.
+    /// </summary>
+    private void MaybeAlertSuspiciousDomain(string domain, string root, string process)
+    {
+        if (root.Length == 0 || !Core.DgaHeuristic.LooksAlgorithmic(root)
+            || Core.DomainPurpose.Lookup(domain).Length != 0)
+        {
+            return;
+        }
+
+        bool fresh;
+        lock (_dgaAlerted)
+        {
+            fresh = _dgaAlerted.Add(root);
+        }
+
+        if (fresh)
+        {
+            Db.AddAlert(
+                "suspicious_domain",
+                "warning",
+                "Algorithmic-looking domain observed",
+                root,
+                $"{domain} has a random-looking registered name ({root}) — a DGA-malware / DNS-tunnel signature.",
+                action: "suspicious_domain",
+                process: process);
+        }
     }
 
     /// <summary>
