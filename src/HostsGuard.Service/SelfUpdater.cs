@@ -123,6 +123,15 @@ public sealed class SelfUpdater
                 throw new InvalidOperationException($"asset {asset.Name} has no download URL");
             }
 
+            // Defense-in-depth: asset.Name comes from the release-feed JSON and is
+            // used to build a path this service later executes as LocalSystem. The
+            // SHA-256 pin constrains content, not write location — so refuse any
+            // name that isn't a plain file name (path separators / "..").
+            if (!IsSafeAssetName(asset.Name))
+            {
+                throw new InvalidOperationException($"refusing asset with an unsafe name: {asset.Name}");
+            }
+
             var pinned = NormalizeSha256(asset.Digest)
                 ?? throw new InvalidOperationException(
                     $"the release feed pins no sha256 digest for {asset.Name} — refusing to stage an unverifiable installer");
@@ -138,7 +147,7 @@ public sealed class SelfUpdater
             }
 
             Directory.CreateDirectory(_updatesDir);
-            var installerPath = Path.Combine(_updatesDir, asset.Name);
+            var installerPath = Path.Combine(_updatesDir, Path.GetFileName(asset.Name));
             File.WriteAllBytes(installerPath, bytes);
             WriteManifest(new PendingUpdate(version, actual, installerPath,
                 DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
@@ -302,7 +311,7 @@ public sealed class SelfUpdater
 
     internal static int CompareVersions(string installed, string latest)
     {
-        static Version Parse(string value)
+        static Version? Parse(string value)
         {
             var core = value.Trim().TrimStart('v', 'V');
             var meta = core.IndexOfAny(['-', '+']);
@@ -313,11 +322,26 @@ public sealed class SelfUpdater
 
             return Version.TryParse(core.Count(c => c == '.') == 0 ? core + ".0" : core, out var parsed)
                 ? parsed
-                : new Version(0, 0);
+                : null;
         }
 
-        return Parse(installed).CompareTo(Parse(latest));
+        // Fail closed: if either the installed or the candidate version is
+        // unparseable, never treat the candidate as newer (return "not older").
+        // A garbled build stamp or a malformed feed tag must not auto-stage.
+        var pi = Parse(installed);
+        var pl = Parse(latest);
+        return pi is null || pl is null ? 1 : pi.CompareTo(pl);
     }
+
+    /// <summary>
+    /// True when a feed asset name is a plain file name — no path separators,
+    /// drive/stream markers, or ".." traversal — so it can't escape the updates
+    /// directory when combined into a path the service later executes.
+    /// </summary>
+    public static bool IsSafeAssetName(string name) =>
+        !string.IsNullOrEmpty(name)
+        && string.Equals(name, Path.GetFileName(name), StringComparison.Ordinal)
+        && !name.Contains("..", StringComparison.Ordinal);
 
     private static string ManifestPath(string updatesDir) => Path.Combine(updatesDir, "update_pending.json");
 

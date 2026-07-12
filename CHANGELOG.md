@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.69] - 2026-07-12
+
+### Security
+- Self-update now refuses a release-feed asset whose name isn't a plain file
+  name (path separators or `..`), and always writes the staged installer under
+  `Path.GetFileName`. Previously a crafted/compromised feed could place the
+  hash-matched, LocalSystem-executed installer outside the updates directory —
+  the SHA-256 pin constrained content, not write location.
+- Self-update version comparison now fails closed: an unparseable *installed*
+  version is treated as "not older" so a garbled build stamp can never make
+  every remote release look newer and auto-stage an update.
+
 ## [0.12.68] - 2026-07-12
 
 ### Added

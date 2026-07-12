@@ -118,6 +118,58 @@ public sealed class SelfUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task Stage_refuses_a_path_traversal_asset_name()
+    {
+        // A feed asset name with directory traversal still satisfies the
+        // "*-Setup.exe" suffix gate; it must be refused before any write so it
+        // can't escape the updates dir into a LocalSystem-executed location.
+        _fetcher.Responses[FeedUrl] = """
+            {
+              "tag_name": "v9.9.9",
+              "assets": [
+                {
+                  "name": "..\\..\\..\\evil-win-x64-dotnet-Setup.exe",
+                  "digest": "sha256:HASH",
+                  "browser_download_url": "URL"
+                }
+              ]
+            }
+            """.Replace("HASH", InstallerHash, StringComparison.Ordinal)
+               .Replace("URL", AssetUrl, StringComparison.Ordinal);
+        _fetcher.BinaryResponses[AssetUrl] = Installer;
+
+        var outcome = await _updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("unsafe name");
+        _updater.Staged.Should().BeNull();
+        Directory.Exists(Path.Combine(_dir, "updates")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Stage_fails_closed_when_the_installed_version_is_unparseable()
+    {
+        // A garbled build stamp must never make every remote look "newer".
+        var updater = new SelfUpdater(_db, _dir, _fetcher, "(garbled build)", FeedUrl, assetArch: "x64");
+        ServeFeed("v9.9.9", InstallerHash);
+
+        var outcome = await updater.StageAsync(CancellationToken.None);
+
+        outcome.Ok.Should().BeTrue();
+        outcome.Message.Should().Contain("already up to date");
+        updater.Staged.Should().BeNull("an unparseable installed version must fail closed, never auto-stage");
+    }
+
+    [Theory]
+    [InlineData("HostsGuard-v9.9.9-win-x64-dotnet-Setup.exe", true)]
+    [InlineData("..\\evil-Setup.exe", false)]
+    [InlineData("sub/evil-Setup.exe", false)]
+    [InlineData("C:\\Windows\\Temp\\evil-Setup.exe", false)]
+    [InlineData("", false)]
+    public void IsSafeAssetName_only_accepts_plain_file_names(string name, bool expected)
+        => SelfUpdater.IsSafeAssetName(name).Should().Be(expected);
+
+    [Fact]
     public void Local_staging_rejects_an_expected_hash_mismatch()
     {
         var local = Path.Combine(_dir, "local-setup.exe");
