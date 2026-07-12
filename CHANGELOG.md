@@ -5,6 +5,11 @@ All notable changes to HostsGuard are documented in this file.
 ## [0.12.69] - 2026-07-12
 
 ### Added
+- DNS-rebinding detection: when a public registrable domain resolves to a
+  private-LAN address (RFC1918/CGNAT/link-local), HostsGuard raises a
+  user-mutable "DNS rebinding / out-of-scope answers" alert. Alert-only
+  (split-horizon corporate DNS is legitimate); hosts-file sinks, loopback, and
+  local names are never flagged.
 - Diagnostics now surface the actual .NET runtime version and the loaded SQLite
   engine version — in the service status (`HostsGuard.Cli status`), the Tools
   health glance, and `diagnostics.json` — so the deployed patch level is provable

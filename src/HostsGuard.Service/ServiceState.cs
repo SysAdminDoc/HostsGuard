@@ -368,6 +368,21 @@ public sealed class ServiceState : IDisposable
         ResolvedIps.Record(d, addresses, now);
         ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
         DomainFirewall.ObserveResolution(d, addresses);
+
+        // NET-199: a public registrable domain answering with a private-LAN
+        // address is the DNS-rebinding signature. Alert-only (split-horizon DNS
+        // is a legitimate producer); the alert type is user-mutable.
+        var rebind = DnsRebindDetector.PrivateAnswersForPublicDomain(d, addresses);
+        if (rebind.Count != 0)
+        {
+            Db.AddAlert(
+                "dns_rebind",
+                "warning",
+                "Public domain resolved to a private address",
+                d,
+                $"{d} resolved to {string.Join(", ", rebind)} — a public name pointing at your LAN can be DNS rebinding.",
+                action: "dns_rebind");
+        }
     }
 
     public Task FlushActivityPersistenceAsync(CancellationToken cancellationToken = default) =>

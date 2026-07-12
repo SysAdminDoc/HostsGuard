@@ -14,6 +14,7 @@ public sealed partial class HostsDatabase
         ("wfp_external_filter", "External WFP blocks", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
         ("usage_budget", "Usage budget alerts", true),
+        ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
     };
 
     public long AddAlert(
