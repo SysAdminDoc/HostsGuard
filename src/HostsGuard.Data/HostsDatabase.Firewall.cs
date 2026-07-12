@@ -582,7 +582,7 @@ public sealed partial class HostsDatabase
         CASE
             WHEN action IS NULL OR action = '' THEN '{EventTaxonomy.Categories.Other}'
             WHEN LOWER(action) LIKE 'consent%' OR LOWER(action) IN ('{EventTaxonomy.ModeChanged}', '{EventTaxonomy.PostureRestoredOnStop}') THEN '{EventTaxonomy.Categories.Consent}'
-            WHEN LOWER(action) LIKE 'fw\_%' ESCAPE '\' OR LOWER(action) IN ('{EventTaxonomy.LockdownOn}', '{EventTaxonomy.LockdownOff}') THEN '{EventTaxonomy.Categories.Firewall}'
+            WHEN LOWER(action) LIKE 'fw\_%' ESCAPE '\' OR LOWER(action) IN ('{EventTaxonomy.LockdownOn}', '{EventTaxonomy.LockdownOff}', '{EventTaxonomy.PortScan}') THEN '{EventTaxonomy.Categories.Firewall}'
             WHEN LOWER(action) IN ('{EventTaxonomy.Blocked}', '{EventTaxonomy.Whitelisted}', '{EventTaxonomy.RawEdit}', '{EventTaxonomy.AclHardened}', '{EventTaxonomy.BackupRestored}') THEN '{EventTaxonomy.Categories.Hosts}'
             WHEN LOWER(action) = '{EventTaxonomy.ExclusionAdded}' OR LOWER(action) LIKE '%defender%' THEN '{EventTaxonomy.Categories.Defender}'
             WHEN LOWER(action) = '{EventTaxonomy.BundleExport}' OR LOWER(action) LIKE 'support%' THEN '{EventTaxonomy.Categories.Support}'

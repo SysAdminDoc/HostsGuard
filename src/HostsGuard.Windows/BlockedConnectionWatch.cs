@@ -22,7 +22,9 @@ public sealed record BlockedConnection(
     string LayerName = "",
     string LayerRuntimeId = "",
     int InterfaceIndex = 0,
-    string InterfaceName = "")
+    string InterfaceName = "",
+    string LocalAddress = "",
+    int LocalPort = 0)
 {
     public WfpAuditProvenance Provenance => new(
         FilterRuntimeId,
@@ -165,7 +167,14 @@ public sealed class BlockedConnectionWatch : IDisposable
             "17" => "UDP",
             var other => other ?? string.Empty,
         };
-        _ = int.TryParse(fields.GetValueOrDefault("DestPort"), out var port);
+        var sourceAddress = fields.GetValueOrDefault("SourceAddress") ?? string.Empty;
+        var destinationAddress = fields.GetValueOrDefault("DestAddress") ?? string.Empty;
+        _ = int.TryParse(fields.GetValueOrDefault("SourcePort"), out var sourcePort);
+        _ = int.TryParse(fields.GetValueOrDefault("DestPort"), out var destinationPort);
+        var remoteAddress = direction == "In" ? sourceAddress : destinationAddress;
+        var remotePort = direction == "In" ? sourcePort : destinationPort;
+        var localAddress = direction == "In" ? destinationAddress : sourceAddress;
+        var localPort = direction == "In" ? destinationPort : sourcePort;
         _ = int.TryParse(fields.GetValueOrDefault("ProcessID") ?? fields.GetValueOrDefault("ProcessId"), out var pid);
         _ = int.TryParse(First(fields, "InterfaceIndex", "InterfaceIdx", "Interface"), out var interfaceIndex);
         var interfaceName = First(fields, "InterfaceName", "InterfaceAlias", "InterfaceDescription");
@@ -178,8 +187,8 @@ public sealed class BlockedConnectionWatch : IDisposable
             tsUtc,
             mapper.ToDosPath(application),
             direction,
-            fields.GetValueOrDefault("DestAddress") ?? string.Empty,
-            port,
+            remoteAddress,
+            remotePort,
             protocol,
             pid,
             eventId,
@@ -188,7 +197,9 @@ public sealed class BlockedConnectionWatch : IDisposable
             First(fields, "LayerName"),
             First(fields, "LayerRTID", "LayerRuntimeId", "LayerRunTimeId"),
             interfaceIndex,
-            interfaceName);
+            interfaceName,
+            localAddress,
+            localPort);
     }
 
     private static string First(IReadOnlyDictionary<string, string> fields, params string[] names)

@@ -327,11 +327,28 @@ using var appVpnBindings = new AppVpnBindingCoordinator(firewall, db, NetworkAda
 state.AppVpnBindings = appVpnBindings;
 appVpnBindings.Start();
 
-// WFC-parity consent pipeline: Security 5157/5152 → broker → UI prompt.
+// Shared WFP blocked-event pipeline: scan detection always observes inbound
+// failures before consent mode can filter the event; consent still decides
+// whether Normal/Notify/Learning should prompt.
 var devicePaths = new DevicePathMapper();
+var portScanMonitor = new PortScanAlertMonitor(db);
 using var blockedWatch = new BlockedConnectionWatch(
     devicePaths,
-    blocked => state.Consent.OnBlocked(blocked),
+    blocked =>
+    {
+        try
+        {
+            portScanMonitor.Observe(blocked);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            // Detector/audit persistence must not suppress the existing
+            // consent path for this blocked connection.
+            Console.WriteLine($"HostsGuard: port-scan detector failed ({ex.Message}).");
+        }
+
+        state.Consent.OnBlocked(blocked);
+    },
     message => db.LogEvent("consent", "watch_log", details: message));
 state.Consent.ArmDetection = () =>
 {
@@ -340,7 +357,17 @@ state.Consent.ArmDetection = () =>
     var watching = blockedWatch.Start();
     return auditOn && watching;
 };
-state.Consent.DisarmDetection = blockedWatch.Stop;
+// Port-scan monitoring shares this subscription, so leaving consent mode must
+// not stop it. The using declaration owns final shutdown and disposal.
+state.Consent.DisarmDetection = () => { };
+var blockedAuditOn = BlockedConnectionWatch.EnableAuditPolicy(
+    message => db.LogEvent("port_scan", "audit_log", details: message));
+var blockedWatching = blockedWatch.Start();
+if (!blockedAuditOn || !blockedWatching)
+{
+    db.LogEvent("port_scan", "watch_unavailable",
+        details: $"audit_policy={blockedAuditOn}; security_log_watch={blockedWatching}");
+}
 // Privileged bootstrap (WFCP-000c): if the persisted mode wants detection,
 // re-arm it now; failures degrade to a logged, disarmed state.
 state.Consent.ResumeFromPersistedMode();

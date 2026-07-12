@@ -77,7 +77,10 @@ public sealed partial class ConsentBroker : IDisposable
     /// </summary>
     public Func<bool>? ArmDetection { get; set; }
 
-    /// <summary>Production hook that stops the Security-log watch.</summary>
+    /// <summary>
+    /// Production hook invoked when consent leaves a detecting mode. A shared
+    /// Security-log subscriber may remain active for independent detectors.
+    /// </summary>
     public Action? DisarmDetection { get; set; }
 
     /// <summary>GeoIP country lookup for a remote IP (NET-066 prompt enrichment).</summary>

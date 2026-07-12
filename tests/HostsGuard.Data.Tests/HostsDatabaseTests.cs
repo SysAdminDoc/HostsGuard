@@ -346,6 +346,20 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Port_scan_alert_type_is_operator_mutable_and_surfaced_by_default()
+    {
+        using var db = new HostsDatabase(DbPath("port-scan-alert-type.db"));
+
+        db.GetAlertTypes().Should().ContainSingle(t =>
+            t.Type == "port_scan" &&
+            t.Label == "Blocked inbound port scans" &&
+            t.Surface);
+
+        db.SetAlertTypeSurface("port_scan", false);
+        db.GetAlertTypes().Should().ContainSingle(t => t.Type == "port_scan" && !t.Surface);
+    }
+
+    [Fact]
     public void Event_ledger_category_filter_pages_in_sql_equivalent_to_taxonomy()
     {
         using var db = new HostsDatabase(DbPath("event-category-sql.db"));
@@ -355,6 +369,7 @@ public sealed class HostsDatabaseTests : IDisposable
             EventTaxonomy.Whitelisted,
             EventTaxonomy.RawEdit,
             EventTaxonomy.FwBlocked,
+            EventTaxonomy.PortScan,
             "FW_UNBLOCKED",
             EventTaxonomy.LockdownOn,
             EventTaxonomy.ConsentAllow,

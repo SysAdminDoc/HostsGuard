@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.82] - 2026-07-12
+
+### Added
+- An always-on, payload-free detector correlates blocked inbound 5157/5152
+  events by globally routable source across distinct local ports in a bounded
+  sliding window. Threshold, window, cooldown, source count, and per-source port
+  count are configurable at construction; repeated ports, expired observations,
+  loopback/private/link-local/multicast/reserved/documentation sources, and
+  low-volume traffic do not alert.
+- A detection creates one deduplicated `port_scan` warning with sampled local
+  ports and one firewall-category audit event. The existing alert preferences
+  can keep this type surfaced or log-only, and support diagnostics include its
+  safe surface/unread counts without packet data.
+
+### Fixed
+- WFP blocked-event parsing is now direction-aware. Inbound events map the
+  source endpoint to remote and destination endpoint to local; outbound events
+  use the inverse. Consent records and scan detection therefore use the actual
+  remote peer and target local port.
+
 ## [0.12.81] - 2026-07-12
 
 ### Added

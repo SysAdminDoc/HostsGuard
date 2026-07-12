@@ -38,6 +38,7 @@ public static class EventTaxonomy
     public const string FwRuleChanged = "fw_rule_changed";
     public const string FwRuleVanished = "fw_rule_vanished";
     public const string FwFlowTeardown = "fw_flow_teardown";
+    public const string PortScan = "port_scan";
     public const string LockdownOn = "lockdown_on";
     public const string LockdownOff = "lockdown_off";
     public const string EnforcementPaused = "enforcement_paused";
@@ -70,7 +71,7 @@ public static class EventTaxonomy
             return Categories.Consent;
         }
 
-        if (a.StartsWith("fw_", StringComparison.Ordinal) || a is LockdownOn or LockdownOff)
+        if (a.StartsWith("fw_", StringComparison.Ordinal) || a is LockdownOn or LockdownOff or PortScan)
         {
             return Categories.Firewall;
         }

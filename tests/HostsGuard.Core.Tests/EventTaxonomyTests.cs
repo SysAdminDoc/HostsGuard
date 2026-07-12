@@ -17,6 +17,7 @@ public sealed class EventTaxonomyTests
     [InlineData(EventTaxonomy.FwRuleChanged, EventTaxonomy.Categories.Firewall)]
     [InlineData(EventTaxonomy.FwRuleVanished, EventTaxonomy.Categories.Firewall)]
     [InlineData(EventTaxonomy.FwFlowTeardown, EventTaxonomy.Categories.Firewall)]
+    [InlineData(EventTaxonomy.PortScan, EventTaxonomy.Categories.Firewall)]
     [InlineData(EventTaxonomy.LockdownOn, EventTaxonomy.Categories.Firewall)]
     [InlineData(EventTaxonomy.EnforcementPaused, EventTaxonomy.Categories.Policy)]
     [InlineData(EventTaxonomy.EnforcementResumed, EventTaxonomy.Categories.Policy)]

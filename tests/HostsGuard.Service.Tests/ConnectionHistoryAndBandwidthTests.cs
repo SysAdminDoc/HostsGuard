@@ -564,6 +564,9 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     {
         _db.AddAlert("firewall_drift", "warning", "Rule changed", "Steam Inbound", "enabled changed");
         var impl = new MonitoringServiceImpl(_state);
+        var defaults = await impl.ListAlertTypes(new Empty(), null!);
+        defaults.Types_.Should().ContainSingle(t =>
+            t.Type == "port_scan" && t.Label == "Blocked inbound port scans" && t.Surface);
 
         (await impl.SetAlertType(new AlertTypeRequest { Type = "firewall_drift", Surface = false }, null!))
             .Ok.Should().BeTrue();

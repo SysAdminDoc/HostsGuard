@@ -243,6 +243,14 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             .OrderByDescending(g => g.Count())
             .Take(30)
             .ToDictionary(g => g.Key, g => g.Count());
+        var alertTypes = _state.Db.GetAlertTypes()
+            .Select(row => new
+            {
+                type = row.Type,
+                surface = row.Surface,
+                unread = row.Unread,
+            })
+            .ToArray();
 
         string posture = "unavailable";
         try
@@ -270,6 +278,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             events_window = recent.Count,
             events_by_category = byCategory,
             events_by_action_top = byAction,
+            alert_types = alertTypes,
 
             // NET-169 runtime health: monitor liveness, silent-drop counters, and
             // schema drift — the signals a support engineer cannot otherwise see.

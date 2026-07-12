@@ -16,6 +16,7 @@ public sealed partial class HostsDatabase
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
         ("suspicious_domain", "Algorithmic / DGA-looking domains", true),
+        ("port_scan", "Blocked inbound port scans", true),
         // Opt-in (off by default): a first-contact signal is high-volume, so it
         // only records/surfaces once the user enables the type.
         ("newly_observed_domain", "Newly observed domains", false),

@@ -55,6 +55,8 @@ public sealed class BlockedConnectionWatchTests
         blocked.Direction.Should().Be("Out");
         blocked.RemoteAddress.Should().Be("203.0.113.9");
         blocked.RemotePort.Should().Be(443);
+        blocked.LocalAddress.Should().Be("192.168.1.10");
+        blocked.LocalPort.Should().Be(53211);
         blocked.Protocol.Should().Be("TCP");
         blocked.ProcessId.Should().Be(4711);
         blocked.EventId.Should().Be(5157);
@@ -67,7 +69,9 @@ public sealed class BlockedConnectionWatchTests
         {
             ["Application"] = @"\device\harddiskvolume4\svc.exe",
             ["Direction"] = "%%14592",
-            ["DestAddress"] = "198.51.100.4",
+            ["SourceAddress"] = "198.51.100.4",
+            ["SourcePort"] = "53211",
+            ["DestAddress"] = "192.168.1.10",
             ["DestPort"] = "53",
             ["Protocol"] = "17",
             ["ProcessID"] = "8",
@@ -77,6 +81,10 @@ public sealed class BlockedConnectionWatchTests
             fields, 5152, DateTime.UtcNow, Mapper);
 
         blocked!.Direction.Should().Be("In");
+        blocked.RemoteAddress.Should().Be("198.51.100.4");
+        blocked.RemotePort.Should().Be(53211);
+        blocked.LocalAddress.Should().Be("192.168.1.10");
+        blocked.LocalPort.Should().Be(53);
         blocked.Protocol.Should().Be("UDP");
         blocked.EventId.Should().Be(5152);
     }
