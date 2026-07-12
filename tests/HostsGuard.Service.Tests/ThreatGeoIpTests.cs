@@ -151,6 +151,17 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Inbound_dns_reply_is_not_reported_as_an_outbound_dns_bypass()
+    {
+        _state.Db.SetAlertTypeSurface("dns_bypass", true);
+
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55000,
+            "1.1.1.1", 53, "STATELESS", 4321, "curl.exe", "inbound"));
+
+        _state.Db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Gzip_expansion_cap_stops_bombs()
     {
         var payload = new byte[1_000_000]; // zeros compress extremely well

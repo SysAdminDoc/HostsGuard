@@ -51,6 +51,8 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
     private static readonly long AddressTextCacheSweepMs = (long)TimeSpan.FromMinutes(1).TotalMilliseconds;
 
     private readonly string _sessionName;
+    private readonly Action<ConnectionInfo>? _endpointObserver;
+    private readonly Action<Exception>? _endpointObserverError;
     private TraceEventSession? _session;
     private Thread? _pump;
     private ConcurrentDictionary<int, Counter> _counters = new();
@@ -58,7 +60,15 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
     private readonly ConcurrentDictionary<IPAddress, AddressTextCacheEntry> _addressTextCache = new();
     private long _nextAddressTextSweepMs;
 
-    public BandwidthMonitor(string sessionName = "HostsGuardBandwidth") => _sessionName = sessionName;
+    public BandwidthMonitor(
+        string sessionName = "HostsGuardBandwidth",
+        Action<ConnectionInfo>? endpointObserver = null,
+        Action<Exception>? endpointObserverError = null)
+    {
+        _sessionName = sessionName;
+        _endpointObserver = endpointObserver;
+        _endpointObserverError = endpointObserverError;
+    }
 
     public bool Active => _session is not null;
 
@@ -82,10 +92,22 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
             kernel.TcpIpRecv += d => Add(d.ProcessID, 0, d.size, d.saddr);
             kernel.TcpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0, d.daddr);
             kernel.TcpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size, d.saddr);
-            kernel.UdpIpSend += d => Add(d.ProcessID, d.size, 0, d.daddr);
-            kernel.UdpIpRecv += d => Add(d.ProcessID, 0, d.size, d.saddr);
-            kernel.UdpIpSendIPV6 += d => Add(d.ProcessID, d.size, 0, d.daddr);
-            kernel.UdpIpRecvIPV6 += d => Add(d.ProcessID, 0, d.size, d.saddr);
+            kernel.TcpIpConnect += d => PublishEndpoint("TCP", true, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport);
+            kernel.TcpIpAccept += d => PublishEndpoint("TCP", false, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport);
+            kernel.TcpIpConnectIPV6 += d => PublishEndpoint("TCP", true, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport);
+            kernel.TcpIpAcceptIPV6 += d => PublishEndpoint("TCP", false, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport);
+            kernel.UdpIpSend += d => ObserveUdpPacket(true, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport, d.size);
+            kernel.UdpIpRecv += d => ObserveUdpPacket(false, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport, d.size);
+            kernel.UdpIpSendIPV6 += d => ObserveUdpPacket(true, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport, d.size);
+            kernel.UdpIpRecvIPV6 += d => ObserveUdpPacket(false, d.ProcessID, d.ProcessName,
+                d.saddr, d.sport, d.daddr, d.dport, d.size);
             _pump = new Thread(() => _session.Source.Process()) { IsBackground = true, Name = "HostsGuardBwEtw" };
             _pump.Start();
             return DnsMonitorStatus.Started;
@@ -94,6 +116,68 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         {
             Dispose();
             return DnsMonitorStatus.Unavailable;
+        }
+    }
+
+    private void ObserveUdpPacket(
+        bool outbound,
+        int pid,
+        string? process,
+        IPAddress sourceAddress,
+        int sourcePort,
+        IPAddress destinationAddress,
+        int destinationPort,
+        int size)
+    {
+        var remoteAddress = outbound ? destinationAddress : sourceAddress;
+        Add(pid, outbound ? size : 0, outbound ? 0 : size, remoteAddress);
+        PublishEndpoint("UDP", outbound, pid, process, sourceAddress, sourcePort,
+            destinationAddress, destinationPort);
+    }
+
+    internal void PublishEndpoint(
+        string protocol,
+        bool outbound,
+        int pid,
+        string? process,
+        IPAddress sourceAddress,
+        int sourcePort,
+        IPAddress destinationAddress,
+        int destinationPort)
+    {
+        var localAddress = outbound ? sourceAddress : destinationAddress;
+        var localPort = outbound ? sourcePort : destinationPort;
+        var remoteAddress = outbound ? destinationAddress : sourceAddress;
+        var remotePort = outbound ? destinationPort : sourcePort;
+
+        if (_endpointObserver is null || pid <= 0 || localPort < 0 || remotePort < 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _endpointObserver(new ConnectionInfo(
+                protocol,
+                localAddress.ToString(),
+                localPort,
+                remoteAddress.ToString(),
+                remotePort,
+                protocol == "UDP" ? "STATELESS" : "OBSERVED",
+                pid,
+                string.IsNullOrWhiteSpace(process) ? "?" : process,
+                outbound ? "outbound" : "inbound"));
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                _endpointObserverError?.Invoke(ex);
+            }
+            catch (Exception)
+            {
+                // A diagnostic callback must not terminate the kernel ETW pump.
+            }
         }
     }
 
@@ -228,15 +312,20 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
 
     public void Dispose()
     {
+        var session = Interlocked.Exchange(ref _session, null);
+        var pump = Interlocked.Exchange(ref _pump, null);
         try
         {
-            _session?.Dispose();
+            session?.Dispose();
         }
         catch (InvalidOperationException)
         {
             // session already torn down
         }
 
-        _session = null;
+        if (pump is not null && pump != Thread.CurrentThread)
+        {
+            pump.Join(TimeSpan.FromSeconds(5));
+        }
     }
 }

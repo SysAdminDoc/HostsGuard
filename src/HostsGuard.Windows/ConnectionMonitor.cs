@@ -15,7 +15,8 @@ public sealed record ConnectionInfo(
     int RemotePort,
     string State,
     int Pid,
-    string Process);
+    string Process,
+    string Direction = "outbound");
 
 /// <summary>
 /// PID-attributed connection snapshots via IPHLPAPI <c>GetExtendedTcpTable</c>

@@ -76,6 +76,204 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
         row.Host.Should().Be("example.com");
     }
 
+    [Theory]
+    [InlineData("UDP", "STATELESS", "1.1.1.1", 53)]
+    [InlineData("UDP", "STATELESS", "1.1.1.1", 443)]
+    [InlineData("TCP", "OBSERVED", "203.0.113.7", 443)]
+    public async Task Connection_feed_publishes_and_deduplicates_etw_observations(
+        string protocol,
+        string connectionState,
+        string remoteAddress,
+        int remotePort)
+    {
+        using var subscription = _state.Bus.Subscribe<ConnectionEvent>();
+        using var feed = new ConnectionFeed(_state, static () => Array.Empty<ConnectionInfo>(),
+            TimeSpan.FromMinutes(1));
+        var info = new ConnectionInfo(protocol, "10.0.0.5", 51000, remoteAddress, remotePort,
+            connectionState, 4242, "app.exe");
+        feed.Start();
+
+        feed.Observe(info).Should().BeTrue();
+        feed.Observe(info).Should().BeTrue();
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        ConnectionEvent published;
+        do
+        {
+            published = await subscription.Reader.ReadAsync(timeout.Token);
+        }
+        while (published.Pid != info.Pid || published.RemoteAddr != info.RemoteAddress);
+
+        published.Protocol.Should().Be(protocol);
+        published.State.Should().Be(connectionState);
+        await Task.Delay(100, timeout.Token);
+        var duplicateCount = 0;
+        while (subscription.Reader.TryRead(out var extra))
+        {
+            if (extra.Pid == info.Pid && extra.RemoteAddr == info.RemoteAddress)
+            {
+                duplicateCount++;
+            }
+        }
+
+        duplicateCount.Should().Be(0);
+        _db.GetConnectionHistory().Should().ContainSingle(row =>
+            row.Protocol == protocol && row.RemoteAddr == remoteAddress && row.RemotePort == remotePort && row.Pid == 4242);
+    }
+
+    [Fact]
+    public async Task Connection_feed_udp_observation_reaches_dns_bypass_detection()
+    {
+        _db.SetAlertTypeSurface("dns_bypass", true);
+        using var feed = new ConnectionFeed(_state, static () => Array.Empty<ConnectionInfo>(),
+            TimeSpan.FromMinutes(1));
+        feed.Start();
+
+        feed.Observe(new ConnectionInfo("UDP", "10.0.0.5", 51000, "1.1.1.1", 53,
+            "STATELESS", 4242, "app.exe")).Should().BeTrue();
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline && _db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows.Count == 0)
+        {
+            await Task.Delay(25);
+        }
+
+        _db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows
+            .Should().ContainSingle(alert => alert.Process == "app.exe");
+    }
+
+    [Fact]
+    public async Task Snapshot_first_then_etw_does_not_duplicate_history_or_stream()
+    {
+        var snapshot = new ConnectionInfo("TCP", "10.0.0.5", 51000, "203.0.113.7", 443,
+            "ESTABLISHED", 4242, "app.exe");
+        using var subscription = _state.Bus.Subscribe<ConnectionEvent>();
+        using var feed = new ConnectionFeed(_state, () => new[] { snapshot }, TimeSpan.FromMinutes(1));
+        feed.Start();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await ReadConnectionAsync(subscription, snapshot, timeout.Token);
+
+        feed.Observe(snapshot with { State = "OBSERVED" }).Should().BeTrue();
+        await Task.Delay(100, timeout.Token);
+
+        DrainMatches(subscription, snapshot).Should().Be(0);
+        _db.GetConnectionHistory().Should().ContainSingle(row =>
+            row.Pid == snapshot.Pid && row.RemoteAddr == snapshot.RemoteAddress);
+    }
+
+    [Fact]
+    public async Task Etw_first_then_snapshot_publishes_authoritative_state_without_duplicate_history()
+    {
+        var observed = new ConnectionInfo("TCP", "10.0.0.5", 51000, "203.0.113.8", 443,
+            "OBSERVED", 4243, "app.exe");
+        IReadOnlyList<ConnectionInfo> snapshot = Array.Empty<ConnectionInfo>();
+        using var subscription = _state.Bus.Subscribe<ConnectionEvent>();
+        using var feed = new ConnectionFeed(_state, () => snapshot, TimeSpan.FromMilliseconds(50));
+        feed.Start();
+        feed.Observe(observed).Should().BeTrue();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        (await ReadConnectionAsync(subscription, observed, timeout.Token)).State.Should().Be("OBSERVED");
+
+        snapshot = new[] { observed with { State = "ESTABLISHED" } };
+        var authoritative = await ReadConnectionAsync(subscription, observed, timeout.Token);
+
+        authoritative.State.Should().Be("ESTABLISHED");
+        _db.GetConnectionHistory().Should().ContainSingle(row =>
+            row.Pid == observed.Pid && row.RemoteAddr == observed.RemoteAddress);
+    }
+
+    [Fact]
+    public async Task Observation_buffer_coalesces_packet_bursts_without_evicting_unique_endpoints()
+    {
+        using var feed = new ConnectionFeed(_state, static () => Array.Empty<ConnectionInfo>(),
+            TimeSpan.FromMinutes(1));
+        var noisy = new ConnectionInfo("UDP", "10.0.0.5", 51000, "1.1.1.1", 443,
+            "STATELESS", 4242, "app.exe");
+        for (var i = 0; i < 5000; i++)
+        {
+            feed.Observe(noisy).Should().BeTrue();
+        }
+
+        var sentinel = noisy with { LocalPort = 51001, RemoteAddress = "9.9.9.9" };
+        feed.Observe(sentinel).Should().BeTrue();
+        feed.CoalescedObservations.Should().Be(4999);
+        feed.DroppedObservations.Should().Be(0);
+        feed.Start();
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < deadline && _db.GetConnectionHistory().Count < 2)
+        {
+            await Task.Delay(25);
+        }
+
+        _db.GetConnectionHistory().Should().Contain(row => row.RemoteAddr == noisy.RemoteAddress)
+            .And.Contain(row => row.RemoteAddr == sentinel.RemoteAddress);
+    }
+
+    [Fact]
+    public void Dispose_drains_accepted_observations()
+    {
+        var info = new ConnectionInfo("UDP", "10.0.0.5", 51000, "1.1.1.1", 53,
+            "STATELESS", 4242, "app.exe");
+        var feed = new ConnectionFeed(_state, static () => Array.Empty<ConnectionInfo>(),
+            TimeSpan.FromMinutes(1));
+        feed.Start();
+        feed.Observe(info).Should().BeTrue();
+
+        feed.Dispose();
+
+        _db.GetConnectionHistory().Should().ContainSingle(row =>
+            row.Pid == info.Pid && row.RemoteAddr == info.RemoteAddress);
+        feed.Observe(info).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Snapshot_failures_respect_poll_interval_instead_of_hot_looping()
+    {
+        var calls = 0;
+        using var feed = new ConnectionFeed(_state, () =>
+        {
+            Interlocked.Increment(ref calls);
+            throw new InvalidOperationException("snapshot failed");
+        }, TimeSpan.FromMilliseconds(50));
+        feed.Start();
+
+        await Task.Delay(180);
+
+        Volatile.Read(ref calls).Should().BeInRange(2, 5);
+    }
+
+    private static async Task<ConnectionEvent> ReadConnectionAsync(
+        EventBus.Subscription<ConnectionEvent> subscription,
+        ConnectionInfo expected,
+        CancellationToken cancellationToken)
+    {
+        ConnectionEvent published;
+        do
+        {
+            published = await subscription.Reader.ReadAsync(cancellationToken);
+        }
+        while (published.Pid != expected.Pid || published.RemoteAddr != expected.RemoteAddress ||
+               published.RemotePort != expected.RemotePort);
+
+        return published;
+    }
+
+    private static int DrainMatches(EventBus.Subscription<ConnectionEvent> subscription, ConnectionInfo expected)
+    {
+        var count = 0;
+        while (subscription.Reader.TryRead(out var published))
+        {
+            if (published.Pid == expected.Pid && published.RemoteAddr == expected.RemoteAddress &&
+                published.RemotePort == expected.RemotePort)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     [Fact]
     public void Aggregator_groups_drained_pids_by_process_into_minute_buckets()
     {

@@ -226,7 +226,11 @@ db.LogEvent("dns", "monitor_start", details: dnsStatus.ToString());
 // Per-app byte counters (NET-070): ETW kernel NetworkTCPIP → per-minute DB
 // buckets. Elevation-gated like the DNS monitor; history recording via the
 // connection feed works regardless.
-using var bandwidthMonitor = new BandwidthMonitor();
+using var bandwidthMonitor = new BandwidthMonitor(endpointObserver: info =>
+{
+    connectionFeed.Observe(info);
+}, endpointObserverError: ex =>
+    db.LogEvent("bandwidth", "endpoint_observer_error", details: $"{ex.GetType().Name}: {ex.Message}"));
 var bandwidthStatus = bandwidthMonitor.Start();
 // NET-108: resolveHost maps a connection's remote IP → its resolved domain
 // (ETW forward-DNS cache → persistent store) so bytes attribute to a domain.

@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.75] - 2026-07-12
+
+### Fixed
+- Live connections now merge normalized TCP/UDP packet endpoints from the
+  existing kernel ETW session with the authoritative IPHLPAPI TCP snapshot.
+  A bounded coalescing buffer deduplicates repeated packets and polled TCP tuples
+  with a sliding 30-second idle window, so UDP/53 and UDP/443 reach DNS-bypass
+  detection and TCP flows shorter than the two-second poll are retained.
+- ETW endpoint direction and process attribution cover send/receive traffic for
+  IPv4 and IPv6. Bandwidth-session disposal now stops and joins its pump thread;
+  synthetic coverage verifies deduplication, DNS-bypass delivery, TCP/UDP state,
+  both address families, and idempotent shutdown, with an opt-in live ETW test.
+- Handshake-token reads now tolerate up to one second of an empty or locked file
+  during service token rotation instead of relying on five scheduler-sensitive
+  attempts, preventing transient unauthenticated client reconnects under load.
+
 ## [0.12.74] - 2026-07-12
 
 ### Added

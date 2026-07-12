@@ -16,4 +16,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="HostsGuard.Windows.Tests" />
+  </ItemGroup>
+
 </Project>

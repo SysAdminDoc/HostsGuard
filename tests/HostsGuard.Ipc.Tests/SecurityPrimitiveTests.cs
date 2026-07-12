@@ -130,7 +130,9 @@ public class SecurityPrimitiveTests
             // A writer fills in the real token shortly after the read begins.
             var writer = Task.Run(async () =>
             {
-                await Task.Delay(30);
+                // Exceeds the old fixed five-attempt (~100 ms) retry budget;
+                // scheduler pressure during a service restart can do the same.
+                await Task.Delay(150);
                 File.WriteAllText(path, token);
             });
 

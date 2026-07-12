@@ -377,6 +377,11 @@ public sealed class ServiceState : IDisposable
     /// </summary>
     private void MaybeAlertDnsBypass(ConnectionInfo info, string category)
     {
+        if (!string.Equals(info.Direction, "outbound", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         var process = info.Process ?? string.Empty;
         if (SystemResolverProcesses.Contains(process.Trim()))
         {

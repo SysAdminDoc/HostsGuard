@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.74-blue)
+![Version](https://img.shields.io/badge/version-0.12.75-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -84,7 +84,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 
 | Feature | Description |
 |---------|-------------|
-| Live connections | Real-time outbound TCP/UDP view via IPHLPAPI extended tables (PID-attributed, no elevation needed) |
+| Live connections | PID-attributed TCP state/listeners via IPHLPAPI plus ETW packet endpoints that retain UDP and sub-two-second TCP flows |
 | Group by app + search | Collapsible per-process grouping with a `field:value` search DSL (`port:443 country!=US`, `fw:threat`) |
 | Service attribution | svchost-hosted connections show the responsible Windows service (SCM enumeration) |
 | Blocked-connection watch | Security event log 5157/5152 detection feeds the consent broker |

@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Cryptography;
 using System.Security.Principal;
+using System.Diagnostics;
 
 namespace HostsGuard.Ipc;
 
@@ -88,18 +89,18 @@ public static class SessionToken
     public static string ReadHandshake(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        const int maxAttempts = 5;
-        for (var attempt = 1; ; attempt++)
+        var deadline = Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * 1.0);
+        while (true)
         {
             try
             {
                 var token = File.ReadAllText(path).Trim();
-                if (token.Length != 0 || attempt >= maxAttempts)
+                if (token.Length != 0 || Stopwatch.GetTimestamp() >= deadline)
                 {
                     return token;
                 }
             }
-            catch (IOException) when (attempt < maxAttempts)
+            catch (IOException) when (Stopwatch.GetTimestamp() < deadline)
             {
                 // Briefly locked during the temp→final rename; retry.
             }
