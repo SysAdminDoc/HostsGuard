@@ -344,7 +344,23 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         {
             await _state.GeoIp.RefreshAsync(fetcher, url: null, context.CancellationToken);
             _state.Db.LogEvent("geoip", "refreshed");
-            return new Ack { Ok = true, Message = "GeoIP database refreshed" };
+
+            // ASN attribution shares this refresh but is best-effort: a missing or
+            // failed ASN database must not fail the country refresh that succeeded.
+            var asnNote = string.Empty;
+            try
+            {
+                await _state.Asn.RefreshAsync(fetcher, url: null, context.CancellationToken);
+                _state.Db.LogEvent("asn", "refreshed");
+                asnNote = " + ASN";
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+            {
+                _state.Db.LogEvent("asn", "refresh_failed", details: ex.Message);
+                asnNote = " (ASN refresh failed)";
+            }
+
+            return new Ack { Ok = true, Message = $"GeoIP database refreshed{asnNote}" };
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {

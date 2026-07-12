@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.72] - 2026-07-12
+
+### Added
+- Offline ASN attribution: live connections and connection history now show the
+  autonomous-system number + org ("AS15169 Google LLC") of the remote IP, read
+  from a DB-IP IP-to-ASN Lite MMDB via the same offline MaxMind.Db reader the
+  country GeoIP uses — zero cloud. The ASN database refreshes alongside GeoIP
+  (`RefreshGeoIp` / Tools → Refresh GeoIP) best-effort, so a missing ASN DB never
+  fails the country refresh. Connection history persists the ASN (schema v33) and
+  its CSV export gains an ASN column; a missing/absent DB degrades to blank.
+
 ## [0.12.71] - 2026-07-12
 
 ### Added

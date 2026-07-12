@@ -1115,6 +1115,7 @@ message ConnectionHistoryRow {
   string country = 7;
   string fw_status = 8; // "", "THREAT", …
   string host = 9;
+  string asn = 10;      // "AS#### Org" from the offline DB-IP ASN MMDB; "" when unknown
 }
 
 message ConnectionHistoryList {
@@ -1334,6 +1335,7 @@ message ConnectionEvent {
   string fw_status = 12; // "", "HOSTS", "FW BLOCK", "THREAT"
   google.protobuf.Timestamp ts = 13;
   string service = 14;   // owning SCM service display name(s) (NET-073); "" for plain apps
+  string asn = 15;       // "AS#### Org" from the offline DB-IP ASN MMDB; "" when unknown
 }
 
 message ActivityEvent {

@@ -107,27 +107,27 @@ public sealed class BandwidthViewTests
             new HistoryRowViewModel
             {
                 Ts = "2026-07-03T10:00:00", Process = "chrome", Pid = 42, Protocol = "TCP",
-                Host = "cdn.example.com", RemoteAddr = "203.0.113.9", RemotePort = 443, Country = "US", FwStatus = "allowed",
+                Host = "cdn.example.com", RemoteAddr = "203.0.113.9", RemotePort = 443, Country = "US", Asn = "AS15169 Google LLC", FwStatus = "allowed",
             },
             new HistoryRowViewModel
             {
                 Ts = "2026-07-03T10:01:00", Process = "Some App, Inc", Pid = 7, Protocol = "UDP",
-                Host = "resolver.example.net", RemoteAddr = "198.51.100.4", RemotePort = 53, Country = "", FwStatus = "blocked",
+                Host = "resolver.example.net", RemoteAddr = "198.51.100.4", RemotePort = 53, Country = "", Asn = "", FwStatus = "blocked",
             },
             new HistoryRowViewModel
             {
                 Ts = "2026-07-03T10:02:00", Process = "=calc.exe", Pid = 8, Protocol = "TCP",
-                Host = "  @example.net", RemoteAddr = "203.0.113.10", RemotePort = 443, Country = "US", FwStatus = "+allowed",
+                Host = "  @example.net", RemoteAddr = "203.0.113.10", RemotePort = 443, Country = "US", Asn = "AS64500 Example", FwStatus = "+allowed",
             },
         };
 
         var csv = FwActivityViewModel.BuildHistoryCsv(rows);
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
 
-        lines[0].Should().Be("When,Process,PID,Protocol,Host,Remote,Port,Country,Firewall");
-        lines[1].Should().Be("2026-07-03T10:00:00,chrome,42,TCP,cdn.example.com,203.0.113.9,443,US,allowed");
+        lines[0].Should().Be("When,Process,PID,Protocol,Host,Remote,Port,Country,ASN,Firewall");
+        lines[1].Should().Be("2026-07-03T10:00:00,chrome,42,TCP,cdn.example.com,203.0.113.9,443,US,AS15169 Google LLC,allowed");
         // The process name with a comma is quoted so it stays one column.
         lines[2].Should().Contain("\"Some App, Inc\"");
-        lines[3].Should().Be("2026-07-03T10:02:00,'=calc.exe,8,TCP,'  @example.net,203.0.113.10,443,US,'+allowed");
+        lines[3].Should().Be("2026-07-03T10:02:00,'=calc.exe,8,TCP,'  @example.net,203.0.113.10,443,US,AS64500 Example,'+allowed");
     }
 }

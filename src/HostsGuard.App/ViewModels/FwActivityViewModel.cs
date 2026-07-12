@@ -521,6 +521,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             Pid = ev.Pid,
             State = ev.State,
             Country = ev.Country,
+            Asn = ev.Asn,
             FwStatus = ev.FwStatus,
             Service = ev.Service,
         };

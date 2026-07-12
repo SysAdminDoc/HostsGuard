@@ -135,7 +135,7 @@ public sealed record FirewallRuleDriftRow(
 public sealed record ConnHistoryRow(
     string Ts, string Process, long Pid, string Protocol,
     string RemoteAddr, long RemotePort, string Country, string FwStatus,
-    string Host = "");
+    string Host = "", string Asn = "");
 
 public sealed record ConnectionHistoryFilter(
     int Limit = 500,
@@ -353,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 32;
+    public const int SchemaVersion = 33;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -565,7 +565,7 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS conn_history(
                 id INTEGER PRIMARY KEY, ts TEXT, process TEXT, pid INTEGER, protocol TEXT,
                 remote_addr TEXT, remote_port INTEGER, country TEXT, fw_status TEXT,
-                host TEXT DEFAULT '');
+                host TEXT DEFAULT '', asn TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_conn_history_ts ON conn_history(ts);
             CREATE INDEX IF NOT EXISTS idx_conn_history_process ON conn_history(process);
             CREATE TABLE IF NOT EXISTS app_bandwidth(
@@ -666,6 +666,7 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("log", "interface_index", "INTEGER DEFAULT 0");
         AddColumnIfMissing("log", "interface_name", "TEXT DEFAULT ''");
         AddColumnIfMissing("conn_history", "host", "TEXT DEFAULT ''");
+        AddColumnIfMissing("conn_history", "asn", "TEXT DEFAULT ''");
         _conn.Execute("CREATE INDEX IF NOT EXISTS idx_conn_history_host ON conn_history(host);");
         _conn.Execute("CREATE INDEX IF NOT EXISTS idx_conn_history_remote ON conn_history(remote_addr);");
         AddColumnIfMissing("blocklist_subs", "enabled", "INTEGER DEFAULT 1");

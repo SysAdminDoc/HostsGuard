@@ -60,6 +60,7 @@ public sealed class ServiceState : IDisposable
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
         GeoIp = new GeoIpService(DataDir);
+        Asn = new AsnService(DataDir);
         DirectIp = new Core.DirectIpHeuristic();
         Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir)
         {
@@ -122,6 +123,8 @@ public sealed class ServiceState : IDisposable
     public ThreatIntel Threats { get; }
 
     public GeoIpService GeoIp { get; }
+
+    public AsnService Asn { get; }
 
     /// <summary>Direct-to-IP (no-DNS) heuristic for the block-P2P signal (NET-076).</summary>
     public Core.DirectIpHeuristic DirectIp { get; }
@@ -373,6 +376,7 @@ public sealed class ServiceState : IDisposable
         }
 
         var country = GeoIp.Lookup(info.RemoteAddress);
+        var asn = Asn.Lookup(info.RemoteAddress);
         var host = ResolveKnownHost(info.RemoteAddress);
         var threat = Threats.Contains(info.RemoteAddress);
         var fwStatus = threat ? "THREAT"
@@ -395,7 +399,7 @@ public sealed class ServiceState : IDisposable
             Db.RecordConnection(new ConnHistoryRow(
                 DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 info.Process, info.Pid, info.Protocol, info.RemoteAddress, info.RemotePort,
-                country, fwStatus, host));
+                country, fwStatus, host, asn));
         }
 
         Bus.Publish(new ConnectionEvent
@@ -411,6 +415,7 @@ public sealed class ServiceState : IDisposable
             State = info.State,
             Category = category,
             Country = country,
+            Asn = asn,
             FwStatus = fwStatus,
             Service = LookupService?.Invoke(info.Pid) ?? string.Empty,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
@@ -477,6 +482,7 @@ public sealed class ServiceState : IDisposable
         SecureRules.Dispose();
         Consent.Dispose();
         GeoIp.Dispose();
+        Asn.Dispose();
         Lists?.Dispose();
         IpBlocklists?.Dispose();
         Schedules.Dispose();

@@ -48,6 +48,10 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     [ObservableProperty]
     private string _country = string.Empty;
 
+    /// <summary>"AS#### Org" from the offline ASN MMDB (NET-202); "" when unknown.</summary>
+    [ObservableProperty]
+    private string _asn = string.Empty;
+
     [ObservableProperty]
     private string _fwStatus = string.Empty;
 
@@ -191,6 +195,10 @@ public sealed partial class HistoryRowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _country = string.Empty;
+
+    /// <summary>"AS#### Org" from the offline ASN MMDB (NET-202); "" when unknown.</summary>
+    [ObservableProperty]
+    private string _asn = string.Empty;
 
     [ObservableProperty]
     private string _fwStatus = string.Empty;

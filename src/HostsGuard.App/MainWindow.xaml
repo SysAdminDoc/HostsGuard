@@ -1612,6 +1612,7 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Port_fe035157}" Binding="{Binding RemotePort}" Width="42" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_State_a7250206}" Binding="{Binding State}" Width="66" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Country_d523ebbd}" Binding="{Binding Country}" Width="48" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_ASN_b4d90f17}" Binding="{Binding Asn}" Width="150" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_FW_913a8d78}" Binding="{Binding FwStatus}" Width="50" />
                             </DataGrid.Columns>
                         </DataGrid>
@@ -2057,6 +2058,7 @@
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_address_209fa9f4}" Binding="{Binding RemoteAddr}" Width="*" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Port_fe035157}" Binding="{Binding RemotePort}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Country_d523ebbd}" Binding="{Binding Country}" Width="70" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_ASN_b4d90f17}" Binding="{Binding Asn}" Width="160" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_FW_913a8d78}" Binding="{Binding FwStatus}" Width="80" />
                                         </DataGrid.Columns>
                                     </DataGrid>

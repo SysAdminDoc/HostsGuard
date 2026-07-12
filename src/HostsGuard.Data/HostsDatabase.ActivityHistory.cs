@@ -31,8 +31,8 @@ public sealed partial class HostsDatabase
         {
             _conn.Execute(
                 """
-                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status,host)
-                VALUES(@Ts,@Process,@Pid,@Protocol,@RemoteAddr,@RemotePort,@Country,@FwStatus,@Host)
+                INSERT INTO conn_history(ts,process,pid,protocol,remote_addr,remote_port,country,fw_status,host,asn)
+                VALUES(@Ts,@Process,@Pid,@Protocol,@RemoteAddr,@RemotePort,@Country,@FwStatus,@Host,@Asn)
                 """, row);
             _conn.Execute("DELETE FROM conn_history WHERE ts < @cutoff", new { cutoff });
         }
@@ -56,7 +56,7 @@ public sealed partial class HostsDatabase
         var sql = $"""
             SELECT ts AS Ts, process AS Process, pid AS Pid, protocol AS Protocol,
                    remote_addr AS RemoteAddr, remote_port AS RemotePort,
-                   country AS Country, fw_status AS FwStatus, host AS Host
+                   country AS Country, fw_status AS FwStatus, host AS Host, asn AS Asn
             FROM conn_history{where}
             ORDER BY ts DESC LIMIT @limit OFFSET @offset
             """;
@@ -84,7 +84,7 @@ public sealed partial class HostsDatabase
         var args = new DynamicParameters();
 
         AddLike("search", filter.Search,
-            "(process LIKE @search ESCAPE '\\' OR host LIKE @search ESCAPE '\\' OR remote_addr LIKE @search ESCAPE '\\' OR country LIKE @search ESCAPE '\\' OR fw_status LIKE @search ESCAPE '\\' OR protocol LIKE @search ESCAPE '\\')");
+            "(process LIKE @search ESCAPE '\\' OR host LIKE @search ESCAPE '\\' OR remote_addr LIKE @search ESCAPE '\\' OR country LIKE @search ESCAPE '\\' OR asn LIKE @search ESCAPE '\\' OR fw_status LIKE @search ESCAPE '\\' OR protocol LIKE @search ESCAPE '\\')");
         if (!string.IsNullOrWhiteSpace(filter.Since))
         {
             clauses.Add("ts >= @since");

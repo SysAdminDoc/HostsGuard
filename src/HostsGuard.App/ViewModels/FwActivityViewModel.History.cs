@@ -183,6 +183,7 @@ public sealed partial class FwActivityViewModel
                     Host = row.Host,
                     RemotePort = row.RemotePort,
                     Country = row.Country,
+                    Asn = row.Asn,
                     FwStatus = row.FwStatus,
                 });
             }
@@ -370,7 +371,7 @@ public sealed partial class FwActivityViewModel
     public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
     {
         var sb = new System.Text.StringBuilder();
-        CsvExport.AppendRow(sb, "When", "Process", "PID", "Protocol", "Host", "Remote", "Port", "Country", "Firewall");
+        CsvExport.AppendRow(sb, "When", "Process", "PID", "Protocol", "Host", "Remote", "Port", "Country", "ASN", "Firewall");
         foreach (var r in rows)
         {
             CsvExport.AppendRow(
@@ -383,6 +384,7 @@ public sealed partial class FwActivityViewModel
                 r.RemoteAddr,
                 r.RemotePort.ToString(CultureInfo.InvariantCulture),
                 r.Country,
+                r.Asn,
                 r.FwStatus);
         }
 

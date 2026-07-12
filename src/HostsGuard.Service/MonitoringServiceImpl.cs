@@ -78,6 +78,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
                 Country = r.Country,
                 FwStatus = r.FwStatus,
                 Host = r.Host,
+                Asn = r.Asn,
             });
         }
 
