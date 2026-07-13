@@ -1368,6 +1368,9 @@ service Monitoring {
   rpc DeleteUsageQuotaRule(UsageQuotaRule) returns (Ack);
   rpc ResetUsageQuotaHistory(Empty) returns (Ack);
   rpc ExportUsageQuotaHistory(UsageQuotaHistoryRequest) returns (UsageQuotaHistoryExport);
+  rpc ListHistoryPrivacyExclusions(Empty) returns (HistoryPrivacyExclusionList);
+  rpc SetHistoryPrivacyExclusion(HistoryPrivacyExclusion) returns (Ack);
+  rpc DeleteHistoryPrivacyExclusion(HistoryPrivacyExclusion) returns (Ack);
   // Metadata-only traffic profiles (NET-176): redacted connection/event rows
   // plus protocol/port summaries and Wireshark display-filter hints. This is
   // not PCAP and never includes packet payloads.
@@ -1426,6 +1429,17 @@ message ConnectionHistoryList {
   int32 limit = 3;
   int32 offset = 4;
   int32 retention_days = 5;
+}
+
+message HistoryPrivacyExclusion {
+  string scope = 1; // app | domain
+  string match = 2; // exact app identity or domain suffix
+  string added = 3;
+}
+
+message HistoryPrivacyExclusionList {
+  repeated HistoryPrivacyExclusion exclusions = 1;
+  string disclosure = 2; // live/enforcement unaffected; security alerts retained
 }
 
 message EventLogRequest {

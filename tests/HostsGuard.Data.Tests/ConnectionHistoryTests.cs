@@ -386,4 +386,34 @@ public sealed class ConnectionHistoryTests : IDisposable
     {
         _db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
     }
+
+    [Fact]
+    public void History_privacy_exclusions_match_apps_and_domain_descendants_and_survive_restart()
+    {
+        _db.UpsertHistoryPrivacyExclusion("app", "private.exe");
+        _db.UpsertHistoryPrivacyExclusion("domain", "example.com");
+
+        _db.IsHistoryPersistenceExcluded("PRIVATE.EXE", null).Should().BeTrue();
+        _db.IsHistoryPersistenceExcluded("other.exe", "api.example.com").Should().BeTrue();
+        _db.IsHistoryPersistenceExcluded("other.exe", "notexample.com").Should().BeFalse();
+        _db.GetHistoryPrivacyExclusions().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Adding_privacy_exclusion_purges_prior_connection_and_usage_history()
+    {
+        var now = DateTime.UtcNow;
+        _db.RecordConnection(Row(Iso(now), "private.exe", host: "api.example.com"));
+        _db.AddBandwidth("private.exe", Minute(now), 10, 20);
+        _db.AddDomainUsage("api.example.com", "private.exe", 10, 20);
+        _db.AddUsageRollup("api.example.com", "private.exe", now.Date, 10, 20);
+
+        _db.UpsertHistoryPrivacyExclusion("domain", "example.com");
+        _db.GetConnectionHistory().Should().BeEmpty();
+        _db.GetDomainUsage("api.example.com").Should().BeEmpty();
+        _db.GetUsageRollups(now.Date.AddDays(-1), 20).Should().BeEmpty();
+
+        _db.UpsertHistoryPrivacyExclusion("app", "private.exe");
+        _db.GetBandwidth(Minute(now.AddMinutes(-1))).Should().BeEmpty();
+    }
 }

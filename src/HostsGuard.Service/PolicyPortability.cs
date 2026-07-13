@@ -188,6 +188,8 @@ public static class PolicyPortability
                 BlockOnExceed = r.BlockOnExceed,
             })
             .ToList();
+        policy.HistoryPrivacyExclusions = state.Db.GetHistoryPrivacyExclusions()
+            .Select(r => new PolicyHistoryPrivacyExclusion { Scope = r.Scope, Match = r.Match }).ToList();
 
         policy.LanAttackSurface = new PolicyLanAttackSurface
         {
@@ -577,6 +579,7 @@ public static class PolicyPortability
         ApplyKillSwitch(state, policy, summary);
         ApplyAppVpnBindings(state, policy, summary);
         ApplyUsageQuotas(state, policy, summary);
+        ApplyHistoryPrivacyExclusions(state, policy, summary);
         ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
@@ -742,6 +745,7 @@ public static class PolicyPortability
         ApplyKillSwitch(state, policy, summary);
         ApplyAppVpnBindings(state, policy, summary);
         ApplyUsageQuotas(state, policy, summary);
+        ApplyHistoryPrivacyExclusions(state, policy, summary);
         ApplyLanAttackSurface(state, policy, summary);
         ApplyAi(state, policy, summary);
         ApplyWebhooks(state, policy, summary);
@@ -921,6 +925,13 @@ public static class PolicyPortability
             q.Enabled,
             q.BlockOnExceed)));
         summary.Add($"{quotas.Count} usage quota rule{(quotas.Count == 1 ? string.Empty : "s")}");
+    }
+
+    private static void ApplyHistoryPrivacyExclusions(ServiceState state, PortablePolicy policy, List<string> summary)
+    {
+        if (policy.HistoryPrivacyExclusions is not { } exclusions) return;
+        state.Db.ReplaceHistoryPrivacyExclusions(exclusions.Select(x => (x.Scope, x.Match)));
+        summary.Add($"{exclusions.Count} history privacy exclusion{(exclusions.Count == 1 ? string.Empty : "s")}");
     }
 
     private static void ApplyLanAttackSurface(ServiceState state, PortablePolicy policy, List<string> summary)

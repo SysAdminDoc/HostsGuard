@@ -19,8 +19,8 @@
 #endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.93"
-#define MyAppVersionInfo "0.12.93.0"
+#define MyAppVersion "0.12.94"
+#define MyAppVersionInfo "0.12.94.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]

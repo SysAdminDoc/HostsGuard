@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.93-blue)
+![Version](https://img.shields.io/badge/version-0.12.94-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -94,6 +94,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Immediate flow close | Right-click an established IPv4 TCP row to close it now; opt in to **Close TCP on block** to close matching IPv4 TCP flows after IP, app, consent, or kill-switch blocks. IPv6 teardown is reported unsupported. |
 | GeoIP + threat intel | Offline MMDB country/ASN resolution plus URLhaus/Feodo known-bad overlay |
 | Connection history | Retention-bounded local traffic explorer with app, domain/host, IP, status, protocol, and time filters, CSV export, redacted traffic-profile export, clear-history, and 30-day default retention |
+| History privacy | Per-app and domain-suffix exclusions keep live visibility, enforcement, and security alerts active while purging and suppressing passive DNS, connection, bandwidth, and usage history; configurable in the UI, CLI, and portable policy |
 | Per-app bandwidth | Top-5 per-process bandwidth timeline via ETW kernel byte counters |
 | Data usage rollups | Retention-bounded daily app x domain byte table with sent/received/total filters |
 | Usage budget alerts | Optional local app/domain quota rules warn through the alert inbox when retained usage crosses a byte threshold; reset/export quota history without blocking or shaping traffic |
@@ -222,7 +223,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1511 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1516 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

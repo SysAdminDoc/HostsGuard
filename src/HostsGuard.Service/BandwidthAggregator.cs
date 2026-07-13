@@ -91,7 +91,8 @@ public sealed class BandwidthAggregator : IDisposable
 
             foreach (var (process, bytes) in byProcess)
             {
-                _db.AddBandwidth(process, minute, bytes.Sent, bytes.Recv);
+                if (!_db.IsHistoryPersistenceExcluded(process, null))
+                    _db.AddBandwidth(process, minute, bytes.Sent, bytes.Recv);
             }
         }
 
@@ -109,6 +110,10 @@ public sealed class BandwidthAggregator : IDisposable
                 }
 
                 var process = _nameCache.GetOrAdd(key.Pid, _resolve);
+                if (_db.IsHistoryPersistenceExcluded(process, domain))
+                {
+                    continue;
+                }
                 _db.AddDomainUsage(domain, process, bytes.Sent, bytes.Recv);
                 _db.AddUsageRollup(domain, process, now.Date, bytes.Sent, bytes.Recv);
                 usageChanged = true;

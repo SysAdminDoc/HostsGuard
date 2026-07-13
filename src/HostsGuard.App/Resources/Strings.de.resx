@@ -544,4 +544,13 @@
   <data name="CaptivePortal_Pause15" xml:space="preserve"><value>15 Min. pausieren</value></data>
   <data name="CaptivePortal_Pause60" xml:space="preserve"><value>1 Stunde pausieren</value></data>
   <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>Eine zeitgesteuerte Pause wird nur bei Portalverdacht angeboten.</value></data>
+  <data name="HistoryPrivacy_Title" xml:space="preserve"><value>Datenschutzausnahmen für den Verlauf</value></data>
+  <data name="HistoryPrivacy_Disclosure" xml:space="preserve"><value>Passende Apps und Domains bleiben live sichtbar und werden normal durchgesetzt, aber ihr passiver Verlauf wird nicht gespeichert. Sicherheitswarnungen behalten Entscheidungsnachweise.</value></data>
+  <data name="HistoryPrivacy_Load" xml:space="preserve"><value>Ausnahmen laden</value></data>
+  <data name="HistoryPrivacy_Save" xml:space="preserve"><value>Ausnahme hinzufügen</value></data>
+  <data name="HistoryPrivacy_Delete" xml:space="preserve"><value>Entfernen</value></data>
+  <data name="HistoryPrivacy_Scope" xml:space="preserve"><value>Ausnahmebereich</value></data>
+  <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>prozess.exe oder beispiel.de</value></data>
+  <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Datenschutzausnahmen nicht geladen.</value></data>
+  <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>App-Prozessname oder Domain eingeben.</value></data>
 </root>

@@ -386,6 +386,45 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     public override Task<HistorySettings> GetHistorySettings(Empty request, ServerCallContext context)
         => Task.FromResult(new HistorySettings { RetentionDays = _state.Db.HistoryRetentionDays });
 
+    public override Task<HistoryPrivacyExclusionList> ListHistoryPrivacyExclusions(Empty request, ServerCallContext context)
+    {
+        var result = new HistoryPrivacyExclusionList
+        {
+            Disclosure = "Live visibility and enforcement remain active. Passive history and usage are omitted; security alerts retain only decision evidence.",
+        };
+        result.Exclusions.AddRange(_state.Db.GetHistoryPrivacyExclusions().Select(row => new HistoryPrivacyExclusion
+        {
+            Scope = row.Scope, Match = row.Match, Added = row.Added,
+        }));
+        return Task.FromResult(result);
+    }
+
+    public override Task<Ack> SetHistoryPrivacyExclusion(HistoryPrivacyExclusion request, ServerCallContext context)
+    {
+        try
+        {
+            _state.Db.UpsertHistoryPrivacyExclusion(request.Scope, request.Match);
+            return Task.FromResult(new Ack { Ok = true, Message = $"history privacy exclusion saved for {request.Scope}:{request.Match}; prior matching history purged" });
+        }
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = ex.Message, ErrorCode = "hostsguard.error.v1/invalid_history_privacy_exclusion" });
+        }
+    }
+
+    public override Task<Ack> DeleteHistoryPrivacyExclusion(HistoryPrivacyExclusion request, ServerCallContext context)
+    {
+        try
+        {
+            var removed = _state.Db.DeleteHistoryPrivacyExclusion(request.Scope, request.Match);
+            return Task.FromResult(new Ack { Ok = removed != 0, Message = removed != 0 ? "history privacy exclusion removed" : "history privacy exclusion not found" });
+        }
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(new Ack { Ok = false, Message = ex.Message, ErrorCode = "hostsguard.error.v1/invalid_history_privacy_exclusion" });
+        }
+    }
+
     public override Task<UsageRollupList> GetUsageRollups(UsageRollupRequest request, ServerCallContext context)
         => Task.FromResult(BuildUsageRollups(request, DateTime.Now));
 

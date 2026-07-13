@@ -544,4 +544,13 @@
   <data name="CaptivePortal_Pause15" xml:space="preserve"><value>Suspendre 15 min</value></data>
   <data name="CaptivePortal_Pause60" xml:space="preserve"><value>Suspendre 1 heure</value></data>
   <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>La pause temporisee n'est proposee que si un portail captif est suspecte.</value></data>
+  <data name="HistoryPrivacy_Title" xml:space="preserve"><value>Exclusions de confidentialité de l’historique</value></data>
+  <data name="HistoryPrivacy_Disclosure" xml:space="preserve"><value>Les applications et domaines correspondants restent visibles en direct et appliqués normalement, mais leur historique passif n’est pas conservé. Les alertes de sécurité gardent les preuves de décision.</value></data>
+  <data name="HistoryPrivacy_Load" xml:space="preserve"><value>Charger les exclusions</value></data>
+  <data name="HistoryPrivacy_Save" xml:space="preserve"><value>Ajouter une exclusion</value></data>
+  <data name="HistoryPrivacy_Delete" xml:space="preserve"><value>Supprimer</value></data>
+  <data name="HistoryPrivacy_Scope" xml:space="preserve"><value>Portée de l’exclusion</value></data>
+  <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>processus.exe ou exemple.fr</value></data>
+  <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Exclusions de confidentialité non chargées.</value></data>
+  <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Saisissez un processus d’application ou un domaine.</value></data>
 </root>

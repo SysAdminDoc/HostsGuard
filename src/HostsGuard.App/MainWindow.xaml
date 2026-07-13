@@ -2292,6 +2292,38 @@
                                     <TextBlock Text="{Binding HistoryStatus}" Style="{StaticResource Hg.DimText}" Margin="0,4,0,0"
                                                AutomationProperties.LiveSetting="Polite" />
 
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{svc:Loc Key=HistoryPrivacy_Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{svc:Loc Key=HistoryPrivacy_Disclosure}" Style="{StaticResource Hg.DimText}"
+                                                       TextWrapping="Wrap" Margin="0,3,0,6" />
+                                            <WrapPanel>
+                                                <Button Content="{svc:Loc Key=HistoryPrivacy_Load}" Command="{Binding LoadHistoryPrivacyCommand}" Margin="0,0,6,6" />
+                                                <ComboBox Width="110" ItemsSource="{Binding HistoryPrivacyScopes}" SelectedItem="{Binding HistoryPrivacyScope}"
+                                                          AutomationProperties.Name="{svc:Loc Key=HistoryPrivacy_Scope}" Margin="0,0,6,6" />
+                                                <TextBox Width="240" Text="{Binding HistoryPrivacyMatch, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=HistoryPrivacy_MatchHint}"
+                                                         AutomationProperties.Name="{svc:Loc Key=HistoryPrivacy_MatchHint}" Margin="0,0,6,6" />
+                                                <Button Content="{svc:Loc Key=HistoryPrivacy_Save}" Command="{Binding SaveHistoryPrivacyCommand}" Margin="0,0,6,6" />
+                                            </WrapPanel>
+                                            <ItemsControl ItemsSource="{Binding HistoryPrivacyExclusions}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <DockPanel Margin="0,2">
+                                                            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=HistoryPrivacy_Delete}"
+                                                                    Command="{Binding DataContext.DeleteHistoryPrivacyCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}" Padding="8,2" />
+                                                            <TextBlock Text="{Binding Scope}" FontWeight="SemiBold" Margin="0,0,8,0" />
+                                                            <TextBlock Text="{Binding Match}" />
+                                                        </DockPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding HistoryPrivacyStatus}" Style="{StaticResource Hg.DimText}"
+                                                       TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
+
                                     <DockPanel LastChildFill="False" Margin="0,12,0,0">
                                         <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Event_ledger_fe4c6b16}" FontWeight="SemiBold" />
                                         <TextBlock DockPanel.Dock="Right" Text="{Binding EventStatus}"

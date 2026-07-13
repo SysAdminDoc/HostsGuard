@@ -324,7 +324,8 @@ public sealed class ServiceState : IDisposable
         // domain is detectable for the newly-observed alert.
         var firstContact = !Db.FeedContains(d);
         IdnHomographs.Observe(d, process);
-        ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
+        if (!Db.IsHistoryPersistenceExcluded(process, d))
+            ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot
         // uses. Without this the live stream re-adds blocked domains as normal
@@ -559,7 +560,7 @@ public sealed class ServiceState : IDisposable
                 process: info.Process);
         }
 
-        if (recordHistory)
+        if (recordHistory && !Db.IsHistoryPersistenceExcluded(info.Process, host))
         {
             Db.RecordConnection(new ConnHistoryRow(
                 DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
@@ -614,7 +615,8 @@ public sealed class ServiceState : IDisposable
 
         var now = DateTime.Now;
         ResolvedIps.Record(d, addresses, now);
-        ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
+        if (!Db.IsHistoryPersistenceExcluded(null, d))
+            ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
         DomainFirewall.ObserveResolution(d, addresses);
 
         // NET-199: a public registrable domain answering with a private-LAN

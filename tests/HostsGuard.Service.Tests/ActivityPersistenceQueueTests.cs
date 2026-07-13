@@ -74,6 +74,19 @@ public sealed class ActivityPersistenceQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task Privacy_excluded_dns_remains_live_but_is_not_persisted()
+    {
+        _state.Db.UpsertHistoryPrivacyExclusion("domain", "private.example");
+        using var sub = _state.Bus.Subscribe<DnsEvent>();
+        _state.RecordDns("api.private.example", "browser.exe", 42);
+
+        sub.Reader.TryRead(out var live).Should().BeTrue();
+        live!.Domain.Should().Be("api.private.example");
+        await _state.FlushActivityPersistenceAsync();
+        _state.Db.GetFeed().Should().NotContain(x => x.Domain == "api.private.example");
+    }
+
+    [Fact]
     public async Task Flush_persists_every_accepted_sighting_and_counts_saturation_drops()
     {
         // NET-168: under a burst that saturates the bounded queue, a flush must

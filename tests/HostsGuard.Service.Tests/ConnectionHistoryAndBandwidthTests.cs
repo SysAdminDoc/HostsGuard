@@ -78,6 +78,21 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public void Privacy_excluded_connection_remains_live_but_is_not_recorded()
+    {
+        _db.UpsertHistoryPrivacyExclusion("domain", "example.com");
+        _state.RememberResolution("api.example.com", new[] { "93.184.216.34" });
+        using var sub = _state.Bus.Subscribe<ConnectionEvent>();
+
+        _state.PublishConnection(new ConnectionInfo("TCP", "127.0.0.1", 5000, "93.184.216.34", 443,
+            "ESTABLISHED", 42, "private.exe"), recordHistory: true);
+
+        sub.Reader.TryRead(out var live).Should().BeTrue();
+        live!.Host.Should().Be("api.example.com");
+        _db.GetConnectionHistory().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ListListeners_returns_effective_profile_coverage_and_owner_identity()
     {
         var firewall = new FakeFirewallEngine();

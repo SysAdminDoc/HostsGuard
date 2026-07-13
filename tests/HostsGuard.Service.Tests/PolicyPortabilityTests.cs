@@ -484,6 +484,23 @@ public sealed class PolicyPortabilityTests : IDisposable
         act.Should().Throw<System.Text.Json.JsonException>();
     }
 
+    [Fact]
+    public void History_privacy_exclusions_round_trip_and_replace_idempotently()
+    {
+        var (source, _) = NewMachine();
+        source.Db.UpsertHistoryPrivacyExclusion("app", "private.exe");
+        source.Db.UpsertHistoryPrivacyExclusion("domain", "example.com");
+
+        var json = PolicyPortability.Export(source).ToJson();
+        var (target, _) = NewMachine();
+        var policy = PortablePolicy.FromJson(json);
+        PolicyPortability.Import(target, policy);
+        PolicyPortability.Import(target, policy);
+
+        target.Db.GetHistoryPrivacyExclusions().Select(x => $"{x.Scope}:{x.Match}")
+            .Should().BeEquivalentTo("app:private.exe", "domain:example.com");
+    }
+
     private static Grpc.Core.ServerCallContext TestContext() => null!;
 
     public void Dispose()

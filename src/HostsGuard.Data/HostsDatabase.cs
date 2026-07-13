@@ -353,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 33;
+    public const int SchemaVersion = 34;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -602,6 +602,10 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_usage_daily_day ON usage_daily(day);
             CREATE INDEX IF NOT EXISTS idx_usage_daily_process ON usage_daily(process);
             CREATE INDEX IF NOT EXISTS idx_usage_daily_domain ON usage_daily(domain);
+            CREATE TABLE IF NOT EXISTS history_privacy_exclusions(
+                scope TEXT NOT NULL CHECK(scope IN ('app','domain')),
+                match TEXT NOT NULL, added TEXT NOT NULL,
+                PRIMARY KEY(scope,match)) WITHOUT ROWID;
             CREATE TABLE IF NOT EXISTS usage_quota_rules(
                 id INTEGER PRIMARY KEY,
                 scope TEXT NOT NULL,

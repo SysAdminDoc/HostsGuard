@@ -545,4 +545,13 @@
   <data name="CaptivePortal_Pause15" xml:space="preserve"><value>Pausar 15 min</value></data>
   <data name="CaptivePortal_Pause60" xml:space="preserve"><value>Pausar 1 hora</value></data>
   <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>La pausa temporizada solo se ofrece si se sospecha un portal cautivo.</value></data>
+  <data name="HistoryPrivacy_Title" xml:space="preserve"><value>Exclusiones de privacidad del historial</value></data>
+  <data name="HistoryPrivacy_Disclosure" xml:space="preserve"><value>Las aplicaciones y dominios coincidentes siguen visibles en directo y se aplican normalmente, pero no se conserva su historial pasivo. Las alertas de seguridad conservan la evidencia de decisión.</value></data>
+  <data name="HistoryPrivacy_Load" xml:space="preserve"><value>Cargar exclusiones</value></data>
+  <data name="HistoryPrivacy_Save" xml:space="preserve"><value>Añadir exclusión</value></data>
+  <data name="HistoryPrivacy_Delete" xml:space="preserve"><value>Quitar</value></data>
+  <data name="HistoryPrivacy_Scope" xml:space="preserve"><value>Ámbito de exclusión</value></data>
+  <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>proceso.exe o ejemplo.com</value></data>
+  <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Exclusiones de privacidad no cargadas.</value></data>
+  <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Introduzca un proceso de aplicación o dominio.</value></data>
 </root>

@@ -1818,4 +1818,13 @@
   <data name="CaptivePortal_Pause15" xml:space="preserve"><value>Pause 15 min</value></data>
   <data name="CaptivePortal_Pause60" xml:space="preserve"><value>Pause 1 hour</value></data>
   <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>A timed pause is offered only when a captive portal is suspected.</value></data>
+  <data name="HistoryPrivacy_Title" xml:space="preserve"><value>History privacy exclusions</value></data>
+  <data name="HistoryPrivacy_Disclosure" xml:space="preserve"><value>Matching apps and domains remain visible live and enforce normally, but passive connection, DNS, and usage history is not retained. Security alerts keep decision evidence.</value></data>
+  <data name="HistoryPrivacy_Load" xml:space="preserve"><value>Load exclusions</value></data>
+  <data name="HistoryPrivacy_Save" xml:space="preserve"><value>Add exclusion</value></data>
+  <data name="HistoryPrivacy_Delete" xml:space="preserve"><value>Remove</value></data>
+  <data name="HistoryPrivacy_Scope" xml:space="preserve"><value>Exclusion scope</value></data>
+  <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>process.exe or example.com</value></data>
+  <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Privacy exclusions not loaded.</value></data>
+  <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Enter an app process name or domain.</value></data>
 </root>

@@ -56,6 +56,8 @@ public sealed class PortablePolicy
 
     public List<PolicyUsageQuota>? UsageQuotas { get; set; }
 
+    public List<PolicyHistoryPrivacyExclusion>? HistoryPrivacyExclusions { get; set; }
+
     public PolicyLanAttackSurface? LanAttackSurface { get; set; }
 
     public PolicyAiSettings? Ai { get; set; }
@@ -358,6 +360,12 @@ public sealed class PolicyUsageQuota
     public int WindowDays { get; set; } = 30;
 
     public bool Enabled { get; set; } = true;
+}
+
+public sealed class PolicyHistoryPrivacyExclusion
+{
+    public string Scope { get; set; } = string.Empty;
+    public string Match { get; set; } = string.Empty;
 }
 
 public sealed class PolicyLanAttackSurface

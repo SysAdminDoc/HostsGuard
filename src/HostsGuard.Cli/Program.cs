@@ -42,6 +42,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "snapshot" => await FullStateSnapshotAsync(args),
     "usage" => await UsageAsync(args),
     "usage-quota" => await UsageQuotaAsync(args),
+    "history-privacy" => await HistoryPrivacyAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-inspect" => await DnsInspectAsync(args),
     "resolver-health" => await ResolverHealthAsync(args),
@@ -126,6 +127,8 @@ static int Usage()
           HostsGuard.Cli usage-quota delete --id N
           HostsGuard.Cli usage-quota reset
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
+          HostsGuard.Cli history-privacy list
+          HostsGuard.Cli history-privacy add|delete --scope app|domain --match value
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-inspect <domain> [--json]
           HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
@@ -2107,6 +2110,46 @@ static int UsageQuotaHelp(string subcommand)
     Console.Error.WriteLine($"Unknown usage-quota command: {subcommand}");
     Console.Error.WriteLine("Usage: usage-quota list|set|delete|reset|export");
     return 1;
+}
+
+static async Task<int> HistoryPrivacyAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].ToLowerInvariant() : "list";
+    var scope = string.Empty;
+    var match = string.Empty;
+    for (var i = 2; i < args.Length; i++)
+    {
+        if (TryReadOptionValue(args, ref i, args[i], "--scope", out var value)) scope = value;
+        else if (TryReadOptionValue(args, ref i, args[i], "--match", out value)) match = value;
+        else { Console.Error.WriteLine($"Unknown history-privacy option: {args[i]}"); return 1; }
+    }
+
+    if (action is not "list" && (scope.Length == 0 || match.Length == 0))
+    {
+        Console.Error.WriteLine("Usage: history-privacy add|delete --scope app|domain --match value");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new Monitoring.MonitoringClient(channel);
+        if (action == "list")
+        {
+            var list = await client.ListHistoryPrivacyExclusionsAsync(new Empty());
+            Console.WriteLine(list.Disclosure);
+            foreach (var row in list.Exclusions) Console.WriteLine($"{row.Scope}\t{row.Match}\t{row.Added}");
+            return 0;
+        }
+        var request = new HistoryPrivacyExclusion { Scope = scope, Match = match };
+        var ack = action switch
+        {
+            "add" or "set" => await client.SetHistoryPrivacyExclusionAsync(request),
+            "delete" or "remove" => await client.DeleteHistoryPrivacyExclusionAsync(request),
+            _ => new Ack { Ok = false, Message = "Usage: history-privacy list|add|delete" },
+        };
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
+    });
 }
 
 static async Task<int> DnsCacheAsync(string[] args)

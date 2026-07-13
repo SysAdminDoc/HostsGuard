@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.94] - 2026-07-12
+
+### Added
+- Per-app and domain-suffix history privacy exclusions keep matching traffic
+  visible live and fully enforced while suppressing connection, DNS, resolved
+  host, bandwidth, and usage-rollup persistence. Adding or importing a rule
+  purges already-retained matches; security alerts retain decision evidence.
+- The History UI, `history-privacy` CLI, and portable-policy export/import now
+  list and manage exclusions. Database schema 34 persists the rules locally.
+
 ## [0.12.93] - 2026-07-12
 
 ### Added

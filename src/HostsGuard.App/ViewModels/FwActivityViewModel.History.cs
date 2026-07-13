@@ -20,6 +20,14 @@ public sealed partial class FwActivityViewModel
 
     public ObservableCollection<UsageQuotaRuleViewModel> UsageQuotaRules { get; } = new();
 
+    public ObservableCollection<HistoryPrivacyExclusion> HistoryPrivacyExclusions { get; } = new();
+
+    public static IReadOnlyList<string> HistoryPrivacyScopes { get; } = new[] { "app", "domain" };
+
+    [ObservableProperty] private string _historyPrivacyScope = "domain";
+    [ObservableProperty] private string _historyPrivacyMatch = string.Empty;
+    [ObservableProperty] private string _historyPrivacyStatus = I18n.T("HistoryPrivacy_NotLoaded", "Privacy exclusions not loaded.");
+
     public ObservableCollection<TimelineSeriesViewModel> Bandwidth { get; } = new();
 
     public static IReadOnlyList<string> EventCategories { get; } = new[]
@@ -648,6 +656,46 @@ public sealed partial class FwActivityViewModel
         BandwidthStatus = list.Series.Count == 1
             ? I18n.T("FwHistory_BandwidthStatus", "Top {0} app · last 60 min · peak {1}/min", list.Series.Count, FormatBytes(peak))
             : I18n.T("FwHistory_BandwidthStatusPlural", "Top {0} apps · last 60 min · peak {1}/min", list.Series.Count, FormatBytes(peak));
+    }
+
+    [RelayCommand]
+    public async Task LoadHistoryPrivacyAsync()
+    {
+        await RunServiceActionAsync(I18n.T("HistoryPrivacy_Load", "Load privacy exclusions"), s => HistoryPrivacyStatus = s, async () =>
+        {
+            var list = await _client.Monitoring.ListHistoryPrivacyExclusionsAsync(new Empty());
+            HistoryPrivacyExclusions.Clear();
+            foreach (var row in list.Exclusions) HistoryPrivacyExclusions.Add(row);
+            HistoryPrivacyStatus = list.Disclosure;
+        });
+    }
+
+    [RelayCommand]
+    public async Task SaveHistoryPrivacyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(HistoryPrivacyMatch))
+        {
+            HistoryPrivacyStatus = I18n.T("HistoryPrivacy_MatchRequired", "Enter an app process name or domain.");
+            return;
+        }
+        await RunServiceActionAsync(I18n.T("HistoryPrivacy_Save", "Save privacy exclusion"), s => HistoryPrivacyStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.SetHistoryPrivacyExclusionAsync(new HistoryPrivacyExclusion { Scope = HistoryPrivacyScope, Match = HistoryPrivacyMatch });
+            HistoryPrivacyStatus = ack.Message;
+            if (ack.Ok) { HistoryPrivacyMatch = string.Empty; await LoadHistoryPrivacyAsync(); }
+        });
+    }
+
+    [RelayCommand]
+    public async Task DeleteHistoryPrivacyAsync(HistoryPrivacyExclusion? row)
+    {
+        if (row is null) return;
+        await RunServiceActionAsync(I18n.T("HistoryPrivacy_Delete", "Delete privacy exclusion"), s => HistoryPrivacyStatus = s, async () =>
+        {
+            var ack = await _client.Monitoring.DeleteHistoryPrivacyExclusionAsync(row);
+            HistoryPrivacyStatus = ack.Message;
+            await LoadHistoryPrivacyAsync();
+        });
     }
 
     /// <summary>Humanized byte count ("1.4 MB").</summary>
