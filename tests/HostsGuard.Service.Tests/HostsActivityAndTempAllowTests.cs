@@ -314,6 +314,46 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Dns_tunnel_alert_is_default_off_evidence_rich_process_scoped_and_never_blocks()
+    {
+        const string root = "exfil.test";
+        var started = new DateTime(2026, 7, 12, 12, 0, 0, DateTimeKind.Utc);
+        _state.Db.GetAlertTypes().Single(type => type.Type == "dns_tunnel").Surface.Should().BeFalse();
+
+        for (var index = 0; index < 24; index++)
+        {
+            _state.RecordDns(TunnelQuery(index, root), "implant.exe", 731, queryType: "TXT",
+                observedAtUtc: started.AddSeconds(index));
+        }
+
+        _state.Db.GetAlerts(new AlertFilter(Type: "dns_tunnel", SurfaceOnly: false)).Rows.Should().BeEmpty();
+        _state.DnsTunnels.TrackedAggregateCount.Should().Be(0);
+
+        _state.Db.SetAlertTypeSurface("dns_tunnel", true);
+        for (var index = 0; index < 24; index++)
+        {
+            _state.RecordDns(TunnelQuery(index, root), "implant.exe", 731, queryType: "TXT",
+                observedAtUtc: started.AddSeconds(index));
+        }
+
+        _state.DnsTunnels.TrackedAggregateCount.Should().Be(1);
+        _state.DnsTunnels.BufferedObservationCount.Should().Be(24);
+        _state.DnsTunnels.DetectionCount.Should().Be(1);
+        var alert = _state.Db.GetAlerts(new AlertFilter(Type: "dns_tunnel", SurfaceOnly: false)).Rows.Should().ContainSingle().Subject;
+        alert.Subject.Should().Be("exfil.test [implant.exe]");
+        alert.Process.Should().Be("implant.exe");
+        alert.Details.Should().ContainAll(
+            "20 queries (20 unique", "ratio 100.0 %", "threshold 85.0 %", "TXT=20 (100.0 %)",
+            "Subdomain payload length averaged", "Entropy averaged", "Signals 5/4",
+            "model dns-tunnel-score-v1", "Alert only — no domain was blocked");
+        _state.Hosts.GetBlocked().Should().NotContain(root);
+        _state.Db.GetDomainStatus(root).Should().NotBe("blocked");
+    }
+
+    private static string TunnelQuery(int index, string root) =>
+        $"{Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(BitConverter.GetBytes(index))).ToLowerInvariant()[..48]}.{root}";
+
+    [Fact]
     public async Task TempBlock_blocks_now_and_lists_pending_window()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

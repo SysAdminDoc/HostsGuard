@@ -241,7 +241,7 @@ state.Intel?.StartIfStale();
 // drives CNAME-cloak reactive blocking (NET-075). Elevation-gated; degrades
 // cleanly to the connection feed when unavailable.
 using var dnsMonitor = new DnsMonitor();
-dnsMonitor.DnsObserved += (_, e) => state.RecordDns(e.Domain, pid: e.Pid);
+dnsMonitor.DnsObserved += (_, e) => state.RecordDns(e.Domain, pid: e.Pid, queryType: e.QueryType);
 dnsMonitor.DnsResolved += (_, e) =>
 {
     state.CnameCloak.Evaluate(e.QueryName, e.Cnames);

@@ -474,6 +474,9 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         json.Should().Contain("hosts");      // blocked bucketed
         json.Should().Contain("\"type\": \"port_scan\"");
         json.Should().Contain("\"surface\": true");
+        json.Should().Contain("\"dns_tunnel_active_aggregates\": 0");
+        json.Should().Contain("\"dns_tunnel_buffered_observations\": 0");
+        json.Should().Contain("\"dns_tunnel_detections\": 0");
         json.Should().NotContain("203.0.113.9"); // counts only, no IPs
         json.Should().NotContain("ads.example.com");
     }

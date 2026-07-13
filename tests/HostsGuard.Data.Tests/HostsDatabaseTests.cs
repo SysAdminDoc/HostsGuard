@@ -360,6 +360,20 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Dns_tunnel_alert_type_is_operator_mutable_and_off_by_default()
+    {
+        using var db = new HostsDatabase(DbPath("dns-tunnel-alert-type.db"));
+
+        db.GetAlertTypes().Should().ContainSingle(t =>
+            t.Type == "dns_tunnel" &&
+            t.Label == "DNS-tunneling bursts" &&
+            !t.Surface);
+
+        db.SetAlertTypeSurface("dns_tunnel", true);
+        db.GetAlertTypes().Should().ContainSingle(t => t.Type == "dns_tunnel" && t.Surface);
+    }
+
+    [Fact]
     public void Event_ledger_category_filter_pages_in_sql_equivalent_to_taxonomy()
     {
         using var db = new HostsDatabase(DbPath("event-category-sql.db"));

@@ -7,11 +7,14 @@ using Microsoft.Diagnostics.Tracing.Session;
 namespace HostsGuard.Windows;
 
 /// <summary>An observed DNS query.</summary>
-public sealed class DnsObservedEventArgs(string domain, int pid) : EventArgs
+public sealed class DnsObservedEventArgs(string domain, int pid, string queryType = "A") : EventArgs
 {
     public string Domain { get; } = domain;
 
     public int Pid { get; } = pid;
+
+    /// <summary>Normalized DNS record type (for example A, AAAA, TXT, HTTPS).</summary>
+    public string QueryType { get; } = queryType;
 }
 
 /// <summary>A completed DNS resolution with its CNAME chain and resolved addresses.</summary>
@@ -104,7 +107,10 @@ public sealed class DnsMonitor : IDisposable
             case QueryStartEventId:
                 if (DnsEventNormalizer.TryNormalize(data.PayloadByName("QueryName") as string, out var domain))
                 {
-                    DnsObserved?.Invoke(this, new DnsObservedEventArgs(domain, data.ProcessID));
+                    DnsObserved?.Invoke(this, new DnsObservedEventArgs(
+                        domain,
+                        data.ProcessID,
+                        NormalizeQueryType(data.PayloadByName("QueryType"))));
                 }
 
                 break;
@@ -124,6 +130,22 @@ public sealed class DnsMonitor : IDisposable
 
                 break;
         }
+    }
+
+    internal static string NormalizeQueryType(object? value)
+    {
+        var token = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)?.Trim() ?? string.Empty;
+        return token.ToUpperInvariant() switch
+        {
+            "" or "1" => "A",
+            "5" => "CNAME",
+            "10" => "NULL",
+            "16" => "TXT",
+            "28" => "AAAA",
+            "64" => "SVCB",
+            "65" => "HTTPS",
+            _ => token.ToUpperInvariant(),
+        };
     }
 
     public void Dispose()

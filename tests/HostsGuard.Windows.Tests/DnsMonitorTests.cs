@@ -8,6 +8,21 @@ namespace HostsGuard.Windows.Tests;
 [SupportedOSPlatform("windows")]
 public class DnsMonitorTests
 {
+    [Theory]
+    [InlineData(null, "A")]
+    [InlineData(1, "A")]
+    [InlineData((ushort)28, "AAAA")]
+    [InlineData("16", "TXT")]
+    [InlineData(5, "CNAME")]
+    [InlineData(10, "NULL")]
+    [InlineData(64, "SVCB")]
+    [InlineData(65, "HTTPS")]
+    [InlineData(99, "99")]
+    public void Query_type_is_normalized_from_ETW_payload(object? value, string expected)
+    {
+        DnsMonitor.NormalizeQueryType(value).Should().Be(expected);
+    }
+
     [Fact]
     public void Start_reports_status_without_throwing()
     {

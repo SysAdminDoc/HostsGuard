@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.89-blue)
+![Version](https://img.shields.io/badge/version-0.12.90-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -139,6 +139,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
 | IDN homograph alerts | Opt-in, alert-only comparison of observed IDNs against allowlisted, trusted, and recent domains using embedded Unicode 17.0.0 UTS #39 confusable data; Alerts shows decoded Unicode, punycode, scripts, restriction evidence, and the matching domain without auto-blocking |
 | Algorithmic-domain alerts | Opt-in, alert-only scoring of suspicious registrable labels with exact entropy, vowel, digit, consonant-run, contribution, and threshold evidence; a versioned 57-case corpus gates precision at 95% and recall at 75%, while IDNs, CDN subdomains, and short labels are protected against false positives |
+| DNS-tunneling burst alerts | Opt-in, alert-only rolling detection scores per-root/process/PID subdomain length and entropy, unique-query ratio, rate, and DNS record-type mix; 60-second state, five-minute cooldowns, 2,048 aggregate/256 observation caps, and CDN/telemetry regression fixtures keep it bounded and conservative |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
@@ -152,7 +153,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
-| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, and blocked inbound scans across distinct local ports |
+| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
 | Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,652-key surface currently has 430 Spanish, 428 German, and 427 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 

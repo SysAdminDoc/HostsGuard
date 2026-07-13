@@ -35,6 +35,7 @@ public sealed class ServiceState : IDisposable
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
         IdnHomographs = new IdnHomographMonitor(db);
+        DnsTunnels = new DnsTunnelDetector();
         Firewall = firewall;
         Identity = identity;
         Dns = dns;
@@ -107,6 +108,9 @@ public sealed class ServiceState : IDisposable
     public HostsDatabase Db { get; }
 
     public IdnHomographMonitor IdnHomographs { get; }
+
+    /// <summary>Bounded, report-only rolling detector for encoded DNS subdomain bursts.</summary>
+    public DnsTunnelDetector DnsTunnels { get; }
 
     public IFirewallEngine? Firewall { get; }
 
@@ -288,7 +292,13 @@ public sealed class ServiceState : IDisposable
     /// Record a DNS sighting: persist to the activity feed and publish to live
     /// watchers. Called by the ETW pipeline (production) and tests.
     /// </summary>
-    public void RecordDns(string domain, string process = "", int pid = 0, bool blocked = false)
+    public void RecordDns(
+        string domain,
+        string process = "",
+        int pid = 0,
+        bool blocked = false,
+        string queryType = "A",
+        DateTime? observedAtUtc = null)
     {
         var d = Core.Domains.ToAscii(domain);
         if (d.Length == 0)
@@ -320,6 +330,7 @@ public sealed class ServiceState : IDisposable
         Bus.Publish(ev);
 
         MaybeAlertSuspiciousDomain(d, root, process);
+        MaybeAlertDnsTunnel(d, process, pid, queryType, observedAtUtc ?? DateTime.UtcNow);
         MaybeAlertNewlyObserved(d, process, firstContact);
     }
 
@@ -360,7 +371,7 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>
     /// NET-201: raise a one-time alert when a domain's registrable name looks
-    /// algorithmically generated (DGA / DNS-tunnel). Cheap fast-reject first
+    /// algorithmically generated (DGA). Cheap fast-reject first
     /// (short/normal labels never match), then skip curated-known domains, then
     /// alert once per flagged root so the set stays small over long uptime.
     /// </summary>
@@ -400,6 +411,40 @@ public sealed class ServiceState : IDisposable
     internal static string BuildDgaEvidenceDetails(string domain, DgaScoreBreakdown evidence) =>
         FormattableString.Invariant(
             $"{domain} has an algorithmic-looking registered label '{evidence.RegistrableLabel}'. Score {evidence.Score:F2}/{evidence.DecisionThreshold:F2}; entropy {evidence.Entropy:F3} (threshold {evidence.EntropyThreshold:F3}); vowel ratio {evidence.VowelRatio:P1} (low below {evidence.VowelRatioThreshold:P1}); digit ratio {evidence.DigitRatio:P1} (high at {evidence.DigitRatioThreshold:P1}); max consonant run {evidence.MaxConsonantRun} (high at {evidence.ConsonantRunThreshold}); reason {evidence.Reason}; model {evidence.Version}. Alert only — no domain was blocked.");
+
+    private void MaybeAlertDnsTunnel(string domain, string process, int pid, string queryType, DateTime observedAtUtc)
+    {
+        if (!Db.IsAlertTypeSurfaced("dns_tunnel"))
+        {
+            return;
+        }
+
+        var evidence = DnsTunnels.Observe(domain, process, pid, queryType, observedAtUtc);
+        if (evidence is null)
+        {
+            return;
+        }
+
+        var identity = evidence.ProcessName.Length != 0
+            ? evidence.ProcessName
+            : evidence.ProcessId > 0 ? $"PID {evidence.ProcessId}" : "unknown process";
+        Db.AddAlert(
+            "dns_tunnel",
+            "warning",
+            "Possible DNS-tunneling burst observed",
+            $"{evidence.RootDomain} [{identity}]",
+            BuildDnsTunnelEvidenceDetails(evidence),
+            action: "dns_tunnel",
+            process: identity);
+    }
+
+    internal static string BuildDnsTunnelEvidenceDetails(DnsTunnelDetection evidence)
+    {
+        var recordTypes = string.Join(", ", evidence.RecordTypes.Select(item =>
+            FormattableString.Invariant($"{item.RecordType}={item.Count} ({item.Ratio:P1})")));
+        return FormattableString.Invariant(
+            $"{evidence.RootDomain} produced {evidence.QueryCount} queries ({evidence.UniqueQueryCount} unique; ratio {evidence.UniqueQueryRatio:P1}, threshold {evidence.UniqueQueryRatioThreshold:P1}) in {evidence.WindowSeconds:F1}s ({evidence.QueriesPerSecond:F2}/s, threshold {evidence.QueriesPerSecondThreshold:F2}/s). Subdomain payload length averaged {evidence.AverageSubdomainLength:F1}, max {evidence.MaximumSubdomainLength}; {evidence.LongSubdomainCount}/{evidence.QueryCount} were at least {evidence.SubdomainLengthThreshold} characters (ratio {evidence.LongSubdomainRatio:P1}, threshold {evidence.LongSubdomainRatioThreshold:P1}). Entropy averaged {evidence.AverageSubdomainEntropy:F3}, max {evidence.MaximumSubdomainEntropy:F3}; {evidence.HighEntropyCount}/{evidence.QueryCount} met {evidence.SubdomainEntropyThreshold:F3} (ratio {evidence.HighEntropyRatio:P1}, threshold {evidence.HighEntropyRatioThreshold:P1}). Record types: {recordTypes}; suspicious type ratio {evidence.SuspiciousRecordTypeRatio:P1} (threshold {evidence.SuspiciousRecordTypeRatioThreshold:P1}). Signals {evidence.SignalCount}/{evidence.DecisionThreshold}; model {evidence.Version}. Alert only — no domain was blocked.");
+    }
 
     private readonly HashSet<string> _dnsBypassAlerted = new(StringComparer.OrdinalIgnoreCase);
 

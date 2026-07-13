@@ -27,6 +27,9 @@ public sealed partial class HostsDatabase
         // Opt-in (off by default): a process talking DNS directly (port 53 to a
         // public resolver, or a known DoH endpoint) bypasses the system resolver.
         ("dns_bypass", "Apps bypassing system DNS", false),
+        // Opt-in (off by default): high-volume unique subdomain bursts can be
+        // legitimate CDN/telemetry traffic and require operator review.
+        ("dns_tunnel", "DNS-tunneling bursts", false),
     };
 
     /// <summary>Whether alerts of <paramref name="type"/> currently surface (opt-in gating for high-volume types).</summary>

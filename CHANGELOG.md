@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.90] - 2026-07-12
+
+### Added
+- A separate opt-in DNS-tunneling detector evaluates 60-second per-root,
+  process, and PID query bursts using subdomain length and entropy,
+  unique-query ratio, query rate, and A/AAAA/TXT/NULL/SVCB/HTTPS record-type
+  mix. Alerts expose every observed metric and threshold and never block.
+- Rolling state is capped at 2,048 aggregates and 256 observations per key,
+  expires after its window/cooldown, and can alert again after five minutes.
+  Deterministic tests cover malicious A/TXT/NULL bursts, benign CDN and
+  telemetry traffic, expiry, cooldown, isolation, stale events, and eviction.
+- Support diagnostics report only aggregate, buffer, and detection counters;
+  query names and domains are excluded.
+
 ## [0.12.89] - 2026-07-12
 
 ### Added
