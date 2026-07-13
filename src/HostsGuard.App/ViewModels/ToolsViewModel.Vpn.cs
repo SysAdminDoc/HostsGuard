@@ -23,19 +23,19 @@ public sealed partial class ToolsViewModel
     private bool _killSwitchEnabled;
 
     [ObservableProperty]
-    private string _killSwitchStatusText = "VPN kill-switch off.";
+    private string _killSwitchStatusText = I18n.T("Vpn_KillSwitchOff", "VPN kill-switch off.");
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveAppVpnBindingCommand))]
     private string _appVpnProgramPath = string.Empty;
 
     [ObservableProperty]
-    private string _appVpnStatusText = "No app VPN bindings.";
+    private string _appVpnStatusText = I18n.T("Vpn_NoBindings", "No app VPN bindings.");
 
     [RelayCommand]
     public async Task LoadKillSwitchAsync()
     {
-        await RunServiceActionAsync("Load VPN kill-switch", s => KillSwitchStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Vpn_ActionLoadKillSwitch", "Load VPN kill-switch"), s => KillSwitchStatusText = s, async () =>
         {
             var status = await _client.Firewall.GetKillSwitchAsync(new Empty());
             ReplaceAdapters(status.Adapters);
@@ -46,9 +46,9 @@ public sealed partial class ToolsViewModel
                 ?? Adapters.FirstOrDefault();
             KillSwitchStatusText = status.Enabled
                 ? status.Engaged
-                    ? $"ENGAGED — all outbound blocked while '{status.Adapter}' is down"
-                    : $"On — watching '{status.Adapter}'"
-                : "VPN kill-switch off.";
+                    ? I18n.T("Vpn_KillSwitchEngaged", "ENGAGED — all outbound blocked while '{0}' is down", status.Adapter)
+                    : I18n.T("Vpn_KillSwitchWatching", "On — watching '{0}'", status.Adapter)
+                : I18n.T("Vpn_KillSwitchOff", "VPN kill-switch off.");
         });
     }
 
@@ -60,19 +60,18 @@ public sealed partial class ToolsViewModel
         {
             if (adapter.Length == 0)
             {
-                StatusText = "Choose a VPN adapter before enabling the kill-switch.";
+                StatusText = I18n.T("Vpn_ChooseAdapter", "Choose a VPN adapter before enabling the kill-switch.");
                 return;
             }
 
-            if (!_confirm.Confirm("Enable VPN kill-switch",
-                $"Block ALL outbound traffic whenever '{adapter}' is down? Existing allow rules still apply — "
-                + "keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time."))
+            if (!_confirm.Confirm(I18n.T("Vpn_ConfirmEnableTitle", "Enable VPN kill-switch"),
+                I18n.T("Vpn_ConfirmEnableMessage", "Block ALL outbound traffic whenever '{0}' is down? Existing allow rules still apply — keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time.", adapter)))
             {
                 return;
             }
         }
 
-        await RunServiceActionAsync("Toggle VPN kill-switch", s => KillSwitchStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Vpn_ActionToggleKillSwitch", "Toggle VPN kill-switch"), s => KillSwitchStatusText = s, async () =>
         {
             var ack = await _client.Firewall.SetKillSwitchAsync(new KillSwitchRequest
             {
@@ -87,7 +86,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task LoadAppVpnBindingsAsync()
     {
-        await RunServiceActionAsync("Load app VPN bindings", s => AppVpnStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Vpn_ActionLoadBindings", "Load app VPN bindings"), s => AppVpnStatusText = s, async () =>
         {
             var status = await _client.Firewall.GetAppVpnBindingsAsync(new Empty());
             ReplaceAdapters(status.Adapters);
@@ -100,8 +99,8 @@ public sealed partial class ToolsViewModel
             SelectedAppVpnAdapter ??= Adapters.FirstOrDefault(a => a.Label.Contains(", VPN", StringComparison.Ordinal))
                 ?? Adapters.FirstOrDefault();
             AppVpnStatusText = AppVpnBindings.Count == 0
-                ? "No app VPN bindings."
-                : $"{Plural.Of(AppVpnBindings.Count, "app VPN binding")}";
+                ? I18n.T("Vpn_NoBindings", "No app VPN bindings.")
+                : I18n.T("Vpn_BindingCount", "{0} app VPN binding(s)", AppVpnBindings.Count);
         });
     }
 
@@ -110,7 +109,7 @@ public sealed partial class ToolsViewModel
     {
         var program = AppVpnProgramPath.Trim();
         var adapter = SelectedAppVpnAdapter?.Match ?? string.Empty;
-        await RunServiceActionAsync("Save app VPN binding", s => AppVpnStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Vpn_ActionSaveBinding", "Save app VPN binding"), s => AppVpnStatusText = s, async () =>
         {
             var ack = await _client.Firewall.SetAppVpnBindingAsync(new AppVpnBindingRequest
             {
@@ -139,7 +138,7 @@ public sealed partial class ToolsViewModel
             return;
         }
 
-        await RunServiceActionAsync("Remove app VPN binding", s => AppVpnStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Vpn_ActionRemoveBinding", "Remove app VPN binding"), s => AppVpnStatusText = s, async () =>
         {
             var ack = await _client.Firewall.SetAppVpnBindingAsync(new AppVpnBindingRequest
             {
@@ -163,7 +162,9 @@ public sealed partial class ToolsViewModel
             Adapters.Add(new AdapterRowViewModel
             {
                 Match = a.Name,
-                Label = $"{a.Name} — {a.Description} ({(a.IsUp ? "up" : "down")}{(a.IsVpnLikely ? ", VPN" : string.Empty)})",
+                Label = I18n.T("Vpn_AdapterLabel", "{0} — {1} ({2}{3})", a.Name, a.Description,
+                    a.IsUp ? I18n.T("Common_UpLower", "up") : I18n.T("Common_DownLower", "down"),
+                    a.IsVpnLikely ? I18n.T("Vpn_LabelSuffix", ", VPN") : string.Empty),
             });
         }
 

@@ -100,7 +100,6 @@
   <data name="Xaml_Toggle_theme_9b0eaf14" xml:space="preserve"><value>Toggle theme</value></data>
   <data name="Xaml_System_default_9d8d3808" xml:space="preserve"><value>System default</value></data>
   <data name="Xaml_English_649df08a" xml:space="preserve"><value>English</value></data>
-  <data name="Xaml_EspaÃ_ol_b6b9e8ef" xml:space="preserve"><value>Spanish</value></data>
   <data name="Xaml_Reset_view_80d8db7a" xml:space="preserve"><value>Reset view</value></data>
   <data name="Xaml_Clear_every_filter_and_toggle_back_ef9c2076" xml:space="preserve"><value>Clear every filter and toggle, back to defaults at 100% scale</value></data>
   <data name="Xaml_Refresh_all_bc959b88" xml:space="preserve"><value>Refresh all</value></data>
@@ -203,7 +202,6 @@
   <data name="Xaml_Last_seen_56462f81" xml:space="preserve"><value>Last seen</value></data>
   <data name="Xaml_No_DNS_activity_yet_edff6649" xml:space="preserve"><value>No DNS activity yet</value></data>
   <data name="Xaml_HostsGuard_will_fill_this_feed_as_6cba4cd0" xml:space="preserve"><value>HostsGuard will fill this feed as DNS events arrive. Check the service connection, then refresh if activity should already be available.</value></data>
-  <data name="Xaml_Ã_ee75f098" xml:space="preserve"><value>Close</value></data>
   <data name="Xaml_Clear_selection_247fd631" xml:space="preserve"><value>Clear selection</value></data>
   <data name="Xaml_AI_analyze_b541cf78" xml:space="preserve"><value>AI analyze</value></data>
   <data name="Xaml_Actions_c3cd636a" xml:space="preserve"><value>Actions</value></data>
@@ -624,15 +622,15 @@
   <data name="Xaml_HostsGuard_input_cfced166" xml:space="preserve"><value>HostsGuard input</value></data>
   <data name="Xaml_Input_value_a9e020d6" xml:space="preserve"><value>Input value</value></data>
   <data name="Xaml_Save_applies_the_value_immediately_Cancel_bb5061bb" xml:space="preserve"><value>Save applies the value immediately. Cancel keeps the current setting.</value></data>
-  <data name="Xaml_HostsGuard_â_connection_blocked_c1908917" xml:space="preserve"><value>HostsGuard - connection blocked</value></data>
+  <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - connection blocked</value></data>
   <data name="Xaml_HostsGuard_connection_consent_prompt_370e8956" xml:space="preserve"><value>HostsGuard connection consent prompt</value></data>
   <data name="Xaml_Connection_blocked_c2c1ee6c" xml:space="preserve"><value>Connection blocked</value></data>
   <data name="Xaml_Review_the_process_destination_and_rule_625c4e34" xml:space="preserve"><value>Review the process, destination, and rule scope before allowing it.</value></data>
-  <data name="Xaml_âš_This_remote_address_is_on_7025ed5c" xml:space="preserve"><value>Warning: this remote address is on the threat-intelligence list</value></data>
+  <data name="Consent_ThreatBanner" xml:space="preserve"><value>Warning: this remote address is on the threat-intelligence list</value></data>
   <data name="Xaml_Warning_this_remote_address_is_on_2674dcd5" xml:space="preserve"><value>Warning: this remote address is on the threat-intelligence list</value></data>
   <data name="Xaml_Look_up_this_process_reputation_online_e5312c55" xml:space="preserve"><value>Look up this process reputation online</value></data>
   <data name="Xaml_Host_3960ec4c" xml:space="preserve"><value>Host</value></data>
-  <data name="Xaml_resolvingâ_3d64d28b" xml:space="preserve"><value>resolving...</value></data>
+  <data name="Consent_Resolving" xml:space="preserve"><value>resolving...</value></data>
   <data name="Xaml_Location_d219c681" xml:space="preserve"><value>Location</value></data>
   <data name="Xaml_Direction_fd8e45ba" xml:space="preserve"><value>Direction</value></data>
   <data name="Xaml_Signer_362166e4" xml:space="preserve"><value>Signer</value></data>
@@ -987,10 +985,10 @@
   <data name="ListenerExposure_Name" xml:space="preserve"><value>Local listener firewall exposure analysis</value></data>
   <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Scan now</value></data>
   <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Scan local listeners and firewall coverage</value></data>
-  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Filter listenersâ€¦</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Filter listeners&#x2026;</value></data>
   <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Filter local listener exposure</value></data>
   <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Search process, endpoint, port, service, package, bind scope, profile, coverage, risk, or reason. Field filters such as port:443 and risk:high are supported.</value></data>
-  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Snapshot only â€” coverage reflects active Windows Firewall rules. It does not prove reachability through routers, NAT, VPNs, or upstream controls.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Snapshot only &#x2014; coverage reflects active Windows Firewall rules. It does not prove reachability through routers, NAT, VPNs, or upstream controls.</value></data>
   <data name="ListenerExposure_TableName" xml:space="preserve"><value>Local listeners and effective firewall coverage</value></data>
   <data name="ListenerExposure_Empty" xml:space="preserve"><value>No listeners match the current scan and filter.</value></data>
   <data name="ListenerExposure_Risk" xml:space="preserve"><value>Risk</value></data>
@@ -1011,7 +1009,7 @@
   <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>Enabled only after the exact selected HG_ duplicates pass preview validation. A changed selection must be previewed again.</value></data>
   <data name="RuleAnalysis_GroupProvenance" xml:space="preserve"><value>Group by provenance</value></data>
   <data name="RuleAnalysis_GroupProvenanceName" xml:space="preserve"><value>Group findings by rule provenance instead of reason</value></data>
-  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Filter findingsâ€¦</value></data>
+  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Filter findings…</value></data>
   <data name="RuleAnalysis_SearchName" xml:space="preserve"><value>Filter firewall rule findings</value></data>
   <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Search reason, rule, related rule, provenance, or remediation. Field filters such as source:HostsGuard and type:ExactDuplicate are supported.</value></data>
   <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>Analysis is read-only. Cleanup is available only for selected HG_ exact duplicates; foreign, semantic, conflicting, ineffective, and Group Policy findings remain review-only.</value></data>
@@ -1022,12 +1020,12 @@
   <data name="RuleAnalysis_Kind" xml:space="preserve"><value>Finding</value></data>
   <data name="RuleAnalysis_Related" xml:space="preserve"><value>Related rule</value></data>
   <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>Remediation</value></data>
-  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Analyzing effective firewall rulesâ€¦</value></data>
-  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} rules Â· profiles {1} Â· policy {2}</value></data>
+  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Analyzing effective firewall rules…</value></data>
+  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} rules · profiles {1} · policy {2}</value></data>
   <data name="RuleAnalysis_None" xml:space="preserve"><value>No duplicate, contradictory, or ineffective rules found</value></data>
   <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} findings; review-only unless an HG_ exact duplicate is selected</value></data>
-  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>Validating selected HG_ cleanupâ€¦</value></data>
-  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>Applying previewed HG_ cleanupâ€¦</value></data>
+  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>Validating selected HG_ cleanup…</value></data>
+  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>Applying previewed HG_ cleanup…</value></data>
   <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>Selection changed; preview again before cleanup.</value></data>
   <data name="RuleAnalysis_ProvenanceHostsGuard" xml:space="preserve"><value>HostsGuard</value></data>
   <data name="RuleAnalysis_ProvenancePolicy" xml:space="preserve"><value>Group Policy</value></data>
@@ -1041,14 +1039,14 @@
   <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Observed international domain in stable ASCII or punycode form</value></data>
   <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Scripts, restriction level, skeleton, and confusable target</value></data>
   <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>IDN script and confusability evidence</value></data>
-  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Alert only â€” HostsGuard did not block or rewrite this domain. Review the evidence before taking action.</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Alert only &#x2014; HostsGuard did not block or rewrite this domain. Review the evidence before taking action.</value></data>
   <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Toggle alert-only IDN homograph detection</value></data>
   <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Opt in to Unicode UTS #39 confusability alerts. Detection never blocks a domain automatically.</value></data>
   <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>Enable IDN alerts</value></data>
   <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>Disable IDN alerts</value></data>
   <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>Explains decoded IDNs, scripts, restriction level, and confusable targets in Alerts. Default off; alert-only.</value></data>
   <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>IDN homograph detection status not loaded.</value></data>
-  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Alert-only detection is on Â· {0} comparison targets Â· {1}. No automatic block is applied.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Alert-only detection is on · {0} comparison targets · {1}. No automatic block is applied.</value></data>
   <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>Off by default. When enabled, structured evidence appears in Alerts; no automatic block is applied.</value></data>
   <data name="FwRules_EditManaged" xml:space="preserve"><value>Edit managed rule</value></data>
   <data name="FwRules_EditManagedTip" xml:space="preserve"><value>Load this HG_ rule into the authoring form. Windows and Group Policy rules remain read-only.</value></data>
@@ -1105,4 +1103,592 @@
   <data name="Ncsi_CurrentEra" xml:space="preserve"><value>current Windows</value></data>
   <data name="Ncsi_LegacyEra" xml:space="preserve"><value>legacy Windows</value></data>
   <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
+  <data name="Common_OnLower" xml:space="preserve"><value>on</value></data>
+  <data name="Common_OffLower" xml:space="preserve"><value>off</value></data>
+  <data name="Common_OffUpper" xml:space="preserve"><value>OFF</value></data>
+  <data name="Common_BlockLower" xml:space="preserve"><value>block</value></data>
+  <data name="Common_AllowLower" xml:space="preserve"><value>allow</value></data>
+  <data name="Common_UpLower" xml:space="preserve"><value>up</value></data>
+  <data name="Common_DownLower" xml:space="preserve"><value>down</value></data>
+  <data name="Common_NoneLower" xml:space="preserve"><value>none</value></data>
+  <data name="FwPosture_ActionLoad" xml:space="preserve"><value>Load firewall posture</value></data>
+  <data name="FwPosture_Unavailable" xml:space="preserve"><value>Firewall posture unavailable</value></data>
+  <data name="FwPosture_Profile" xml:space="preserve"><value>{0}: {1}/{2}</value></data>
+  <data name="FwPosture_ActionLoadTeardown" xml:space="preserve"><value>Load TCP teardown mode</value></data>
+  <data name="FwPosture_TeardownState" xml:space="preserve"><value>TCP teardown: {0} ({1})</value></data>
+  <data name="FwPosture_TeardownUnavailable" xml:space="preserve"><value>TCP teardown unavailable</value></data>
+  <data name="FwPosture_ActionApplyTeardown" xml:space="preserve"><value>Apply TCP teardown mode</value></data>
+  <data name="FwPosture_ConfirmLockdownTitle" xml:space="preserve"><value>Enable lockdown</value></data>
+  <data name="FwPosture_ConfirmLockdownMessage" xml:space="preserve"><value>Block new outbound traffic on every firewall profile unless an allow rule already covers it?</value></data>
+  <data name="FwPosture_ActionApplyLockdown" xml:space="preserve"><value>Apply lockdown posture</value></data>
+  <data name="Vpn_KillSwitchOff" xml:space="preserve"><value>VPN kill-switch off.</value></data>
+  <data name="Vpn_NoBindings" xml:space="preserve"><value>No app VPN bindings.</value></data>
+  <data name="Vpn_ActionLoadKillSwitch" xml:space="preserve"><value>Load VPN kill-switch</value></data>
+  <data name="Vpn_KillSwitchEngaged" xml:space="preserve"><value>ENGAGED — all outbound blocked while '{0}' is down</value></data>
+  <data name="Vpn_KillSwitchWatching" xml:space="preserve"><value>On — watching '{0}'</value></data>
+  <data name="Vpn_ChooseAdapter" xml:space="preserve"><value>Choose a VPN adapter before enabling the kill-switch.</value></data>
+  <data name="Vpn_ConfirmEnableTitle" xml:space="preserve"><value>Enable VPN kill-switch</value></data>
+  <data name="Vpn_ConfirmEnableMessage" xml:space="preserve"><value>Block ALL outbound traffic whenever '{0}' is down? Existing allow rules still apply — keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time.</value></data>
+  <data name="Vpn_ActionToggleKillSwitch" xml:space="preserve"><value>Toggle VPN kill-switch</value></data>
+  <data name="Vpn_ActionLoadBindings" xml:space="preserve"><value>Load app VPN bindings</value></data>
+  <data name="Vpn_BindingCount" xml:space="preserve"><value>{0} app VPN binding(s)</value></data>
+  <data name="Vpn_ActionSaveBinding" xml:space="preserve"><value>Save app VPN binding</value></data>
+  <data name="Vpn_ActionRemoveBinding" xml:space="preserve"><value>Remove app VPN binding</value></data>
+  <data name="Vpn_AdapterLabel" xml:space="preserve"><value>{0} — {1} ({2}{3})</value></data>
+  <data name="Vpn_LabelSuffix" xml:space="preserve"><value>, VPN</value></data>
+  <data name="Intel_Checking" xml:space="preserve"><value>Checking blocklist intelligence…</value></data>
+  <data name="Intel_ActionLoad" xml:space="preserve"><value>Load blocklist intelligence</value></data>
+  <data name="Intel_DownloadingBackground" xml:space="preserve"><value>Downloading reference blocklists in the background…</value></data>
+  <data name="Intel_None" xml:space="preserve"><value>No reference lists downloaded yet — refresh to build the block-candidate index.</value></data>
+  <data name="Intel_Status" xml:space="preserve"><value>{0} reference list(s) · {1:N0} domains indexed{2}</value></data>
+  <data name="Intel_RefreshedSuffix" xml:space="preserve"><value> · refreshed {0}</value></data>
+  <data name="Intel_ActionRefresh" xml:space="preserve"><value>Refresh blocklist intelligence</value></data>
+  <data name="Intel_Downloading" xml:space="preserve"><value>Downloading reference blocklists — this can take a few minutes…</value></data>
+  <data name="IpBlock_ResultWarning" xml:space="preserve"><value>{0} — {1}</value></data>
+  <data name="RuleAnalysis_NotAnalyzed" xml:space="preserve"><value>Not analyzed yet</value></data>
+  <data name="RuleAnalysis_ActionAnalyze" xml:space="preserve"><value>Analyze firewall rules</value></data>
+  <data name="RuleAnalysis_ActionPreview" xml:space="preserve"><value>Preview firewall cleanup</value></data>
+  <data name="RuleAnalysis_ActionApply" xml:space="preserve"><value>Apply firewall cleanup</value></data>
+  <data name="Language_System" xml:space="preserve"><value>System default</value></data>
+  <data name="Language_English" xml:space="preserve"><value>English</value></data>
+  <data name="Language_Spanish" xml:space="preserve"><value>Español</value></data>
+  <data name="Language_German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="Language_French" xml:space="preserve"><value>Français</value></data>
+  <data name="Activity_New" xml:space="preserve"><value>NEW</value></data>
+  <data name="Activity_OneList" xml:space="preserve"><value>1 list</value></data>
+  <data name="Activity_ManyLists" xml:space="preserve"><value>{0} lists</value></data>
+  <data name="Activity_BlockedBy" xml:space="preserve"><value>Blocked by: {0}</value></data>
+  <data name="Common_Allowed" xml:space="preserve"><value>Allowed</value></data>
+  <data name="Common_Blocked" xml:space="preserve"><value>Blocked</value></data>
+  <data name="Activity_Observed" xml:space="preserve"><value>Observed</value></data>
+  <data name="Alerts_NotLoaded" xml:space="preserve"><value>Alerts not loaded</value></data>
+  <data name="Alerts_Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Alerts_UnreadTitle" xml:space="preserve"><value>{0} unread</value></data>
+  <data name="Alerts_NoneSurfaced" xml:space="preserve"><value>No surfaced alerts</value></data>
+  <data name="Alerts_SurfacedCount" xml:space="preserve"><value>{0} surfaced alert(s)</value></data>
+  <data name="Alerts_ActionLoad" xml:space="preserve"><value>Load alerts</value></data>
+  <data name="Alerts_Loaded" xml:space="preserve"><value>Loaded {0} of {1} alerts</value></data>
+  <data name="Alerts_SelectFirst" xml:space="preserve"><value>Select an alert first</value></data>
+  <data name="Alerts_ActionAck" xml:space="preserve"><value>Acknowledge alert</value></data>
+  <data name="Alerts_ActionAckAll" xml:space="preserve"><value>Acknowledge alerts</value></data>
+  <data name="Alerts_ActionSurface" xml:space="preserve"><value>Set alert surface</value></data>
+  <data name="RawHosts_ActionLoad" xml:space="preserve"><value>Load raw hosts file</value></data>
+  <data name="RawHosts_ActionSave" xml:space="preserve"><value>Save raw hosts file</value></data>
+  <data name="RawHosts_ActionCategorize" xml:space="preserve"><value>Categorize raw hosts file</value></data>
+  <data name="Hosts_Categorizing" xml:space="preserve"><value>Asking DeepSeek to categorize hosts-file entries...</value></data>
+  <data name="RawHosts_LineCount" xml:space="preserve"><value>{0} lines</value></data>
+  <data name="Common_All" xml:space="preserve"><value>All</value></data>
+  <data name="Hosts_Whitelisted" xml:space="preserve"><value>Whitelisted</value></data>
+  <data name="Hosts_ActionRefresh" xml:space="preserve"><value>Refresh domains</value></data>
+  <data name="Hosts_DomainCount" xml:space="preserve"><value>{0} domain(s)</value></data>
+  <data name="Hosts_ActionBlock" xml:space="preserve"><value>Block domain</value></data>
+  <data name="Hosts_BlockedDomain" xml:space="preserve"><value>Blocked {0}</value></data>
+  <data name="Common_SelectRow" xml:space="preserve"><value>Select a row first</value></data>
+  <data name="Hosts_ActionAllow" xml:space="preserve"><value>Allow domain</value></data>
+  <data name="Hosts_AllowedDomain" xml:space="preserve"><value>Allowed {0}</value></data>
+  <data name="Hosts_RemoveTitle" xml:space="preserve"><value>Remove managed domain</value></data>
+  <data name="Hosts_RemoveMessage" xml:space="preserve"><value>Remove {0} from managed domains? This stops HostsGuard from writing it to the hosts file.</value></data>
+  <data name="Hosts_ActionRemove" xml:space="preserve"><value>Remove domain</value></data>
+  <data name="Hosts_RemovedDomain" xml:space="preserve"><value>Removed {0}</value></data>
+  <data name="Hosts_ActionBlockRoot" xml:space="preserve"><value>Block root domain</value></data>
+  <data name="Hosts_ActionBlockSelected" xml:space="preserve"><value>Block selected domains</value></data>
+  <data name="Hosts_BlockedMany" xml:space="preserve"><value>Blocked {0} domain(s) (+{1} new)</value></data>
+  <data name="Hosts_ActionAllowSelected" xml:space="preserve"><value>Allow selected domains</value></data>
+  <data name="Hosts_AllowedMany" xml:space="preserve"><value>Allowed {0} domain(s)</value></data>
+  <data name="Hosts_RemoveManyTitle" xml:space="preserve"><value>Remove managed domains</value></data>
+  <data name="Hosts_RemoveManyMessage" xml:space="preserve"><value>Remove {0} selected domains? HostsGuard will stop writing them to the hosts file.</value></data>
+  <data name="Hosts_ActionRemoveSelected" xml:space="preserve"><value>Remove selected domains</value></data>
+  <data name="Hosts_ActionCategorize" xml:space="preserve"><value>Categorize hosts entries</value></data>
+  <data name="Activity_ActionRefresh" xml:space="preserve"><value>Refresh hosts activity</value></data>
+  <data name="Activity_FeedHidden" xml:space="preserve"><value>{0} domain(s) in feed · {1} hidden</value></data>
+  <data name="Activity_FeedCount" xml:space="preserve"><value>{0} domain(s) in feed</value></data>
+  <data name="Activity_Hits24h" xml:space="preserve"><value>{0} hit(s) in the last 24h</value></data>
+  <data name="Activity_StreamAuthExpired" xml:space="preserve"><value>Live feed authentication expired - reconnect to the service</value></data>
+  <data name="Activity_StreamRetry" xml:space="preserve"><value>Live feed disconnected - retrying</value></data>
+  <data name="Activity_BlockConfirm" xml:space="preserve"><value>Add {0} to the hosts-file block list? Existing hosts-file blocks stay unchanged.</value></data>
+  <data name="Activity_AllowConfirm" xml:space="preserve"><value>Allow {0} and remove any current hosts-file block for it? Future blocklist imports will keep respecting this allowlist entry.</value></data>
+  <data name="Activity_BlockManyConfirm" xml:space="preserve"><value>Add {0} to the hosts-file block list? Existing hosts-file blocks stay unchanged.</value></data>
+  <data name="Activity_ActionUnblockSelected" xml:space="preserve"><value>Unblock selected domains</value></data>
+  <data name="Activity_UnblockManyConfirm" xml:space="preserve"><value>Remove {0} from the hosts file so they resolve normally again?</value></data>
+  <data name="Activity_UnblockedMany" xml:space="preserve"><value>Unblocked {0} domain(s) - removed from hosts</value></data>
+  <data name="Activity_UnblockedPartial" xml:space="preserve"><value>Unblocked {0} of {1}</value></data>
+  <data name="Activity_AllowManyConfirm" xml:space="preserve"><value>Allow {0} and remove any current hosts-file blocks for them? Future blocklist imports will respect these allowlist entries.</value></data>
+  <data name="Activity_Purpose" xml:space="preserve"><value>purpose</value></data>
+  <data name="Activity_Category" xml:space="preserve"><value>category</value></data>
+  <data name="Activity_FixLabelTitle" xml:space="preserve"><value>Fix {0}</value></data>
+  <data name="Activity_FixLabelMessage" xml:space="preserve"><value>Set the {0} for {1}. Leave blank to clear the override.</value></data>
+  <data name="Activity_ActionFixLabel" xml:space="preserve"><value>Fix domain {0}</value></data>
+  <data name="Activity_BlockRootConfirm" xml:space="preserve"><value>Add the root domain for {0} to the hosts-file block list? This can block sibling subdomains too.</value></data>
+  <data name="Activity_ActionTempAllow" xml:space="preserve"><value>Temporarily allow domain</value></data>
+  <data name="Activity_TempAllowConfirm" xml:space="preserve"><value>Temporarily remove {0} from hosts-file blocking for {1} minutes, then restore the block automatically?</value></data>
+  <data name="Activity_ActionTempBlock" xml:space="preserve"><value>Temporarily block domain</value></data>
+  <data name="Activity_TempBlockConfirm" xml:space="preserve"><value>Temporarily block {0} via the hosts file for {1} minutes, then restore its previous state automatically?</value></data>
+  <data name="Activity_ActionHideRoot" xml:space="preserve"><value>Hide root domain</value></data>
+  <data name="Activity_ActionHideDomain" xml:space="preserve"><value>Hide domain</value></data>
+  <data name="Activity_ActionHideSelected" xml:space="preserve"><value>Hide selected domains</value></data>
+  <data name="Activity_ChangeCancelled" xml:space="preserve"><value>Hosts-file change cancelled</value></data>
+  <data name="Activity_AndMore" xml:space="preserve"><value>, and {0} more</value></data>
+  <data name="Activity_SelectedDomains" xml:space="preserve"><value>{0} selected domain(s): {1}</value></data>
+  <data name="Activity_ActionHideGroup" xml:space="preserve"><value>Hide group domains</value></data>
+  <data name="Activity_ActionUnhideRoot" xml:space="preserve"><value>Unhide root domain</value></data>
+  <data name="Activity_ActionResearch" xml:space="preserve"><value>Research domain purposes</value></data>
+  <data name="Activity_Researching" xml:space="preserve"><value>Asking DeepSeek to research domain purposes...</value></data>
+  <data name="Blocklists_License" xml:space="preserve"><value>License: {0}</value></data>
+  <data name="Blocklists_Checkpoint" xml:space="preserve"><value>Checkpoint</value></data>
+  <data name="Blocklists_Large" xml:space="preserve"><value>Large</value></data>
+  <data name="Blocklists_Mirror" xml:space="preserve"><value>Mirror</value></data>
+  <data name="Common_Disable" xml:space="preserve"><value>Disable</value></data>
+  <data name="Common_Enable" xml:space="preserve"><value>Enable</value></data>
+  <data name="Blocklists_PreviousCount" xml:space="preserve"><value>previous {0:N0}</value></data>
+  <data name="Blocklists_AttemptCount" xml:space="preserve"><value>attempt {0:N0}</value></data>
+  <data name="Blocklists_ActionRefresh" xml:space="preserve"><value>Refresh blocklists</value></data>
+  <data name="Blocklists_SelectSource" xml:space="preserve"><value>Select a blocklist source first</value></data>
+  <data name="Blocklists_LargeTitle" xml:space="preserve"><value>Import large blocklist</value></data>
+  <data name="Blocklists_LargeMessage" xml:space="preserve"><value>{0} can make the hosts file very large and increase Windows DNS Client CPU. Import it now?</value></data>
+  <data name="Blocklists_ActionImport" xml:space="preserve"><value>Import {0}</value></data>
+  <data name="Blocklists_Importing" xml:space="preserve"><value>Importing {0}...</value></data>
+  <data name="Blocklists_ActionPreview" xml:space="preserve"><value>Preview {0}</value></data>
+  <data name="Blocklists_Previewing" xml:space="preserve"><value>Previewing {0}...</value></data>
+  <data name="Blocklists_ResultDup" xml:space="preserve"><value>{0} dup</value></data>
+  <data name="Blocklists_ResultInvalid" xml:space="preserve"><value>{0} invalid</value></data>
+  <data name="Blocklists_ResultModifiers" xml:space="preserve"><value>{0} modifier-stripped</value></data>
+  <data name="Blocklists_ResultHijack" xml:space="preserve"><value>{0} hijack-flagged</value></data>
+  <data name="Blocklists_ResultAllowed" xml:space="preserve"><value>{0} allowlist-kept</value></data>
+  <data name="Blocklists_ResultRemoved" xml:space="preserve"><value>{0} removed</value></data>
+  <data name="Blocklists_ResultPreserved" xml:space="preserve"><value>{0} preserved</value></data>
+  <data name="Blocklists_ResultGuarded" xml:space="preserve"><value>{0} guarded</value></data>
+  <data name="Blocklists_ResultFailed" xml:space="preserve"><value>{0} failed</value></data>
+  <data name="Blocklists_ResultCheckpoint" xml:space="preserve"><value>checkpoint {0}</value></data>
+  <data name="Blocklists_PreviewPrefix" xml:space="preserve"><value>Preview: </value></data>
+  <data name="Blocklists_ActionRemove" xml:space="preserve"><value>Remove {0}</value></data>
+  <data name="Blocklists_NoCheckpoint" xml:space="preserve"><value>{0} has no refresh checkpoint to restore</value></data>
+  <data name="Blocklists_ActionRestore" xml:space="preserve"><value>Restore {0} checkpoint</value></data>
+  <data name="Blocklists_ActionToggle" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Blocklists_ActionRefreshSubscriptions" xml:space="preserve"><value>Refresh subscriptions</value></data>
+  <data name="Blocklists_RefreshingSubscriptions" xml:space="preserve"><value>Refreshing all subscriptions...</value></data>
+  <data name="Blocklists_ActionSaveAllowlists" xml:space="preserve"><value>Save allowlists</value></data>
+  <data name="Blocklists_SourceSummary" xml:space="preserve"><value>{0} source(s), {1} subscribed, {2:N0} hits/30d</value></data>
+  <data name="Ncsi_ActionRecover" xml:space="preserve"><value>Recover Windows connectivity checks</value></data>
+  <data name="Shell_EnforcementActive" xml:space="preserve"><value>Enforcement active.</value></data>
+  <data name="Shell_Connected" xml:space="preserve"><value>Connected</value></data>
+  <data name="Shell_Disconnected" xml:space="preserve"><value>Disconnected</value></data>
+  <data name="Shell_LightTheme" xml:space="preserve"><value>Light theme</value></data>
+  <data name="Shell_DarkTheme" xml:space="preserve"><value>Dark theme</value></data>
+  <data name="Shell_ModeNotify" xml:space="preserve"><value>Notify</value></data>
+  <data name="Shell_ModeLearning" xml:space="preserve"><value>Learning</value></data>
+  <data name="Shell_ModeNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="Shell_Suspended" xml:space="preserve"><value>Suspended</value></data>
+  <data name="Shell_Paused" xml:space="preserve"><value>Paused</value></data>
+  <data name="Shell_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Shell_ElevatedSuffix" xml:space="preserve"><value> (elevated)</value></data>
+  <data name="Shell_ActionLoadFiltering" xml:space="preserve"><value>Load filtering mode</value></data>
+  <data name="Shell_ActionChildInheritance" xml:space="preserve"><value>Set child-process inheritance</value></data>
+  <data name="Shell_ActionInboundConsent" xml:space="preserve"><value>Set inbound consent</value></data>
+  <data name="Shell_EnableFilteringTitle" xml:space="preserve"><value>Enable connection filtering</value></data>
+  <data name="Shell_EnableFilteringMessage" xml:space="preserve"><value>Switch to {0} mode? HostsGuard will set every firewall profile to default-deny until you return to Normal mode, then restore the prior posture.</value></data>
+  <data name="Shell_ActionSetFiltering" xml:space="preserve"><value>Set filtering mode</value></data>
+  <data name="Shell_BlockAllTitle" xml:space="preserve"><value>Block all outbound</value></data>
+  <data name="Shell_BlockAllMessage" xml:space="preserve"><value>Block new outbound traffic on every firewall profile unless an allow rule already covers it?</value></data>
+  <data name="Shell_ActionGlobalMode" xml:space="preserve"><value>Set global outbound mode</value></data>
+  <data name="Shell_ActionLoadPause" xml:space="preserve"><value>Load enforcement pause</value></data>
+  <data name="Shell_PauseInvalid" xml:space="preserve"><value>Pause unavailable - invalid duration</value></data>
+  <data name="Shell_ActionPause" xml:space="preserve"><value>Pause enforcement</value></data>
+  <data name="Shell_SafePostureUnavailable" xml:space="preserve"><value>Safe posture unavailable - service is not connected</value></data>
+  <data name="Shell_ActionSafePosture" xml:space="preserve"><value>Restore safe network posture</value></data>
+  <data name="Shell_ApplyFailed" xml:space="preserve"><value>{0}: failed ({1})</value></data>
+  <data name="Shell_LabelFiltering" xml:space="preserve"><value>filtering mode</value></data>
+  <data name="Shell_LabelKillSwitch" xml:space="preserve"><value>VPN kill-switch</value></data>
+  <data name="Shell_LabelGlobalOutbound" xml:space="preserve"><value>global outbound</value></data>
+  <data name="Shell_LabelDefaultOutbound" xml:space="preserve"><value>default outbound</value></data>
+  <data name="Shell_LabelEncryptedDns" xml:space="preserve"><value>encrypted DNS blocks</value></data>
+  <data name="Shell_LabelQuic" xml:space="preserve"><value>QUIC block</value></data>
+  <data name="Shell_LabelCname" xml:space="preserve"><value>CNAME-cloak blocking</value></data>
+  <data name="Shell_LabelFlowTeardown" xml:space="preserve"><value>TCP flow teardown</value></data>
+  <data name="Shell_SafePostureRestored" xml:space="preserve"><value>Safe network posture restored</value></data>
+  <data name="Shell_SafePostureWarnings" xml:space="preserve"><value>Safe network posture restored with warnings</value></data>
+  <data name="Shell_SafePostureResult" xml:space="preserve"><value>{0} - hosts-file blocks left unchanged. {1}</value></data>
+  <data name="Shell_ActionSendDecision" xml:space="preserve"><value>Send connection decision</value></data>
+  <data name="Shell_HostsFileFilter" xml:space="preserve"><value>Hosts files (*.txt;hosts)|*.txt;hosts|All files (*.*)|*.*</value></data>
+  <data name="Shell_JsonFileFilter" xml:space="preserve"><value>JSON (*.json)|*.json|All files (*.*)|*.*</value></data>
+  <data name="Shell_ImportHostsTitle" xml:space="preserve"><value>Import hosts file</value></data>
+  <data name="Shell_ImportTooLarge" xml:space="preserve"><value>Import failed - the file is missing or over 10 MB</value></data>
+  <data name="Shell_ImportHostsMessage" xml:space="preserve"><value>Replace the live hosts file with {0}? The current file is backed up first.</value></data>
+  <data name="Shell_ReadFailed" xml:space="preserve"><value>Couldn't read {0}: {1}</value></data>
+  <data name="Shell_ActionImportHosts" xml:space="preserve"><value>Import hosts file</value></data>
+  <data name="Shell_HostsImported" xml:space="preserve"><value>Imported {0} into the hosts file</value></data>
+  <data name="Shell_ExportHostsTitle" xml:space="preserve"><value>Export hosts file</value></data>
+  <data name="Shell_ActionExportHosts" xml:space="preserve"><value>Export hosts file</value></data>
+  <data name="Shell_HostsExported" xml:space="preserve"><value>Hosts file exported to {0}</value></data>
+  <data name="Shell_WriteFailed" xml:space="preserve"><value>Couldn't write {0}: {1}</value></data>
+  <data name="Shell_ExportDomainsTitle" xml:space="preserve"><value>Export managed domains</value></data>
+  <data name="Shell_ActionExportDomains" xml:space="preserve"><value>Export managed domains</value></data>
+  <data name="Shell_DomainsExported" xml:space="preserve"><value>Exported {0} domain(s) to {1}</value></data>
+  <data name="Shell_ExportPolicyTitle" xml:space="preserve"><value>Export policy</value></data>
+  <data name="Shell_ActionExportPolicy" xml:space="preserve"><value>Export policy</value></data>
+  <data name="Shell_PolicyExported" xml:space="preserve"><value>Policy exported to {0}</value></data>
+  <data name="Shell_ImportPolicyTitle" xml:space="preserve"><value>Import policy</value></data>
+  <data name="Shell_ActionImportPolicy" xml:space="preserve"><value>Import policy</value></data>
+  <data name="Shell_ImportPolicyConfirm" xml:space="preserve"><value>Create a restore checkpoint and apply this policy?</value></data>
+  <data name="Shell_PolicyImportCancelled" xml:space="preserve"><value>Policy import cancelled after preview</value></data>
+  <data name="Shell_PolicyImported" xml:space="preserve"><value>Policy imported - checkpoint {0}; {1}</value></data>
+  <data name="Shell_ActionRestorePolicy" xml:space="preserve"><value>Restore policy checkpoint</value></data>
+  <data name="Shell_RestorePolicyTitle" xml:space="preserve"><value>Restore policy checkpoint</value></data>
+  <data name="Shell_RestorePolicyMessage" xml:space="preserve"><value>Restore the latest policy-import checkpoint and reconcile domains, firewall rules, schedules, profiles, and subscriptions?</value></data>
+  <data name="Shell_PolicyRestored" xml:space="preserve"><value>Policy checkpoint restored - {0}</value></data>
+  <data name="Shell_SystemDefault" xml:space="preserve"><value>System default</value></data>
+  <data name="Shell_LanguageSet" xml:space="preserve"><value>Language set to {0} - restart HostsGuard to apply.</value></data>
+  <data name="Shell_ViewReset" xml:space="preserve"><value>View reset to defaults</value></data>
+  <data name="Shell_AllRefreshed" xml:space="preserve"><value>All visible surfaces refreshed</value></data>
+  <data name="Shell_DiagnosticsUnavailable" xml:space="preserve"><value>Diagnostics unavailable - service is not connected</value></data>
+  <data name="Shell_ActionDiagnostics" xml:space="preserve"><value>Run diagnostics</value></data>
+  <data name="Shell_DiagnosticsOk" xml:space="preserve"><value>Diagnostics OK - service v{0}, uptime {1} min, DNS {2}, connections {3}</value></data>
+  <data name="Common_On" xml:space="preserve"><value>on</value></data>
+  <data name="Common_Off" xml:space="preserve"><value>off</value></data>
+  <data name="Shell_CheckingUpdates" xml:space="preserve"><value>Checking GitHub releases...</value></data>
+  <data name="Shell_UpdateFailed" xml:space="preserve"><value>Update check failed: {0}</value></data>
+  <data name="Shell_NotifyDescription" xml:space="preserve"><value>Notify - prompt on new outbound connections</value></data>
+  <data name="Shell_LearningTimed" xml:space="preserve"><value>Learning - auto-allow and record ({0} min left, then locks)</value></data>
+  <data name="Shell_LearningDescription" xml:space="preserve"><value>Learning - auto-allow and record for review</value></data>
+  <data name="Shell_NormalDescription" xml:space="preserve"><value>Normal - enforce existing policy silently</value></data>
+  <data name="Shell_DefaultDenyArmed" xml:space="preserve"><value>{0} (default-deny armed)</value></data>
+  <data name="Shell_HostsFirewallActive" xml:space="preserve"><value>Hosts and firewall enforcement active.</value></data>
+  <data name="Shell_PauseSuspended" xml:space="preserve"><value>Pause suspended by VPN kill-switch</value></data>
+  <data name="Shell_EnforcementPaused" xml:space="preserve"><value>Hosts and outbound enforcement paused</value></data>
+  <data name="Shell_PauseResumes" xml:space="preserve"><value>{0} - resumes in {1} min.</value></data>
+  <data name="Adoption_Checking" xml:space="preserve"><value>Checking manual-edit adoption…</value></data>
+  <data name="Adoption_ActionLoad" xml:space="preserve"><value>Load manual-edit adoption</value></data>
+  <data name="Adoption_AllAdopted" xml:space="preserve"><value>all hosts entries adopted</value></data>
+  <data name="Adoption_Backlog" xml:space="preserve"><value>{0} hand-added entries not yet imported</value></data>
+  <data name="Adoption_Status" xml:space="preserve"><value>Auto-adopt {0} · {1}</value></data>
+  <data name="Adoption_LastRunSuffix" xml:space="preserve"><value> · last run {0} ({1})</value></data>
+  <data name="Adoption_ActionSave" xml:space="preserve"><value>Save manual-edit adoption</value></data>
+  <data name="Adoption_ActionRun" xml:space="preserve"><value>Adopt manual hosts entries</value></data>
+  <data name="Adoption_Importing" xml:space="preserve"><value>Deduping, organizing, and importing hand-added hosts entries…</value></data>
+  <data name="Recovery_StatusHint" xml:space="preserve"><value>Create a hashed recovery point for the database, hosts state, and non-secret service settings.</value></data>
+  <data name="Recovery_SelectHint" xml:space="preserve"><value>Select a snapshot, then preview its verified changes before restoring.</value></data>
+  <data name="Recovery_PreviewRequired" xml:space="preserve"><value>Preview required before restore.</value></data>
+  <data name="Recovery_ActionCreate" xml:space="preserve"><value>Create full-state snapshot</value></data>
+  <data name="Recovery_Created" xml:space="preserve"><value>Verified snapshot created: {0} · {1}</value></data>
+  <data name="Recovery_VerificationFailed" xml:space="preserve"><value>Snapshot verification failed: {0}</value></data>
+  <data name="Recovery_ActionLoad" xml:space="preserve"><value>Load full-state snapshots</value></data>
+  <data name="Recovery_None" xml:space="preserve"><value>No full-state snapshots yet.</value></data>
+  <data name="Recovery_Count" xml:space="preserve"><value>{0} recovery point(s) available.</value></data>
+  <data name="Recovery_ActionPreview" xml:space="preserve"><value>Preview full-state restore</value></data>
+  <data name="Recovery_NoDifferences" xml:space="preserve"><value>No state differences.</value></data>
+  <data name="Recovery_PreviewDetails" xml:space="preserve"><value>Verified SHA-256: {0}{3}Target: HostsGuard {1}, schema {2}{3}{4}</value></data>
+  <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Preview this snapshot again before restoring.</value></data>
+  <data name="Recovery_ActionRestore" xml:space="preserve"><value>Restore full-state snapshot</value></data>
+  <data name="Ai_Checking" xml:space="preserve"><value>Checking AI configuration…</value></data>
+  <data name="Ai_ActionLoad" xml:space="preserve"><value>Load AI status</value></data>
+  <data name="Ai_NotConfigured" xml:space="preserve"><value>No DeepSeek API key stored — add one to categorize domains with AI.</value></data>
+  <data name="Ai_Configured" xml:space="preserve"><value>DeepSeek key stored · {0} · auto-categorize {1}</value></data>
+  <data name="Ai_LastRunSuffix" xml:space="preserve"><value> · last run {0} ({1})</value></data>
+  <data name="Ai_ActionSave" xml:space="preserve"><value>Save AI configuration</value></data>
+  <data name="Ai_ActionCategorize" xml:space="preserve"><value>Categorize domains with AI</value></data>
+  <data name="Ai_Categorizing" xml:space="preserve"><value>Asking DeepSeek to categorize uncategorized blocked domains…</value></data>
+  <data name="Ai_ActionExport" xml:space="preserve"><value>Export AI knowledge</value></data>
+  <data name="Ai_ExportFailed" xml:space="preserve"><value>Couldn't write the knowledge log: {0}</value></data>
+  <data name="Ai_Exported" xml:space="preserve"><value>AI knowledge exported to {0}</value></data>
+  <data name="Ai_Saved" xml:space="preserve"><value>Knowledge log saved: {0}</value></data>
+  <data name="AiKnowledge_StatusHint" xml:space="preserve"><value>Load what the AI has learned to review it.</value></data>
+  <data name="AiKnowledge_ActionLoad" xml:space="preserve"><value>Load AI knowledge</value></data>
+  <data name="AiKnowledge_NothingNew" xml:space="preserve"><value>Nothing new learned since your last review.</value></data>
+  <data name="AiKnowledge_None" xml:space="preserve"><value>The AI hasn't learned anything yet.</value></data>
+  <data name="AiKnowledge_Count" xml:space="preserve"><value>{0} learned entry(ies)</value></data>
+  <data name="AiKnowledge_LastReviewSuffix" xml:space="preserve"><value> · last review {0}</value></data>
+  <data name="AiKnowledge_NeverReviewedSuffix" xml:space="preserve"><value> · never reviewed</value></data>
+  <data name="AiKnowledge_ActionPromote" xml:space="preserve"><value>Promote AI knowledge</value></data>
+  <data name="AiKnowledge_ActionDiscard" xml:space="preserve"><value>Discard AI knowledge</value></data>
+  <data name="AiKnowledge_ActionMarkReviewed" xml:space="preserve"><value>Mark AI knowledge reviewed</value></data>
+  <data name="AiKnowledge_EnterDomain" xml:space="preserve"><value>Enter a domain to correct.</value></data>
+  <data name="AiKnowledge_ActionCorrect" xml:space="preserve"><value>Correct domain knowledge</value></data>
+  <data name="Shell_ConsentAuthExpired" xml:space="preserve"><value>Consent prompt stream authentication expired - reconnect to the service.</value></data>
+  <data name="Shell_ConsentRetry" xml:space="preserve"><value>Consent prompt stream disconnected - retrying...</value></data>
+  <data name="Blocklists_ErrorAt" xml:space="preserve"><value>{0} at {1}</value></data>
+  <data name="Blocklists_HealthNew" xml:space="preserve"><value>New</value></data>
+  <data name="Blocklists_HealthHealthy" xml:space="preserve"><value>Healthy</value></data>
+  <data name="Blocklists_HealthGuarded" xml:space="preserve"><value>Guarded</value></data>
+  <data name="Blocklists_HealthError" xml:space="preserve"><value>Error</value></data>
+  <data name="FwDecision_ActionLoadHistory" xml:space="preserve"><value>Load consent history</value></data>
+  <data name="FwDecision_ActionRedecide" xml:space="preserve"><value>{0} connection decision</value></data>
+  <data name="FwDecision_NoneLearned" xml:space="preserve"><value>No learning-mode decisions awaiting review.</value></data>
+  <data name="FwDecision_ActionLoadLearned" xml:space="preserve"><value>Load learned decisions</value></data>
+  <data name="FwDecision_LearnedCount" xml:space="preserve"><value>{0} auto-allowed app(s) awaiting review</value></data>
+  <data name="FwDecision_ActionReview" xml:space="preserve"><value>{0} learned decision</value></data>
+  <data name="Listener_NotScanned" xml:space="preserve"><value>Not scanned yet</value></data>
+  <data name="Listener_Scanning" xml:space="preserve"><value>Scanning local listeners and effective firewall coverage…</value></data>
+  <data name="Listener_None" xml:space="preserve"><value>No active TCP or UDP listeners found</value></data>
+  <data name="Listener_Count" xml:space="preserve"><value>{0} local listener(s) analyzed</value></data>
+  <data name="Listener_ActionScan" xml:space="preserve"><value>Scan listener exposure</value></data>
+  <data name="Recovery_RowLabel" xml:space="preserve"><value>{0} — {1} · {2:0.##} MB{3}</value></data>
+  <data name="Recovery_VerifiedSuffix" xml:space="preserve"><value> · verified</value></data>
+  <data name="Recovery_InvalidSuffix" xml:space="preserve"><value> · invalid</value></data>
+  <data name="DnsAdapter_RowLabel" xml:space="preserve"><value>{0}{1} — {2}</value></data>
+  <data name="DnsAdapter_VpnSuffix" xml:space="preserve"><value> · VPN/tunnel</value></data>
+  <data name="DnsAdapter_DhcpPosture" xml:space="preserve"><value>DHCP · effective {0}</value></data>
+  <data name="DnsAdapter_StaticPosture" xml:space="preserve"><value>Static {0} · effective {1}</value></data>
+  <data name="Vpn_AdapterUp" xml:space="preserve"><value>adapter up</value></data>
+  <data name="Vpn_AdapterDown" xml:space="preserve"><value>adapter down or absent</value></data>
+  <data name="Vpn_NoneActive" xml:space="preserve"><value>none active</value></data>
+  <data name="Tools_ActionFlushDns" xml:space="preserve"><value>Flush DNS cache</value></data>
+  <data name="DnsCache_StatusHint" xml:space="preserve"><value>Load DNS cache entries to verify what Windows is still resolving locally.</value></data>
+  <data name="DnsCache_ActionLoad" xml:space="preserve"><value>Load DNS cache</value></data>
+  <data name="DnsCache_SelectFirst" xml:space="preserve"><value>Select a cached DNS entry first.</value></data>
+  <data name="DnsCache_ActionFlushEntry" xml:space="preserve"><value>Flush DNS cache entry</value></data>
+  <data name="DnsCache_Status" xml:space="preserve"><value>{0}; HTTPS/SVCB: {1} HTTPS, {2} SVCB. Windows cache does not expose ECH SVCB parameters.</value></data>
+  <data name="SettingsLock_ActionLoad" xml:space="preserve"><value>Load settings lock state</value></data>
+  <data name="SettingsLock_TemporarilyUnlocked" xml:space="preserve"><value>Locked (temporarily unlocked)</value></data>
+  <data name="SettingsLock_Locked" xml:space="preserve"><value>Locked</value></data>
+  <data name="SettingsLock_NotLocked" xml:space="preserve"><value>Not locked</value></data>
+  <data name="SettingsLock_ActionEnable" xml:space="preserve"><value>Enable settings lock</value></data>
+  <data name="SettingsLock_ActionDisable" xml:space="preserve"><value>Disable settings lock</value></data>
+  <data name="SettingsLock_ActionUnlock" xml:space="preserve"><value>Unlock settings</value></data>
+  <data name="Tools_ActionProtectHosts" xml:space="preserve"><value>Protect hosts file</value></data>
+  <data name="Dns_ActionApplyResolver" xml:space="preserve"><value>Apply DNS resolver</value></data>
+  <data name="Dns_SelectAdapter" xml:space="preserve"><value>Select at least one DNS adapter. VPN/tunnel adapters are never changed implicitly.</value></data>
+  <data name="Dns_ActionLoadAdapters" xml:space="preserve"><value>Load DNS adapters</value></data>
+  <data name="Backup_ActionCreate" xml:space="preserve"><value>Back up hosts file</value></data>
+  <data name="Backup_Written" xml:space="preserve"><value>Backup written: {0}</value></data>
+  <data name="Backup_ActionLoad" xml:space="preserve"><value>Load hosts backups</value></data>
+  <data name="Backup_SelectFirst" xml:space="preserve"><value>Choose a backup before restoring.</value></data>
+  <data name="Backup_ActionRestore" xml:space="preserve"><value>Restore hosts backup</value></data>
+  <data name="Tools_ActionHardenAcl" xml:space="preserve"><value>Harden hosts ACL</value></data>
+  <data name="Support_ActionExport" xml:space="preserve"><value>Export support bundle</value></data>
+  <data name="Support_Exported" xml:space="preserve"><value>Support bundle: {0}</value></data>
+  <data name="Inspect_ActionDomain" xml:space="preserve"><value>Inspect domain</value></data>
+  <data name="Inspect_NoRecords" xml:space="preserve"><value>no records</value></data>
+  <data name="Inspect_EchSuffix" xml:space="preserve"><value> | ECH: {0} {1}</value></data>
+  <data name="Inspect_Result" xml:space="preserve"><value>{0} - {1} ({2} ms){3}</value></data>
+  <data name="Inspect_Blocked" xml:space="preserve"><value>BLOCKED</value></data>
+  <data name="Inspect_Reachable" xml:space="preserve"><value>reachable</value></data>
+  <data name="Defender_ActionLoad" xml:space="preserve"><value>Load Defender status</value></data>
+  <data name="Defender_NotAccessible" xml:space="preserve"><value>Defender: not accessible</value></data>
+  <data name="Defender_Excluded" xml:space="preserve"><value>Defender: hosts file is excluded</value></data>
+  <data name="Defender_RevertLikely" xml:space="preserve"><value>Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)</value></data>
+  <data name="Defender_NotExcluded" xml:space="preserve"><value>Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)</value></data>
+  <data name="Defender_ActionExclude" xml:space="preserve"><value>Add Defender exclusion</value></data>
+  <data name="ThreatIntel_ActionRefresh" xml:space="preserve"><value>Refresh threat intelligence</value></data>
+  <data name="ThreatIntel_Refreshing" xml:space="preserve"><value>Refreshing threat intelligence…</value></data>
+  <data name="GeoIp_ActionRefresh" xml:space="preserve"><value>Refresh GeoIP database</value></data>
+  <data name="GeoIp_Downloading" xml:space="preserve"><value>Downloading GeoIP database…</value></data>
+  <data name="Tools_ActionEmergencyReset" xml:space="preserve"><value>Emergency reset hosts file</value></data>
+  <data name="Profile_ActionLoad" xml:space="preserve"><value>Load network profiles</value></data>
+  <data name="Profile_Active" xml:space="preserve"><value>Active: {0}</value></data>
+  <data name="Profile_NoneActive" xml:space="preserve"><value>No active profile</value></data>
+  <data name="Profile_ActionSave" xml:space="preserve"><value>Save network profile</value></data>
+  <data name="Profile_ActionSwitch" xml:space="preserve"><value>Switch network profile</value></data>
+  <data name="Profile_ActionDelete" xml:space="preserve"><value>Delete network profile</value></data>
+  <data name="Ech_StatusHint" xml:space="preserve"><value>Load encrypted DNS status to review HTTPS/SVCB and ECH visibility.</value></data>
+  <data name="EncryptedDns_ActionLoad" xml:space="preserve"><value>Load encrypted DNS status</value></data>
+  <data name="EncryptedDns_DnrSuffix" xml:space="preserve"><value>; DNR on (network may auto-provision an encrypted resolver)</value></data>
+  <data name="EncryptedDns_IntelUpdated" xml:space="preserve"><value>DoH intelligence: {0} resolver IPs; {1}; updated {2}; {3}</value></data>
+  <data name="EncryptedDns_IntelBuiltin" xml:space="preserve"><value>DoH intelligence: {0} built-in resolver IPs; no refresh yet; {1}</value></data>
+  <data name="Ech_Unavailable" xml:space="preserve"><value>ECH posture unavailable.</value></data>
+  <data name="Ech_Posture" xml:space="preserve"><value>{0} {1}</value></data>
+  <data name="Visibility_ActionToggle" xml:space="preserve"><value>Toggle see-everything mode</value></data>
+  <data name="Visibility_Off" xml:space="preserve"><value>See-everything OFF — QUIC + DoH blocking removed</value></data>
+  <data name="Visibility_On" xml:space="preserve"><value>See-everything ON — browser DNS forced onto the OS resolver so the feed can see it</value></data>
+  <data name="Quic_ActionToggle" xml:space="preserve"><value>Toggle QUIC blocking</value></data>
+  <data name="Cname_ActionToggle" xml:space="preserve"><value>Toggle CNAME cloak detection</value></data>
+  <data name="Sni_ActionToggle" xml:space="preserve"><value>Toggle SNI capture</value></data>
+  <data name="Baseline_ActionApply" xml:space="preserve"><value>Apply baseline rules</value></data>
+  <data name="Trust_ActionLoadPublishers" xml:space="preserve"><value>Load trusted publishers</value></data>
+  <data name="Trust_ActionRemovePublisher" xml:space="preserve"><value>Remove trusted publisher</value></data>
+  <data name="Trust_ActionLoadFolders" xml:space="preserve"><value>Load trusted folders</value></data>
+  <data name="Trust_ActionRemoveFolder" xml:space="preserve"><value>Remove trusted folder</value></data>
+  <data name="SecureRules_ActionLoad" xml:space="preserve"><value>Load Secure Rules status</value></data>
+  <data name="SecureRules_On" xml:space="preserve"><value>Secure Rules ON — {0} HostsGuard rules protected</value></data>
+  <data name="SecureRules_Off" xml:space="preserve"><value>Secure Rules OFF — HostsGuard rules are not tamper-guarded</value></data>
+  <data name="SecureRules_ActionToggle" xml:space="preserve"><value>Toggle Secure Rules</value></data>
+  <data name="EncryptedDns_ActionToggle" xml:space="preserve"><value>Toggle encrypted DNS blocking</value></data>
+  <data name="EncryptedDns_ActionRefresh" xml:space="preserve"><value>Refresh encrypted DNS intelligence</value></data>
+  <data name="Lan_ActionLoad" xml:space="preserve"><value>Load LAN attack-surface controls</value></data>
+  <data name="Lan_ActionToggle" xml:space="preserve"><value>Toggle LAN attack-surface control</value></data>
+  <data name="Services_ActionLoad" xml:space="preserve"><value>Load blockable services</value></data>
+  <data name="Services_ActionToggle" xml:space="preserve"><value>Toggle blockable service</value></data>
+  <data name="Schedules_ActionLoad" xml:space="preserve"><value>Load schedules</value></data>
+  <data name="Schedules_ActionSave" xml:space="preserve"><value>Save schedules</value></data>
+  <data name="Common_NewLower" xml:space="preserve"><value>new</value></data>
+  <data name="Idn_ActionLoad" xml:space="preserve"><value>Load IDN homograph status</value></data>
+  <data name="Idn_ActionSet" xml:space="preserve"><value>Set IDN homograph alerts</value></data>
+  <data name="Common_Any" xml:space="preserve"><value>Any</value></data>
+  <data name="FwRules_ScopePackage" xml:space="preserve"><value>package</value></data>
+  <data name="FwRules_ScopeProgram" xml:space="preserve"><value>program</value></data>
+  <data name="FwRules_ScopeGlobal" xml:space="preserve"><value>global</value></data>
+  <data name="FwRules_OrphanedFlag" xml:space="preserve"><value>⚠ orphaned </value></data>
+  <data name="FwRules_DriftedFlag" xml:space="preserve"><value>⚠ drifted </value></data>
+  <data name="FwRules_AdoptedFlag" xml:space="preserve"><value>★ adopted</value></data>
+  <data name="FwRules_Adopted" xml:space="preserve"><value>adopted</value></data>
+  <data name="FwRules_System" xml:space="preserve"><value>system</value></data>
+  <data name="FwRules_ActionRefresh" xml:space="preserve"><value>Refresh firewall rules</value></data>
+  <data name="FwRules_Status" xml:space="preserve"><value>{0} rule(s) - {1} drift event(s)</value></data>
+  <data name="FwRules_ActionLoadGroups" xml:space="preserve"><value>Load rule groups</value></data>
+  <data name="FwRules_SelectHostsGuardRules" xml:space="preserve"><value>Select one or more HostsGuard (HG_) rules first</value></data>
+  <data name="FwRules_ActionAssignGroup" xml:space="preserve"><value>Assign firewall rule group</value></data>
+  <data name="FwRules_RemovedFromGroups" xml:space="preserve"><value>Removed {0} rules from groups</value></data>
+  <data name="FwRules_AssignedToGroup" xml:space="preserve"><value>Assigned {0} rules to '{1}'</value></data>
+  <data name="FwRules_ActionEnableGroup" xml:space="preserve"><value>Enable rule group</value></data>
+  <data name="FwRules_ActionDisableGroup" xml:space="preserve"><value>Disable rule group</value></data>
+  <data name="FwRules_SelectRule" xml:space="preserve"><value>Select a firewall rule first</value></data>
+  <data name="FwRules_ActionToggle" xml:space="preserve"><value>Toggle firewall rule</value></data>
+  <data name="FwRules_ActionDelete" xml:space="preserve"><value>Delete firewall rule</value></data>
+  <data name="FwRules_ActionDeleteSelected" xml:space="preserve"><value>Delete selected firewall rules</value></data>
+  <data name="FwRules_DeletedCount" xml:space="preserve"><value>Deleted {0} of {1} rules</value></data>
+  <data name="FwRules_SelectProgramRule" xml:space="preserve"><value>Select a program rule to rebind</value></data>
+  <data name="FwRules_ScanningReplacements" xml:space="preserve"><value>Scanning for replacement binaries…</value></data>
+  <data name="FwRules_ActionRebind" xml:space="preserve"><value>Rebind firewall rule</value></data>
+  <data name="FwRules_NoConfidentMatch" xml:space="preserve"><value>No confident match found — select the replacement for {0}</value></data>
+  <data name="FwRules_MultipleCandidates" xml:space="preserve"><value>Multiple candidates — select the replacement for {0}</value></data>
+  <data name="FwRules_RebindCancelled" xml:space="preserve"><value>Rebind cancelled</value></data>
+  <data name="FwRules_ActionImport" xml:space="preserve"><value>Import existing firewall rules</value></data>
+  <data name="FwRules_ActionCreate" xml:space="preserve"><value>Create firewall rule</value></data>
+  <data name="Dns_ResolverDhcpDefault" xml:space="preserve"><value>DHCP (default)</value></data>
+  <data name="FwActivity_WaitingLive" xml:space="preserve"><value>Waiting for live connections…</value></data>
+  <data name="FwActivity_NoActivity" xml:space="preserve"><value>No activity yet</value></data>
+  <data name="FwActivity_ExplainPrompt" xml:space="preserve"><value>Select a connection or enter a target to explain.</value></data>
+  <data name="FwPosture_TeardownOff" xml:space="preserve"><value>TCP teardown: off</value></data>
+  <data name="FwActivity_ResolvingAddress" xml:space="preserve"><value>Resolving {0} address…</value></data>
+  <data name="FwActivity_ResolvingAddresses" xml:space="preserve"><value>Resolving {0} addresses…</value></data>
+  <data name="FwActivity_ResolvedAddress" xml:space="preserve"><value>Resolved {0} of {1} address</value></data>
+  <data name="FwActivity_ResolvedAddresses" xml:space="preserve"><value>Resolved {0} of {1} addresses</value></data>
+  <data name="FwActivity_ActionResolveIps" xml:space="preserve"><value>Resolve remote IPs</value></data>
+  <data name="FwActivity_ActionIdentify" xml:space="preserve"><value>Identify connections</value></data>
+  <data name="FwActivity_AllIdentified" xml:space="preserve"><value>Every connection is already identified</value></data>
+  <data name="FwActivity_IdentifyingConnection" xml:space="preserve"><value>Asking DeepSeek about {0} connection…</value></data>
+  <data name="FwActivity_IdentifyingConnections" xml:space="preserve"><value>Asking DeepSeek about {0} connections…</value></data>
+  <data name="FwActivity_ExplainTargetRequired" xml:space="preserve"><value>Enter a domain, IP, process, or executable path to explain.</value></data>
+  <data name="FwActivity_SelectConnectionFirstPeriod" xml:space="preserve"><value>Select a connection first.</value></data>
+  <data name="FwActivity_DecisionSummary" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="FwActivity_ExplainUnavailable" xml:space="preserve"><value>Decision explanation failed — service unavailable</value></data>
+  <data name="FwActivity_ExplainReconnect" xml:space="preserve"><value>Reconnect from the status bar, then retry.</value></data>
+  <data name="FwActivity_LiveAuthExpired" xml:space="preserve"><value>Live feed authentication expired — reconnect to the service</value></data>
+  <data name="FwActivity_LiveDisconnected" xml:space="preserve"><value>Live feed disconnected — retrying</value></data>
+  <data name="FwActivity_ConnectionCount" xml:space="preserve"><value>{0} connection</value></data>
+  <data name="FwActivity_ConnectionCountPlural" xml:space="preserve"><value>{0} connections</value></data>
+  <data name="Common_UnknownParenthesized" xml:space="preserve"><value>(unknown)</value></data>
+  <data name="FwActivity_TimelineStatus" xml:space="preserve"><value>Top {0} app · last {1} min · peak {2}/min</value></data>
+  <data name="FwActivity_TimelineStatusPlural" xml:space="preserve"><value>Top {0} apps · last {1} min · peak {2}/min</value></data>
+  <data name="Common_SelectRowFirst" xml:space="preserve"><value>Select a row first</value></data>
+  <data name="FwActivity_ActionBlockRemoteIp" xml:space="preserve"><value>Block remote IP</value></data>
+  <data name="FwActivity_ActionCloseConnection" xml:space="preserve"><value>Close connection</value></data>
+  <data name="FwActivity_NoPid" xml:space="preserve"><value>No PID for this connection</value></data>
+  <data name="FwActivity_CannotResolveProgram" xml:space="preserve"><value>Cannot resolve program for PID {0}</value></data>
+  <data name="FwActivity_ActionBlockProcess" xml:space="preserve"><value>Block process</value></data>
+  <data name="FwActivity_ActionBlockSite" xml:space="preserve"><value>Block site</value></data>
+  <data name="FwActivity_BlockedInHosts" xml:space="preserve"><value>Blocked {0} in hosts</value></data>
+  <data name="FwActivity_NoBlockTarget" xml:space="preserve"><value>No site or address to block for this row</value></data>
+  <data name="FwActivity_NoDomainForFirewallRule" xml:space="preserve"><value>This row has no resolved domain for a domain firewall rule</value></data>
+  <data name="FwActivity_ActionBlockSiteForApp" xml:space="preserve"><value>Block site for this app</value></data>
+  <data name="FwActivity_NoDomainToAllow" xml:space="preserve"><value>This row has no resolved domain to allow</value></data>
+  <data name="FwActivity_ActionAllowSite" xml:space="preserve"><value>Allow site</value></data>
+  <data name="FwActivity_AllowedInHosts" xml:space="preserve"><value>Allowed {0} in hosts</value></data>
+  <data name="FwActivity_ActionBlockAppScope" xml:space="preserve"><value>Block app scope</value></data>
+  <data name="FwHistory_LoadPrompt" xml:space="preserve"><value>Click Load to show recorded connections.</value></data>
+  <data name="FwHistory_EventLoadPrompt" xml:space="preserve"><value>Click Load events to browse the persisted event ledger.</value></data>
+  <data name="Common_NotLoaded" xml:space="preserve"><value>Not loaded</value></data>
+  <data name="FwHistory_UsageLoadPrompt" xml:space="preserve"><value>Click Load usage to show daily app/domain data.</value></data>
+  <data name="FwHistory_QuotaLoadPrompt" xml:space="preserve"><value>Click Load quotas to show usage-budget alerts.</value></data>
+  <data name="FwHistory_ActionLoad" xml:space="preserve"><value>Load connection history</value></data>
+  <data name="FwHistory_RecordedConnectionCount" xml:space="preserve"><value>{0} recorded connection</value></data>
+  <data name="FwHistory_RecordedConnectionCountPlural" xml:space="preserve"><value>{0} recorded connections</value></data>
+  <data name="Common_MatchCount" xml:space="preserve"><value>{0} match</value></data>
+  <data name="Common_MatchCountPlural" xml:space="preserve"><value>{0} matches</value></data>
+  <data name="Common_DayCount" xml:space="preserve"><value>{0} day</value></data>
+  <data name="Common_DayCountPlural" xml:space="preserve"><value>{0} days</value></data>
+  <data name="FwHistory_CountStatus" xml:space="preserve"><value>{0} shown of {1} · offset {2} · retained {3}</value></data>
+  <data name="FwHistory_ActionLoadEvents" xml:space="preserve"><value>Load event log</value></data>
+  <data name="Common_EventCount" xml:space="preserve"><value>{0} event</value></data>
+  <data name="Common_EventCountPlural" xml:space="preserve"><value>{0} events</value></data>
+  <data name="FwHistory_EventCountStatus" xml:space="preserve"><value>{0} shown of {1} · offset {2}</value></data>
+  <data name="FwHistory_ActionSaveRetention" xml:space="preserve"><value>Save history retention</value></data>
+  <data name="FwHistory_ClearTitle" xml:space="preserve"><value>Clear connection history</value></data>
+  <data name="FwHistory_ClearMessage" xml:space="preserve"><value>Delete all retained connection-history rows? Event logs, hosts blocks, and firewall rules are unchanged.</value></data>
+  <data name="FwHistory_ActionClear" xml:space="preserve"><value>Clear connection history</value></data>
+  <data name="FwHistory_ExportRequiresLoad" xml:space="preserve"><value>Load history first — nothing to export.</value></data>
+  <data name="FwHistory_ExportCsvTitle" xml:space="preserve"><value>Export connection history (CSV)</value></data>
+  <data name="FileFilter_Csv" xml:space="preserve"><value>CSV files ({0})|{0}</value></data>
+  <data name="FwHistory_ExportedCsv" xml:space="preserve"><value>Exported {0} connection to {1}</value></data>
+  <data name="FwHistory_ExportedCsvPlural" xml:space="preserve"><value>Exported {0} connections to {1}</value></data>
+  <data name="Common_ExportFailed" xml:space="preserve"><value>Export failed: {0}</value></data>
+  <data name="FwHistory_ExportProfileTitle" xml:space="preserve"><value>Export traffic profile</value></data>
+  <data name="FileFilter_JsonCsv" xml:space="preserve"><value>JSON files ({0})|{0}|CSV files ({1})|{1}</value></data>
+  <data name="FwHistory_ActionExportProfile" xml:space="preserve"><value>Export traffic profile</value></data>
+  <data name="FwHistory_ExportedProfile" xml:space="preserve"><value>Exported redacted {0} traffic profile ({1}, {2}; no packet payloads) to {3}</value></data>
+  <data name="Csv_When" xml:space="preserve"><value>When</value></data>
+  <data name="Csv_Process" xml:space="preserve"><value>Process</value></data>
+  <data name="Csv_PID" xml:space="preserve"><value>PID</value></data>
+  <data name="Csv_Protocol" xml:space="preserve"><value>Protocol</value></data>
+  <data name="Csv_Host" xml:space="preserve"><value>Host</value></data>
+  <data name="Csv_Remote" xml:space="preserve"><value>Remote</value></data>
+  <data name="Csv_Port" xml:space="preserve"><value>Port</value></data>
+  <data name="Csv_Country" xml:space="preserve"><value>Country</value></data>
+  <data name="Csv_ASN" xml:space="preserve"><value>ASN</value></data>
+  <data name="Csv_Firewall" xml:space="preserve"><value>Firewall</value></data>
+  <data name="FwHistory_ActionLoadBandwidth" xml:space="preserve"><value>Load bandwidth timeline</value></data>
+  <data name="FwHistory_ActionLoadUsage" xml:space="preserve"><value>Load usage rollups</value></data>
+  <data name="FwHistory_UsageRowCount" xml:space="preserve"><value>{0} usage row</value></data>
+  <data name="FwHistory_UsageRowCountPlural" xml:space="preserve"><value>{0} usage rows</value></data>
+  <data name="FwHistory_UsageCountStatus" xml:space="preserve"><value>{0} shown · retained {1}</value></data>
+  <data name="FwHistory_ActionLoadQuotas" xml:space="preserve"><value>Load usage quotas</value></data>
+  <data name="FwHistory_QuotaCountStatus" xml:space="preserve"><value>{0} usage quota loaded</value></data>
+  <data name="FwHistory_QuotaCountStatusPlural" xml:space="preserve"><value>{0} usage quotas loaded</value></data>
+  <data name="FwHistory_QuotaTargetRequired" xml:space="preserve"><value>Enter app/domain scope and match before saving.</value></data>
+  <data name="FwHistory_QuotaLimitRequired" xml:space="preserve"><value>Enter a positive quota limit such as 500MB or 1GB.</value></data>
+  <data name="FwHistory_ActionSaveQuota" xml:space="preserve"><value>Save usage quota</value></data>
+  <data name="FwHistory_DeleteQuotaTitle" xml:space="preserve"><value>Delete usage quota</value></data>
+  <data name="FwHistory_DeleteQuotaMessage" xml:space="preserve"><value>Remove the {0} quota for {1}? Existing usage rollups are unchanged.</value></data>
+  <data name="FwHistory_ActionDeleteQuota" xml:space="preserve"><value>Delete usage quota</value></data>
+  <data name="FwHistory_ResetQuotaTitle" xml:space="preserve"><value>Reset usage quota history</value></data>
+  <data name="FwHistory_ResetQuotaMessage" xml:space="preserve"><value>Clear quota alert cursors so thresholds can alert again? Daily usage rollups remain intact.</value></data>
+  <data name="FwHistory_ActionResetQuota" xml:space="preserve"><value>Reset usage quota history</value></data>
+  <data name="FwHistory_ExportQuotaTitle" xml:space="preserve"><value>Export usage quota history (CSV)</value></data>
+  <data name="FileFilter_CsvJson" xml:space="preserve"><value>CSV files ({0})|{0}|JSON files ({1})|{1}</value></data>
+  <data name="FwHistory_ActionExportQuota" xml:space="preserve"><value>Export usage quota history</value></data>
+  <data name="FwHistory_ExportedQuota" xml:space="preserve"><value>Exported usage quota history to {0}</value></data>
+  <data name="FwHistory_NoTraffic" xml:space="preserve"><value>No traffic recorded yet</value></data>
+  <data name="FwHistory_CountersInactive" xml:space="preserve"><value>Byte counters inactive (service not elevated)</value></data>
+  <data name="FwHistory_BandwidthLegend" xml:space="preserve"><value>↑{0} ↓{1}</value></data>
+  <data name="FwHistory_BandwidthStatus" xml:space="preserve"><value>Top {0} app · last 60 min · peak {1}/min</value></data>
+  <data name="FwHistory_BandwidthStatusPlural" xml:space="preserve"><value>Top {0} apps · last 60 min · peak {1}/min</value></data>
+  <data name="FwRules_ActionLoadInterfaces" xml:space="preserve"><value>Load firewall interfaces</value></data>
+  <data name="FwRules_LocalPorts" xml:space="preserve"><value>local {0}</value></data>
+  <data name="FwRules_RemotePorts" xml:space="preserve"><value>remote {0}</value></data>
+  <data name="FwRules_AllPrograms" xml:space="preserve"><value>All programs</value></data>
+  <data name="FwRules_OriginConsent" xml:space="preserve"><value>consent</value></data>
+  <data name="FwRules_OriginLearning" xml:space="preserve"><value>learning</value></data>
+  <data name="FwRules_OriginBaseline" xml:space="preserve"><value>baseline</value></data>
+  <data name="FwRules_OriginChildAllow" xml:space="preserve"><value>child-allow</value></data>
+  <data name="FwRules_OriginTemporary" xml:space="preserve"><value>temporary</value></data>
+  <data name="FwRules_OriginDomain" xml:space="preserve"><value>domain</value></data>
+  <data name="FwRules_OriginPackage" xml:space="preserve"><value>package</value></data>
+  <data name="FwRules_OriginAppVpn" xml:space="preserve"><value>app VPN</value></data>
+  <data name="FwRules_OriginAppScope" xml:space="preserve"><value>app-scope</value></data>
+  <data name="FwRules_OriginDohBlock" xml:space="preserve"><value>DoH block</value></data>
+  <data name="FwRules_OriginQuicBlock" xml:space="preserve"><value>QUIC block</value></data>
+  <data name="FwRules_OriginLanHardening" xml:space="preserve"><value>LAN hardening</value></data>
+  <data name="FwRules_OriginManual" xml:space="preserve"><value>manual</value></data>
+  <data name="FwRules_GroupLabel" xml:space="preserve"><value>{0} ({1}/{2} on)</value></data>
+  <data name="FwRules_AssignGroupTitle" xml:space="preserve"><value>Assign to rule group</value></data>
+  <data name="FwRules_AssignGroupPrompt" xml:space="preserve"><value>Group name for {0} rule(s) (blank removes them from all groups):</value></data>
+  <data name="FwRules_DeleteTitle" xml:space="preserve"><value>Delete firewall rule</value></data>
+  <data name="FwRules_DeleteMessage" xml:space="preserve"><value>Delete firewall rule {0}? Connections covered only by this rule may be blocked or allowed differently.</value></data>
+  <data name="FwRules_DeleteManyTitle" xml:space="preserve"><value>Delete firewall rules</value></data>
+  <data name="FwRules_DeleteManyMessage" xml:space="preserve"><value>Delete {0} selected rules? Connections covered only by these rules may behave differently.</value></data>
+  <data name="FwRules_RebindTitle" xml:space="preserve"><value>Rebind firewall rule</value></data>
+  <data name="FwRules_RebindMessage" xml:space="preserve"><value>Re-target {0}{4}from: {1}{4}to: {2}{4}Confidence {3}/100 ({5}). The old executable path will no longer be covered.</value></data>
+  <data name="Backup_RestoreTitle" xml:space="preserve"><value>Restore hosts backup</value></data>
+  <data name="Backup_RestoreMessage" xml:space="preserve"><value>Replace the live hosts file with '{0}'? HostsGuard will write the selected backup immediately.</value></data>
+  <data name="Tools_EmergencyResetTitle" xml:space="preserve"><value>Emergency reset</value></data>
+  <data name="Tools_EmergencyResetMessage" xml:space="preserve"><value>Reset the hosts file to Windows defaults? This removes every HostsGuard hosts-file block immediately.</value></data>
+  <data name="Profile_DeleteTitle" xml:space="preserve"><value>Delete network profile</value></data>
+  <data name="Profile_DeleteMessage" xml:space="preserve"><value>Delete network profile '{0}'? Saved firewall and hosts policy snapshots for this profile will be removed.</value></data>
+  <data name="EncryptedDns_CacheRows" xml:space="preserve"><value>{0} HTTPS / {1} SVCB cache rows</value></data>
+  <data name="EncryptedDns_OnlyTitle" xml:space="preserve"><value>Encrypted-DNS-only system detected</value></data>
+  <data name="EncryptedDns_OnlyMessage" xml:space="preserve"><value>Your system is set to require encrypted DNS with no plaintext fallback. HostsGuard exempts your current resolver, but blocking encrypted DNS could break name resolution if your DNS server changes. Continue?</value></data>
+  <data name="Trust_RemovePublisherTitle" xml:space="preserve"><value>Remove trusted publisher</value></data>
+  <data name="Trust_RemovePublisherMessage" xml:space="preserve"><value>Stop auto-allowing software signed by "{0}"? Existing rules are unchanged.</value></data>
+  <data name="Trust_RemoveFolderTitle" xml:space="preserve"><value>Remove trusted folder</value></data>
+  <data name="Trust_RemoveFolderMessage" xml:space="preserve"><value>Stop auto-allowing software in "{0}"? Existing rules are unchanged.</value></data>
+  <data name="Services_BlockTitle" xml:space="preserve"><value>Block {0}</value></data>
+  <data name="Schedules_Count" xml:space="preserve"><value>{0} schedule(s)</value></data>
 </root>

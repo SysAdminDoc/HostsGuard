@@ -21,7 +21,7 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task LoadConsentHistoryAsync()
     {
-        await RunServiceActionAsync("Load consent history", async () =>
+        await RunServiceActionAsync(I18n.T("FwDecision_ActionLoadHistory", "Load consent history"), async () =>
         {
             var history = await _client.Consent.GetDecisionHistoryAsync(new HistoryRequest { Limit = 200 });
             ConsentHistory.Clear();
@@ -83,7 +83,7 @@ public sealed partial class FwActivityViewModel
             return;
         }
 
-        await RunServiceActionAsync($"{verdict} connection decision", async () =>
+        await RunServiceActionAsync(I18n.T("FwDecision_ActionRedecide", "{0} connection decision", verdict), async () =>
         {
             var ack = await _client.Consent.DecideAsync(new ConnectionDecision
             {
@@ -104,12 +104,12 @@ public sealed partial class FwActivityViewModel
     public ObservableCollection<LearnedRowViewModel> Learned { get; } = new();
 
     [ObservableProperty]
-    private string _learnedStatus = "No learning-mode decisions awaiting review.";
+    private string _learnedStatus = I18n.T("FwDecision_NoneLearned", "No learning-mode decisions awaiting review.");
 
     [RelayCommand]
     public async Task LoadLearnedAsync()
     {
-        await RunServiceActionAsync("Load learned decisions", s => LearnedStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwDecision_ActionLoadLearned", "Load learned decisions"), s => LearnedStatus = s, async () =>
         {
             var list = await _client.Consent.GetLearnedAsync(new Empty());
             Learned.Clear();
@@ -125,8 +125,8 @@ public sealed partial class FwActivityViewModel
             }
 
             LearnedStatus = Learned.Count == 0
-                ? "No learning-mode decisions awaiting review"
-                : $"{Plural.Of(Learned.Count, "auto-allowed app")} awaiting review";
+                ? I18n.T("FwDecision_NoneLearned", "No learning-mode decisions awaiting review.")
+                : I18n.T("FwDecision_LearnedCount", "{0} auto-allowed app(s) awaiting review", Learned.Count);
         });
     }
 
@@ -152,7 +152,7 @@ public sealed partial class FwActivityViewModel
             return;
         }
 
-        await RunServiceActionAsync($"{action} learned decision", s => LearnedStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwDecision_ActionReview", "{0} learned decision", action), s => LearnedStatus = s, async () =>
         {
             var request = new LearnedReviewRequest();
             foreach (var row in rows.Where(r => r is not null))

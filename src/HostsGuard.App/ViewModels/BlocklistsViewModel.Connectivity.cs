@@ -134,7 +134,7 @@ public sealed partial class BlocklistsViewModel
             return;
         }
 
-        await ServiceActionGuard.RunAsync("Recover Windows connectivity checks",
+        await ServiceActionGuard.RunAsync(I18n.T("Ncsi_ActionRecover", "Recover Windows connectivity checks"),
             status => ConnectivityWarningStatus = status,
             async () =>
             {

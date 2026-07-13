@@ -92,15 +92,15 @@ public sealed partial class FwRuleViewModel : ObservableObject
         get
         {
             var parts = new List<string>(2);
-            if (LocalPorts is not ("" or "Any")) parts.Add($"local {LocalPorts}");
-            if (RemotePortsForDisplay is not ("" or "Any")) parts.Add($"remote {RemotePortsForDisplay}");
-            return parts.Count == 0 ? "Any" : string.Join(" | ", parts);
+            if (LocalPorts is not ("" or "Any")) parts.Add(I18n.T("FwRules_LocalPorts", "local {0}", LocalPorts));
+            if (RemotePortsForDisplay is not ("" or "Any")) parts.Add(I18n.T("FwRules_RemotePorts", "remote {0}", RemotePortsForDisplay));
+            return parts.Count == 0 ? I18n.T("Common_Any", "Any") : string.Join(" | ", parts);
         }
     }
 
     public string TargetKind => PackageFamilyName.Length != 0 || PackageSid.Length != 0
-        ? "package"
-        : Program.Length != 0 ? "program" : "global";
+        ? I18n.T("FwRules_ScopePackage", "package")
+        : Program.Length != 0 ? I18n.T("FwRules_ScopeProgram", "program") : I18n.T("FwRules_ScopeGlobal", "global");
 
     public string PackageLabel => PackageDisplayName.Length != 0 && PackageFamilyName.Length != 0
         ? $"{PackageDisplayName} ({PackageFamilyName})"
@@ -108,20 +108,17 @@ public sealed partial class FwRuleViewModel : ObservableObject
         PackageFamilyName.Length != 0 ? PackageFamilyName :
         PackageSid.Length != 0 ? PackageSid : string.Empty;
 
-    public string Target => TargetKind switch
-    {
-        "package" => PackageLabel,
-        "program" => Program,
-        _ => "All programs",
-    };
+    public string Target => PackageFamilyName.Length != 0 || PackageSid.Length != 0
+        ? PackageLabel
+        : Program.Length != 0 ? Program : I18n.T("FwRules_AllPrograms", "All programs");
 
     [ObservableProperty]
     private string _remotePortsForDisplay = string.Empty;
 
-    public string Flags => (Orphaned ? "⚠ orphaned " : string.Empty)
-        + (Drifted ? "⚠ drifted " : string.Empty)
+    public string Flags => (Orphaned ? I18n.T("FwRules_OrphanedFlag", "⚠ orphaned ") : string.Empty)
+        + (Drifted ? I18n.T("FwRules_DriftedFlag", "⚠ drifted ") : string.Empty)
         + (!string.IsNullOrWhiteSpace(DriftStatus) ? $"{DriftStatus} " : string.Empty)
-        + (Adopted ? "★ adopted" : string.Empty);
+        + (Adopted ? I18n.T("FwRules_AdoptedFlag", "★ adopted") : string.Empty);
 
     /// <summary>
     /// Provenance (NET-118): why this rule exists, derived from its HG_ name
@@ -134,25 +131,25 @@ public sealed partial class FwRuleViewModel : ObservableObject
     {
         if (source != "hostsguard")
         {
-            return adopted ? "adopted" : "system";
+            return adopted ? I18n.T("FwRules_Adopted", "adopted") : I18n.T("FwRules_System", "system");
         }
 
         return name switch
         {
-            _ when name.StartsWith("HG_Consent_", StringComparison.Ordinal) => "consent",
-            _ when name.StartsWith("HG_Learn_", StringComparison.Ordinal) => "learning",
-            _ when name.StartsWith("HG_Base_", StringComparison.Ordinal) => "baseline",
-            _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => "child-allow",
-            _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => "temporary",
-            _ when name.StartsWith("HG_Domain_", StringComparison.Ordinal) => "domain",
-            _ when name.StartsWith("HG_Package_", StringComparison.Ordinal) => "package",
-            _ when name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) => "app VPN",
-            _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => "app-scope",
+            _ when name.StartsWith("HG_Consent_", StringComparison.Ordinal) => I18n.T("FwRules_OriginConsent", "consent"),
+            _ when name.StartsWith("HG_Learn_", StringComparison.Ordinal) => I18n.T("FwRules_OriginLearning", "learning"),
+            _ when name.StartsWith("HG_Base_", StringComparison.Ordinal) => I18n.T("FwRules_OriginBaseline", "baseline"),
+            _ when name.StartsWith("HG_Child_", StringComparison.Ordinal) => I18n.T("FwRules_OriginChildAllow", "child-allow"),
+            _ when name.StartsWith("HG_Once_", StringComparison.Ordinal) => I18n.T("FwRules_OriginTemporary", "temporary"),
+            _ when name.StartsWith("HG_Domain_", StringComparison.Ordinal) => I18n.T("FwRules_OriginDomain", "domain"),
+            _ when name.StartsWith("HG_Package_", StringComparison.Ordinal) => I18n.T("FwRules_OriginPackage", "package"),
+            _ when name.StartsWith("HG_VPNBind_", StringComparison.Ordinal) => I18n.T("FwRules_OriginAppVpn", "app VPN"),
+            _ when name.StartsWith("HG_Scope_", StringComparison.Ordinal) => I18n.T("FwRules_OriginAppScope", "app-scope"),
             _ when name.StartsWith("HG_DoH_", StringComparison.Ordinal)
-                || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => "DoH block",
-            _ when name.StartsWith("HG_QUIC_", StringComparison.Ordinal) => "QUIC block",
-            _ when name.StartsWith("HG_LAN_", StringComparison.Ordinal) => "LAN hardening",
-            _ => "manual",
+                || name.StartsWith("HG_DoT_", StringComparison.Ordinal) => I18n.T("FwRules_OriginDohBlock", "DoH block"),
+            _ when name.StartsWith("HG_QUIC_", StringComparison.Ordinal) => I18n.T("FwRules_OriginQuicBlock", "QUIC block"),
+            _ when name.StartsWith("HG_LAN_", StringComparison.Ordinal) => I18n.T("FwRules_OriginLanHardening", "LAN hardening"),
+            _ => I18n.T("FwRules_OriginManual", "manual"),
         };
     }
 
@@ -231,7 +228,7 @@ public sealed partial class RuleGroupViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Label))]
     private int _total;
 
-    public string Label => $"{Name} ({EnabledCount}/{Total} on)";
+    public string Label => I18n.T("FwRules_GroupLabel", "{0} ({1}/{2} on)", Name, EnabledCount, Total);
 }
 
 /// <summary>
@@ -261,7 +258,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
     private bool _driftOnly;
 
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = I18n.T("Status.Ready", "Ready");
 
     // Inline custom-rule form.
     [ObservableProperty]
@@ -342,7 +339,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 await Task.Delay(FilterDebounce, ct);
             }
 
-            await RunServiceActionAsync("Refresh firewall rules", RefreshCoreAsync);
+            await RunServiceActionAsync(I18n.T("FwRules_ActionRefresh", "Refresh firewall rules"), RefreshCoreAsync);
         }
         catch (OperationCanceledException)
         {
@@ -350,13 +347,13 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            StatusText = ServiceErrors.DescribeActionFailure("Refresh firewall rules", ex);
+            StatusText = ServiceErrors.DescribeActionFailure(I18n.T("FwRules_ActionRefresh", "Refresh firewall rules"), ex);
         }
     }
 
     [RelayCommand]
     public Task RefreshAsync()
-        => RunServiceActionAsync("Refresh firewall rules", RefreshCoreAsync);
+        => RunServiceActionAsync(I18n.T("FwRules_ActionRefresh", "Refresh firewall rules"), RefreshCoreAsync);
 
     private async Task RefreshCoreAsync()
     {
@@ -407,7 +404,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
         StatusText = driftCount == 0
             ? Plural.Of(Rules.Count, "rule")
-            : $"{Plural.Of(Rules.Count, "rule")} - {Plural.Of(driftCount, "drift event")}";
+            : I18n.T("FwRules_Status", "{0} rule(s) - {1} drift event(s)", Rules.Count, driftCount);
         await LoadRuleGroupsCoreAsync();
     }
 
@@ -415,7 +412,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
 
     [RelayCommand]
     public Task LoadRuleGroupsAsync()
-        => RunServiceActionAsync("Load rule groups", LoadRuleGroupsCoreAsync);
+        => RunServiceActionAsync(I18n.T("FwRules_ActionLoadGroups", "Load rule groups"), LoadRuleGroupsCoreAsync);
 
     private async Task LoadRuleGroupsCoreAsync()
     {
@@ -436,18 +433,18 @@ public sealed partial class FwRulesViewModel : ObservableObject
             .Select(r => r.Name).ToList() ?? new List<string>();
         if (names.Count == 0)
         {
-            StatusText = "Select one or more HostsGuard (HG_) rules first";
+            StatusText = I18n.T("FwRules_SelectHostsGuardRules", "Select one or more HostsGuard (HG_) rules first");
             return;
         }
 
-        var group = _prompt?.Ask("Assign to rule group",
-            $"Group name for {Plural.Of(names.Count, "rule")} (blank removes them from all groups):");
+        var group = _prompt?.Ask(I18n.T("FwRules_AssignGroupTitle", "Assign to rule group"),
+            I18n.T("FwRules_AssignGroupPrompt", "Group name for {0} rule(s) (blank removes them from all groups):", names.Count));
         if (group is null)
         {
             return;
         }
 
-        await RunServiceActionAsync("Assign firewall rule group", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionAssignGroup", "Assign firewall rule group"), async () =>
         {
             var assigned = 0;
             foreach (var name in names)
@@ -460,8 +457,8 @@ public sealed partial class FwRulesViewModel : ObservableObject
             }
 
             StatusText = group.Trim().Length == 0
-                ? $"Removed {assigned} rules from groups"
-                : $"Assigned {assigned} rules to '{group.Trim()}'";
+                ? I18n.T("FwRules_RemovedFromGroups", "Removed {0} rules from groups", assigned)
+                : I18n.T("FwRules_AssignedToGroup", "Assigned {0} rules to '{1}'", assigned, group.Trim());
             await LoadRuleGroupsCoreAsync();
         });
     }
@@ -479,7 +476,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync($"{(enabled ? "Enable" : "Disable")} rule group", async () =>
+        await RunServiceActionAsync(enabled
+            ? I18n.T("FwRules_ActionEnableGroup", "Enable rule group")
+            : I18n.T("FwRules_ActionDisableGroup", "Disable rule group"), async () =>
         {
             var ack = await _client.Firewall.ToggleRuleGroupAsync(new RuleGroupToggle { Group = group.Name, Enabled = enabled });
             StatusText = ack.Message;
@@ -492,11 +491,11 @@ public sealed partial class FwRulesViewModel : ObservableObject
     {
         if (rule is null)
         {
-            StatusText = "Select a firewall rule first";
+            StatusText = I18n.T("FwRules_SelectRule", "Select a firewall rule first");
             return;
         }
 
-        await RunServiceActionAsync("Toggle firewall rule", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionToggle", "Toggle firewall rule"), async () =>
         {
             var ack = await _client.Firewall.SetRuleEnabledAsync(new RuleEnabledRequest { Name = rule.Name, Enabled = !rule.Enabled });
             StatusText = ack.Message;
@@ -507,13 +506,13 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand]
     public async Task DeleteRuleAsync(string name)
     {
-        if (!_confirm.Confirm("Delete firewall rule",
-            $"Delete firewall rule {name}? Connections covered only by this rule may be blocked or allowed differently."))
+        if (!_confirm.Confirm(I18n.T("FwRules_DeleteTitle", "Delete firewall rule"),
+            I18n.T("FwRules_DeleteMessage", "Delete firewall rule {0}? Connections covered only by this rule may be blocked or allowed differently.", name)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Delete firewall rule", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionDelete", "Delete firewall rule"), async () =>
         {
             var ack = await _client.Firewall.DeleteRuleAsync(new RuleNameRequest { Name = name });
             StatusText = ack.Message;
@@ -525,13 +524,13 @@ public sealed partial class FwRulesViewModel : ObservableObject
     public async Task DeleteSelectedAsync(IList? selected)
     {
         var names = selected?.OfType<FwRuleViewModel>().Select(r => r.Name).ToList() ?? new List<string>();
-        if (names.Count == 0 || !_confirm.Confirm("Delete firewall rules",
-            $"Delete {names.Count} selected rules? Connections covered only by these rules may behave differently."))
+        if (names.Count == 0 || !_confirm.Confirm(I18n.T("FwRules_DeleteManyTitle", "Delete firewall rules"),
+            I18n.T("FwRules_DeleteManyMessage", "Delete {0} selected rules? Connections covered only by these rules may behave differently.", names.Count)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Delete selected firewall rules", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionDeleteSelected", "Delete selected firewall rules"), async () =>
         {
             var deleted = 0;
             foreach (var name in names)
@@ -543,7 +542,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 }
             }
 
-            StatusText = $"Deleted {deleted} of {Plural.Of(names.Count, "rule")}";
+            StatusText = I18n.T("FwRules_DeletedCount", "Deleted {0} of {1} rules", deleted, names.Count);
             await RefreshCoreAsync();
         });
     }
@@ -558,12 +557,12 @@ public sealed partial class FwRulesViewModel : ObservableObject
     {
         if (rule is null || rule.Program.Length == 0)
         {
-            StatusText = "Select a program rule to rebind";
+            StatusText = I18n.T("FwRules_SelectProgramRule", "Select a program rule to rebind");
             return;
         }
 
-        StatusText = "Scanning for replacement binaries…";
-        await RunServiceActionAsync("Rebind firewall rule", async () =>
+        StatusText = I18n.T("FwRules_ScanningReplacements", "Scanning for replacement binaries…");
+        await RunServiceActionAsync(I18n.T("FwRules_ActionRebind", "Rebind firewall rule"), async () =>
         {
             var suggestions = await _client.Firewall.SuggestRebindAsync(new RuleNameRequest { Name = rule.Name });
 
@@ -571,9 +570,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
             if (suggestions.Candidates.Count != 0 && !suggestions.Ambiguous)
             {
                 var best = suggestions.Candidates[0];
-                if (_confirm.Confirm("Rebind firewall rule",
-                    $"Re-target {rule.Name}\nfrom: {suggestions.OldPath}\nto: {best.Path}\n" +
-                    $"Confidence {best.Score}/100 ({best.Reasons}). The old executable path will no longer be covered."))
+                if (_confirm.Confirm(I18n.T("FwRules_RebindTitle", "Rebind firewall rule"),
+                    I18n.T("FwRules_RebindMessage", "Re-target {0}{4}from: {1}{4}to: {2}{4}Confidence {3}/100 ({5}). The old executable path will no longer be covered.",
+                        rule.Name, suggestions.OldPath, best.Path, best.Score, Environment.NewLine, best.Reasons)))
                 {
                     target = best.Path;
                 }
@@ -582,14 +581,14 @@ public sealed partial class FwRulesViewModel : ObservableObject
             {
                 target = _filePicker?.PickFile(
                     suggestions.Candidates.Count == 0
-                        ? $"No confident match found — select the replacement for {rule.Name}"
-                        : $"Multiple candidates — select the replacement for {rule.Name}",
+                        ? I18n.T("FwRules_NoConfidentMatch", "No confident match found — select the replacement for {0}", rule.Name)
+                        : I18n.T("FwRules_MultipleCandidates", "Multiple candidates — select the replacement for {0}", rule.Name),
                     suggestions.Candidates.FirstOrDefault()?.Path ?? suggestions.OldPath);
             }
 
             if (target is null)
             {
-                StatusText = "Rebind cancelled";
+                StatusText = I18n.T("FwRules_RebindCancelled", "Rebind cancelled");
                 return;
             }
 
@@ -610,7 +609,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand]
     public async Task AdoptRulesAsync()
     {
-        await RunServiceActionAsync("Import existing firewall rules", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionImport", "Import existing firewall rules"), async () =>
         {
             var result = await _client.Firewall.AdoptFirewallRulesAsync(new Empty());
             StatusText = result.Message;
@@ -625,7 +624,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanCreateRule))]
     public async Task CreateRuleAsync()
     {
-        await RunServiceActionAsync("Create firewall rule", async () =>
+        await RunServiceActionAsync(I18n.T("FwRules_ActionCreate", "Create firewall rule"), async () =>
         {
             if (!string.IsNullOrWhiteSpace(NewRuleProgram) && !string.IsNullOrWhiteSpace(NewRulePackageFamily))
             {

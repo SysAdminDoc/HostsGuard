@@ -34,6 +34,7 @@ internal static class VisualSmokeRunner
         Window window,
         string outputDir,
         string theme,
+        string locale,
         int expectedWidth,
         int expectedHeight,
         int settleMs,
@@ -45,6 +46,7 @@ internal static class VisualSmokeRunner
         var result = new VisualSmokeResult
         {
             Theme = theme,
+            Locale = locale,
             ExpectedSize = $"{expectedWidth}x{expectedHeight}",
             ActualSize = $"{Math.Round(window.ActualWidth)}x{Math.Round(window.ActualHeight)}",
             OutputDir = Path.GetFullPath(outputDir),
@@ -78,6 +80,14 @@ internal static class VisualSmokeRunner
             foreach (var failure in FindUnexpectedHorizontalScrollbars(window, TabNames[i]))
             {
                 result.Failures.Add(failure);
+            }
+
+            if (IsPseudoLocale(locale))
+            {
+                foreach (var failure in FindPseudoLocaleLayoutFailures(window, TabNames[i]))
+                {
+                    result.Failures.Add(failure);
+                }
             }
 
             var fileName = $"{theme}-{Slug(TabNames[i])}.png";
@@ -220,6 +230,18 @@ internal static class VisualSmokeRunner
                     Path = path,
                     ActualSize = $"{Math.Round(dialogSurface.ActualWidth)}x{Math.Round(dialogSurface.ActualHeight)}",
                 });
+                if (IsPseudoLocale(result.Locale))
+                {
+                    foreach (var failure in FindPseudoLocaleLayoutFailures(dialog, $"{name} dialog"))
+                    {
+                        result.Failures.Add(failure);
+                    }
+
+                    if (dialogSurface.ActualWidth > owner.ActualWidth || dialogSurface.ActualHeight > owner.ActualHeight)
+                    {
+                        result.Failures.Add($"Pseudo-locale {name} dialog exceeded the main capture surface.");
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -251,6 +273,64 @@ internal static class VisualSmokeRunner
             }
         }
     }
+
+    internal static IEnumerable<string> FindPseudoLocaleLayoutFailures(DependencyObject root, string surfaceName)
+    {
+        var textBlocks = root is TextBlock rootText
+            ? FindDescendants<TextBlock>(root).Prepend(rootText)
+            : FindDescendants<TextBlock>(root);
+        foreach (var text in textBlocks.Where(text =>
+                     text.Visibility == Visibility.Visible &&
+                     text.ActualWidth > 0 && text.Text.Length != 0 &&
+                     text.TextWrapping == TextWrapping.NoWrap && text.TextTrimming == TextTrimming.None &&
+                     !HasVisualAncestor<DataGrid>(text)))
+        {
+            var dpi = VisualTreeHelper.GetDpi(text);
+            var formatted = new FormattedText(
+                text.Text,
+                System.Globalization.CultureInfo.CurrentUICulture,
+                text.FlowDirection,
+                new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch),
+                text.FontSize,
+                Brushes.Black,
+                dpi.PixelsPerDip);
+            var availableWidth = text.ActualWidth;
+            if (!double.IsNaN(text.Width))
+            {
+                availableWidth = Math.Min(availableWidth, text.Width);
+            }
+
+            if (!double.IsInfinity(text.MaxWidth))
+            {
+                availableWidth = Math.Min(availableWidth, text.MaxWidth);
+            }
+
+            if (formatted.WidthIncludingTrailingWhitespace > availableWidth + 2)
+            {
+                var label = text.Text.Length <= 60 ? text.Text : text.Text[..57] + "...";
+                yield return $"Pseudo-locale text clipped on {surfaceName}: '{label}'.";
+            }
+        }
+    }
+
+    private static bool HasVisualAncestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        for (var current = VisualTreeHelper.GetParent(element); current is not null;
+             current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPseudoLocale(string locale) =>
+        locale.Equals("qps-ploc", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Environment.GetEnvironmentVariable("HOSTSGUARD_PSEUDO_LOCALE"), "1", StringComparison.Ordinal);
 
     private static CaptureMetrics Capture(FrameworkElement surface, string path)
     {
@@ -449,6 +529,8 @@ internal static class VisualSmokeRunner
     private sealed class VisualSmokeResult
     {
         public string Theme { get; set; } = "";
+
+        public string Locale { get; set; } = "";
 
         public string ExpectedSize { get; set; } = "";
 

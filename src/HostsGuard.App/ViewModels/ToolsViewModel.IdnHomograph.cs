@@ -17,13 +17,13 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task LoadIdnHomographStatusAsync()
     {
-        await RunServiceActionAsync("Load IDN homograph status", s => IdnHomographStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("Idn_ActionLoad", "Load IDN homograph status"), s => IdnHomographStatus = s, async () =>
         {
             var status = await _client.Dns.GetIdnHomographStatusAsync(new Empty());
             IdnHomographEnabled = status.Enabled;
             IdnHomographStatus = status.Enabled
                 ? I18n.T("IdnHomograph_OnStatus",
-                    "Alert-only detection is on Â· {0} comparison targets Â· {1}. No automatic block is applied.",
+                    "Alert-only detection is on · {0} comparison targets · {1}. No automatic block is applied.",
                     status.CorpusSize, status.Standard)
                 : I18n.T("IdnHomograph_OffStatus",
                     "Off by default. When enabled, structured evidence appears in Alerts; no automatic block is applied.");
@@ -33,7 +33,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task ToggleIdnHomographAsync()
     {
-        await RunServiceActionAsync("Set IDN homograph alerts", s => IdnHomographStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("Idn_ActionSet", "Set IDN homograph alerts"), s => IdnHomographStatus = s, async () =>
         {
             var ack = await _client.Dns.SetIdnHomographAsync(new IdnHomographRequest
             {

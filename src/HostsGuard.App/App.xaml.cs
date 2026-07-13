@@ -44,7 +44,7 @@ public partial class App : Application
         config.Load();
         // Fix the UI culture before any window is built — the Loc markup extension
         // resolves at load time, so a language change applies on next launch (NET-098).
-        ApplyCulture(config.Language);
+        ApplyCulture(uiSmoke.LocaleOverride ?? config.Language);
         var theme = uiSmoke.ThemeOverride ?? config.Theme;
         _provider.GetRequiredService<ThemeManager>().Apply(theme);
 
@@ -85,6 +85,7 @@ public partial class App : Application
                 window,
                 uiSmoke.VisualSmokeOutputDir!,
                 theme,
+                System.Globalization.CultureInfo.CurrentUICulture.Name,
                 uiSmoke.Width,
                 uiSmoke.Height,
                 uiSmoke.SettleMs,
@@ -101,6 +102,7 @@ public partial class App : Application
     private sealed record UiSmokeOptions(
         bool Background,
         string? ThemeOverride,
+        string? LocaleOverride,
         int Width,
         int Height,
         int SettleMs,
@@ -110,6 +112,7 @@ public partial class App : Application
         {
             var background = false;
             string? theme = null;
+            string? locale = null;
             var width = 1600;
             var height = 1000;
             var settleMs = 1200;
@@ -127,6 +130,13 @@ public partial class App : Application
                 {
                     var value = arg["--theme=".Length..].Trim();
                     theme = string.Equals(value, "light", StringComparison.OrdinalIgnoreCase) ? "light" : "dark";
+                    continue;
+                }
+
+                if (arg.StartsWith("--locale=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = arg["--locale=".Length..].Trim();
+                    locale = value is "en" or "es" or "de" or "fr" or "qps-ploc" ? value : null;
                     continue;
                 }
 
@@ -163,7 +173,7 @@ public partial class App : Application
                 }
             }
 
-            return new UiSmokeOptions(background, theme, width, height, settleMs, visualSmokeOutputDir);
+            return new UiSmokeOptions(background, theme, locale, width, height, settleMs, visualSmokeOutputDir);
         }
     }
 

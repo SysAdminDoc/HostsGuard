@@ -2,6 +2,28 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.88] - 2026-07-12
+
+### Changed
+- The language menu now binds one canonical system/en/es/de/fr source, so all
+  four shipped locales are selectable. Menus, dialogs, critical recovery
+  surfaces, and runtime Hosts/Alerts/Blocklists/Firewall/Tools status, prompt,
+  row, and error text now route through neutral resources instead of bypassing
+  localization.
+- Translation coverage is measured against the used surface: each es/de/fr
+  satellite currently translates 408 of 1,633 keys (25.0%), while critical
+  shell/menu/dialog/recovery keys are complete and untranslated keys fall back
+  explicitly to English. Tests reject coverage regression, missing keys,
+  hard-coded runtime status/action text, and UTF-8 mojibake.
+- Offscreen visual smoke adds a pseudo-locale run and fails untrimmed clipped
+  text across tabs and dialogs without activating the desktop.
+- A deterministic pairwise render matrix now writes 67 background PNGs across
+  empty, populated, loading, disconnected, and error states; dark, light, and
+  simulated High Contrast; 90/100/125/150% scale; compact/default sizes; every
+  primary tab, nested Hosts tab, and top-level Tools card. It gates logical
+  focus, live regions, accessible names, grid headers, WCAG primary contrast,
+  clipping, nonblank pixel detail, and capture completeness.
+
 ## [0.12.87] - 2026-07-12
 
 ### Added

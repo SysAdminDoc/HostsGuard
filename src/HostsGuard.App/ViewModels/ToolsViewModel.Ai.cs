@@ -20,11 +20,11 @@ public sealed partial class ToolsViewModel
     private bool _aiEnabled;
 
     [ObservableProperty]
-    private string _aiStatusText = "Checking AI configuration…";
+    private string _aiStatusText = I18n.T("Ai_Checking", "Checking AI configuration…");
 
     public async Task LoadAiStatusAsync()
     {
-        await RunServiceActionAsync("Load AI status", s => AiStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Ai_ActionLoad", "Load AI status"), s => AiStatusText = s, async () =>
         {
             var status = await _client.Hosts.GetAiStatusAsync(new Empty());
             AiEnabled = status.Enabled;
@@ -34,16 +34,17 @@ public sealed partial class ToolsViewModel
             }
 
             AiStatusText = !status.Configured
-                ? "No DeepSeek API key stored — add one to categorize domains with AI."
-                : $"DeepSeek key stored · {status.Model} · auto-categorize {(status.Enabled ? "on" : "off")}"
-                  + (status.LastRun.Length != 0 ? $" · last run {TimeText.Compact(status.LastRun)} ({status.LastResult})" : string.Empty);
+                ? I18n.T("Ai_NotConfigured", "No DeepSeek API key stored — add one to categorize domains with AI.")
+                : I18n.T("Ai_Configured", "DeepSeek key stored · {0} · auto-categorize {1}", status.Model,
+                    status.Enabled ? I18n.T("Common_OnLower", "on") : I18n.T("Common_OffLower", "off"))
+                  + (status.LastRun.Length != 0 ? I18n.T("Ai_LastRunSuffix", " · last run {0} ({1})", TimeText.Compact(status.LastRun), status.LastResult) : string.Empty);
         });
     }
 
     [RelayCommand]
     public async Task SaveAiConfigAsync()
     {
-        await RunServiceActionAsync("Save AI configuration", s => AiStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Ai_ActionSave", "Save AI configuration"), s => AiStatusText = s, async () =>
         {
             var ack = await _client.Hosts.SetAiConfigAsync(new AiConfig
             {
@@ -61,9 +62,9 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task CategorizeAllAsync()
     {
-        await RunServiceActionAsync("Categorize domains with AI", s => AiStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Ai_ActionCategorize", "Categorize domains with AI"), s => AiStatusText = s, async () =>
         {
-            AiStatusText = "Asking DeepSeek to categorize uncategorized blocked domains...";
+            AiStatusText = I18n.T("Ai_Categorizing", "Asking DeepSeek to categorize uncategorized blocked domains…");
             var result = await _client.Hosts.CategorizeDomainsAsync(
                 new CategorizeRequest { AllUncategorized = true });
             StatusText = result.Message;
@@ -79,7 +80,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task ExportAiKnowledgeAsync()
     {
-        await RunServiceActionAsync("Export AI knowledge", s => AiStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Ai_ActionExport", "Export AI knowledge"), s => AiStatusText = s, async () =>
         {
             var payload = await _client.Hosts.ExportAiKnowledgeAsync(new Empty());
             var dir = System.IO.Path.Combine(
@@ -94,12 +95,12 @@ public sealed partial class ToolsViewModel
             {
                 // A file error must not reach the global handler, which would
                 // misreport it as a lost service connection.
-                StatusText = $"Couldn't write the knowledge log: {ex.Message}";
+                StatusText = I18n.T("Ai_ExportFailed", "Couldn't write the knowledge log: {0}", ex.Message);
                 return;
             }
 
-            StatusText = $"AI knowledge exported to {path}";
-            AiStatusText = $"Knowledge log saved: {path}";
+            StatusText = I18n.T("Ai_Exported", "AI knowledge exported to {0}", path);
+            AiStatusText = I18n.T("Ai_Saved", "Knowledge log saved: {0}", path);
         });
     }
 
@@ -111,7 +112,7 @@ public sealed partial class ToolsViewModel
     private bool _knowledgeOnlyNew = true;
 
     [ObservableProperty]
-    private string _knowledgeStatusText = "Load what the AI has learned to review it.";
+    private string _knowledgeStatusText = I18n.T("AiKnowledge_StatusHint", "Load what the AI has learned to review it.");
 
     // Inline "correct a domain" mini-form (the remembered correction path).
     [ObservableProperty]
@@ -128,7 +129,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task LoadKnowledgeAsync()
     {
-        await RunServiceActionAsync("Load AI knowledge", s => KnowledgeStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("AiKnowledge_ActionLoad", "Load AI knowledge"), s => KnowledgeStatusText = s, async () =>
         {
             var list = await _client.Hosts.ListAiKnowledgeAsync(new AiKnowledgeRequest { SinceLastReview = KnowledgeOnlyNew });
             Knowledge.Clear();
@@ -147,9 +148,13 @@ public sealed partial class ToolsViewModel
             }
 
             KnowledgeStatusText = Knowledge.Count == 0
-                ? (KnowledgeOnlyNew ? "Nothing new learned since your last review." : "The AI hasn't learned anything yet.")
-                : $"{Plural.Of(Knowledge.Count, "learned entry", "learned entries")}"
-                  + (list.LastReviewed.Length != 0 ? $" · last review {TimeText.Compact(list.LastReviewed)}" : " · never reviewed");
+                ? (KnowledgeOnlyNew
+                    ? I18n.T("AiKnowledge_NothingNew", "Nothing new learned since your last review.")
+                    : I18n.T("AiKnowledge_None", "The AI hasn't learned anything yet."))
+                : I18n.T("AiKnowledge_Count", "{0} learned entry(ies)", Knowledge.Count)
+                  + (list.LastReviewed.Length != 0
+                      ? I18n.T("AiKnowledge_LastReviewSuffix", " · last review {0}", TimeText.Compact(list.LastReviewed))
+                      : I18n.T("AiKnowledge_NeverReviewedSuffix", " · never reviewed"));
         });
     }
 
@@ -161,7 +166,7 @@ public sealed partial class ToolsViewModel
             return;
         }
 
-        await RunServiceActionAsync("Promote AI knowledge", s => KnowledgeStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("AiKnowledge_ActionPromote", "Promote AI knowledge"), s => KnowledgeStatusText = s, async () =>
         {
             var request = new KnowledgeReviewRequest();
             request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "promote", Value = row.EditValue });
@@ -179,7 +184,7 @@ public sealed partial class ToolsViewModel
             return;
         }
 
-        await RunServiceActionAsync("Discard AI knowledge", s => KnowledgeStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("AiKnowledge_ActionDiscard", "Discard AI knowledge"), s => KnowledgeStatusText = s, async () =>
         {
             var request = new KnowledgeReviewRequest();
             request.Actions.Add(new KnowledgeReviewAction { Kind = row.Kind, Key = row.Key, Action = "discard" });
@@ -192,7 +197,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task MarkKnowledgeReviewedAsync()
     {
-        await RunServiceActionAsync("Mark AI knowledge reviewed", s => KnowledgeStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("AiKnowledge_ActionMarkReviewed", "Mark AI knowledge reviewed"), s => KnowledgeStatusText = s, async () =>
         {
             var ack = await _client.Hosts.PromoteKnowledgeAsync(new KnowledgeReviewRequest { MarkReviewed = true });
             StatusText = ack.Message;
@@ -206,11 +211,11 @@ public sealed partial class ToolsViewModel
         var domain = CorrectDomain.Trim();
         if (domain.Length == 0)
         {
-            StatusText = "Enter a domain to correct.";
+            StatusText = I18n.T("AiKnowledge_EnterDomain", "Enter a domain to correct.");
             return;
         }
 
-        await RunServiceActionAsync("Correct domain knowledge", s => KnowledgeStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("AiKnowledge_ActionCorrect", "Correct domain knowledge"), s => KnowledgeStatusText = s, async () =>
         {
             var ack = await _client.Hosts.OverrideKnowledgeAsync(new KnowledgeOverrideRequest
             {

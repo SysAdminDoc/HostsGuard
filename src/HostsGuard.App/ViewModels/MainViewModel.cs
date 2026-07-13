@@ -93,7 +93,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _enforcementPauseSuspended;
 
     [ObservableProperty]
-    private string _enforcementPauseText = "Enforcement active.";
+    private string _enforcementPauseText = I18n.T("Shell_EnforcementActive", "Enforcement active.");
 
     /// <summary>Child-process auto-allow (NET-093): direct children inherit a trusted parent's allow.</summary>
     [ObservableProperty]
@@ -127,22 +127,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string AppVersion { get; } = typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
 
-    public string ConnectionStateTitle => IsConnected ? "Connected" : "Disconnected";
+    public string ConnectionStateTitle => IsConnected
+        ? I18n.T("Shell_Connected", "Connected")
+        : I18n.T("Shell_Disconnected", "Disconnected");
 
-    public string ThemeToggleText => Theme == "dark" ? "Light theme" : "Dark theme";
+    public string ThemeToggleText => Theme == "dark"
+        ? I18n.T("Shell_LightTheme", "Light theme")
+        : I18n.T("Shell_DarkTheme", "Dark theme");
 
     public static IReadOnlyList<int> UiScaleChoices => AppConfigStore.UiScaleChoices;
 
     public string FilteringModeTitle => FilteringMode switch
     {
-        "notify" => "Notify",
-        "learning" => "Learning",
-        _ => "Normal",
+        "notify" => I18n.T("Shell_ModeNotify", "Notify"),
+        "learning" => I18n.T("Shell_ModeLearning", "Learning"),
+        _ => I18n.T("Shell_ModeNormal", "Normal"),
     };
 
     public string EnforcementPauseTitle => EnforcementPauseActive
-        ? EnforcementPauseSuspended ? "Suspended" : "Paused"
-        : "Active";
+        ? EnforcementPauseSuspended ? I18n.T("Shell_Suspended", "Suspended") : I18n.T("Shell_Paused", "Paused")
+        : I18n.T("Shell_Active", "Active");
 
     [RelayCommand]
     public async Task ConnectAsync()
@@ -208,7 +212,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await LoadEnforcementPauseAsync();
             StartDecisionWatch();
             ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
-                + (status.Elevated ? " (elevated)" : string.Empty);
+                + (status.Elevated ? I18n.T("Shell_ElevatedSuffix", " (elevated)") : string.Empty);
         }
         catch (Exception ex)
         {
@@ -230,7 +234,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await RunServiceActionAsync("Load filtering mode", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionLoadFiltering", "Load filtering mode"), async () =>
         {
             var mode = await _client.Consent.GetModeAsync(new Empty());
             FilteringMode = mode.Mode;
@@ -260,7 +264,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SetChildInheritAsync(bool enabled)
     {
-        await RunServiceActionAsync("Set child-process inheritance", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionChildInheritance", "Set child-process inheritance"), async () =>
         {
             var ack = await _client!.Consent.SetChildInheritAsync(new ChildInheritRequest { Enabled = enabled });
             ConnectionText = ack.Message;
@@ -280,7 +284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SetInboundConsentAsync(bool enabled)
     {
-        await RunServiceActionAsync("Set inbound consent", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionInboundConsent", "Set inbound consent"), async () =>
         {
             var ack = await _client!.Consent.SetInboundConsentAsync(new InboundConsentRequest { Enabled = enabled });
             ConnectionText = ack.Message;
@@ -302,14 +306,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (mode is "notify" or "learning" && FilteringMode == "normal" &&
-            !_confirm.Confirm("Enable connection filtering",
-                $"Switch to {mode} mode? HostsGuard will set every firewall profile to default-deny " +
-                "until you return to Normal mode, then restore the prior posture."))
+            !_confirm.Confirm(I18n.T("Shell_EnableFilteringTitle", "Enable connection filtering"),
+                I18n.T("Shell_EnableFilteringMessage", "Switch to {0} mode? HostsGuard will set every firewall profile to default-deny until you return to Normal mode, then restore the prior posture.", mode)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Set filtering mode", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionSetFiltering", "Set filtering mode"), async () =>
         {
             var ack = await _client.Consent.SetModeAsync(new FilteringMode { Mode = mode, LearnMinutes = learnMinutes });
             ConnectionText = ack.Message;
@@ -331,13 +334,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         if (mode == "block-all" &&
-            !_confirm.Confirm("Block all outbound",
-                "Block new outbound traffic on every firewall profile unless an allow rule already covers it?"))
+            !_confirm.Confirm(I18n.T("Shell_BlockAllTitle", "Block all outbound"),
+                I18n.T("Shell_BlockAllMessage", "Block new outbound traffic on every firewall profile unless an allow rule already covers it?")))
         {
             return;
         }
 
-        await RunServiceActionAsync("Set global outbound mode", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionGlobalMode", "Set global outbound mode"), async () =>
         {
             var ack = await _client.Firewall.SetGlobalModeAsync(new GlobalModeRequest { Mode = mode });
             ConnectionText = ack.Message;
@@ -355,7 +358,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await RunServiceActionAsync("Load enforcement pause", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionLoadPause", "Load enforcement pause"), async () =>
         {
             var status = await _client.Firewall.GetEnforcementPauseAsync(new Empty());
             EnforcementPauseActive = status.Active;
@@ -375,11 +378,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var minutesText = minutesValue?.ToString() ?? string.Empty;
         if (!int.TryParse(minutesText, out var minutes))
         {
-            ConnectionText = "Pause unavailable - invalid duration";
+            ConnectionText = I18n.T("Shell_PauseInvalid", "Pause unavailable - invalid duration");
             return;
         }
 
-        await RunServiceActionAsync("Pause enforcement", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionPause", "Pause enforcement"), async () =>
         {
             var ack = await _client.Firewall.PauseEnforcementAsync(new EnforcementPauseRequest { Minutes = minutes });
             ConnectionText = ack.Message;
@@ -396,11 +399,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_client is null)
         {
-            ConnectionText = "Safe posture unavailable - service is not connected";
+            ConnectionText = I18n.T("Shell_SafePostureUnavailable", "Safe posture unavailable - service is not connected");
             return;
         }
 
-        await RunServiceActionAsync("Restore safe network posture", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionSafePosture", "Restore safe network posture"), async () =>
         {
             var messages = new List<string>();
             var failures = 0;
@@ -417,36 +420,36 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
                 catch (RpcException ex)
                 {
-                    messages.Add($"{label}: failed ({ex.Status.Detail})");
+                    messages.Add(I18n.T("Shell_ApplyFailed", "{0}: failed ({1})", label, ex.Status.Detail));
                     failures++;
                 }
             }
 
-            await Apply("filtering mode", () => _client.Consent.SetModeAsync(
+            await Apply(I18n.T("Shell_LabelFiltering", "filtering mode"), () => _client.Consent.SetModeAsync(
                 new FilteringMode { Mode = "normal" }).ResponseAsync);
             try
             {
                 var killSwitch = await _client.Firewall.GetKillSwitchAsync(new Empty());
-                await Apply("VPN kill-switch", () => _client.Firewall.SetKillSwitchAsync(
+                await Apply(I18n.T("Shell_LabelKillSwitch", "VPN kill-switch"), () => _client.Firewall.SetKillSwitchAsync(
                     new KillSwitchRequest { Enabled = false, Adapter = killSwitch.Adapter }).ResponseAsync);
             }
             catch (RpcException ex)
             {
-                messages.Add($"VPN kill-switch: failed ({ex.Status.Detail})");
+                messages.Add(I18n.T("Shell_ApplyFailed", "{0}: failed ({1})", I18n.T("Shell_LabelKillSwitch", "VPN kill-switch"), ex.Status.Detail));
                 failures++;
             }
 
-            await Apply("global outbound", () => _client.Firewall.SetGlobalModeAsync(
+            await Apply(I18n.T("Shell_LabelGlobalOutbound", "global outbound"), () => _client.Firewall.SetGlobalModeAsync(
                 new GlobalModeRequest { Mode = "allow-all" }).ResponseAsync);
-            await Apply("default outbound", () => _client.Firewall.SetDefaultOutboundAsync(
+            await Apply(I18n.T("Shell_LabelDefaultOutbound", "default outbound"), () => _client.Firewall.SetDefaultOutboundAsync(
                 new OutboundRequest { Block = false }).ResponseAsync);
-            await Apply("encrypted DNS blocks", () => _client.Firewall.UnblockEncryptedDnsAsync(
+            await Apply(I18n.T("Shell_LabelEncryptedDns", "encrypted DNS blocks"), () => _client.Firewall.UnblockEncryptedDnsAsync(
                 new Empty()).ResponseAsync);
-            await Apply("QUIC block", () => _client.Firewall.UnblockQuicAsync(
+            await Apply(I18n.T("Shell_LabelQuic", "QUIC block"), () => _client.Firewall.UnblockQuicAsync(
                 new Empty()).ResponseAsync);
-            await Apply("CNAME-cloak blocking", () => _client.Dns.SetCnameCloakAsync(
+            await Apply(I18n.T("Shell_LabelCname", "CNAME-cloak blocking"), () => _client.Dns.SetCnameCloakAsync(
                 new CnameCloakRequest { Enabled = false }).ResponseAsync);
-            await Apply("TCP flow teardown", () => _client.Firewall.SetFlowTeardownAsync(
+            await Apply(I18n.T("Shell_LabelFlowTeardown", "TCP flow teardown"), () => _client.Firewall.SetFlowTeardownAsync(
                 new FlowTeardownRequest { Enabled = false }).ResponseAsync);
 
             await LoadFilteringModeAsync();
@@ -464,9 +467,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             var outcome = failures == 0
-                ? "Safe network posture restored"
-                : "Safe network posture restored with warnings";
-            ConnectionText = $"{outcome} - hosts-file blocks left unchanged. {string.Join("; ", messages)}";
+                ? I18n.T("Shell_SafePostureRestored", "Safe network posture restored")
+                : I18n.T("Shell_SafePostureWarnings", "Safe network posture restored with warnings");
+            ConnectionText = I18n.T("Shell_SafePostureResult", "{0} - hosts-file blocks left unchanged. {1}", outcome, string.Join("; ", messages));
         });
     }
 
@@ -532,11 +535,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
                     if (WatchRetry.IsAuthenticationFailure(ex))
                     {
-                        SetConnectionTextOnUi("Consent prompt stream authentication expired - reconnect to the service.");
+                        SetConnectionTextOnUi(I18n.T("Shell_ConsentAuthExpired", "Consent prompt stream authentication expired - reconnect to the service."));
                         break;
                     }
 
-                    SetConnectionTextOnUi("Consent prompt stream disconnected - retrying...");
+                    SetConnectionTextOnUi(I18n.T("Shell_ConsentRetry", "Consent prompt stream disconnected - retrying..."));
                 }
 
                 if (!ct.IsCancellationRequested)
@@ -600,7 +603,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            ConnectionText = ServiceErrors.DescribeActionFailure("Send connection decision", ex);
+            ConnectionText = ServiceErrors.DescribeActionFailure(I18n.T("Shell_ActionSendDecision", "Send connection decision"), ex);
             return false;
         }
     }
@@ -615,8 +618,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     // ─── File menu ────────────────────────────────────────────────────────────
 
-    private const string HostsFileFilter = "Hosts files (*.txt;hosts)|*.txt;hosts|All files (*.*)|*.*";
-    private const string JsonFilter = "JSON (*.json)|*.json|All files (*.*)|*.*";
+    private static string HostsFileFilter => I18n.T("Shell_HostsFileFilter", "Hosts files (*.txt;hosts)|*.txt;hosts|All files (*.*)|*.*");
+    private static string JsonFilter => I18n.T("Shell_JsonFileFilter", "JSON (*.json)|*.json|All files (*.*)|*.*");
     private const int MaxImportBytes = 10 * 1024 * 1024;
 
     /// <summary>Replace the live hosts file with a picked file (backs up first).</summary>
@@ -628,7 +631,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var path = _filePicker.PickFile("Import hosts file", filter: HostsFileFilter);
+        var path = _filePicker.PickFile(I18n.T("Shell_ImportHostsTitle", "Import hosts file"), filter: HostsFileFilter);
         if (path is null)
         {
             return;
@@ -637,12 +640,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var info = new FileInfo(path);
         if (!info.Exists || info.Length > MaxImportBytes)
         {
-            ConnectionText = "Import failed — the file is missing or over 10 MB";
+            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed - the file is missing or over 10 MB");
             return;
         }
 
-        if (!_confirm.Confirm("Import hosts file",
-            $"Replace the live hosts file with {Path.GetFileName(path)}? The current file is backed up first."))
+        if (!_confirm.Confirm(I18n.T("Shell_ImportHostsTitle", "Import hosts file"),
+            I18n.T("Shell_ImportHostsMessage", "Replace the live hosts file with {0}? The current file is backed up first.", Path.GetFileName(path))))
         {
             return;
         }
@@ -654,15 +657,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ConnectionText = $"Couldn't read {Path.GetFileName(path)}: {ex.Message}";
+            ConnectionText = I18n.T("Shell_ReadFailed", "Couldn't read {0}: {1}", Path.GetFileName(path), ex.Message);
             return;
         }
 
-        await RunServiceActionAsync("Import hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionImportHosts", "Import hosts file"), async () =>
         {
             await _client.Hosts.BackupHostsAsync(new Empty());
             var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = text });
-            ConnectionText = ack.Ok ? $"Imported {Path.GetFileName(path)} into the hosts file" : ack.Message;
+            ConnectionText = ack.Ok ? I18n.T("Shell_HostsImported", "Imported {0} into the hosts file", Path.GetFileName(path)) : ack.Message;
             if (ack.Ok)
             {
                 if (RawHosts is not null)
@@ -687,18 +690,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var path = _filePicker.SaveFile("Export hosts file", "hosts.txt", HostsFileFilter);
+        var path = _filePicker.SaveFile(I18n.T("Shell_ExportHostsTitle", "Export hosts file"), "hosts.txt", HostsFileFilter);
         if (path is null)
         {
             return;
         }
 
-        await RunServiceActionAsync("Export hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionExportHosts", "Export hosts file"), async () =>
         {
             var text = await _client.Hosts.GetHostsTextAsync(new Empty());
             if (await TryWriteFileAsync(path, text.Text))
             {
-                ConnectionText = $"Hosts file exported to {path}";
+                ConnectionText = I18n.T("Shell_HostsExported", "Hosts file exported to {0}", path);
             }
         });
     }
@@ -717,7 +720,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            ConnectionText = $"Couldn't write {Path.GetFileName(path)}: {ex.Message}";
+            ConnectionText = I18n.T("Shell_WriteFailed", "Couldn't write {0}: {1}", Path.GetFileName(path), ex.Message);
             return false;
         }
     }
@@ -731,13 +734,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var path = _filePicker.SaveFile("Export managed domains", "hostsguard_domains.json", JsonFilter);
+        var path = _filePicker.SaveFile(I18n.T("Shell_ExportDomainsTitle", "Export managed domains"), "hostsguard_domains.json", JsonFilter);
         if (path is null)
         {
             return;
         }
 
-        await RunServiceActionAsync("Export managed domains", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionExportDomains", "Export managed domains"), async () =>
         {
             var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest());
             var rows = list.Domains.Select(d => new
@@ -753,7 +756,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 rows, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             if (await TryWriteFileAsync(path, json))
             {
-                ConnectionText = $"Exported {Plural.Of(list.Domains.Count, "domain")} to {path}";
+                ConnectionText = I18n.T("Shell_DomainsExported", "Exported {0} domain(s) to {1}", list.Domains.Count, path);
             }
         });
     }
@@ -767,18 +770,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var path = _filePicker.SaveFile("Export policy", "hostsguard_policy.json", JsonFilter);
+        var path = _filePicker.SaveFile(I18n.T("Shell_ExportPolicyTitle", "Export policy"), "hostsguard_policy.json", JsonFilter);
         if (path is null)
         {
             return;
         }
 
-        await RunServiceActionAsync("Export policy", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionExportPolicy", "Export policy"), async () =>
         {
             var doc = await _client.Policy.ExportPolicyAsync(new Empty());
             if (await TryWriteFileAsync(path, doc.Json))
             {
-                ConnectionText = $"Policy exported to {path}";
+                ConnectionText = I18n.T("Shell_PolicyExported", "Policy exported to {0}", path);
             }
         });
     }
@@ -792,7 +795,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var path = _filePicker.PickFile("Import policy", filter: JsonFilter);
+        var path = _filePicker.PickFile(I18n.T("Shell_ImportPolicyTitle", "Import policy"), filter: JsonFilter);
         if (path is null)
         {
             return;
@@ -801,7 +804,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var info = new FileInfo(path);
         if (!info.Exists || info.Length > MaxImportBytes)
         {
-            ConnectionText = "Import failed — the file is missing or over 10 MB";
+            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed - the file is missing or over 10 MB");
             return;
         }
 
@@ -812,11 +815,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ConnectionText = $"Couldn't read {Path.GetFileName(path)}: {ex.Message}";
+            ConnectionText = I18n.T("Shell_ReadFailed", "Couldn't read {0}: {1}", Path.GetFileName(path), ex.Message);
             return;
         }
 
-        await RunServiceActionAsync("Import policy", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionImportPolicy", "Import policy"), async () =>
         {
             var preview = await _client.Policy.PreviewPolicyImportAsync(new ImportPolicyRequest { Json = json, Preview = true });
             if (!preview.Ok)
@@ -826,15 +829,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             var previewText = $"{preview.Message}\n\n" + string.Join("\n", preview.Summary.Take(8));
-            if (!_confirm.Confirm("Import policy", previewText + "\n\nCreate a restore checkpoint and apply this policy?"))
+            if (!_confirm.Confirm(I18n.T("Shell_ImportPolicyTitle", "Import policy"),
+                previewText + "\n\n" + I18n.T("Shell_ImportPolicyConfirm", "Create a restore checkpoint and apply this policy?")))
             {
-                ConnectionText = "Policy import cancelled after preview";
+                ConnectionText = I18n.T("Shell_PolicyImportCancelled", "Policy import cancelled after preview");
                 return;
             }
 
             var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
             ConnectionText = result.Ok
-                ? $"Policy imported - checkpoint {result.CheckpointId}; {string.Join("; ", result.Summary)}"
+                ? I18n.T("Shell_PolicyImported", "Policy imported - checkpoint {0}; {1}", result.CheckpointId, string.Join("; ", result.Summary))
                 : result.Message;
             if (result.Ok)
             {
@@ -855,16 +859,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await RunServiceActionAsync("Restore policy checkpoint", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionRestorePolicy", "Restore policy checkpoint"), async () =>
         {
-            if (!_confirm.Confirm("Restore policy checkpoint",
-                "Restore the latest policy-import checkpoint and reconcile domains, firewall rules, schedules, profiles, and subscriptions?"))
+            if (!_confirm.Confirm(I18n.T("Shell_RestorePolicyTitle", "Restore policy checkpoint"),
+                I18n.T("Shell_RestorePolicyMessage", "Restore the latest policy-import checkpoint and reconcile domains, firewall rules, schedules, profiles, and subscriptions?")))
             {
                 return;
             }
 
             var result = await _client.Policy.RestorePolicyCheckpointAsync(new Empty());
-            ConnectionText = result.Ok ? $"Policy checkpoint restored - {string.Join("; ", result.Summary)}" : result.Message;
+            ConnectionText = result.Ok ? I18n.T("Shell_PolicyRestored", "Policy checkpoint restored - {0}", string.Join("; ", result.Summary)) : result.Message;
             if (result.Ok)
             {
                 await RefreshAllAsync();
@@ -883,8 +887,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void SetLanguage(string? tag)
     {
         _config.SaveLanguage(tag ?? string.Empty);
-        var name = AppConfigStore.Languages.FirstOrDefault(l => l.Tag == (tag ?? string.Empty)).Name ?? "System default";
-        ConnectionText = $"Language set to {name} — restart HostsGuard to apply.";
+        var name = AppConfigStore.Languages.FirstOrDefault(l => l.Tag == (tag ?? string.Empty)).Name
+            ?? I18n.T("Shell_SystemDefault", "System default");
+        ConnectionText = I18n.T("Shell_LanguageSet", "Language set to {0} - restart HostsGuard to apply.", name);
     }
 
     /// <summary>Back to defaults: filters cleared, toggles reset, 100% scale.</summary>
@@ -904,7 +909,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (Hosts is not null)
         {
             Hosts.Filter = string.Empty;
-            Hosts.StatusFilter = "All";
+            Hosts.StatusFilter = HostsViewModel.AllStatusLabel;
         }
 
         if (FwActivity is not null)
@@ -923,7 +928,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         UiScalePct = 100;
-        ConnectionText = "View reset to defaults";
+        ConnectionText = I18n.T("Shell_ViewReset", "View reset to defaults");
     }
 
     /// <summary>Re-query every tab from the service.</summary>
@@ -995,7 +1000,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         await LoadEnforcementPauseAsync();
-        ConnectionText = "All visible surfaces refreshed";
+        ConnectionText = I18n.T("Shell_AllRefreshed", "All visible surfaces refreshed");
     }
 
     [RelayCommand]
@@ -1003,27 +1008,29 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_client is null)
         {
-            ConnectionText = "Diagnostics unavailable - service is not connected";
+            ConnectionText = I18n.T("Shell_DiagnosticsUnavailable", "Diagnostics unavailable - service is not connected");
             return;
         }
 
-        await RunServiceActionAsync("Run diagnostics", async () =>
+        await RunServiceActionAsync(I18n.T("Shell_ActionDiagnostics", "Run diagnostics"), async () =>
         {
             var status = await _client.Diagnostics.GetStatusAsync(new Empty());
             ServiceVersion = status.Version;
             HostsBlocked = status.HostsBlocked;
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
-            ConnectionText =
-                $"Diagnostics OK - service v{status.Version}, uptime {status.UptimeSeconds / 60} min, " +
-                $"DNS {(status.DnsMonitorActive ? "on" : "off")}, connections {(status.ConnectionMonitorActive ? "on" : "off")}";
+            ConnectionText = I18n.T("Shell_DiagnosticsOk",
+                "Diagnostics OK - service v{0}, uptime {1} min, DNS {2}, connections {3}",
+                status.Version, status.UptimeSeconds / 60,
+                status.DnsMonitorActive ? I18n.T("Common_On", "on") : I18n.T("Common_Off", "off"),
+                status.ConnectionMonitorActive ? I18n.T("Common_On", "on") : I18n.T("Common_Off", "off"));
         });
     }
 
     [RelayCommand]
     public async Task CheckForUpdatesAsync()
     {
-        ConnectionText = "Checking GitHub releases...";
+        ConnectionText = I18n.T("Shell_CheckingUpdates", "Checking GitHub releases...");
         try
         {
             var result = await _releaseUpdateChecker.CheckAsync(AppVersion);
@@ -1031,7 +1038,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            ConnectionText = $"Update check failed: {ex.Message}";
+            ConnectionText = I18n.T("Shell_UpdateFailed", "Update check failed: {0}", ex.Message);
         }
     }
 
@@ -1052,27 +1059,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var label = mode switch
         {
-            "notify" => "Notify - prompt on new outbound connections",
+            "notify" => I18n.T("Shell_NotifyDescription", "Notify - prompt on new outbound connections"),
             "learning" => learnMinutes > 0
-                ? $"Learning - auto-allow and record ({learnMinutes} min left, then locks)"
-                : "Learning - auto-allow and record for review",
-            _ => "Normal - enforce existing policy silently",
+                ? I18n.T("Shell_LearningTimed", "Learning - auto-allow and record ({0} min left, then locks)", learnMinutes)
+                : I18n.T("Shell_LearningDescription", "Learning - auto-allow and record for review"),
+            _ => I18n.T("Shell_NormalDescription", "Normal - enforce existing policy silently"),
         };
-        return armed ? $"{label} (default-deny armed)" : label;
+        return armed ? I18n.T("Shell_DefaultDenyArmed", "{0} (default-deny armed)", label) : label;
     }
 
     private static string DescribeEnforcementPause(EnforcementPauseStatus status)
     {
         if (!status.Active)
         {
-            return "Hosts and firewall enforcement active.";
+            return I18n.T("Shell_HostsFirewallActive", "Hosts and firewall enforcement active.");
         }
 
         var remaining = Math.Max(1, status.MinutesRemaining);
         var prefix = status.SuspendedByKillSwitch
-            ? "Pause suspended by VPN kill-switch"
-            : "Hosts and outbound enforcement paused";
-        return $"{prefix} - resumes in {remaining} min.";
+            ? I18n.T("Shell_PauseSuspended", "Pause suspended by VPN kill-switch")
+            : I18n.T("Shell_EnforcementPaused", "Hosts and outbound enforcement paused");
+        return I18n.T("Shell_PauseResumes", "{0} - resumes in {1} min.", prefix, remaining);
     }
 
     partial void OnUiScalePctChanged(int value)

@@ -11,7 +11,7 @@ public sealed partial class FwActivityViewModel
     /// <summary>Pull the current default-outbound posture from the service.</summary>
     public async Task LoadPostureAsync()
     {
-        await RunServiceActionAsync("Load firewall posture", s => PostureText = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwPosture_ActionLoad", "Load firewall posture"), s => PostureText = s, async () =>
         {
             var posture = await _client.Firewall.GetPostureAsync(new Empty());
             _suppressPostureWrite = true;
@@ -25,15 +25,17 @@ public sealed partial class FwActivityViewModel
             }
 
             PostureText = !posture.Available
-                ? "Firewall posture unavailable"
+                ? I18n.T("FwPosture_Unavailable", "Firewall posture unavailable")
                 : string.Join("  ", posture.Profiles.Select(p =>
-                    $"{p.Name}: {(p.Enabled ? "on" : "OFF")}/{(p.OutboundBlock ? "block" : "allow")}"));
+                    I18n.T("FwPosture_Profile", "{0}: {1}/{2}", p.Name,
+                        p.Enabled ? I18n.T("Common_OnLower", "on") : I18n.T("Common_OffUpper", "OFF"),
+                        p.OutboundBlock ? I18n.T("Common_BlockLower", "block") : I18n.T("Common_AllowLower", "allow"))));
         });
     }
 
     public async Task LoadFlowTeardownAsync()
     {
-        await RunServiceActionAsync("Load TCP teardown mode", s => FlowTeardownText = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwPosture_ActionLoadTeardown", "Load TCP teardown mode"), s => FlowTeardownText = s, async () =>
         {
             var status = await _client.Firewall.GetFlowTeardownAsync(new Empty());
             _suppressFlowTeardownWrite = true;
@@ -47,8 +49,9 @@ public sealed partial class FwActivityViewModel
             }
 
             FlowTeardownText = status.Available
-                ? $"TCP teardown: {(status.Enabled ? "on" : "off")} ({status.Limit})"
-                : "TCP teardown unavailable";
+                ? I18n.T("FwPosture_TeardownState", "TCP teardown: {0} ({1})",
+                    status.Enabled ? I18n.T("Common_OnLower", "on") : I18n.T("Common_OffLower", "off"), status.Limit)
+                : I18n.T("FwPosture_TeardownUnavailable", "TCP teardown unavailable");
         });
     }
 
@@ -77,7 +80,7 @@ public sealed partial class FwActivityViewModel
         }
         catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Apply TCP teardown mode", ex));
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure(I18n.T("FwPosture_ActionApplyTeardown", "Apply TCP teardown mode"), ex));
             _suppressFlowTeardownWrite = true;
             FlowTeardownEnabled = !enabled;
             _suppressFlowTeardownWrite = false;
@@ -96,8 +99,8 @@ public sealed partial class FwActivityViewModel
 
     private async Task ApplyLockdownAsync(bool enable)
     {
-        if (enable && !_confirm.Confirm("Enable lockdown",
-            "Block new outbound traffic on every firewall profile unless an allow rule already covers it?"))
+        if (enable && !_confirm.Confirm(I18n.T("FwPosture_ConfirmLockdownTitle", "Enable lockdown"),
+            I18n.T("FwPosture_ConfirmLockdownMessage", "Block new outbound traffic on every firewall profile unless an allow rule already covers it?")))
         {
             _suppressPostureWrite = true;
             Lockdown = false;
@@ -121,7 +124,7 @@ public sealed partial class FwActivityViewModel
         }
         catch (Exception ex) when (ex is RpcException || ServiceErrors.IsConnectivity(ex))
         {
-            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Apply lockdown posture", ex));
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure(I18n.T("FwPosture_ActionApplyLockdown", "Apply lockdown posture"), ex));
             _suppressPostureWrite = true;
             Lockdown = !enable;
             _suppressPostureWrite = false;

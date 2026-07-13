@@ -37,7 +37,7 @@ public sealed partial class FwActivityViewModel
     private bool _listenerLoadFailed;
 
     [ObservableProperty]
-    private string _listenerStatus = "Not scanned yet";
+    private string _listenerStatus = I18n.T("Listener_NotScanned", "Not scanned yet");
 
     public ICollectionView ListenerView
     {
@@ -94,7 +94,7 @@ public sealed partial class FwActivityViewModel
     {
         ListenersLoading = true;
         ListenerLoadFailed = false;
-        ListenerStatus = "Scanning local listeners and effective firewall coverageâ€¦";
+        ListenerStatus = I18n.T("Listener_Scanning", "Scanning local listeners and effective firewall coverage…");
         try
         {
             var response = await _client.Monitoring.ListListenersAsync(new Empty());
@@ -121,13 +121,13 @@ public sealed partial class FwActivityViewModel
             }
 
             ListenerStatus = rows.Count == 0
-                ? "No active TCP or UDP listeners found"
-                : $"{rows.Count} local listener{(rows.Count == 1 ? string.Empty : "s")} analyzed";
+                ? I18n.T("Listener_None", "No active TCP or UDP listeners found")
+                : I18n.T("Listener_Count", "{0} local listener(s) analyzed", rows.Count);
         }
         catch (Exception ex) when (ex is RpcException or IOException)
         {
             ListenerLoadFailed = true;
-            ListenerStatus = ServiceErrors.DescribeActionFailure("Scan listener exposure", ex);
+            ListenerStatus = ServiceErrors.DescribeActionFailure(I18n.T("Listener_ActionScan", "Scan listener exposure"), ex);
         }
         finally
         {

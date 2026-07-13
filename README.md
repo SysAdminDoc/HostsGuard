@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.87-blue)
+![Version](https://img.shields.io/badge/version-0.12.88-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -152,6 +152,8 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, and blocked inbound scans across distinct local ports |
+| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; each satellite currently translates 408 of 1,633 used keys (25.0%), with honest English fallback and a non-regression ratchet rather than a false completeness claim |
+| Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
 ### CLI
 
@@ -211,7 +213,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1389 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1399 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

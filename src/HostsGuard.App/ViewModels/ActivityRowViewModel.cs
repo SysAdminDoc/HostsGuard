@@ -61,7 +61,7 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     private bool _isNew;
 
     /// <summary>Compact "NEW" cue for the activity grid; "" for established domains.</summary>
-    public string NewText => IsNew ? "NEW" : string.Empty;
+    public string NewText => IsNew ? Services.I18n.T("Activity_New", "NEW") : string.Empty;
 
     private static string FormatBytes(long bytes)
     {
@@ -90,13 +90,13 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     public string BlocklistsText => Blocklists.Count switch
     {
         0 => string.Empty,
-        1 => "1 list",
-        var n => $"{n} lists",
+        1 => Services.I18n.T("Activity_OneList", "1 list"),
+        var n => Services.I18n.T("Activity_ManyLists", "{0} lists", n),
     };
 
     public string BlocklistsTip => Blocklists.Count == 0
         ? string.Empty
-        : "Blocked by: " + string.Join(", ", Blocklists);
+        : Services.I18n.T("Activity_BlockedBy", "Blocked by: {0}", string.Join(", ", Blocklists));
 
     /// <summary>Undecided domain the reference lists would block — a candidate.</summary>
     public bool IsBlockCandidate => Blocklists.Count > 0 && Status.Length == 0;
@@ -104,9 +104,9 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     /// <summary>Human status label for the dense activity grid.</summary>
     public string StatusText => Status.ToLowerInvariant() switch
     {
-        "allowed" => "Allowed",
-        "blocked" => "Blocked",
-        "" => "Observed",
+        "allowed" => Services.I18n.T("Common_Allowed", "Allowed"),
+        "blocked" => Services.I18n.T("Common_Blocked", "Blocked"),
+        "" => Services.I18n.T("Activity_Observed", "Observed"),
         var s => char.ToUpperInvariant(s[0]) + s[1..],
     };
 

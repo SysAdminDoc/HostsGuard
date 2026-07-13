@@ -18,7 +18,13 @@ namespace HostsGuard.App.ViewModels;
 [SupportedOSPlatform("windows")]
 public sealed partial class HostsViewModel : ObservableObject
 {
-    public static readonly IReadOnlyList<string> StatusFilters = new[] { "All", "blocked", "whitelisted" };
+    public static string AllStatusLabel => I18n.T("Common_All", "All");
+    public static readonly IReadOnlyList<string> StatusFilters = new[]
+    {
+        AllStatusLabel,
+        I18n.T("Common_Blocked", "Blocked"),
+        I18n.T("Hosts_Whitelisted", "Whitelisted"),
+    };
 
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
@@ -32,13 +38,13 @@ public sealed partial class HostsViewModel : ObservableObject
     private string _newDomain = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = I18n.T("Status.Ready", "Ready");
 
     [ObservableProperty]
     private string _filter = string.Empty;
 
     [ObservableProperty]
-    private string _statusFilter = "All";
+    private string _statusFilter = AllStatusLabel;
 
     public HostsViewModel(HostsServiceClient client, IConfirm confirm)
     {
@@ -68,7 +74,7 @@ public sealed partial class HostsViewModel : ObservableObject
                 await Task.Delay(FilterDebounce, ct);
             }
 
-            await RunServiceActionAsync("Refresh domains", RefreshCoreAsync);
+            await RunServiceActionAsync(I18n.T("Hosts_ActionRefresh", "Refresh domains"), RefreshCoreAsync);
         }
         catch (OperationCanceledException)
         {
@@ -76,20 +82,23 @@ public sealed partial class HostsViewModel : ObservableObject
         }
         catch (Exception ex) when (IsServiceFailure(ex))
         {
-            StatusText = ServiceFailureStatus("Refresh domains", ex);
+            StatusText = ServiceFailureStatus(I18n.T("Hosts_ActionRefresh", "Refresh domains"), ex);
         }
     }
 
     [RelayCommand]
     public Task RefreshAsync()
-        => RunServiceActionAsync("Refresh domains", RefreshCoreAsync);
+        => RunServiceActionAsync(I18n.T("Hosts_ActionRefresh", "Refresh domains"), RefreshCoreAsync);
 
     private async Task RefreshCoreAsync()
     {
         var list = await _client.Hosts.ListDomainsAsync(new ListDomainsRequest
         {
             Search = Filter,
-            Status = StatusFilter == "All" ? string.Empty : StatusFilter,
+            Status = StatusFilter == AllStatusLabel || StatusFilter.Equals("All", StringComparison.OrdinalIgnoreCase) ? string.Empty
+                : StatusFilter.Equals("blocked", StringComparison.OrdinalIgnoreCase) ||
+                  StatusFilter == I18n.T("Common_Blocked", "Blocked") ? "blocked"
+                : "whitelisted",
         });
         Domains.Clear();
         foreach (var d in list.Domains)
@@ -97,17 +106,17 @@ public sealed partial class HostsViewModel : ObservableObject
             Domains.Add(ManagedDomainViewModel.From(d));
         }
 
-        StatusText = Plural.Of(Domains.Count, "domain");
+        StatusText = I18n.T("Hosts_DomainCount", "{0} domain(s)", Domains.Count);
     }
 
     [RelayCommand(CanExecute = nameof(CanBlock))]
     public async Task BlockAsync()
     {
-        await RunServiceActionAsync("Block domain", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionBlock", "Block domain"), async () =>
         {
             var domain = NewDomain.Trim();
             var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = domain, Source = "manual" });
-            StatusText = ack.Ok ? $"Blocked {domain}" : ack.Message;
+            StatusText = ack.Ok ? I18n.T("Hosts_BlockedDomain", "Blocked {0}", domain) : ack.Message;
             if (ack.Ok)
             {
                 NewDomain = string.Empty;
@@ -123,7 +132,7 @@ public sealed partial class HostsViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(domain))
         {
-            StatusText = "Select a row first";
+            StatusText = I18n.T("Common_SelectRow", "Select a row first");
             return true;
         }
 
@@ -138,10 +147,10 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Allow domain", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionAllow", "Allow domain"), async () =>
         {
             var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = domain, Source = "manual" });
-            StatusText = ack.Ok ? $"Allowed {domain}" : ack.Message;
+            StatusText = ack.Ok ? I18n.T("Hosts_AllowedDomain", "Allowed {0}", domain) : ack.Message;
             await RefreshCoreAsync();
         });
     }
@@ -154,16 +163,16 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        if (!_confirm.Confirm("Remove managed domain",
-            $"Remove {domain} from managed domains? This stops HostsGuard from writing it to the hosts file."))
+        if (!_confirm.Confirm(I18n.T("Hosts_RemoveTitle", "Remove managed domain"),
+            I18n.T("Hosts_RemoveMessage", "Remove {0} from managed domains? This stops HostsGuard from writing it to the hosts file.", domain)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Remove domain", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionRemove", "Remove domain"), async () =>
         {
             await _client.Hosts.UnblockAsync(new DomainRequest { Domain = domain });
-            StatusText = $"Removed {domain}";
+            StatusText = I18n.T("Hosts_RemovedDomain", "Removed {0}", domain);
             await RefreshCoreAsync();
         });
     }
@@ -176,7 +185,7 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Block root domain", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionBlockRoot", "Block root domain"), async () =>
         {
             var ack = await _client.Hosts.BlockRootAsync(new DomainRequest { Domain = domain, Source = "manual" });
             StatusText = ack.Message;
@@ -196,12 +205,12 @@ public sealed partial class HostsViewModel : ObservableObject
         }
 
         // NET-105: one RPC + one hosts-file write for the whole selection.
-        await RunServiceActionAsync("Block selected domains", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionBlockSelected", "Block selected domains"), async () =>
         {
             var request = new BulkDomainsRequest { Source = "manual" };
             request.Domains.AddRange(domains);
             var result = await _client.Hosts.BlockManyAsync(request);
-            StatusText = result.Ok ? $"Blocked {Plural.Of(result.Total, "domain")} (+{result.Applied} new)" : result.Message;
+            StatusText = result.Ok ? I18n.T("Hosts_BlockedMany", "Blocked {0} domain(s) (+{1} new)", result.Total, result.Applied) : result.Message;
             await RefreshCoreAsync();
         });
     }
@@ -215,12 +224,12 @@ public sealed partial class HostsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Allow selected domains", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionAllowSelected", "Allow selected domains"), async () =>
         {
             var request = new BulkDomainsRequest { Source = "manual" };
             request.Domains.AddRange(domains);
             var result = await _client.Hosts.AllowManyAsync(request);
-            StatusText = result.Ok ? $"Allowed {Plural.Of(result.Total, "domain")}" : result.Message;
+            StatusText = result.Ok ? I18n.T("Hosts_AllowedMany", "Allowed {0} domain(s)", result.Total) : result.Message;
             await RefreshCoreAsync();
         });
     }
@@ -229,13 +238,13 @@ public sealed partial class HostsViewModel : ObservableObject
     public async Task RemoveSelectedAsync(IList? selected)
     {
         var domains = SelectedDomains(selected);
-        if (domains.Count == 0 || !_confirm.Confirm("Remove managed domains",
-            $"Remove {domains.Count} selected domains? HostsGuard will stop writing them to the hosts file."))
+        if (domains.Count == 0 || !_confirm.Confirm(I18n.T("Hosts_RemoveManyTitle", "Remove managed domains"),
+            I18n.T("Hosts_RemoveManyMessage", "Remove {0} selected domains? HostsGuard will stop writing them to the hosts file.", domains.Count)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Remove selected domains", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionRemoveSelected", "Remove selected domains"), async () =>
         {
             foreach (var domain in domains)
             {
@@ -253,9 +262,9 @@ public sealed partial class HostsViewModel : ObservableObject
     [RelayCommand]
     public async Task AiCategorizeAsync()
     {
-        await RunServiceActionAsync("Categorize hosts entries", async () =>
+        await RunServiceActionAsync(I18n.T("Hosts_ActionCategorize", "Categorize hosts entries"), async () =>
         {
-            StatusText = "Asking DeepSeek to categorize hosts-file entries…";
+            StatusText = I18n.T("Hosts_Categorizing", "Asking DeepSeek to categorize hosts-file entries...");
             var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
             StatusText = result.Message;
             if (result.Ok && result.Categorized > 0)

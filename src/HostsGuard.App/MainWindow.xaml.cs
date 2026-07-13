@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
@@ -13,6 +14,16 @@ namespace HostsGuard.App;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private void OnLanguageMenuClick(object sender, RoutedEventArgs e)
+    {
+        var item = e.OriginalSource as MenuItem ?? sender as MenuItem;
+        if (DataContext is MainViewModel vm && item?.DataContext is LanguageOption option)
+        {
+            vm.SetLanguage(option.Tag);
+            e.Handled = true;
+        }
+    }
+
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
     private bool _exiting;
@@ -222,6 +233,12 @@ public partial class MainWindow : Window
         }
 
         base.OnClosing(e);
+    }
+
+    internal void CloseForSmoke()
+    {
+        _exiting = true;
+        Close();
     }
 
     private void OnAbout(object sender, RoutedEventArgs e)

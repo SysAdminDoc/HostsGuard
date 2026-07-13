@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Resource Include="..\..\icon.ico" Link="Assets\icon.ico" />
+    <InternalsVisibleTo Include="HostsGuard.App.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -166,7 +166,7 @@ public sealed partial class FwRulesViewModel
     [RelayCommand]
     public async Task LoadInterfaceAliasesAsync()
     {
-        await ServiceActionGuard.RunAsync("Load firewall interfaces", s => InterfaceAliasStatus = s, async () =>
+        await ServiceActionGuard.RunAsync(I18n.T("FwRules_ActionLoadInterfaces", "Load firewall interfaces"), s => InterfaceAliasStatus = s, async () =>
         {
             var selected = SelectedInterfaceValue().Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

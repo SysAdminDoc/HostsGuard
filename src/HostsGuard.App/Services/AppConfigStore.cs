@@ -41,6 +41,16 @@ public sealed class AppConfigStore
         ("fr", "Français"),
     };
 
+    /// <summary>Canonical bound language menu shown by the shell.</summary>
+    public static readonly IReadOnlyList<LanguageOption> LanguageOptions = new[]
+    {
+        new LanguageOption("", "Language_System", "System default"),
+        new LanguageOption("en", "Language_English", "English"),
+        new LanguageOption("es", "Language_Spanish", "EspaÃ±ol"),
+        new LanguageOption("de", "Language_German", "Deutsch"),
+        new LanguageOption("fr", "Language_French", "FranÃ§ais"),
+    };
+
     /// <summary>Learning mode: surface trust prompts for unknown processes.</summary>
     public bool LearningMode { get; private set; }
 

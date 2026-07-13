@@ -87,7 +87,7 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
 
             if (License.Length != 0)
             {
-                parts.Add($"License: {License}");
+                parts.Add(I18n.T("Blocklists_License", "License: {0}", License));
             }
 
             if (Homepage.Length != 0)
@@ -100,13 +100,15 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     }
 
     public string Flags =>
-        (!Enabled && Subscribed ? "disabled " : string.Empty)
-        + (HealthStatus is "guarded" or "error" ? $"{HealthStatus} " : string.Empty)
-        + (RollbackCheckpointId > 0 ? "checkpoint " : string.Empty)
-        + (LargeListWarning ? "large " : string.Empty)
-        + (Mirror.Length != 0 ? "mirror" : string.Empty);
+        (!Enabled && Subscribed ? I18n.T("Common_Disabled", "Disabled") + " " : string.Empty)
+        + (HealthStatus is "guarded" or "error" ? HealthStatusText(HealthStatus) + " " : string.Empty)
+        + (RollbackCheckpointId > 0 ? I18n.T("Blocklists_Checkpoint", "Checkpoint") + " " : string.Empty)
+        + (LargeListWarning ? I18n.T("Blocklists_Large", "Large") + " " : string.Empty)
+        + (Mirror.Length != 0 ? I18n.T("Blocklists_Mirror", "Mirror") : string.Empty);
 
-    public string ToggleLabel => Enabled ? "Disable" : "Enable";
+    public string ToggleLabel => Enabled
+        ? I18n.T("Common_Disable", "Disable")
+        : I18n.T("Common_Enable", "Enable");
 
     public bool CanRollback => Subscribed && RollbackCheckpointId > 0;
 
@@ -114,26 +116,38 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     {
         get
         {
-            var status = string.IsNullOrWhiteSpace(HealthStatus) ? "new" : HealthStatus;
+            var status = HealthStatusText(string.IsNullOrWhiteSpace(HealthStatus) ? "new" : HealthStatus);
             var parts = new List<string> { status };
             if (PreviousDomainCount > 0)
             {
-                parts.Add($"previous {PreviousDomainCount:N0}");
+                parts.Add(I18n.T("Blocklists_PreviousCount", "previous {0:N0}", PreviousDomainCount));
             }
 
             if (LastAttemptDomainCount > 0 && LastAttemptDomainCount != DomainCount)
             {
-                parts.Add($"attempt {LastAttemptDomainCount:N0}");
+                parts.Add(I18n.T("Blocklists_AttemptCount", "attempt {0:N0}", LastAttemptDomainCount));
             }
 
             if (LastError.Length != 0)
             {
-                parts.Add(LastErrorAt.Length != 0 ? $"{LastError} at {TimeText.Compact(LastErrorAt)}" : LastError);
+                parts.Add(LastErrorAt.Length != 0
+                    ? I18n.T("Blocklists_ErrorAt", "{0} at {1}", LastError, TimeText.Compact(LastErrorAt))
+                    : LastError);
             }
 
             return string.Join(" - ", parts);
         }
     }
+
+    private static string HealthStatusText(string status) => status.ToLowerInvariant() switch
+    {
+        "new" => I18n.T("Blocklists_HealthNew", "New"),
+        "healthy" or "ok" => I18n.T("Blocklists_HealthHealthy", "Healthy"),
+        "guarded" => I18n.T("Blocklists_HealthGuarded", "Guarded"),
+        "error" => I18n.T("Blocklists_HealthError", "Error"),
+        "disabled" => I18n.T("Common_Disabled", "Disabled"),
+        _ => status,
+    };
 
     public static BlocklistSourceViewModel From(BlocklistSource s) => new()
     {
@@ -173,7 +187,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     private readonly IConfirm _confirm;
 
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = I18n.T("Status.Ready", "Ready");
 
     [ObservableProperty]
     private string _allowlistUrlsText = string.Empty;
@@ -188,7 +202,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 
     [RelayCommand]
     public Task RefreshAsync()
-        => RunServiceActionAsync("Refresh blocklists", RefreshCoreAsync);
+        => RunServiceActionAsync(I18n.T("Blocklists_ActionRefresh", "Refresh blocklists"), RefreshCoreAsync);
 
     [RelayCommand]
     public void OpenHomepage(BlocklistSourceViewModel? source)
@@ -207,19 +221,19 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         if (source is null)
         {
-            StatusText = "Select a blocklist source first";
+            StatusText = I18n.T("Blocklists_SelectSource", "Select a blocklist source first");
             return;
         }
 
-        if (source.LargeListWarning && !_confirm.Confirm("Import large blocklist",
-            $"{source.Name} can make the hosts file very large and increase Windows DNS Client CPU. Import it now?"))
+        if (source.LargeListWarning && !_confirm.Confirm(I18n.T("Blocklists_LargeTitle", "Import large blocklist"),
+            I18n.T("Blocklists_LargeMessage", "{0} can make the hosts file very large and increase Windows DNS Client CPU. Import it now?", source.Name)))
         {
             return;
         }
 
-        await RunServiceActionAsync($"Import {source.Name}", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionImport", "Import {0}", source.Name), async () =>
         {
-            StatusText = $"Importing {source.Name}...";
+            StatusText = I18n.T("Blocklists_Importing", "Importing {0}...", source.Name);
             var result = await _client.Lists.ImportBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
             CaptureConnectivityWarnings(result);
             StatusText = FormatResult(result);
@@ -232,13 +246,13 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         if (source is null)
         {
-            StatusText = "Select a blocklist source first";
+            StatusText = I18n.T("Blocklists_SelectSource", "Select a blocklist source first");
             return;
         }
 
-        await RunServiceActionAsync($"Preview {source.Name}", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionPreview", "Preview {0}", source.Name), async () =>
         {
-            StatusText = $"Previewing {source.Name}...";
+            StatusText = I18n.T("Blocklists_Previewing", "Previewing {0}...", source.Name);
             var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
             CaptureConnectivityWarnings(result);
             StatusText = FormatResult(result);
@@ -254,18 +268,18 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         }
 
         var report = new List<string>();
-        if (r.Duplicates > 0) report.Add($"{r.Duplicates} dup");
-        if (r.Invalid > 0) report.Add($"{r.Invalid} invalid");
-        if (r.ModifiersStripped > 0) report.Add($"{r.ModifiersStripped} modifier-stripped");
-        if (r.HijackFlagged > 0) report.Add($"{r.HijackFlagged} hijack-flagged");
-        if (r.AllowlistOverrides > 0) report.Add($"{r.AllowlistOverrides} allowlist-kept");
-        if (r.Removed > 0) report.Add($"{r.Removed} removed");
-        if (r.Preserved > 0) report.Add($"{r.Preserved} preserved");
-        if (r.Guarded > 0) report.Add($"{r.Guarded} guarded");
-        if (r.Failed > 0) report.Add($"{r.Failed} failed");
-        if (r.CheckpointId > 0) report.Add($"checkpoint {r.CheckpointId}");
+        if (r.Duplicates > 0) report.Add(I18n.T("Blocklists_ResultDup", "{0} dup", r.Duplicates));
+        if (r.Invalid > 0) report.Add(I18n.T("Blocklists_ResultInvalid", "{0} invalid", r.Invalid));
+        if (r.ModifiersStripped > 0) report.Add(I18n.T("Blocklists_ResultModifiers", "{0} modifier-stripped", r.ModifiersStripped));
+        if (r.HijackFlagged > 0) report.Add(I18n.T("Blocklists_ResultHijack", "{0} hijack-flagged", r.HijackFlagged));
+        if (r.AllowlistOverrides > 0) report.Add(I18n.T("Blocklists_ResultAllowed", "{0} allowlist-kept", r.AllowlistOverrides));
+        if (r.Removed > 0) report.Add(I18n.T("Blocklists_ResultRemoved", "{0} removed", r.Removed));
+        if (r.Preserved > 0) report.Add(I18n.T("Blocklists_ResultPreserved", "{0} preserved", r.Preserved));
+        if (r.Guarded > 0) report.Add(I18n.T("Blocklists_ResultGuarded", "{0} guarded", r.Guarded));
+        if (r.Failed > 0) report.Add(I18n.T("Blocklists_ResultFailed", "{0} failed", r.Failed));
+        if (r.CheckpointId > 0) report.Add(I18n.T("Blocklists_ResultCheckpoint", "checkpoint {0}", r.CheckpointId));
         var health = report.Count != 0 ? $" [{string.Join(", ", report)}]" : string.Empty;
-        var prefix = r.Preview ? "Preview: " : string.Empty;
+        var prefix = r.Preview ? I18n.T("Blocklists_PreviewPrefix", "Preview: ") : string.Empty;
         var warn = r.Warning.Length != 0 ? $" - {r.Warning}" : string.Empty;
         return $"{prefix}{r.Message}{health}{warn}";
     }
@@ -275,11 +289,11 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         if (source is null)
         {
-            StatusText = "Select a blocklist source first";
+            StatusText = I18n.T("Blocklists_SelectSource", "Select a blocklist source first");
             return;
         }
 
-        await RunServiceActionAsync($"Remove {source.Name}", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionRemove", "Remove {0}", source.Name), async () =>
         {
             var ack = await _client.Lists.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = source.Name });
             StatusText = ack.Message;
@@ -292,17 +306,17 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         if (source is null)
         {
-            StatusText = "Select a blocklist source first";
+            StatusText = I18n.T("Blocklists_SelectSource", "Select a blocklist source first");
             return;
         }
 
         if (!source.CanRollback)
         {
-            StatusText = $"{source.Name} has no refresh checkpoint to restore";
+            StatusText = I18n.T("Blocklists_NoCheckpoint", "{0} has no refresh checkpoint to restore", source.Name);
             return;
         }
 
-        await RunServiceActionAsync($"Restore {source.Name} checkpoint", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionRestore", "Restore {0} checkpoint", source.Name), async () =>
         {
             var ack = await _client.Lists.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = source.Name });
             StatusText = ack.Message;
@@ -316,11 +330,11 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     {
         if (source is null)
         {
-            StatusText = "Select a blocklist source first";
+            StatusText = I18n.T("Blocklists_SelectSource", "Select a blocklist source first");
             return;
         }
 
-        await RunServiceActionAsync($"{(source.Enabled ? "Disable" : "Enable")} {source.Name}", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionToggle", "{0} {1}", source.ToggleLabel, source.Name), async () =>
         {
             var enable = !source.Enabled;
             var ack = await _client.Lists.SetBlocklistEnabledAsync(new BlocklistToggleRequest
@@ -336,9 +350,9 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshAllListsAsync()
     {
-        await RunServiceActionAsync("Refresh subscriptions", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionRefreshSubscriptions", "Refresh subscriptions"), async () =>
         {
-            StatusText = "Refreshing all subscriptions...";
+            StatusText = I18n.T("Blocklists_RefreshingSubscriptions", "Refreshing all subscriptions...");
             var result = await _client.Lists.RefreshBlocklistsAsync(new Empty());
             StatusText = FormatResult(result);
             await RefreshCoreAsync();
@@ -348,7 +362,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [RelayCommand]
     public async Task SaveAllowlistsAsync()
     {
-        await RunServiceActionAsync("Save allowlists", async () =>
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionSaveAllowlists", "Save allowlists"), async () =>
         {
             var urls = new AllowlistUrls();
             urls.Urls.AddRange(AllowlistUrlsText
@@ -375,7 +389,8 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 
         var allow = await _client.Lists.GetAllowlistsAsync(new Empty());
         AllowlistUrlsText = string.Join(Environment.NewLine, allow.Urls);
-        StatusText = $"{Plural.Of(Sources.Count, "source")}, {Sources.Count(s => s.Subscribed)} subscribed, {Sources.Sum(s => s.Hits30d):N0} hits/30d";
+        StatusText = I18n.T("Blocklists_SourceSummary", "{0} source(s), {1} subscribed, {2:N0} hits/30d",
+            Sources.Count, Sources.Count(s => s.Subscribed), Sources.Sum(s => s.Hits30d));
     }
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>

@@ -44,7 +44,6 @@
   <data name="Xaml_Look_up_reputation_51bc5c1e" xml:space="preserve"><value>Reputation nachschlagen</value></data>
   <data name="Consent_Inbound" xml:space="preserve"><value>Eingehend</value></data>
   <data name="Consent_Outbound" xml:space="preserve"><value>Ausgehend</value></data>
-  <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
   <data name="Consent_PidUnknown" xml:space="preserve"><value>PID unbekannt</value></data>
   <data name="Consent_ScopeRemote" xml:space="preserve"><value>Nur auf {0} anwenden</value></data>
   <data name="Consent_CountryUnknown" xml:space="preserve"><value>unbekannt</value></data>
@@ -66,7 +65,6 @@
   <data name="About_PrivacyBody" xml:space="preserve"><value>Richtlinien, Überwachung und Diagnosen bleiben auf diesem PC, sofern Sie sie nicht ausdrücklich exportieren.</value></data>
   <data name="About_OpenGitHub" xml:space="preserve"><value>GitHub öffnen</value></data>
   <data name="About_Close" xml:space="preserve"><value>Schließen</value></data>
-  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="IpBlock_Title" xml:space="preserve"><value>IP-Blocklisten (Firewall-Regeln)</value></data>
   <data name="IpBlock_Help" xml:space="preserve"><value>Setzt Blocklisten im IP-Format (eine IPv4/IPv6 oder CIDR pro Zeile, z. B. HaGeZi ips/doh oder ips/tif) als HG_IPBlock_*-Blockregeln der Windows-Firewall durch — stoppt Endpunkte mit fester IP und DoH-Bootstrap-IPs, die die Hosts-Datei nicht blockieren kann. Tägliche Aktualisierung; eine verdächtige Änderung wird abgefangen und jede Aktualisierung ist rückgängig zu machen.</value></data>
   <data name="IpBlock_NameHint" xml:space="preserve"><value>Listenname</value></data>
@@ -102,7 +100,6 @@
   <data name="UsageQuota_BlockOnExceed" xml:space="preserve"><value>Bei Überschreitung blockieren</value></data>
   <data name="UsageQuota_BlockOnExceedName" xml:space="preserve"><value>Blockieren, wenn das Nutzungsbudget überschritten wird</value></data>
   <data name="UsageQuota_BlockOnExceedTip" xml:space="preserve"><value>Überschreitet das gleitende Fenster das Limit, wird ein begrenzter Block angewendet (Hosts-Eintrag für eine Domain, Firewall-Regeln für eine Anwendung). Er wird automatisch aufgehoben, sobald die Nutzung wieder unter das Limit fällt; deaktivieren oder zurücksetzen hebt ihn sofort auf.</value></data>
-  <data name="UsageQuota_Block" xml:space="preserve"><value>Block</value></data>
   <data name="Quota_BlockActive" xml:space="preserve"><value>Blockiert</value></data>
   <data name="Quota_BlockArmed" xml:space="preserve"><value>Scharf</value></data>
   <data name="BlockGallery_Tags" xml:space="preserve"><value>Schlagwörter</value></data>
@@ -128,7 +125,6 @@
   <data name="Proxy_ColState" xml:space="preserve"><value>Status</value></data>
   <data name="Proxy_StateChanged" xml:space="preserve"><value>Geändert</value></data>
   <data name="Proxy_StateMatch" xml:space="preserve"><value>Stimmt überein</value></data>
-  <data name="Proxy_ColBaseline" xml:space="preserve"><value>Baseline</value></data>
   <data name="Proxy_ColCurrent" xml:space="preserve"><value>Aktuell</value></data>
   <data name="Proxy_Empty" xml:space="preserve"><value>Es wurden noch keine Proxy-Einstellungen geprüft.</value></data>
   <data name="Proxy_StatusHint" xml:space="preserve"><value>Aktuellen WinINET- und WinHTTP-Proxy/PAC-Zustand mit der akzeptierten Baseline vergleichen.</value></data>
@@ -142,12 +138,12 @@
   <data name="Proxy_Unchanged" xml:space="preserve"><value>Der Proxy/PAC-Zustand entspricht der akzeptierten Baseline.</value></data>
   <data name="ListenerExposure_Title" xml:space="preserve"><value>Lokale Listener-Exposition</value></data>
   <data name="ListenerExposure_Name" xml:space="preserve"><value>Analyse lokaler Listener und ihrer Firewall-Abdeckung</value></data>
-  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Jetzt prÃ¼fen</value></data>
-  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Lokale Listener und Firewall-Abdeckung prÃ¼fen</value></data>
-  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Listener filternâ€¦</value></data>
+  <data name="ListenerExposure_Refresh" xml:space="preserve"><value>Jetzt prüfen</value></data>
+  <data name="ListenerExposure_RefreshName" xml:space="preserve"><value>Lokale Listener und Firewall-Abdeckung prüfen</value></data>
+  <data name="ListenerExposure_SearchHint" xml:space="preserve"><value>Listener filtern&#x2026;</value></data>
   <data name="ListenerExposure_SearchName" xml:space="preserve"><value>Lokale Listener-Exposition filtern</value></data>
-  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Nach Prozess, Endpunkt, Port, Dienst, Paket, Bindungsbereich, Profil, Abdeckung, Risiko oder Grund suchen. Feldfilter wie port:443 und risk:high werden unterstÃ¼tzt.</value></data>
-  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Nur Momentaufnahme â€” die Abdeckung beruht auf aktiven Windows-Firewallregeln. Sie belegt keine Erreichbarkeit durch Router, NAT, VPNs oder vorgelagerte Kontrollen.</value></data>
+  <data name="ListenerExposure_SearchTip" xml:space="preserve"><value>Nach Prozess, Endpunkt, Port, Dienst, Paket, Bindungsbereich, Profil, Abdeckung, Risiko oder Grund suchen. Feldfilter wie port:443 und risk:high werden unterstützt.</value></data>
+  <data name="ListenerExposure_Disclaimer" xml:space="preserve"><value>Nur Momentaufnahme &#x2014; die Abdeckung beruht auf aktiven Windows-Firewallregeln. Sie belegt keine Erreichbarkeit durch Router, NAT, VPNs oder vorgelagerte Kontrollen.</value></data>
   <data name="ListenerExposure_TableName" xml:space="preserve"><value>Lokale Listener und effektive Firewall-Abdeckung</value></data>
   <data name="ListenerExposure_Empty" xml:space="preserve"><value>Keine Listener entsprechen dem aktuellen Scan und Filter.</value></data>
   <data name="ListenerExposure_Risk" xml:space="preserve"><value>Risiko</value></data>
@@ -157,62 +153,61 @@
   <data name="ListenerExposure_Profiles" xml:space="preserve"><value>Profile</value></data>
   <data name="ListenerExposure_Coverage" xml:space="preserve"><value>Abdeckung</value></data>
   <data name="ListenerExposure_Reason" xml:space="preserve"><value>Grund</value></data>
-  <data name="RuleAnalysis_Title" xml:space="preserve"><value>Regelanalyse und geschÃ¼tzte Bereinigung</value></data>
-  <data name="RuleAnalysis_Name" xml:space="preserve"><value>Firewall-Regelanalyse und geschÃ¼tzte Bereinigung</value></data>
+  <data name="RuleAnalysis_Title" xml:space="preserve"><value>Regelanalyse und geschützte Bereinigung</value></data>
+  <data name="RuleAnalysis_Name" xml:space="preserve"><value>Firewall-Regelanalyse und geschützte Bereinigung</value></data>
   <data name="RuleAnalysis_Run" xml:space="preserve"><value>Analysieren</value></data>
   <data name="RuleAnalysis_RunName" xml:space="preserve"><value>Firewallregeln analysieren</value></data>
-  <data name="RuleAnalysis_Preview" xml:space="preserve"><value>Bereinigung prÃ¼fen</value></data>
-  <data name="RuleAnalysis_PreviewName" xml:space="preserve"><value>Bereinigung ausgewÃ¤hlter HostsGuard-Duplikate prÃ¼fen</value></data>
+  <data name="RuleAnalysis_Preview" xml:space="preserve"><value>Bereinigung prüfen</value></data>
+  <data name="RuleAnalysis_PreviewName" xml:space="preserve"><value>Bereinigung ausgewählter HostsGuard-Duplikate prüfen</value></data>
   <data name="RuleAnalysis_Apply" xml:space="preserve"><value>Vorschau anwenden</value></data>
-  <data name="RuleAnalysis_ApplyName" xml:space="preserve"><value>UnverÃ¤nderte geprÃ¼fte HostsGuard-Bereinigung anwenden</value></data>
-  <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>Nur aktiv, nachdem die ausgewÃ¤hlten HG_-Duplikate geprÃ¼ft wurden. Eine geÃ¤nderte Auswahl muss erneut geprÃ¼ft werden.</value></data>
+  <data name="RuleAnalysis_ApplyName" xml:space="preserve"><value>Unveränderte geprüfte HostsGuard-Bereinigung anwenden</value></data>
+  <data name="RuleAnalysis_ApplyTip" xml:space="preserve"><value>Nur aktiv, nachdem die ausgewählten HG_-Duplikate geprüft wurden. Eine geänderte Auswahl muss erneut geprüft werden.</value></data>
   <data name="RuleAnalysis_GroupProvenance" xml:space="preserve"><value>Nach Herkunft gruppieren</value></data>
   <data name="RuleAnalysis_GroupProvenanceName" xml:space="preserve"><value>Ergebnisse nach Regelherkunft statt Grund gruppieren</value></data>
-  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Ergebnisse filternâ€¦</value></data>
+  <data name="RuleAnalysis_SearchHint" xml:space="preserve"><value>Ergebnisse filtern…</value></data>
   <data name="RuleAnalysis_SearchName" xml:space="preserve"><value>Firewall-Regelergebnisse filtern</value></data>
-  <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Nach Grund, Regel, Bezugsregel, Herkunft oder MaÃŸnahme suchen. Feldfilter wie source:HostsGuard und type:ExactDuplicate werden unterstÃ¼tzt.</value></data>
-  <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>Die Analyse ist schreibgeschÃ¼tzt. Nur ausgewÃ¤hlte exakte HG_-Duplikate kÃ¶nnen bereinigt werden; fremde, semantische, widersprÃ¼chliche, unwirksame und Gruppenrichtlinien-Ergebnisse bleiben nur zur PrÃ¼fung.</value></data>
+  <data name="RuleAnalysis_SearchTip" xml:space="preserve"><value>Nach Grund, Regel, Bezugsregel, Herkunft oder Maßnahme suchen. Feldfilter wie source:HostsGuard und type:ExactDuplicate werden unterstützt.</value></data>
+  <data name="RuleAnalysis_Disclaimer" xml:space="preserve"><value>Die Analyse ist schreibgeschützt. Nur ausgewählte exakte HG_-Duplikate können bereinigt werden; fremde, semantische, widersprüchliche, unwirksame und Gruppenrichtlinien-Ergebnisse bleiben nur zur Prüfung.</value></data>
   <data name="RuleAnalysis_TableName" xml:space="preserve"><value>Ergebnisse der Firewall-Regelanalyse</value></data>
   <data name="RuleAnalysis_Empty" xml:space="preserve"><value>Keine Ergebnisse entsprechen der aktuellen Analyse und dem Filter.</value></data>
   <data name="RuleAnalysis_Select" xml:space="preserve"><value>Bereinigen</value></data>
-  <data name="RuleAnalysis_SelectName" xml:space="preserve"><value>Berechtigtes HostsGuard-Duplikat zur geschÃ¼tzten Bereinigung auswÃ¤hlen</value></data>
+  <data name="RuleAnalysis_SelectName" xml:space="preserve"><value>Berechtigtes HostsGuard-Duplikat zur geschützten Bereinigung auswählen</value></data>
   <data name="RuleAnalysis_Kind" xml:space="preserve"><value>Ergebnis</value></data>
   <data name="RuleAnalysis_Related" xml:space="preserve"><value>Bezugsregel</value></data>
-  <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>MaÃŸnahme</value></data>
-  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Effektive Firewallregeln werden analysiertâ€¦</value></data>
-  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} Regeln Â· Profile {1} Â· Richtlinie {2}</value></data>
-  <data name="RuleAnalysis_None" xml:space="preserve"><value>Keine doppelten, widersprÃ¼chlichen oder unwirksamen Regeln gefunden</value></data>
-  <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} Ergebnisse; nur PrÃ¼fung, auÃŸer ein exaktes HG_-Duplikat ist ausgewÃ¤hlt</value></data>
-  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>AusgewÃ¤hlte HG_-Bereinigung wird geprÃ¼ftâ€¦</value></data>
-  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>GeprÃ¼fte HG_-Bereinigung wird angewendetâ€¦</value></data>
-  <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>Auswahl geÃ¤ndert; vor der Bereinigung erneut prÃ¼fen.</value></data>
-  <data name="RuleAnalysis_ProvenanceHostsGuard" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="RuleAnalysis_Remediation" xml:space="preserve"><value>Maßnahme</value></data>
+  <data name="RuleAnalysis_Loading" xml:space="preserve"><value>Effektive Firewallregeln werden analysiert…</value></data>
+  <data name="RuleAnalysis_Context" xml:space="preserve"><value>{0} Regeln · Profile {1} · Richtlinie {2}</value></data>
+  <data name="RuleAnalysis_None" xml:space="preserve"><value>Keine doppelten, widersprüchlichen oder unwirksamen Regeln gefunden</value></data>
+  <data name="RuleAnalysis_Count" xml:space="preserve"><value>{0} Ergebnisse; nur Prüfung, außer ein exaktes HG_-Duplikat ist ausgewählt</value></data>
+  <data name="RuleAnalysis_Previewing" xml:space="preserve"><value>Ausgewählte HG_-Bereinigung wird geprüft…</value></data>
+  <data name="RuleAnalysis_Applying" xml:space="preserve"><value>Geprüfte HG_-Bereinigung wird angewendet…</value></data>
+  <data name="RuleAnalysis_SelectionChanged" xml:space="preserve"><value>Auswahl geändert; vor der Bereinigung erneut prüfen.</value></data>
   <data name="RuleAnalysis_ProvenancePolicy" xml:space="preserve"><value>Gruppenrichtlinie</value></data>
   <data name="RuleAnalysis_ProvenanceOther" xml:space="preserve"><value>Windows / andere</value></data>
   <data name="RuleAnalysis_EligibleTip" xml:space="preserve"><value>Berechtigtes exaktes HG_-Duplikat</value></data>
-  <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Gruppenrichtlinien-Ergebnisse dienen nur zur PrÃ¼fung</value></data>
-  <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Fremde und nicht exakte Ergebnisse dienen nur zur PrÃ¼fung</value></data>
+  <data name="RuleAnalysis_PolicyTip" xml:space="preserve"><value>Gruppenrichtlinien-Ergebnisse dienen nur zur Prüfung</value></data>
+  <data name="RuleAnalysis_ReviewOnlyTip" xml:space="preserve"><value>Fremde und nicht exakte Ergebnisse dienen nur zur Prüfung</value></data>
   <data name="IdnHomograph_AlertExplainerName" xml:space="preserve"><value>Belege zur IDN-Homograph-Warnung</value></data>
   <data name="IdnHomograph_AlertExplainerTitle" xml:space="preserve"><value>Warum diese IDN verwechselbar wirkt</value></data>
   <data name="IdnHomograph_ObservedLabel" xml:space="preserve"><value>Beobachtete Domain (ASCII/Punycode)</value></data>
   <data name="IdnHomograph_ObservedName" xml:space="preserve"><value>Beobachtete internationale Domain in stabiler ASCII- oder Punycode-Form</value></data>
-  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Schriften, EinschrÃ¤nkungsstufe, Skelett und verwechselbares Ziel</value></data>
+  <data name="IdnHomograph_EvidenceLabel" xml:space="preserve"><value>Schriften, Einschränkungsstufe, Skelett und verwechselbares Ziel</value></data>
   <data name="IdnHomograph_EvidenceName" xml:space="preserve"><value>IDN-Schrift- und Verwechselbarkeitsbelege</value></data>
-  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Nur Warnung â€” HostsGuard hat diese Domain weder blockiert noch umgeschrieben. PrÃ¼fen Sie die Belege, bevor Sie handeln.</value></data>
+  <data name="IdnHomograph_NoBlockAlert" xml:space="preserve"><value>Nur Warnung — HostsGuard hat diese Domain weder blockiert noch umgeschrieben. Prüfen Sie die Belege, bevor Sie handeln.</value></data>
   <data name="IdnHomograph_ToggleName" xml:space="preserve"><value>Reine IDN-Homograph-Warnungen umschalten</value></data>
   <data name="IdnHomograph_ToggleTip" xml:space="preserve"><value>Unicode-UTS-#39-Verwechselbarkeitswarnungen aktivieren. Die Erkennung blockiert Domains nie automatisch.</value></data>
   <data name="IdnHomograph_EnableButton" xml:space="preserve"><value>IDN-Warnungen aktivieren</value></data>
   <data name="IdnHomograph_DisableButton" xml:space="preserve"><value>IDN-Warnungen deaktivieren</value></data>
-  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>ErklÃ¤rt dekodierte IDNs, Schriften, EinschrÃ¤nkungsstufe und verwechselbare Ziele unter Warnungen. StandardmÃ¤ÃŸig aus; nur Warnung.</value></data>
+  <data name="IdnHomograph_ToolsHelp" xml:space="preserve"><value>Erklärt dekodierte IDNs, Schriften, Einschränkungsstufe und verwechselbare Ziele unter Warnungen. Standardmäßig aus; nur Warnung.</value></data>
   <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Status der IDN-Homograph-Erkennung nicht geladen.</value></data>
-  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Reine Warnungserkennung ist aktiv Â· {0} Vergleichsziele Â· {1}. Keine automatische Blockierung.</value></data>
-  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>StandardmÃ¤ÃŸig aus. Nach Aktivierung erscheinen strukturierte Belege unter Warnungen; keine automatische Blockierung.</value></data>
+  <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>Reine Warnungserkennung ist aktiv · {0} Vergleichsziele · {1}. Keine automatische Blockierung.</value></data>
+  <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>Standardmäßig aus. Nach Aktivierung erscheinen strukturierte Belege unter Warnungen; keine automatische Blockierung.</value></data>
   <data name="FwRules_EditManaged" xml:space="preserve"><value>Verwaltete Regel bearbeiten</value></data>
-  <data name="FwRules_EditManagedTip" xml:space="preserve"><value>Diese HG_-Regel in das Formular laden. Windows- und Gruppenrichtlinienregeln bleiben schreibgeschÃ¼tzt.</value></data>
+  <data name="FwRules_EditManagedTip" xml:space="preserve"><value>Diese HG_-Regel in das Formular laden. Windows- und Gruppenrichtlinienregeln bleiben schreibgeschützt.</value></data>
   <data name="FwRules_CancelEdit" xml:space="preserve"><value>Bearbeitung abbrechen</value></data>
   <data name="FwRules_EditTitle" xml:space="preserve"><value>HostsGuard-Regel bearbeiten</value></data>
   <data name="FwRules_UpdateAction" xml:space="preserve"><value>Regel aktualisieren</value></data>
-  <data name="FwRules_EditManagedOnly" xml:space="preserve"><value>Nur von HostsGuard verwaltete HG_-Regeln kÃ¶nnen hier bearbeitet werden.</value></data>
+  <data name="FwRules_EditManagedOnly" xml:space="preserve"><value>Nur von HostsGuard verwaltete HG_-Regeln können hier bearbeitet werden.</value></data>
   <data name="FwRules_LocalPortsLabel" xml:space="preserve"><value>Lokale Ports</value></data>
   <data name="FwRules_RemotePortsLabel" xml:space="preserve"><value>Remoteports</value></data>
   <data name="FwRules_LocalPortsName" xml:space="preserve"><value>Lokale Ports der neuen Firewallregel</value></data>
@@ -220,13 +215,13 @@
   <data name="FwRules_PortsHint" xml:space="preserve"><value>Any oder 80,443,8000-8010</value></data>
   <data name="FwRules_PortsTip" xml:space="preserve"><value>Nur TCP/UDP. Any, kommagetrennte Ports oder aufsteigende Bereiche von 1 bis 65535.</value></data>
   <data name="FwRules_ManualInterfacesLabel" xml:space="preserve"><value>Weitere Schnittstellenaliasnamen</value></data>
-  <data name="FwRules_ManualInterfacesName" xml:space="preserve"><value>ZusÃ¤tzliche Firewall-Schnittstellenaliasnamen</value></data>
+  <data name="FwRules_ManualInterfacesName" xml:space="preserve"><value>Zusätzliche Firewall-Schnittstellenaliasnamen</value></data>
   <data name="FwRules_InterfacesHint" xml:space="preserve"><value>Optionale kommagetrennte Aliasnamen</value></data>
   <data name="FwRules_ManualInterfacesTip" xml:space="preserve"><value>Einen exakten aktuellen Windows-Schnittstellenalias eingeben; unbekannte Aliasnamen werden abgelehnt.</value></data>
   <data name="FwRules_InterfaceAliasesLabel" xml:space="preserve"><value>Aktuelle Schnittstellenaliasnamen</value></data>
   <data name="FwRules_PreviewName" xml:space="preserve"><value>Vorschau des effektiven Firewall-Regelbereichs</value></data>
-  <data name="FwRules_InterfacesNotLoaded" xml:space="preserve"><value>Aliasnamen nicht geladen. Aktualisieren, um exakte aktuelle Aliasnamen zu prÃ¼fen.</value></data>
-  <data name="FwRules_NoInterfaces" xml:space="preserve"><value>Keine aktuellen Aliasnamen zurÃ¼ckgegeben; benannte Schnittstellenbereiche sind nicht verfÃ¼gbar.</value></data>
+  <data name="FwRules_InterfacesNotLoaded" xml:space="preserve"><value>Aliasnamen nicht geladen. Aktualisieren, um exakte aktuelle Aliasnamen zu prüfen.</value></data>
+  <data name="FwRules_NoInterfaces" xml:space="preserve"><value>Keine aktuellen Aliasnamen zurückgegeben; benannte Schnittstellenbereiche sind nicht verfügbar.</value></data>
   <data name="FwRules_InterfaceCount" xml:space="preserve"><value>{0} aktuelle Schnittstellenaliasnamen</value></data>
   <data name="FwRules_InterfaceUp" xml:space="preserve"><value>aktiv</value></data>
   <data name="FwRules_InterfaceDown" xml:space="preserve"><value>inaktiv</value></data>
@@ -234,8 +229,8 @@
   <data name="FwRules_LocalPortsError" xml:space="preserve"><value>Lokale Ports: {0}</value></data>
   <data name="FwRules_RemotePortsError" xml:space="preserve"><value>Remoteports: {0}</value></data>
   <data name="FwRules_PortFormatError" xml:space="preserve"><value>kommagetrennte Ports oder aufsteigende Bereiche von 1 bis 65535 verwenden</value></data>
-  <data name="FwRules_PortsNeedProtocol" xml:space="preserve"><value>bei PorteinschrÃ¤nkungen TCP oder UDP auswÃ¤hlen</value></data>
-  <data name="FwRules_InterfaceFormatError" xml:space="preserve"><value>Aliasnamen mÃ¼ssen sichtbare, kommagetrennte Namen sein (maximal 64 mit je 256 Zeichen).</value></data>
+  <data name="FwRules_PortsNeedProtocol" xml:space="preserve"><value>bei Porteinschränkungen TCP oder UDP auswählen</value></data>
+  <data name="FwRules_InterfaceFormatError" xml:space="preserve"><value>Aliasnamen müssen sichtbare, kommagetrennte Namen sein (maximal 64 mit je 256 Zeichen).</value></data>
   <data name="FwRules_PreviewPackage" xml:space="preserve"><value>Paket {0}</value></data>
   <data name="FwRules_PreviewProgram" xml:space="preserve"><value>Programm {0}</value></data>
   <data name="FwRules_PreviewAllPrograms" xml:space="preserve"><value>alle Programme</value></data>
@@ -244,22 +239,203 @@
   <data name="FwRules_EnabledName" xml:space="preserve"><value>Aktivierungszustand der Firewallregel</value></data>
   <data name="FwRules_Enabled" xml:space="preserve"><value>aktiviert</value></data>
   <data name="FwRules_Disabled" xml:space="preserve"><value>deaktiviert</value></data>
-  <data name="Ncsi_WarningName" xml:space="preserve"><value>Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤nen in der Blockliste</value></data>
-  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Windows-KonnektivitÃ¤tsprÃ¼fungen betroffen</value></data>
-  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>Diese Warnung gilt nur fÃ¼r die exakt angezeigten PrÃ¼fdomÃ¤nen, nicht allgemein fÃ¼r Microsoft-DomÃ¤nen. Der Import bleibt mÃ¶glich. Die Wiederherstellung erlaubt nur listeneigene PrÃ¼fblocks; fremde oder manuelle Blocks werden abgelehnt.</value></data>
-  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>PrÃ¼fungen erlauben / Listenblocks aufheben</value></data>
-  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Exakt betroffene Windows-PrÃ¼fdomÃ¤nen erlauben und Listenblocks aufheben</value></data>
-  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>Erlaubt nur die exakt angezeigten DomÃ¤nen, die derzeit durch eine Liste blockiert sind. SpÃ¤teres bewusstes Blockieren bleibt mÃ¶glich.</value></data>
-  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>Diese Liste enthÃ¤lt {0} exakte Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤ne(n). Der Import bleibt mÃ¶glich.</value></data>
-  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>Die Vorschau fand {0} exakte Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤ne(n). Der Import bleibt mÃ¶glich; die Wiederherstellung ist danach verfÃ¼gbar.</value></data>
+  <data name="Ncsi_WarningName" xml:space="preserve"><value>Windows-Konnektivitätsprüfdomänen in der Blockliste</value></data>
+  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Windows-Konnektivitätsprüfungen betroffen</value></data>
+  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>Diese Warnung gilt nur für die exakt angezeigten Prüfdomänen, nicht allgemein für Microsoft-Domänen. Der Import bleibt möglich. Die Wiederherstellung erlaubt nur listeneigene Prüfblocks; fremde oder manuelle Blocks werden abgelehnt.</value></data>
+  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>Prüfungen erlauben / Listenblocks aufheben</value></data>
+  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Exakt betroffene Windows-Prüfdomänen erlauben und Listenblocks aufheben</value></data>
+  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>Erlaubt nur die exakt angezeigten Domänen, die derzeit durch eine Liste blockiert sind. Späteres bewusstes Blockieren bleibt möglich.</value></data>
+  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>Diese Liste enthält {0} exakte Windows-Konnektivitätsprüfdomäne(n). Der Import bleibt möglich.</value></data>
+  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>Die Vorschau fand {0} exakte Windows-Konnektivitätsprüfdomäne(n). Der Import bleibt möglich; die Wiederherstellung ist danach verfügbar.</value></data>
   <data name="Ncsi_Recovered" xml:space="preserve"><value>erlaubt / Listenblock aufgehoben</value></data>
-  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>wÃ¼rde durch diese Liste blockiert</value></data>
+  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>würde durch diese Liste blockiert</value></data>
   <data name="Ncsi_Blocked" xml:space="preserve"><value>durch diese Liste blockiert</value></data>
-  <data name="Ncsi_WebReason" xml:space="preserve"><value>Aktive Windows-WebkonnektivitÃ¤tsprÃ¼fung</value></data>
-  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Windows-DNS-KonnektivitÃ¤tsprÃ¼fung</value></data>
-  <data name="Ncsi_WebKind" xml:space="preserve"><value>WebprÃ¼fung</value></data>
-  <data name="Ncsi_DnsKind" xml:space="preserve"><value>DNS-PrÃ¼fung</value></data>
+  <data name="Ncsi_WebReason" xml:space="preserve"><value>Aktive Windows-Webkonnektivitätsprüfung</value></data>
+  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Windows-DNS-Konnektivitätsprüfung</value></data>
+  <data name="Ncsi_WebKind" xml:space="preserve"><value>Webprüfung</value></data>
+  <data name="Ncsi_DnsKind" xml:space="preserve"><value>DNS-Prüfung</value></data>
   <data name="Ncsi_CurrentEra" xml:space="preserve"><value>aktuelles Windows</value></data>
-  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>Ã¤lteres Windows</value></data>
+  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>älteres Windows</value></data>
+  <data name="Language_System" xml:space="preserve"><value>Systemstandard</value></data>
+  <data name="Language_English" xml:space="preserve"><value>English</value></data>
+  <data name="Language_Spanish" xml:space="preserve"><value>Español</value></data>
+  <data name="Language_German" xml:space="preserve"><value>Deutsch</value></data>
+  <data name="Language_French" xml:space="preserve"><value>Français</value></data>
+  <data name="Common_OnLower" xml:space="preserve"><value>ein</value></data>
+  <data name="Common_OffLower" xml:space="preserve"><value>aus</value></data>
+  <data name="Common_OffUpper" xml:space="preserve"><value>AUS</value></data>
+  <data name="Common_BlockLower" xml:space="preserve"><value>blockieren</value></data>
+  <data name="Common_AllowLower" xml:space="preserve"><value>zulassen</value></data>
+  <data name="Common_UpLower" xml:space="preserve"><value>aktiv</value></data>
+  <data name="Common_DownLower" xml:space="preserve"><value>inaktiv</value></data>
+  <data name="Common_NoneLower" xml:space="preserve"><value>keine</value></data>
+  <data name="FwPosture_ActionLoad" xml:space="preserve"><value>Firewall-Status laden</value></data>
+  <data name="FwPosture_Unavailable" xml:space="preserve"><value>Firewall-Status nicht verfügbar</value></data>
+  <data name="FwPosture_ActionLoadTeardown" xml:space="preserve"><value>TCP-Trennmodus laden</value></data>
+  <data name="FwPosture_TeardownState" xml:space="preserve"><value>TCP-Trennung: {0} ({1})</value></data>
+  <data name="FwPosture_TeardownUnavailable" xml:space="preserve"><value>TCP-Trennung nicht verfügbar</value></data>
+  <data name="FwPosture_ActionApplyTeardown" xml:space="preserve"><value>TCP-Trennmodus anwenden</value></data>
+  <data name="FwPosture_ConfirmLockdownTitle" xml:space="preserve"><value>Lockdown aktivieren</value></data>
+  <data name="FwPosture_ConfirmLockdownMessage" xml:space="preserve"><value>Neuen ausgehenden Datenverkehr in allen Profilen blockieren, sofern keine Zulassungsregel greift?</value></data>
+  <data name="FwPosture_ActionApplyLockdown" xml:space="preserve"><value>Lockdown-Status anwenden</value></data>
+  <data name="Vpn_KillSwitchOff" xml:space="preserve"><value>VPN-Kill-Switch ist aus.</value></data>
+  <data name="Vpn_NoBindings" xml:space="preserve"><value>Keine App-VPN-Bindungen.</value></data>
+  <data name="Vpn_ActionLoadKillSwitch" xml:space="preserve"><value>VPN-Kill-Switch laden</value></data>
+  <data name="Vpn_KillSwitchEngaged" xml:space="preserve"><value>AKTIV — ausgehend blockiert, solange '{0}' getrennt ist</value></data>
+  <data name="Vpn_KillSwitchWatching" xml:space="preserve"><value>Ein — überwacht '{0}'</value></data>
+  <data name="Vpn_ChooseAdapter" xml:space="preserve"><value>Vor dem Aktivieren einen VPN-Adapter wählen.</value></data>
+  <data name="Vpn_ConfirmEnableTitle" xml:space="preserve"><value>VPN-Kill-Switch aktivieren</value></data>
+  <data name="Vpn_ConfirmEnableMessage" xml:space="preserve"><value>Den gesamten ausgehenden Datenverkehr blockieren, wenn '{0}' getrennt ist? Zulassungsregeln gelten weiterhin; behalten Sie eine für den VPN-Client.</value></data>
+  <data name="Vpn_ActionToggleKillSwitch" xml:space="preserve"><value>VPN-Kill-Switch umschalten</value></data>
+  <data name="Vpn_ActionLoadBindings" xml:space="preserve"><value>App-VPN-Bindungen laden</value></data>
+  <data name="Vpn_BindingCount" xml:space="preserve"><value>{0} App-VPN-Bindungen</value></data>
+  <data name="Vpn_ActionSaveBinding" xml:space="preserve"><value>App-VPN-Bindung speichern</value></data>
+  <data name="Vpn_ActionRemoveBinding" xml:space="preserve"><value>App-VPN-Bindung entfernen</value></data>
+  <data name="Intel_Checking" xml:space="preserve"><value>Blocklisten-Intelligenz wird geprüft…</value></data>
+  <data name="Intel_ActionLoad" xml:space="preserve"><value>Blocklisten-Intelligenz laden</value></data>
+  <data name="Intel_DownloadingBackground" xml:space="preserve"><value>Referenzlisten werden im Hintergrund geladen…</value></data>
+  <data name="Intel_None" xml:space="preserve"><value>Noch keine Referenzlisten; aktualisieren Sie den Index.</value></data>
+  <data name="Intel_Status" xml:space="preserve"><value>{0} Referenzlisten · {1:N0} Domänen indexiert{2}</value></data>
+  <data name="Intel_RefreshedSuffix" xml:space="preserve"><value> · aktualisiert {0}</value></data>
+  <data name="Intel_ActionRefresh" xml:space="preserve"><value>Blocklisten-Intelligenz aktualisieren</value></data>
+  <data name="Intel_Downloading" xml:space="preserve"><value>Referenzlisten werden geladen; dies kann einige Minuten dauern…</value></data>
+  <data name="RuleAnalysis_NotAnalyzed" xml:space="preserve"><value>Noch nicht analysiert</value></data>
+  <data name="RuleAnalysis_ActionAnalyze" xml:space="preserve"><value>Firewallregeln analysieren</value></data>
+  <data name="RuleAnalysis_ActionPreview" xml:space="preserve"><value>Firewall-Bereinigung prüfen</value></data>
+  <data name="RuleAnalysis_ActionApply" xml:space="preserve"><value>Firewall-Bereinigung anwenden</value></data>
+  <data name="Adoption_Checking" xml:space="preserve"><value>Übernahme manueller Änderungen wird geprüft…</value></data>
+  <data name="Adoption_ActionLoad" xml:space="preserve"><value>Übernahme manueller Änderungen laden</value></data>
+  <data name="Adoption_AllAdopted" xml:space="preserve"><value>alle Hosts-Einträge übernommen</value></data>
+  <data name="Adoption_Backlog" xml:space="preserve"><value>{0} manuell hinzugefügte Einträge noch nicht importiert</value></data>
+  <data name="Adoption_Status" xml:space="preserve"><value>Automatische Übernahme {0} · {1}</value></data>
+  <data name="Adoption_LastRunSuffix" xml:space="preserve"><value> · letzter Lauf {0} ({1})</value></data>
+  <data name="Adoption_ActionSave" xml:space="preserve"><value>Übernahme manueller Änderungen speichern</value></data>
+  <data name="Adoption_ActionRun" xml:space="preserve"><value>Manuelle Hosts-Einträge übernehmen</value></data>
+  <data name="Adoption_Importing" xml:space="preserve"><value>Manuelle Hosts-Einträge werden bereinigt, organisiert und importiert…</value></data>
+  <data name="Recovery_StatusHint" xml:space="preserve"><value>Erstellen Sie einen gehashten Wiederherstellungspunkt für Datenbank, Hosts-Status und nicht geheime Einstellungen.</value></data>
+  <data name="Recovery_SelectHint" xml:space="preserve"><value>Wählen Sie einen Snapshot und prüfen Sie die Änderungen vor der Wiederherstellung.</value></data>
+  <data name="Recovery_PreviewRequired" xml:space="preserve"><value>Vor der Wiederherstellung ist eine Vorschau erforderlich.</value></data>
+  <data name="Recovery_ActionCreate" xml:space="preserve"><value>Vollständigen Status-Snapshot erstellen</value></data>
+  <data name="Recovery_Created" xml:space="preserve"><value>Verifizierter Snapshot erstellt: {0} · {1}</value></data>
+  <data name="Recovery_VerificationFailed" xml:space="preserve"><value>Snapshot-Verifizierung fehlgeschlagen: {0}</value></data>
+  <data name="Recovery_ActionLoad" xml:space="preserve"><value>Vollständige Status-Snapshots laden</value></data>
+  <data name="Recovery_None" xml:space="preserve"><value>Noch keine vollständigen Status-Snapshots.</value></data>
+  <data name="Recovery_Count" xml:space="preserve"><value>{0} Wiederherstellungspunkt(e) verfügbar.</value></data>
+  <data name="Recovery_ActionPreview" xml:space="preserve"><value>Vollständige Wiederherstellung prüfen</value></data>
+  <data name="Recovery_NoDifferences" xml:space="preserve"><value>Keine Statusunterschiede.</value></data>
+  <data name="Recovery_PreviewDetails" xml:space="preserve"><value>Verifizierter SHA-256: {0}{3}Ziel: HostsGuard {1}, Schema {2}{3}{4}</value></data>
+  <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Prüfen Sie diesen Snapshot vor der Wiederherstellung erneut.</value></data>
+  <data name="Recovery_ActionRestore" xml:space="preserve"><value>Vollständigen Status-Snapshot wiederherstellen</value></data>
+  <data name="Ai_Checking" xml:space="preserve"><value>KI-Konfiguration wird geprüft…</value></data>
+  <data name="Ai_ActionLoad" xml:space="preserve"><value>KI-Status laden</value></data>
+  <data name="Ai_NotConfigured" xml:space="preserve"><value>Kein DeepSeek-API-Schlüssel gespeichert; fügen Sie einen zur KI-Kategorisierung hinzu.</value></data>
+  <data name="Ai_Configured" xml:space="preserve"><value>DeepSeek-Schlüssel gespeichert · {0} · automatische Kategorisierung {1}</value></data>
+  <data name="Ai_LastRunSuffix" xml:space="preserve"><value> · letzter Lauf {0} ({1})</value></data>
+  <data name="Ai_ActionSave" xml:space="preserve"><value>KI-Konfiguration speichern</value></data>
+  <data name="Ai_ActionCategorize" xml:space="preserve"><value>Domänen mit KI kategorisieren</value></data>
+  <data name="Ai_Categorizing" xml:space="preserve"><value>DeepSeek kategorisiert unkategorisierte blockierte Domänen…</value></data>
+  <data name="Ai_ActionExport" xml:space="preserve"><value>KI-Wissen exportieren</value></data>
+  <data name="Ai_ExportFailed" xml:space="preserve"><value>Wissensprotokoll konnte nicht geschrieben werden: {0}</value></data>
+  <data name="Ai_Exported" xml:space="preserve"><value>KI-Wissen nach {0} exportiert</value></data>
+  <data name="Ai_Saved" xml:space="preserve"><value>Wissensprotokoll gespeichert: {0}</value></data>
+  <data name="AiKnowledge_StatusHint" xml:space="preserve"><value>Laden Sie das gelernte KI-Wissen zur Prüfung.</value></data>
+  <data name="AiKnowledge_ActionLoad" xml:space="preserve"><value>KI-Wissen laden</value></data>
+  <data name="AiKnowledge_NothingNew" xml:space="preserve"><value>Seit der letzten Prüfung wurde nichts Neues gelernt.</value></data>
+  <data name="AiKnowledge_None" xml:space="preserve"><value>Die KI hat noch nichts gelernt.</value></data>
+  <data name="AiKnowledge_Count" xml:space="preserve"><value>{0} gelernte Einträge</value></data>
+  <data name="AiKnowledge_LastReviewSuffix" xml:space="preserve"><value> · letzte Prüfung {0}</value></data>
+  <data name="AiKnowledge_NeverReviewedSuffix" xml:space="preserve"><value> · nie geprüft</value></data>
+  <data name="AiKnowledge_ActionPromote" xml:space="preserve"><value>KI-Wissen übernehmen</value></data>
+  <data name="AiKnowledge_ActionDiscard" xml:space="preserve"><value>KI-Wissen verwerfen</value></data>
+  <data name="AiKnowledge_ActionMarkReviewed" xml:space="preserve"><value>KI-Wissen als geprüft markieren</value></data>
+  <data name="AiKnowledge_EnterDomain" xml:space="preserve"><value>Geben Sie eine zu korrigierende Domäne ein.</value></data>
+  <data name="AiKnowledge_ActionCorrect" xml:space="preserve"><value>Domänenwissen korrigieren</value></data>
+  <data name="FwDecision_ActionLoadHistory" xml:space="preserve"><value>Zustimmungsverlauf laden</value></data>
+  <data name="FwDecision_ActionRedecide" xml:space="preserve"><value>Verbindungsentscheidung: {0}</value></data>
+  <data name="FwDecision_NoneLearned" xml:space="preserve"><value>Keine Entscheidungen aus dem Lernmodus zur Prüfung.</value></data>
+  <data name="FwDecision_ActionLoadLearned" xml:space="preserve"><value>Gelernte Entscheidungen laden</value></data>
+  <data name="FwDecision_LearnedCount" xml:space="preserve"><value>{0} automatisch zugelassene App(s) zur Prüfung</value></data>
+  <data name="FwDecision_ActionReview" xml:space="preserve"><value>Gelernte Entscheidung: {0}</value></data>
+  <data name="Listener_NotScanned" xml:space="preserve"><value>Noch nicht geprüft</value></data>
+  <data name="Listener_Scanning" xml:space="preserve"><value>Lokale Listener und effektive Firewall-Abdeckung werden geprüft…</value></data>
+  <data name="Listener_None" xml:space="preserve"><value>Keine aktiven TCP- oder UDP-Listener gefunden</value></data>
+  <data name="Listener_Count" xml:space="preserve"><value>{0} lokale Listener analysiert</value></data>
+  <data name="Listener_ActionScan" xml:space="preserve"><value>Listener-Exposition prüfen</value></data>
+  <data name="Recovery_RowLabel" xml:space="preserve"><value>{0} — {1} · {2:0.##} MB{3}</value></data>
+  <data name="Recovery_VerifiedSuffix" xml:space="preserve"><value> · verifiziert</value></data>
+  <data name="Recovery_InvalidSuffix" xml:space="preserve"><value> · ungültig</value></data>
+  <data name="DnsAdapter_RowLabel" xml:space="preserve"><value>{0}{1} — {2}</value></data>
+  <data name="DnsAdapter_VpnSuffix" xml:space="preserve"><value> · VPN/Tunnel</value></data>
+  <data name="DnsAdapter_DhcpPosture" xml:space="preserve"><value>DHCP · effektiv {0}</value></data>
+  <data name="DnsAdapter_StaticPosture" xml:space="preserve"><value>Statisch {0} · effektiv {1}</value></data>
+  <data name="Vpn_AdapterUp" xml:space="preserve"><value>Adapter aktiv</value></data>
+  <data name="Vpn_AdapterDown" xml:space="preserve"><value>Adapter inaktiv oder nicht vorhanden</value></data>
+  <data name="Vpn_NoneActive" xml:space="preserve"><value>keine aktiv</value></data>
+  <data name="Dns_ResolverDhcpDefault" xml:space="preserve"><value>DHCP (Standard)</value></data>
+  <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - Verbindung blockiert</value></data>
+  <data name="Consent_ThreatBanner" xml:space="preserve"><value>Warnung: Diese Remoteadresse steht auf der Bedrohungsliste</value></data>
+  <data name="Consent_Resolving" xml:space="preserve"><value>wird aufgelöst...</value></data>
+  <data name="Xaml_Confirm_action_50649c5c" xml:space="preserve"><value>Aktion bestätigen</value></data>
+  <data name="Xaml_HostsGuard_confirmation_07e67cb7" xml:space="preserve"><value>HostsGuard-Bestätigung</value></data>
+  <data name="Xaml_This_action_is_applied_immediately_Review_690963d1" xml:space="preserve"><value>Diese Aktion wird sofort angewendet. Prüfen Sie vor dem Fortfahren das Ziel.</value></data>
+  <data name="Xaml_Cancel_77dfd213" xml:space="preserve"><value>Abbrechen</value></data>
+  <data name="Xaml_Continue_2e026239" xml:space="preserve"><value>Fortfahren</value></data>
+  <data name="Xaml_Enter_a_value_cd8763c9" xml:space="preserve"><value>Wert eingeben</value></data>
+  <data name="Xaml_HostsGuard_input_cfced166" xml:space="preserve"><value>HostsGuard-Eingabe</value></data>
+  <data name="Xaml_Input_value_a9e020d6" xml:space="preserve"><value>Eingabewert</value></data>
+  <data name="Xaml_Save_applies_the_value_immediately_Cancel_bb5061bb" xml:space="preserve"><value>Speichern wendet den Wert sofort an. Abbrechen behält die aktuelle Einstellung.</value></data>
+  <data name="Xaml_Save_efc007a3" xml:space="preserve"><value>Speichern</value></data>
+  <data name="Xaml_HostsGuard_connection_consent_prompt_370e8956" xml:space="preserve"><value>HostsGuard-Verbindungsabfrage</value></data>
+  <data name="Xaml_Connection_blocked_c2c1ee6c" xml:space="preserve"><value>Verbindung blockiert</value></data>
+  <data name="Xaml_Review_the_process_destination_and_rule_625c4e34" xml:space="preserve"><value>Prüfen Sie Prozess, Ziel und Regelbereich vor dem Zulassen.</value></data>
+  <data name="Xaml_Warning_this_remote_address_is_on_2674dcd5" xml:space="preserve"><value>Warnung: Diese Remoteadresse steht auf der Bedrohungsliste</value></data>
+  <data name="Xaml_Host_3960ec4c" xml:space="preserve"><value>Host</value></data>
+  <data name="Xaml_Location_d219c681" xml:space="preserve"><value>Standort</value></data>
+  <data name="Xaml_Direction_fd8e45ba" xml:space="preserve"><value>Richtung</value></data>
+  <data name="Xaml_Process_12f4c13a" xml:space="preserve"><value>Prozess</value></data>
+  <data name="Xaml_Signer_362166e4" xml:space="preserve"><value>Signierer</value></data>
+  <data name="Xaml_Service_329cb8b6" xml:space="preserve"><value>Dienst</value></data>
+  <data name="Xaml_Command_line_796f8db3" xml:space="preserve"><value>Befehlszeile</value></data>
+  <data name="Xaml_Remote_c93f6536" xml:space="preserve"><value>Remote</value></data>
+  <data name="Xaml_Scope_4651a34e" xml:space="preserve"><value>Bereich</value></data>
+  <data name="Xaml_This_IP_bf8b4db9" xml:space="preserve"><value>Diese IP</value></data>
+  <data name="Xaml_This_port_04911fa9" xml:space="preserve"><value>Dieser Port</value></data>
+  <data name="Xaml_This_protocol_4b170216" xml:space="preserve"><value>Dieses Protokoll</value></data>
+  <data name="Xaml_This_service_only_faf667a0" xml:space="preserve"><value>Nur dieser Dienst</value></data>
+  <data name="Xaml_Only_this_script_module_76f07ae2" xml:space="preserve"><value>Nur dieses Skript/Modul</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_remote_81fecf80" xml:space="preserve"><value>Regel auf diese Remote-IP-Adresse beschränken</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_remote_00c2199f" xml:space="preserve"><value>Regel auf diesen Remoteport beschränken</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_protocol_6e4b38f9" xml:space="preserve"><value>Regel auf dieses Protokoll beschränken</value></data>
+  <data name="Xaml_Restrict_the_rule_to_the_owning_21045308" xml:space="preserve"><value>Regel auf den zugehörigen Windows-Dienst beschränken</value></data>
+  <data name="Xaml_Restrict_the_rule_to_this_script_61fd89a5" xml:space="preserve"><value>Regel auf dieses Skript oder Modul beschränken</value></data>
+  <data name="Xaml_Blocks_only_this_service_not_everything_1b90c1c7" xml:space="preserve"><value>Blockiert nur diesen Dienst, nicht alles im selben Prozess</value></data>
+  <data name="Xaml_Keeps_other_interpreter_scripts_separate_7febbc2b" xml:space="preserve"><value>Hält andere Skripte desselben Interpreters getrennt</value></data>
+  <data name="Xaml_Trust_all_software_signed_by_this_f4f554f6" xml:space="preserve"><value>Gesamter Software dieses Herausgebers vertrauen</value></data>
+  <data name="Xaml_Trust_all_software_in_this_folder_e1cab6fe" xml:space="preserve"><value>Gesamter Software in diesem Ordner vertrauen</value></data>
+  <data name="Xaml_On_Allow_auto_allow_any_future_9dd11626" xml:space="preserve"><value>Beim Zulassen künftige Binärdateien desselben Herausgebers automatisch erlauben</value></data>
+  <data name="Xaml_On_Allow_auto_allow_any_future_155d44e6" xml:space="preserve"><value>Beim Zulassen künftige Binärdateien im Programmordner automatisch erlauben</value></data>
+  <data name="Xaml_Duration_1370004d" xml:space="preserve"><value>Dauer</value></data>
+  <data name="Xaml_Rule_duration_5c7aecf7" xml:space="preserve"><value>Regeldauer</value></data>
+  <data name="Xaml_Once_15_min_2aef53b4" xml:space="preserve"><value>Einmal (15 Min.)</value></data>
+  <data name="Xaml_1_hour_f030c3d6" xml:space="preserve"><value>1 Stunde</value></data>
+  <data name="Xaml_This_session_48c2a13d" xml:space="preserve"><value>Diese Sitzung</value></data>
+  <data name="Xaml_Always_a91bcce8" xml:space="preserve"><value>Immer</value></data>
+  <data name="Xaml_Allow_connection_8a284745" xml:space="preserve"><value>Verbindung zulassen</value></data>
+  <data name="Xaml_Allow_this_connection_07a37a38" xml:space="preserve"><value>Diese Verbindung zulassen</value></data>
+  <data name="Xaml_Keep_blocked_74d09533" xml:space="preserve"><value>Blockiert lassen</value></data>
+  <data name="Xaml_Keep_this_connection_blocked_14498f92" xml:space="preserve"><value>Diese Verbindung blockiert lassen</value></data>
+  <data name="Xaml_Allow_all_from_this_app_b32b8fb7" xml:space="preserve"><value>Alles von dieser App zulassen</value></data>
+  <data name="Xaml_Block_all_from_this_app_afff7d44" xml:space="preserve"><value>Alles von dieser App blockieren</value></data>
+  <data name="Xaml_Allow_all_pending_connections_from_this_f6b8a4c1" xml:space="preserve"><value>Alle ausstehenden Verbindungen dieser App zulassen</value></data>
+  <data name="Xaml_Block_all_pending_connections_from_this_e8cbceda" xml:space="preserve"><value>Alle ausstehenden Verbindungen dieser App blockieren</value></data>
+  <data name="Xaml_Write_one_whole_app_allow_rule_46ffd33f" xml:space="preserve"><value>Eine Zulassungsregel für die ganze App erstellen</value></data>
+  <data name="Xaml_Write_one_whole_app_block_rule_3cc8f54a" xml:space="preserve"><value>Eine Blockierungsregel für die ganze App erstellen</value></data>
+  <data name="Xaml_If_the_timer_expires_the_connection_53901c4b" xml:space="preserve"><value>Nach Ablauf bleibt die Verbindung blockiert. Standardmäßig gilt die Entscheidung für die ganze App; Bereichsoptionen schränken sie ein.</value></data>
+  <data name="Xaml_Look_up_this_process_reputation_online_e5312c55" xml:space="preserve"><value>Reputation dieses Prozesses online prüfen</value></data>
+  <data name="UsageQuota_Block" xml:space="preserve"><value>Blockieren</value></data>
+  <data name="Proxy_ColBaseline" xml:space="preserve"><value>Basiswert</value></data>
+  <data name="Xaml_HostsGuard_bf992a7e" xml:space="preserve"><value>HostsGuard</value></data>
+  <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
+  <data name="Ncsi_ActionRecover" xml:space="preserve"><value>Windows-Konnektivit&#xE4;tspr&#xFC;fungen wiederherstellen</value></data>
 </root>

@@ -11,28 +11,28 @@ public sealed partial class ToolsViewModel
     // ─── Blocklist intelligence ───────────────────────────────────────────────
 
     [ObservableProperty]
-    private string _intelStatusText = "Checking blocklist intelligence…";
+    private string _intelStatusText = I18n.T("Intel_Checking", "Checking blocklist intelligence…");
 
     public async Task LoadIntelStatusAsync()
     {
-        await RunServiceActionAsync("Load blocklist intelligence", s => IntelStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Intel_ActionLoad", "Load blocklist intelligence"), s => IntelStatusText = s, async () =>
         {
             var status = await _client.Lists.GetBlocklistIntelligenceAsync(new Empty());
             IntelStatusText = status.Refreshing
-                ? "Downloading reference blocklists in the background…"
+                ? I18n.T("Intel_DownloadingBackground", "Downloading reference blocklists in the background…")
                 : status.Lists == 0
-                    ? "No reference lists downloaded yet — refresh to build the block-candidate index."
-                    : $"{Plural.Of(status.Lists, "reference list")} · {status.Domains:N0} domains indexed"
-                      + (status.Refreshed.Length != 0 ? $" · refreshed {TimeText.Compact(status.Refreshed)}" : string.Empty);
+                    ? I18n.T("Intel_None", "No reference lists downloaded yet — refresh to build the block-candidate index.")
+                    : I18n.T("Intel_Status", "{0} reference list(s) · {1:N0} domains indexed{2}", status.Lists, status.Domains,
+                        status.Refreshed.Length != 0 ? I18n.T("Intel_RefreshedSuffix", " · refreshed {0}", TimeText.Compact(status.Refreshed)) : string.Empty);
         });
     }
 
     [RelayCommand]
     public async Task RefreshIntelAsync()
     {
-        await RunServiceActionAsync("Refresh blocklist intelligence", s => IntelStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Intel_ActionRefresh", "Refresh blocklist intelligence"), s => IntelStatusText = s, async () =>
         {
-            IntelStatusText = "Downloading reference blocklists — this can take a few minutes…";
+            IntelStatusText = I18n.T("Intel_Downloading", "Downloading reference blocklists — this can take a few minutes…");
             var ack = await _client.Lists.RefreshBlocklistIntelligenceAsync(new Empty());
             StatusText = ack.Message;
             await LoadIntelStatusAsync();
@@ -180,5 +180,5 @@ public sealed partial class ToolsViewModel
     private bool CanUseSelectedIpBlocklist() => SelectedIpBlocklist is not null;
 
     private static string DescribeIpBlocklistResult(IpBlocklistResult result) =>
-        result.Warning.Length != 0 ? $"{result.Message} — {result.Warning}" : result.Message;
+        result.Warning.Length != 0 ? I18n.T("IpBlock_ResultWarning", "{0} — {1}", result.Message, result.Warning) : result.Message;
 }

@@ -79,7 +79,8 @@ public sealed class FullStateSnapshotRowViewModel
     public bool Verified { get; init; }
     public IReadOnlyList<string> Components { get; init; } = Array.Empty<string>();
 
-    public string Label => $"{SnapshotId} — {Created} · {SizeBytes / 1024.0 / 1024.0:0.##} MB{(Verified ? " · verified" : " · invalid")}";
+    public string Label => I18n.T("Recovery_RowLabel", "{0} — {1} · {2:0.##} MB{3}", SnapshotId, Created,
+        SizeBytes / 1024.0 / 1024.0, Verified ? I18n.T("Recovery_VerifiedSuffix", " · verified") : I18n.T("Recovery_InvalidSuffix", " · invalid"));
 
     public static FullStateSnapshotRowViewModel From(FullStateSnapshot snapshot) => new()
     {
@@ -106,7 +107,8 @@ public sealed partial class DnsAdapterRowViewModel : ObservableObject
     private bool _isSelected;
 
     public string Posture { get; init; } = string.Empty;
-    public string Label => $"{Name}{(IsVpn ? " · VPN/tunnel" : string.Empty)} — {Posture}";
+    public string Label => I18n.T("DnsAdapter_RowLabel", "{0}{1} — {2}", Name,
+        IsVpn ? I18n.T("DnsAdapter_VpnSuffix", " · VPN/tunnel") : string.Empty, Posture);
 
     public static DnsAdapterRowViewModel From(ResolverAdapterInfo adapter) => new()
     {
@@ -116,14 +118,14 @@ public sealed partial class DnsAdapterRowViewModel : ObservableObject
         IsVpn = adapter.IsVpn,
         IsSelected = adapter.IsUp && !adapter.IsVpn,
         Posture = adapter.UsesDhcp
-            ? $"DHCP · effective {Join(adapter.EffectiveServers)}"
-            : $"Static {Join(adapter.ConfiguredServers)} · effective {Join(adapter.EffectiveServers)}",
+            ? I18n.T("DnsAdapter_DhcpPosture", "DHCP · effective {0}", Join(adapter.EffectiveServers))
+            : I18n.T("DnsAdapter_StaticPosture", "Static {0} · effective {1}", Join(adapter.ConfiguredServers), Join(adapter.EffectiveServers)),
     };
 
     private static string Join(IEnumerable<string> values)
     {
         var text = string.Join(", ", values);
-        return text.Length == 0 ? "none" : text;
+        return text.Length == 0 ? I18n.T("Common_NoneLower", "none") : text;
     }
 }
 
@@ -223,7 +225,9 @@ public sealed partial class AppVpnBindingRowViewModel : ObservableObject
     [ObservableProperty]
     private string _blockedInterfacesText = string.Empty;
 
-    public string AdapterStatus => SelectedAdapterUp ? "adapter up" : "adapter down or absent";
+    public string AdapterStatus => SelectedAdapterUp
+        ? I18n.T("Vpn_AdapterUp", "adapter up")
+        : I18n.T("Vpn_AdapterDown", "adapter down or absent");
 
     public static AppVpnBindingRowViewModel From(AppVpnBinding binding) => new()
     {
@@ -232,7 +236,7 @@ public sealed partial class AppVpnBindingRowViewModel : ObservableObject
         RuleName = binding.RuleName,
         SelectedAdapterUp = binding.SelectedAdapterUp,
         BlockedInterfacesText = binding.BlockedInterfaces.Count == 0
-            ? "none active"
+            ? I18n.T("Vpn_NoneActive", "none active")
             : string.Join(", ", binding.BlockedInterfaces),
     };
 }

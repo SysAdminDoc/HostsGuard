@@ -125,9 +125,14 @@ function Find-ServicePath([string]$ResolvedAppPath) {
 }
 
 function Invoke-SmokeTheme {
-    param([ValidateSet("dark", "light")] [string]$Theme)
+    param(
+        [ValidateSet("dark", "light")] [string]$Theme,
+        [string]$Locale = "",
+        [string]$RunName = ""
+    )
 
-    $themeDir = Join-Path $OutputDir $Theme
+    $directoryName = if ([string]::IsNullOrWhiteSpace($RunName)) { $Theme } else { $RunName }
+    $themeDir = Join-Path $OutputDir $directoryName
     New-Item -ItemType Directory -Force -Path $themeDir | Out-Null
     Get-ChildItem -LiteralPath $themeDir -File -ErrorAction SilentlyContinue | Remove-Item -Force
 
@@ -138,6 +143,9 @@ function Invoke-SmokeTheme {
         "--visual-smoke-settle-ms=$SettleMs",
         "--visual-smoke-output=$themeDir"
     )
+    if (-not [string]::IsNullOrWhiteSpace($Locale)) {
+        $args += "--locale=$Locale"
+    }
     $process = Start-Process -FilePath $AppPath -ArgumentList $args -PassThru
     if (-not $process.WaitForExit(90000)) {
         Stop-Process -Id $process.Id -Force
@@ -179,6 +187,7 @@ $summary = [ordered]@{
 foreach ($theme in @("dark", "light")) {
     $summary.runs += Invoke-SmokeTheme -Theme $theme
 }
+$summary.runs += Invoke-SmokeTheme -Theme "dark" -Locale "qps-ploc" -RunName "pseudo"
 
 $summaryPath = Join-Path $OutputDir "visual-smoke-summary.json"
 Write-JsonFile $summaryPath $summary
@@ -192,7 +201,7 @@ if ($failures.Count -gt 0) {
 New-Item -ItemType Directory -Force -Path $ReadmeImageDir | Out-Null
 $readmeScreenshots = @()
 foreach ($theme in @("dark", "light")) {
-    $run = $summary.runs | Where-Object { $_.theme -eq $theme } | Select-Object -First 1
+    $run = $summary.runs | Where-Object { $_.theme -eq $theme -and $_.locale -ne "qps-ploc" } | Select-Object -First 1
     $capture = @($run.captures | Where-Object { $_.tab -eq "Hosts Activity" }) | Select-Object -First 1
     if ($null -eq $capture) {
         throw "Visual smoke did not capture the Hosts Activity README screenshot for $theme theme."

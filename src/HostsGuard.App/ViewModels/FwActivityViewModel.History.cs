@@ -67,7 +67,7 @@ public sealed partial class FwActivityViewModel
     private int _historyOffset;
 
     [ObservableProperty]
-    private string _historyStatus = "Click Load to show recorded connections.";
+    private string _historyStatus = I18n.T("FwHistory_LoadPrompt", "Click Load to show recorded connections.");
 
     [ObservableProperty]
     private string _eventSearch = string.Empty;
@@ -94,7 +94,7 @@ public sealed partial class FwActivityViewModel
     private string _eventCategory = string.Empty;
 
     [ObservableProperty]
-    private string _eventStatus = "Click Load events to browse the persisted event ledger.";
+    private string _eventStatus = I18n.T("FwHistory_EventLoadPrompt", "Click Load events to browse the persisted event ledger.");
 
     [ObservableProperty]
     private int _eventLimit = 200;
@@ -103,7 +103,7 @@ public sealed partial class FwActivityViewModel
     private int _eventOffset;
 
     [ObservableProperty]
-    private string _bandwidthStatus = "Not loaded";
+    private string _bandwidthStatus = I18n.T("Common_NotLoaded", "Not loaded");
 
     [ObservableProperty]
     private string _usageSearch = string.Empty;
@@ -121,7 +121,7 @@ public sealed partial class FwActivityViewModel
     private int _usageLimit = 200;
 
     [ObservableProperty]
-    private string _usageStatus = "Click Load usage to show daily app/domain data.";
+    private string _usageStatus = I18n.T("FwHistory_UsageLoadPrompt", "Click Load usage to show daily app/domain data.");
 
     [ObservableProperty]
     private string _usageQuotaScope = "app";
@@ -142,7 +142,7 @@ public sealed partial class FwActivityViewModel
     private bool _usageQuotaBlockOnExceed;
 
     [ObservableProperty]
-    private string _usageQuotaStatus = "Click Load quotas to show usage-budget alerts.";
+    private string _usageQuotaStatus = I18n.T("FwHistory_QuotaLoadPrompt", "Click Load quotas to show usage-budget alerts.");
 
     [ObservableProperty]
     private int _retentionDays = 30;
@@ -150,7 +150,7 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task LoadHistoryAsync()
     {
-        await RunServiceActionAsync("Load connection history", s => HistoryStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionLoad", "Load connection history"), s => HistoryStatus = s, async () =>
         {
             HistoryLimit = Math.Clamp(HistoryLimit <= 0 ? 500 : HistoryLimit, 1, 2000);
             HistoryOffset = Math.Max(0, HistoryOffset);
@@ -188,7 +188,17 @@ public sealed partial class FwActivityViewModel
                 });
             }
 
-            HistoryStatus = $"{Plural.Of(HistoryRows.Count, "recorded connection")} shown of {Plural.Of(history.Total, "match")} - offset {history.Offset} - retained {Plural.Of(RetentionDays, "day")}";
+            var shownConnections = HistoryRows.Count == 1
+                ? I18n.T("FwHistory_RecordedConnectionCount", "{0} recorded connection", HistoryRows.Count)
+                : I18n.T("FwHistory_RecordedConnectionCountPlural", "{0} recorded connections", HistoryRows.Count);
+            var matches = history.Total == 1
+                ? I18n.T("Common_MatchCount", "{0} match", history.Total)
+                : I18n.T("Common_MatchCountPlural", "{0} matches", history.Total);
+            var retainedDays = RetentionDays == 1
+                ? I18n.T("Common_DayCount", "{0} day", RetentionDays)
+                : I18n.T("Common_DayCountPlural", "{0} days", RetentionDays);
+            HistoryStatus = I18n.T("FwHistory_CountStatus", "{0} shown of {1} · offset {2} · retained {3}",
+                shownConnections, matches, history.Offset, retainedDays);
             await LoadBandwidthAsync();
             await LoadUsageAsync();
             await LoadUsageQuotasAsync();
@@ -212,7 +222,7 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task LoadEventsAsync()
     {
-        await RunServiceActionAsync("Load event log", s => EventStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionLoadEvents", "Load event log"), s => EventStatus = s, async () =>
         {
             var limit = Math.Clamp(EventLimit <= 0 ? 200 : EventLimit, 1, 2000);
             EventLimit = limit;
@@ -245,7 +255,13 @@ public sealed partial class FwActivityViewModel
                 });
             }
 
-            EventStatus = $"{Plural.Of(EventRows.Count, "event")} shown of {Plural.Of(events.Total, "match")} · offset {events.Offset}";
+            var shownEvents = EventRows.Count == 1
+                ? I18n.T("Common_EventCount", "{0} event", EventRows.Count)
+                : I18n.T("Common_EventCountPlural", "{0} events", EventRows.Count);
+            var matches = events.Total == 1
+                ? I18n.T("Common_MatchCount", "{0} match", events.Total)
+                : I18n.T("Common_MatchCountPlural", "{0} matches", events.Total);
+            EventStatus = I18n.T("FwHistory_EventCountStatus", "{0} shown of {1} · offset {2}", shownEvents, matches, events.Offset);
         });
     }
 
@@ -266,7 +282,7 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task SaveRetentionAsync()
     {
-        await RunServiceActionAsync("Save history retention", s => HistoryStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionSaveRetention", "Save history retention"), s => HistoryStatus = s, async () =>
         {
             var ack = await _client.Monitoring.SetHistorySettingsAsync(new HistorySettings { RetentionDays = RetentionDays });
             HistoryStatus = ack.Message;
@@ -276,13 +292,13 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task ClearHistoryAsync()
     {
-        if (!_confirm.Confirm("Clear connection history",
-            "Delete all retained connection-history rows? Event logs, hosts blocks, and firewall rules are unchanged."))
+        if (!_confirm.Confirm(I18n.T("FwHistory_ClearTitle", "Clear connection history"),
+            I18n.T("FwHistory_ClearMessage", "Delete all retained connection-history rows? Event logs, hosts blocks, and firewall rules are unchanged.")))
         {
             return;
         }
 
-        await RunServiceActionAsync("Clear connection history", s => HistoryStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionClear", "Clear connection history"), s => HistoryStatus = s, async () =>
         {
             var ack = await _client.Monitoring.ClearConnectionHistoryAsync(new Empty());
             HistoryRows.Clear();
@@ -302,12 +318,12 @@ public sealed partial class FwActivityViewModel
 
         if (HistoryRows.Count == 0)
         {
-            HistoryStatus = "Load history first — nothing to export.";
+            HistoryStatus = I18n.T("FwHistory_ExportRequiresLoad", "Load history first — nothing to export.");
             return;
         }
 
-        var path = _filePicker.SaveFile("Export connection history (CSV)", "connection_history.csv",
-            "CSV files (*.csv)|*.csv");
+        var path = _filePicker.SaveFile(I18n.T("FwHistory_ExportCsvTitle", "Export connection history (CSV)"), "connection_history.csv",
+            I18n.T("FileFilter_Csv", "CSV files ({0})|{0}", "*.csv"));
         if (string.IsNullOrEmpty(path))
         {
             return;
@@ -316,11 +332,13 @@ public sealed partial class FwActivityViewModel
         try
         {
             await System.IO.File.WriteAllTextAsync(path, BuildHistoryCsv(HistoryRows));
-            HistoryStatus = $"Exported {Plural.Of(HistoryRows.Count, "connection")} to {System.IO.Path.GetFileName(path)}";
+            HistoryStatus = HistoryRows.Count == 1
+                ? I18n.T("FwHistory_ExportedCsv", "Exported {0} connection to {1}", HistoryRows.Count, System.IO.Path.GetFileName(path))
+                : I18n.T("FwHistory_ExportedCsvPlural", "Exported {0} connections to {1}", HistoryRows.Count, System.IO.Path.GetFileName(path));
         }
         catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
         {
-            HistoryStatus = $"Export failed: {ex.Message}";
+            HistoryStatus = I18n.T("Common_ExportFailed", "Export failed: {0}", ex.Message);
         }
     }
 
@@ -333,8 +351,8 @@ public sealed partial class FwActivityViewModel
             return;
         }
 
-        var path = _filePicker.SaveFile("Export traffic profile", "traffic_profile.json",
-            "JSON files (*.json)|*.json|CSV files (*.csv)|*.csv");
+        var path = _filePicker.SaveFile(I18n.T("FwHistory_ExportProfileTitle", "Export traffic profile"), "traffic_profile.json",
+            I18n.T("FileFilter_JsonCsv", "JSON files ({0})|{0}|CSV files ({1})|{1}", "*.json", "*.csv"));
         if (string.IsNullOrEmpty(path))
         {
             return;
@@ -343,7 +361,7 @@ public sealed partial class FwActivityViewModel
         var format = System.IO.Path.GetExtension(path).Equals(".csv", StringComparison.OrdinalIgnoreCase)
             ? "csv"
             : "json";
-        await RunServiceActionAsync("Export traffic profile", s => HistoryStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionExportProfile", "Export traffic profile"), s => HistoryStatus = s, async () =>
         {
             var profile = await _client.Monitoring.ExportTrafficProfileAsync(new TrafficProfileRequest
             {
@@ -358,11 +376,18 @@ public sealed partial class FwActivityViewModel
             try
             {
                 await System.IO.File.WriteAllTextAsync(path, profile.Content);
-                HistoryStatus = $"Exported redacted {profile.Format} traffic profile ({Plural.Of(profile.ConnectionCount, "connection")}, {Plural.Of(profile.EventCount, "event")}; no packet payloads) to {System.IO.Path.GetFileName(path)}";
+                var connectionCount = profile.ConnectionCount == 1
+                    ? I18n.T("FwActivity_ConnectionCount", "{0} connection", profile.ConnectionCount)
+                    : I18n.T("FwActivity_ConnectionCountPlural", "{0} connections", profile.ConnectionCount);
+                var eventCount = profile.EventCount == 1
+                    ? I18n.T("Common_EventCount", "{0} event", profile.EventCount)
+                    : I18n.T("Common_EventCountPlural", "{0} events", profile.EventCount);
+                HistoryStatus = I18n.T("FwHistory_ExportedProfile", "Exported redacted {0} traffic profile ({1}, {2}; no packet payloads) to {3}",
+                    profile.Format, connectionCount, eventCount, System.IO.Path.GetFileName(path));
             }
             catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                HistoryStatus = $"Export failed: {ex.Message}";
+                HistoryStatus = I18n.T("Common_ExportFailed", "Export failed: {0}", ex.Message);
             }
         });
     }
@@ -371,7 +396,17 @@ public sealed partial class FwActivityViewModel
     public static string BuildHistoryCsv(IEnumerable<HistoryRowViewModel> rows)
     {
         var sb = new System.Text.StringBuilder();
-        CsvExport.AppendRow(sb, "When", "Process", "PID", "Protocol", "Host", "Remote", "Port", "Country", "ASN", "Firewall");
+        CsvExport.AppendRow(sb,
+            I18n.T("Csv_When", "When"),
+            I18n.T("Csv_Process", "Process"),
+            I18n.T("Csv_PID", "PID"),
+            I18n.T("Csv_Protocol", "Protocol"),
+            I18n.T("Csv_Host", "Host"),
+            I18n.T("Csv_Remote", "Remote"),
+            I18n.T("Csv_Port", "Port"),
+            I18n.T("Csv_Country", "Country"),
+            I18n.T("Csv_ASN", "ASN"),
+            I18n.T("Csv_Firewall", "Firewall"));
         foreach (var r in rows)
         {
             CsvExport.AppendRow(
@@ -393,7 +428,7 @@ public sealed partial class FwActivityViewModel
 
     public async Task LoadBandwidthAsync()
     {
-        await RunServiceActionAsync("Load bandwidth timeline", s => BandwidthStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionLoadBandwidth", "Load bandwidth timeline"), s => BandwidthStatus = s, async () =>
         {
             var list = await _client.Monitoring.GetAppBandwidthAsync(new BandwidthRequest { Minutes = 60, Top = TimelineMaxSeries });
             BuildBandwidthSeries(list);
@@ -403,7 +438,7 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task LoadUsageAsync()
     {
-        await RunServiceActionAsync("Load usage rollups", s => UsageStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionLoadUsage", "Load usage rollups"), s => UsageStatus = s, async () =>
         {
             UsageDays = Math.Clamp(UsageDays <= 0 ? 30 : UsageDays, 1, 365);
             UsageLimit = Math.Clamp(UsageLimit <= 0 ? 200 : UsageLimit, 1, 2000);
@@ -429,14 +464,20 @@ public sealed partial class FwActivityViewModel
                 });
             }
 
-            UsageStatus = $"{Plural.Of(UsageRows.Count, "usage row")} shown - retained {Plural.Of(list.RetentionDays, "day")}";
+            var shownRows = UsageRows.Count == 1
+                ? I18n.T("FwHistory_UsageRowCount", "{0} usage row", UsageRows.Count)
+                : I18n.T("FwHistory_UsageRowCountPlural", "{0} usage rows", UsageRows.Count);
+            var retainedDays = list.RetentionDays == 1
+                ? I18n.T("Common_DayCount", "{0} day", list.RetentionDays)
+                : I18n.T("Common_DayCountPlural", "{0} days", list.RetentionDays);
+            UsageStatus = I18n.T("FwHistory_UsageCountStatus", "{0} shown · retained {1}", shownRows, retainedDays);
         });
     }
 
     [RelayCommand]
     public async Task LoadUsageQuotasAsync()
     {
-        await RunServiceActionAsync("Load usage quotas", s => UsageQuotaStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionLoadQuotas", "Load usage quotas"), s => UsageQuotaStatus = s, async () =>
         {
             var list = await _client.Monitoring.GetUsageQuotaRulesAsync(new Empty());
             UsageQuotaRules.Clear();
@@ -458,7 +499,9 @@ public sealed partial class FwActivityViewModel
                 });
             }
 
-            UsageQuotaStatus = $"{Plural.Of(UsageQuotaRules.Count, "usage quota")} loaded";
+            UsageQuotaStatus = UsageQuotaRules.Count == 1
+                ? I18n.T("FwHistory_QuotaCountStatus", "{0} usage quota loaded", UsageQuotaRules.Count)
+                : I18n.T("FwHistory_QuotaCountStatusPlural", "{0} usage quotas loaded", UsageQuotaRules.Count);
         });
     }
 
@@ -467,17 +510,17 @@ public sealed partial class FwActivityViewModel
     {
         if (string.IsNullOrWhiteSpace(UsageQuotaScope) || string.IsNullOrWhiteSpace(UsageQuotaMatch))
         {
-            UsageQuotaStatus = "Enter app/domain scope and match before saving.";
+            UsageQuotaStatus = I18n.T("FwHistory_QuotaTargetRequired", "Enter app/domain scope and match before saving.");
             return;
         }
 
         if (!TryParseBytes(UsageQuotaLimitText, out var limitBytes))
         {
-            UsageQuotaStatus = "Enter a positive quota limit such as 500MB or 1GB.";
+            UsageQuotaStatus = I18n.T("FwHistory_QuotaLimitRequired", "Enter a positive quota limit such as 500MB or 1GB.");
             return;
         }
 
-        await RunServiceActionAsync("Save usage quota", s => UsageQuotaStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionSaveQuota", "Save usage quota"), s => UsageQuotaStatus = s, async () =>
         {
             UsageQuotaWindowDays = Math.Clamp(UsageQuotaWindowDays <= 0 ? 30 : UsageQuotaWindowDays, 1, 365);
             var ack = await _client.Monitoring.SetUsageQuotaRuleAsync(new UsageQuotaRule
@@ -502,13 +545,13 @@ public sealed partial class FwActivityViewModel
             return;
         }
 
-        if (!_confirm.Confirm("Delete usage quota",
-            $"Remove the {row.Scope} quota for {row.Match}? Existing usage rollups are unchanged."))
+        if (!_confirm.Confirm(I18n.T("FwHistory_DeleteQuotaTitle", "Delete usage quota"),
+            I18n.T("FwHistory_DeleteQuotaMessage", "Remove the {0} quota for {1}? Existing usage rollups are unchanged.", row.Scope, row.Match)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Delete usage quota", s => UsageQuotaStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionDeleteQuota", "Delete usage quota"), s => UsageQuotaStatus = s, async () =>
         {
             var ack = await _client.Monitoring.DeleteUsageQuotaRuleAsync(new UsageQuotaRule { Id = row.Id });
             UsageQuotaStatus = ack.Message;
@@ -519,13 +562,13 @@ public sealed partial class FwActivityViewModel
     [RelayCommand]
     public async Task ResetUsageQuotaHistoryAsync()
     {
-        if (!_confirm.Confirm("Reset usage quota history",
-            "Clear quota alert cursors so thresholds can alert again? Daily usage rollups remain intact."))
+        if (!_confirm.Confirm(I18n.T("FwHistory_ResetQuotaTitle", "Reset usage quota history"),
+            I18n.T("FwHistory_ResetQuotaMessage", "Clear quota alert cursors so thresholds can alert again? Daily usage rollups remain intact.")))
         {
             return;
         }
 
-        await RunServiceActionAsync("Reset usage quota history", s => UsageQuotaStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionResetQuota", "Reset usage quota history"), s => UsageQuotaStatus = s, async () =>
         {
             var ack = await _client.Monitoring.ResetUsageQuotaHistoryAsync(new Empty());
             UsageQuotaStatus = ack.Message;
@@ -541,14 +584,14 @@ public sealed partial class FwActivityViewModel
             return;
         }
 
-        var path = _filePicker.SaveFile("Export usage quota history (CSV)", "usage_quota_history.csv",
-            "CSV files (*.csv)|*.csv|JSON files (*.json)|*.json");
+        var path = _filePicker.SaveFile(I18n.T("FwHistory_ExportQuotaTitle", "Export usage quota history (CSV)"), "usage_quota_history.csv",
+            I18n.T("FileFilter_CsvJson", "CSV files ({0})|{0}|JSON files ({1})|{1}", "*.csv", "*.json"));
         if (string.IsNullOrEmpty(path))
         {
             return;
         }
 
-        await RunServiceActionAsync("Export usage quota history", s => UsageQuotaStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("FwHistory_ActionExportQuota", "Export usage quota history"), s => UsageQuotaStatus = s, async () =>
         {
             var export = await _client.Monitoring.ExportUsageQuotaHistoryAsync(new UsageQuotaHistoryRequest
             {
@@ -556,7 +599,7 @@ public sealed partial class FwActivityViewModel
                 Format = path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "json" : "csv",
             });
             await System.IO.File.WriteAllTextAsync(path, export.Content);
-            UsageQuotaStatus = $"Exported usage quota history to {System.IO.Path.GetFileName(path)}";
+            UsageQuotaStatus = I18n.T("FwHistory_ExportedQuota", "Exported usage quota history to {0}", System.IO.Path.GetFileName(path));
         });
     }
 
@@ -568,8 +611,8 @@ public sealed partial class FwActivityViewModel
         if (list.Series.Count == 0)
         {
             BandwidthStatus = list.CountersActive
-                ? "No traffic recorded yet"
-                : "Byte counters inactive (service not elevated)";
+                ? I18n.T("FwHistory_NoTraffic", "No traffic recorded yet")
+                : I18n.T("FwHistory_CountersInactive", "Byte counters inactive (service not elevated)");
             return;
         }
 
@@ -598,11 +641,13 @@ public sealed partial class FwActivityViewModel
                 Name = s.Process,
                 PointsText = points.ToString(),
                 ColorIndex = i,
-                LegendText = $"↑{FormatBytes(s.TotalSent)} ↓{FormatBytes(s.TotalRecv)}",
+                LegendText = I18n.T("FwHistory_BandwidthLegend", "↑{0} ↓{1}", FormatBytes(s.TotalSent), FormatBytes(s.TotalRecv)),
             });
         }
 
-        BandwidthStatus = $"Top {Plural.Of(list.Series.Count, "app")} · last 60 min · peak {FormatBytes(peak)}/min";
+        BandwidthStatus = list.Series.Count == 1
+            ? I18n.T("FwHistory_BandwidthStatus", "Top {0} app · last 60 min · peak {1}/min", list.Series.Count, FormatBytes(peak))
+            : I18n.T("FwHistory_BandwidthStatusPlural", "Top {0} apps · last 60 min · peak {1}/min", list.Series.Count, FormatBytes(peak));
     }
 
     /// <summary>Humanized byte count ("1.4 MB").</summary>

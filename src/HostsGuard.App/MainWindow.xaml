@@ -146,10 +146,15 @@
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
                     <MenuItem Header="{svc:Loc Key=Xaml_Toggle_theme_9b0eaf14}" Command="{Binding ToggleThemeCommand}" />
-                    <MenuItem Header="{svc:Loc Key=Menu_Language, Default=Language}">
-                        <MenuItem Header="{svc:Loc Key=Xaml_System_default_9d8d3808}" Command="{Binding SetLanguageCommand}" CommandParameter="" />
-                        <MenuItem Header="{svc:Loc Key=Xaml_English_649df08a}" Command="{Binding SetLanguageCommand}" CommandParameter="en" />
-                        <MenuItem Header="{svc:Loc Key=Xaml_EspaÃ_ol_b6b9e8ef}" Command="{Binding SetLanguageCommand}" CommandParameter="es" />
+                    <MenuItem x:Name="LanguageMenu"
+                              Header="{svc:Loc Key=Menu_Language, Default=Language}"
+                              ItemsSource="{x:Static svc:AppConfigStore.LanguageOptions}">
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                <Setter Property="Header" Value="{Binding Name}" />
+                                <EventSetter Event="Click" Handler="OnLanguageMenuClick" />
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
                     </MenuItem>
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Reset_view_80d8db7a}" Command="{Binding ResetViewCommand}"
@@ -208,7 +213,9 @@
                                 <Path Style="{StaticResource Hg.ButtonGlyphPath}"
                                       Stroke="{DynamicResource Hg.Green}"
                                       Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
-                                <TextBlock Text="{svc:Loc Key=TopBand_RestoreSafe}" Margin="8,0,0,0" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="{svc:Loc Key=TopBand_RestoreSafe}" Margin="8,0,0,0"
+                                           MaxWidth="180" TextWrapping="Wrap" TextAlignment="Center"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                             </StackPanel>
                         </Button>
                         <Button Style="{StaticResource Hg.TopBandButton}"
@@ -220,7 +227,8 @@
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource Hg.ButtonGlyphPath}"
                                       Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
-                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" Margin="8,0,0,0" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" Margin="8,0,0,0" TextWrapping="Wrap"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                             </StackPanel>
                         </Button>
                         <Button Style="{StaticResource Hg.TopBandButton}"
@@ -294,7 +302,7 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="264" />
+                    <ColumnDefinition Width="Auto" MinWidth="264" MaxWidth="340" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -416,37 +424,41 @@
                                                        Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
                                         <TextBlock Text="{Binding EnforcementPauseText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
-                                        <Button Content="{svc:Loc Key=TopBand_RestoreSafe}"
+                                        <Button
                                                 Command="{Binding RestoreSafeNetworkPostureCommand}"
                                                 IsEnabled="{Binding IsConnected}"
                                                 Style="{StaticResource Hg.SafeButton}"
                                                 HorizontalAlignment="Stretch"
                                                 Margin="0,0,0,8"
-                                                ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}" />
-                                        <Button Content="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}"
+                                                ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}">
+                                            <TextBlock Text="{svc:Loc Key=TopBand_RestoreSafe}" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </Button>
+                                        <Button
                                                 Command="{Binding SetGlobalModeCommand}"
                                                 CommandParameter="block-all"
                                                 Style="{StaticResource Hg.DangerButton}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
-                                                ToolTip="{svc:Loc Key=Xaml_Block_new_outbound_traffic_unless_an_9797ef1d}" />
+                                                ToolTip="{svc:Loc Key=Xaml_Block_new_outbound_traffic_unless_an_9797ef1d}">
+                                            <TextBlock Text="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </Button>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Pause_enforcement_8c943b55}" Style="{StaticResource Hg.HelperText}" Margin="0,8,0,4" />
                                         <WrapPanel>
-                                            <Button Content="{svc:Loc Key=Xaml_5_minutes_34e17f47}"
+                                            <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="5"
                                                     Padding="7,3"
-                                                    Margin="0,0,6,6" />
-                                            <Button Content="{svc:Loc Key=Xaml_15_minutes_899761ff}"
+                                                    Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_5_minutes_34e17f47}" TextWrapping="Wrap" /></Button>
+                                            <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="15"
                                                     Padding="7,3"
-                                                    Margin="0,0,6,6" />
-                                            <Button Content="{svc:Loc Key=Xaml_1_hour_f030c3d6}"
+                                                    Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_15_minutes_899761ff}" TextWrapping="Wrap" /></Button>
+                                            <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="60"
                                                     Padding="7,3"
-                                                    Margin="0,0,0,6" />
+                                                    Margin="0,0,0,6"><TextBlock Text="{svc:Loc Key=Xaml_1_hour_f030c3d6}" TextWrapping="Wrap" /></Button>
                                         </WrapPanel>
                                     </StackPanel>
                                 </Border>
@@ -527,7 +539,8 @@
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
                                   Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" />
-                            <TextBlock Text="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}" />
+                            <TextBlock Text="{svc:Loc Key=Tab_HostsActivity, Default=Hosts Activity}"
+                                       TextWrapping="Wrap" TextAlignment="Center" MaxWidth="100" />
                         </StackPanel>
                     </TabItem.Header>
                     <Grid Margin="4" DataContext="{Binding Activity}">
@@ -545,11 +558,13 @@
                                      Tag="{svc:Loc Key=Xaml_SearchDomainsHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_DNS_activity_c131610b}"
                                      ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_supports_field_900279c6}" />
-                            <Button Content="{svc:Loc Key=Xaml_AI_purposes_9aa2d27e}"
+                            <Button
                                     Command="{Binding ResearchPurposesCommand}"
                                     Padding="10,5"
                                     Margin="6,0,0,0"
-                                    ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_research_what_each_domain_68c1899f}" />
+                                    ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_research_what_each_domain_68c1899f}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_AI_purposes_9aa2d27e}" TextWrapping="Wrap" />
+                            </Button>
                             <Button Content="{svc:Loc Key=Xaml_Block_82dd2cdf}"
                                     Style="{StaticResource Hg.DangerButton}"
                                     Padding="10,5"
@@ -578,10 +593,12 @@
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding BlockedOnly}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Show_only_blocked_domains_0ccd7e40}" />
-                            <CheckBox Content="{svc:Loc Key=Xaml_Hide_blocked_3a8dacc1}" Margin="6,0,0,0"
+                            <CheckBox Margin="6,0,0,0"
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding HideBlocked}"
-                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Hide_already_blocked_domains_c28c44e2}" />
+                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Hide_already_blocked_domains_c28c44e2}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Hide_blocked_3a8dacc1}" TextWrapping="Wrap" MaxWidth="110" />
+                            </CheckBox>
                             <CheckBox Content="{svc:Loc Key=Xaml_Hidden_d4c2792a}" Margin="6,0,0,0"
                                       VerticalAlignment="Center"
                                       IsChecked="{Binding ShowHidden}" />
@@ -594,8 +611,8 @@
 
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="250" />
+                                <ColumnDefinition Width="3*" />
+                                <ColumnDefinition Width="2*" MinWidth="250" MaxWidth="360" />
                             </Grid.ColumnDefinitions>
 
                         <DataGrid Grid.Column="0" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
@@ -892,10 +909,11 @@
 
                                         <DockPanel Margin="0,10,0,3" LastChildFill="True">
                                             <Button DockPanel.Dock="Right"
-                                                    Content="{svc:Loc Key=Xaml_AI_analyze_b541cf78}"
                                                     Command="{Binding DataContext.ResearchPurposesCommand, ElementName=ActivityGrid}"
                                                     Padding="8,2"
-                                                    MinHeight="24" />
+                                                    MinHeight="24">
+                                                <TextBlock Text="{svc:Loc Key=Xaml_AI_analyze_b541cf78}" TextWrapping="Wrap" TextAlignment="Center" />
+                                            </Button>
                                             <TextBlock Text="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Style="{StaticResource Hg.InspectorLabel}" Margin="0" />
                                         </DockPanel>
                                         <TextBlock Text="{Binding Purpose, TargetNullValue={svc:Loc Key=Xaml_NotClassifiedYetTargetNull}}"
@@ -919,32 +937,40 @@
 
                                         <TextBlock Text="{svc:Loc Key=Xaml_Actions_c3cd636a}" Style="{StaticResource Hg.InspectorLabel}" />
                                         <StackPanel>
-                                            <Button Content="{svc:Loc Key=Xaml_Allow_domain_2c91d71a}"
+                                            <Button
                                                     Style="{StaticResource Hg.SuccessButton}"
                                                     Margin="0,0,0,6"
                                                     HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.AllowSelectedCommand, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
-                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="{svc:Loc Key=Xaml_Block_domain_9fcd1d15}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                                <TextBlock Text="{svc:Loc Key=Xaml_Allow_domain_2c91d71a}" TextWrapping="Wrap" TextAlignment="Center" />
+                                            </Button>
+                                            <Button
                                                     Style="{StaticResource Hg.DangerButton}"
                                                     Margin="0,0,0,6"
                                                     HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.BlockSelectedCommand, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
-                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="{svc:Loc Key=Xaml_Temp_allow_69178873}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                                <TextBlock Text="{svc:Loc Key=Xaml_Block_domain_9fcd1d15}" TextWrapping="Wrap" TextAlignment="Center" />
+                                            </Button>
+                                            <Button
                                                     Margin="0,0,0,6"
                                                     HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.TempAllow60Command, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding Domain}"
-                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                                            <Button Content="{svc:Loc Key=Xaml_Hide_domain_5dfed914}"
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                                <TextBlock Text="{svc:Loc Key=Xaml_Temp_allow_69178873}" TextWrapping="Wrap" TextAlignment="Center" />
+                                            </Button>
+                                            <Button
                                                     Margin="0,0,0,6"
                                                     HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.HideSelectedCommand, ElementName=ActivityGrid}"
                                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
-                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
+                                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                                <TextBlock Text="{svc:Loc Key=Xaml_Hide_domain_5dfed914}" TextWrapping="Wrap" TextAlignment="Center" />
+                                            </Button>
                                             <Button Content="{svc:Loc Key=Xaml_Research_be601df2}"
                                                     HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.ResearchGoogleCommand, ElementName=ActivityGrid}"
@@ -992,30 +1018,33 @@
                         </Grid.RowDefinitions>
 
                         <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
-                            <DockPanel LastChildFill="True">
-                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
-                                        Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Acknowledge_all_40e0718f}"
-                                        Command="{Binding AckAllCommand}" Margin="8,0,0,0" />
-                                <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Acknowledge_selected_01567827}"
-                                        Command="{Binding AckCommand}"
-                                        CommandParameter="{Binding SelectedItem, ElementName=AlertsGrid}"
-                                        Margin="8,0,0,0" />
-                                <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Include_read_23a80646}" Margin="8,0,0,0"
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding IncludeRead}"
-                                          ToolTip="{svc:Loc Key=Xaml_Include_acknowledged_alerts_c79eea1f}" />
-                                <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Surface_only_5f216e59}" Margin="8,0,0,0"
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding SurfaceOnly}"
-                                          ToolTip="{svc:Loc Key=Xaml_Show_only_alert_types_configured_to_baa98b18}" />
+                            <WrapPanel VerticalAlignment="Center">
                                 <TextBox Text="{Binding TypeFilter, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource Hg.HintBox}"
-                                         MinWidth="190"
+                                         MinWidth="160" Margin="0,0,8,6"
                                          Tag="{svc:Loc Key=Xaml_Type_filter_6e3b3ab7}"
                                          AutomationProperties.Name="{svc:Loc Key=Xaml_Type_filter_6e3b3ab7}"
                                          ToolTip="{svc:Loc Key=Xaml_Alert_type_exact_filter_095a0f53}" />
-                            </DockPanel>
+                                <CheckBox Content="{svc:Loc Key=Xaml_Surface_only_5f216e59}" Margin="0,0,8,6"
+                                          VerticalAlignment="Center"
+                                          IsChecked="{Binding SurfaceOnly}"
+                                          ToolTip="{svc:Loc Key=Xaml_Show_only_alert_types_configured_to_baa98b18}" />
+                                <CheckBox Margin="0,0,8,6" VerticalAlignment="Center"
+                                          IsChecked="{Binding IncludeRead}"
+                                          ToolTip="{svc:Loc Key=Xaml_Include_acknowledged_alerts_c79eea1f}">
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Include_read_23a80646}" TextWrapping="Wrap" MaxWidth="120" />
+                                </CheckBox>
+                                <Button Command="{Binding AckCommand}"
+                                        CommandParameter="{Binding SelectedItem, ElementName=AlertsGrid}"
+                                        Margin="0,0,8,6">
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Acknowledge_selected_01567827}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
+                                <Button Command="{Binding AckAllCommand}" Margin="0,0,8,6">
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Acknowledge_all_40e0718f}" TextWrapping="Wrap" TextAlignment="Center" />
+                                </Button>
+                                <Button Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                        Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+                            </WrapPanel>
                         </Border>
 
                         <Grid Grid.Row="1">
@@ -1146,7 +1175,7 @@
                             <TextBlock Text="{svc:Loc Key=Tab_HostsFile, Default=Hosts File}" />
                         </StackPanel>
                     </TabItem.Header>
-                    <TabControl Margin="0,4,0,0"
+                    <TabControl x:Name="HostsTabs" Margin="0,4,0,0"
                                 Style="{StaticResource Hg.PrimaryTabs}"
                                 ItemContainerStyle="{StaticResource Hg.SecondaryTabItem}">
                         <TabItem Header="{svc:Loc Key=Tab_ManagedDomains, Default=Managed Domains}">
@@ -1515,20 +1544,27 @@
                             <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Observe_c99a2bcf}" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding ObserveMode}"
                                       ToolTip="{svc:Loc Key=Xaml_Record_new_processes_silently_instead_of_e83fd128}" />
-                            <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Inherit_to_children_86cbf611}" Margin="0,0,14,0" VerticalAlignment="Center"
+                            <CheckBox DockPanel.Dock="Left" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding DataContext.ChildInherit, RelativeSource={RelativeSource AncestorType=Window}}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Child_process_auto_allow_b6f484ea}"
-                                      ToolTip="{svc:Loc Key=Xaml_Child_process_auto_allow_a_direct_f67d601b}" />
-                            <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Inbound_prompts_a42a5e5c}" Margin="0,0,14,0" VerticalAlignment="Center"
+                                      ToolTip="{svc:Loc Key=Xaml_Child_process_auto_allow_a_direct_f67d601b}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Inherit_to_children_86cbf611}" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <CheckBox DockPanel.Dock="Left" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding DataContext.InboundConsent, RelativeSource={RelativeSource AncestorType=Window}}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Inbound_connection_consent_d2906bf6}"
-                                      ToolTip="{svc:Loc Key=Xaml_Inbound_connection_consent_also_prompt_on_2905613f}" />
+                                      ToolTip="{svc:Loc Key=Xaml_Inbound_connection_consent_also_prompt_on_2905613f}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Inbound_prompts_a42a5e5c}" TextWrapping="Wrap" />
+                            </CheckBox>
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
-                                       Style="{StaticResource Hg.DimText}" VerticalAlignment="Center" />
-                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Close_TCP_on_block_b15d5697}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Style="{StaticResource Hg.DimText}" VerticalAlignment="Center"
+                                       TextWrapping="Wrap" MaxWidth="520" />
+                            <CheckBox DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding FlowTeardownEnabled}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Close_matching_IPv4_TCP_flows_on_block_b80df497}"
-                                      ToolTip="{svc:Loc Key=Xaml_Opt_in_closes_matching_established_899aa84d}" />
+                                      ToolTip="{svc:Loc Key=Xaml_Opt_in_closes_matching_established_899aa84d}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Close_TCP_on_block_b15d5697}" TextWrapping="Wrap" />
+                            </CheckBox>
                             <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_AI_identify_f32080d7}" Margin="10,0,0,0" Padding="10,3"
                                     Command="{Binding IdentifyConnectionsCommand}"
                                     ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_explain_what_each_connection_bf26cd35}" />
@@ -1536,14 +1572,18 @@
                                       IsChecked="{Binding ResolveIps}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Resolve_remote_IPs_with_reverse_DNS_037e338f}"
                                       ToolTip="{svc:Loc Key=Xaml_Reverse_DNS_remote_IPs_the_live_91aea662}" />
-                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Group_by_app_8d9fabe2}" Margin="10,0,10,0" VerticalAlignment="Center"
+                            <CheckBox DockPanel.Dock="Right" Margin="10,0,10,0" VerticalAlignment="Center"
                                       IsChecked="{Binding GroupByApp}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Group_connections_by_app_8a45d006}"
-                                      ToolTip="{svc:Loc Key=Xaml_Group_the_live_connections_under_their_5f76fe48}" />
-                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Group_by_country_20629707}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                      ToolTip="{svc:Loc Key=Xaml_Group_the_live_connections_under_their_5f76fe48}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Group_by_app_8d9fabe2}" TextWrapping="Wrap" />
+                            </CheckBox>
+                            <CheckBox DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding GroupByCountry}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Group_connections_by_country_faf82ca8}"
-                                      ToolTip="{svc:Loc Key=Xaml_Group_the_live_connections_by_remote_925f45c1}" />
+                                      ToolTip="{svc:Loc Key=Xaml_Group_the_live_connections_by_remote_925f45c1}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Group_by_country_20629707}" TextWrapping="Wrap" />
+                            </CheckBox>
                             <TextBox Margin="0,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
@@ -1557,9 +1597,11 @@
                                      Tag="{svc:Loc Key=Xaml_ExplainConnectionHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Decision_explainer_target_bb8fba97}"
                                      ToolTip="{svc:Loc Key=Xaml_Explain_the_current_rule_decision_for_04e02131}" />
-                            <Button Content="{svc:Loc Key=Xaml_Explain_55cbfd1b}" Margin="6,0,0,0" Padding="10,3"
+                            <Button Margin="6,0,0,0" Padding="10,3"
                                     Command="{Binding ExplainInputCommand}"
-                                    ToolTip="{svc:Loc Key=Xaml_Show_the_ordered_hosts_firewall_trust_7b7cc959}" />
+                                    ToolTip="{svc:Loc Key=Xaml_Show_the_ordered_hosts_firewall_trust_7b7cc959}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Explain_55cbfd1b}" TextWrapping="Wrap" />
+                            </Button>
                         </WrapPanel>
                         </Border>
 
@@ -1872,11 +1914,17 @@
                         <!-- Per-app activity timeline (new connections per minute) -->
                         <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                             <StackPanel>
-                                <DockPanel LastChildFill="False">
-                                    <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Per_app_activity_217dcab5}" FontWeight="SemiBold" />
-                                    <TextBlock DockPanel.Dock="Right" Text="{Binding TimelineStatus}"
-                                               Style="{StaticResource Hg.DimText}" />
-                                </DockPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{svc:Loc Key=Xaml_Per_app_activity_217dcab5}"
+                                               FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding TimelineStatus}"
+                                               Style="{StaticResource Hg.DimText}" TextWrapping="Wrap"
+                                               TextAlignment="Right" />
+                                </Grid>
                                 <Grid Height="86" Margin="0,6,0,0" ClipToBounds="True">
                                     <ItemsControl ItemsSource="{Binding Timeline}">
                                         <ItemsControl.ItemsPanel>
@@ -1920,10 +1968,12 @@
                         <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0" MaxHeight="300">
                             <StackPanel>
                                 <DockPanel LastChildFill="False">
-                                    <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Learning_review_e304e7cd}" FontWeight="SemiBold" />
-                                    <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Discard_all_5b034df8}" Padding="10,2" Margin="6,0,0,0"
+                                    <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Learning_review_e304e7cd}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <Button DockPanel.Dock="Right" Padding="10,2" Margin="6,0,0,0"
                                             Command="{Binding DiscardAllLearnedCommand}"
-                                            ToolTip="{svc:Loc Key=Xaml_Remove_every_auto_allow_â_apps_163401e7}" />
+                                            ToolTip="{svc:Loc Key=Xaml_Remove_every_auto_allow_â_apps_163401e7}">
+                                        <TextBlock Text="{svc:Loc Key=Xaml_Discard_all_5b034df8}" TextWrapping="Wrap" />
+                                    </Button>
                                     <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Keep_all_cbfb83ff}" Padding="10,2" Margin="6,0,0,0"
                                             Command="{Binding PromoteAllLearnedCommand}"
                                             ToolTip="{svc:Loc Key=Xaml_Promote_every_auto_allow_to_a_d9f8f8a6}" />
@@ -1958,10 +2008,12 @@
                                     <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Recent_connection_decisions_29dbabdf}" FontWeight="SemiBold" />
                                     <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
                                             Command="{Binding LoadConsentHistoryCommand}" Padding="10,2" />
-                                    <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Sound_on_block_08d731f1}" VerticalAlignment="Center" Margin="0,0,12,0"
+                                    <CheckBox DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,12,0"
                                               IsChecked="{Binding SoundOnBlock}"
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_Play_a_sound_when_a_connection_2bc200d4}"
-                                              ToolTip="{svc:Loc Key=Xaml_Play_a_system_sound_when_a_1ab7ad53}" />
+                                              ToolTip="{svc:Loc Key=Xaml_Play_a_system_sound_when_a_1ab7ad53}">
+                                        <TextBlock Text="{svc:Loc Key=Xaml_Sound_on_block_08d731f1}" TextWrapping="Wrap" />
+                                    </CheckBox>
                                 </DockPanel>
                                 <ItemsControl ItemsSource="{Binding TopTriggered}" Margin="0,4,0,0">
                                     <ItemsControl.ItemsPanel>
@@ -2042,8 +2094,10 @@
 
                         <!-- Effective local-listener exposure. Snapshot analysis; never claims external reachability. -->
                         <Expander Grid.Row="4" Margin="0,8,0,0" IsExpanded="False"
-                                  Header="{svc:Loc Key=ListenerExposure_Title}"
                                   AutomationProperties.Name="{svc:Loc Key=ListenerExposure_Name}">
+                            <Expander.Header>
+                                <TextBlock Text="{svc:Loc Key=ListenerExposure_Title}" TextWrapping="Wrap" />
+                            </Expander.Header>
                             <Border Style="{StaticResource Hg.Card}">
                                 <StackPanel>
                                     <DockPanel LastChildFill="False">
@@ -2099,8 +2153,11 @@
                         </Expander>
 
                         <!-- Persistent connection history + per-app bandwidth (NET-070) -->
-                        <Expander Grid.Row="5" Margin="0,8,0,0" Header="{svc:Loc Key=Xaml_History_bandwidth_fb9e4b19}"
+                        <Expander Grid.Row="5" Margin="0,8,0,0"
                                   AutomationProperties.Name="{svc:Loc Key=Xaml_Connection_history_and_bandwidth_90795564}">
+                            <Expander.Header>
+                                <TextBlock Text="{svc:Loc Key=Xaml_History_bandwidth_fb9e4b19}" TextWrapping="Wrap" />
+                            </Expander.Header>
                             <Border Style="{StaticResource Hg.Card}">
                                 <StackPanel>
                                     <WrapPanel>
@@ -2450,12 +2507,16 @@
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
                                     Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
-                            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_IncludeWindowsRules, Default=Include Windows rules}"
+                            <Button DockPanel.Dock="Right"
                                     Command="{Binding AdoptRulesCommand}" Margin="8,0,0,0"
-                                    ToolTip="{svc:Loc Key=FwRules_IncludeWindowsRulesTip, Default=Index current Windows Firewall rules in this view. Read-only; nothing on the live firewall changes.}" />
-                            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_HostsGuard_rules_only_a5afd2dd}" Margin="8,0,0,0"
+                                    ToolTip="{svc:Loc Key=FwRules_IncludeWindowsRulesTip, Default=Index current Windows Firewall rules in this view. Read-only; nothing on the live firewall changes.}">
+                                <TextBlock Text="{svc:Loc Key=FwRules_IncludeWindowsRules, Default=Include Windows rules}" TextWrapping="Wrap" />
+                            </Button>
+                            <CheckBox DockPanel.Dock="Right" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}"
-                                      ToolTip="{svc:Loc Key=FwRules_HostsGuardOnlyTip, Default=Show only rules created and managed by HostsGuard.}" />
+                                      ToolTip="{svc:Loc Key=FwRules_HostsGuardOnlyTip, Default=Show only rules created and managed by HostsGuard.}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_rules_only_a5afd2dd}" TextWrapping="Wrap" />
+                            </CheckBox>
                             <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Drift_only_d7e80af4}" Margin="8,0,0,0"
                                       VerticalAlignment="Center" IsChecked="{Binding DriftOnly}"
                                       ToolTip="{svc:Loc Key=Xaml_Show_only_firewall_rules_that_changed_7d356f72}" />
@@ -2733,6 +2794,7 @@
                                     </ScrollViewer>
                                     <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding InterfaceAliasStatus}"
                                                Style="{StaticResource Hg.DimText}" Margin="0,3,0,0"
+                                               TextWrapping="Wrap"
                                                AutomationProperties.LiveSetting="Polite" />
                                 </Grid>
 
@@ -2749,8 +2811,10 @@
                         </Border>
 
                         <Expander Grid.Row="4" Margin="0,8,0,0" IsExpanded="False"
-                                  Header="{svc:Loc Key=RuleAnalysis_Title}"
                                   AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_Name}">
+                            <Expander.Header>
+                                <TextBlock Text="{svc:Loc Key=RuleAnalysis_Title}" TextWrapping="Wrap" />
+                            </Expander.Header>
                             <Border Style="{StaticResource Hg.Card}">
                                 <StackPanel>
                                     <DockPanel LastChildFill="False">
@@ -2854,6 +2918,23 @@
                 </TabItem>
 
                 <TabItem>
+                    <TabItem.Resources>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                            <Setter Property="TextWrapping" Value="Wrap" />
+                        </Style>
+                        <DataTemplate x:Key="ToolsWrappedContent">
+                            <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center" />
+                        </DataTemplate>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ToolsWrappedContent}" />
+                        </Style>
+                        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ToolsWrappedContent}" />
+                        </Style>
+                        <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                            <Setter Property="ContentTemplate" Value="{StaticResource ToolsWrappedContent}" />
+                        </Style>
+                    </TabItem.Resources>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -2863,7 +2944,7 @@
                         </StackPanel>
                     </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="8" DataContext="{Binding Tools}">
+                        <StackPanel x:Name="ToolsSurface" Margin="8" DataContext="{Binding Tools}">
 
                             <!-- Service-health glance (NET-186) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
@@ -2988,11 +3069,12 @@
                                         <Button Content="{svc:Loc Key=Update_Check}"
                                                 Command="{Binding CheckUpdateCommand}"
                                                 Margin="0,0,8,8" />
-                                        <Button Content="{svc:Loc Key=Update_Stage}"
-                                                Style="{StaticResource Hg.AccentButton}"
+                                        <Button Style="{StaticResource Hg.AccentButton}"
                                                 Command="{Binding StageUpdateCommand}"
                                                 ToolTip="{svc:Loc Key=Update_StageTip}"
-                                                Margin="0,0,8,8" />
+                                                Margin="0,0,8,8">
+                                            <TextBlock Text="{svc:Loc Key=Update_Stage}" TextWrapping="Wrap" TextAlignment="Center" />
+                                        </Button>
                                     </WrapPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}">
                                         <TextBlock Text="{Binding UpdateStatusText}"
@@ -3051,6 +3133,7 @@
                                                 Command="{Binding FlushDnsCommand}" Margin="0,0,10,0" />
                                         <ComboBox DockPanel.Dock="Left" Width="180" Margin="0,0,10,0"
                                                   ItemsSource="{x:Static vm:ToolsViewModel.ResolverNames}"
+                                                  ItemTemplate="{StaticResource ToolsWrappedContent}"
                                                   AutomationProperties.Name="{svc:Loc Key=Xaml_DNS_resolver_preset_df5e62bd}"
                                                   SelectedItem="{Binding SelectedResolver}" />
                                         <Button DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Apply_resolver_2382d7f6}"
@@ -3174,6 +3257,7 @@
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource Hg.AccentButton}">
                                                     <Setter Property="Content" Value="{svc:Loc Key=Xaml_SeeEverythingOffButton}" />
+                                                    <Setter Property="ContentTemplate" Value="{StaticResource ToolsWrappedContent}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding SeeEverythingActive}" Value="True">
                                                             <Setter Property="Content" Value="{svc:Loc Key=Xaml_SeeEverythingOnButton}" />
@@ -3236,6 +3320,7 @@
                                         </Button>
                                         <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                                    Style="{StaticResource Hg.DimText}"
+                                                   TextWrapping="Wrap"
                                                    Text="{svc:Loc Key=Xaml_Forces_TCP_fallback_so_DoH3_QUIC_1377802e}" />
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">
@@ -3257,6 +3342,7 @@
                                         </Button>
                                         <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                                    Style="{StaticResource Hg.DimText}"
+                                                   TextWrapping="Wrap"
                                                    Text="{svc:Loc Key=Xaml_Blocks_first_party_hosts_that_alias_700a14d5}" />
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">
@@ -3303,6 +3389,7 @@
                                         </Button>
                                         <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                                    Style="{StaticResource Hg.DimText}"
+                                                   TextWrapping="Wrap"
                                                    Text="{svc:Loc Key=Xaml_Names_HTTPS_dials_the_OS_resolver_79149379}" />
                                     </DockPanel>
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">

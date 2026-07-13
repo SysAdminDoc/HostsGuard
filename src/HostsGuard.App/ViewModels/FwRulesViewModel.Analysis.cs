@@ -99,7 +99,7 @@ public sealed partial class FwRulesViewModel
     private bool _analysisFailed;
 
     [ObservableProperty]
-    private string _analysisStatus = "Not analyzed yet";
+    private string _analysisStatus = I18n.T("RuleAnalysis_NotAnalyzed", "Not analyzed yet");
 
     [ObservableProperty]
     private string _analysisContext = string.Empty;
@@ -168,15 +168,15 @@ public sealed partial class FwRulesViewModel
     {
         AnalysisBusy = true;
         AnalysisFailed = false;
-        AnalysisStatus = I18n.T("RuleAnalysis_Loading", "Analyzing effective firewall rulesâ€¦");
+        AnalysisStatus = I18n.T("RuleAnalysis_Loading", "Analyzing effective firewall rules…");
         InvalidateCleanupPreview();
         try
         {
             var result = await _client.Firewall.AnalyzeRulesAsync(new FirewallRuleAnalysisRequest());
             _analysisHash = result.AnalysisHash;
-            AnalysisContext = I18n.T("RuleAnalysis_Context", "{0} rules Â· profiles {1} Â· policy {2}",
+            AnalysisContext = I18n.T("RuleAnalysis_Context", "{0} rules · profiles {1} · policy {2}",
                 result.RulesAnalyzed,
-                result.ActiveProfiles.Count == 0 ? "none" : string.Join(", ", result.ActiveProfiles),
+                result.ActiveProfiles.Count == 0 ? I18n.T("Common_NoneLower", "none") : string.Join(", ", result.ActiveProfiles),
                 result.LocalPolicyModifyState);
 
             AnalysisFindings.Clear();
@@ -194,7 +194,7 @@ public sealed partial class FwRulesViewModel
         catch (Exception ex) when (ex is RpcException or IOException)
         {
             AnalysisFailed = true;
-            AnalysisStatus = ServiceErrors.DescribeActionFailure("Analyze firewall rules", ex);
+            AnalysisStatus = ServiceErrors.DescribeActionFailure(I18n.T("RuleAnalysis_ActionAnalyze", "Analyze firewall rules"), ex);
         }
         finally
         {
@@ -217,7 +217,7 @@ public sealed partial class FwRulesViewModel
 
         AnalysisBusy = true;
         AnalysisFailed = false;
-        AnalysisStatus = I18n.T("RuleAnalysis_Previewing", "Validating selected HG_ cleanupâ€¦");
+        AnalysisStatus = I18n.T("RuleAnalysis_Previewing", "Validating selected HG_ cleanup…");
         try
         {
             var request = new FirewallRuleCleanupRequest
@@ -238,7 +238,7 @@ public sealed partial class FwRulesViewModel
         {
             InvalidateCleanupPreview();
             AnalysisFailed = true;
-            AnalysisStatus = ServiceErrors.DescribeActionFailure("Preview firewall cleanup", ex);
+            AnalysisStatus = ServiceErrors.DescribeActionFailure(I18n.T("RuleAnalysis_ActionPreview", "Preview firewall cleanup"), ex);
         }
         finally
         {
@@ -265,7 +265,7 @@ public sealed partial class FwRulesViewModel
 
         AnalysisBusy = true;
         AnalysisFailed = false;
-        AnalysisStatus = I18n.T("RuleAnalysis_Applying", "Applying previewed HG_ cleanupâ€¦");
+        AnalysisStatus = I18n.T("RuleAnalysis_Applying", "Applying previewed HG_ cleanup…");
         try
         {
             var request = new FirewallRuleCleanupRequest
@@ -285,7 +285,7 @@ public sealed partial class FwRulesViewModel
         catch (Exception ex) when (ex is RpcException or IOException)
         {
             AnalysisFailed = true;
-            AnalysisStatus = ServiceErrors.DescribeActionFailure("Apply firewall cleanup", ex);
+            AnalysisStatus = ServiceErrors.DescribeActionFailure(I18n.T("RuleAnalysis_ActionApply", "Apply firewall cleanup"), ex);
         }
         finally
         {

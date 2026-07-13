@@ -29,7 +29,7 @@ public sealed partial class AlertsViewModel : ObservableObject
     private int _unreadCount;
 
     [ObservableProperty]
-    private string _statusText = "Alerts not loaded";
+    private string _statusText = I18n.T("Alerts_NotLoaded", "Alerts not loaded");
 
     [ObservableProperty]
     private AlertRowViewModel? _selectedAlert;
@@ -43,13 +43,17 @@ public sealed partial class AlertsViewModel : ObservableObject
 
     public ObservableCollection<AlertTypeRowViewModel> AlertTypes { get; } = new();
 
-    public string UnreadTitle => UnreadCount == 0 ? "Clear" : $"{UnreadCount} unread";
+    public string UnreadTitle => UnreadCount == 0
+        ? I18n.T("Alerts_Clear", "Clear")
+        : I18n.T("Alerts_UnreadTitle", "{0} unread", UnreadCount);
 
-    public string UnreadText => UnreadCount == 0 ? "No surfaced alerts" : $"{UnreadCount} surfaced alert{(UnreadCount == 1 ? string.Empty : "s")}";
+    public string UnreadText => UnreadCount == 0
+        ? I18n.T("Alerts_NoneSurfaced", "No surfaced alerts")
+        : I18n.T("Alerts_SurfacedCount", "{0} surfaced alert(s)", UnreadCount);
 
     public async Task LoadAsync()
     {
-        await RunServiceActionAsync("Load alerts", async () =>
+        await RunServiceActionAsync(I18n.T("Alerts_ActionLoad", "Load alerts"), async () =>
         {
             var list = await _client.Monitoring.ListAlertsAsync(new AlertRequest
             {
@@ -71,7 +75,7 @@ public sealed partial class AlertsViewModel : ObservableObject
                 : Alerts.FirstOrDefault();
 
             UnreadCount = list.Unread;
-            StatusText = $"Loaded {list.Entries.Count} of {list.Total} alerts";
+            StatusText = I18n.T("Alerts_Loaded", "Loaded {0} of {1} alerts", list.Entries.Count, list.Total);
             await LoadTypesAsync();
         });
     }
@@ -84,11 +88,11 @@ public sealed partial class AlertsViewModel : ObservableObject
     {
         if (row is null)
         {
-            StatusText = "Select an alert first";
+            StatusText = I18n.T("Alerts_SelectFirst", "Select an alert first");
             return;
         }
 
-        await RunServiceActionAsync("Acknowledge alert", async () =>
+        await RunServiceActionAsync(I18n.T("Alerts_ActionAck", "Acknowledge alert"), async () =>
         {
             var request = new AlertAckRequest();
             request.Ids.Add(row.Id);
@@ -101,7 +105,7 @@ public sealed partial class AlertsViewModel : ObservableObject
     [RelayCommand]
     public async Task AckAllAsync()
     {
-        await RunServiceActionAsync("Acknowledge alerts", async () =>
+        await RunServiceActionAsync(I18n.T("Alerts_ActionAckAll", "Acknowledge alerts"), async () =>
         {
             var ack = await _client.Monitoring.AckAlertAsync(new AlertAckRequest
             {
@@ -125,7 +129,7 @@ public sealed partial class AlertsViewModel : ObservableObject
 
     private async Task SetTypeSurfaceAsync(AlertTypeRowViewModel row, bool surface)
     {
-        await RunServiceActionAsync("Set alert surface", async () =>
+        await RunServiceActionAsync(I18n.T("Alerts_ActionSurface", "Set alert surface"), async () =>
         {
             var ack = await _client.Monitoring.SetAlertTypeAsync(new AlertTypeRequest
             {

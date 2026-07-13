@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HostsGuard.App.Services;
 using HostsGuard.Contracts;
 
 namespace HostsGuard.App.ViewModels;
@@ -15,10 +16,10 @@ public sealed partial class ToolsViewModel
     private FullStateSnapshotRowViewModel? _selectedFullStateSnapshot;
 
     [ObservableProperty]
-    private string _fullStateSnapshotStatus = "Create a hashed recovery point for the database, hosts state, and non-secret service settings.";
+    private string _fullStateSnapshotStatus = I18n.T("Recovery_StatusHint", "Create a hashed recovery point for the database, hosts state, and non-secret service settings.");
 
     [ObservableProperty]
-    private string _fullStateRestorePreview = "Select a snapshot, then preview its verified changes before restoring.";
+    private string _fullStateRestorePreview = I18n.T("Recovery_SelectHint", "Select a snapshot, then preview its verified changes before restoring.");
 
     private string _previewedSnapshotId = string.Empty;
     private string _previewedSnapshotHash = string.Empty;
@@ -28,20 +29,20 @@ public sealed partial class ToolsViewModel
         _previewedSnapshotId = string.Empty;
         _previewedSnapshotHash = string.Empty;
         FullStateRestorePreview = value is null
-            ? "Select a snapshot, then preview its verified changes before restoring."
-            : "Preview required before restore.";
+            ? I18n.T("Recovery_SelectHint", "Select a snapshot, then preview its verified changes before restoring.")
+            : I18n.T("Recovery_PreviewRequired", "Preview required before restore.");
         RestoreFullStateSnapshotCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
     public async Task CreateFullStateSnapshotAsync()
     {
-        await RunServiceActionAsync("Create full-state snapshot", s => FullStateSnapshotStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("Recovery_ActionCreate", "Create full-state snapshot"), s => FullStateSnapshotStatus = s, async () =>
         {
             var snapshot = await _client.Recovery.CreateFullStateSnapshotAsync(new Empty());
             FullStateSnapshotStatus = snapshot.Verified
-                ? $"Verified snapshot created: {snapshot.SnapshotId} · {snapshot.Sha256}"
-                : $"Snapshot verification failed: {snapshot.SnapshotId}";
+                ? I18n.T("Recovery_Created", "Verified snapshot created: {0} · {1}", snapshot.SnapshotId, snapshot.Sha256)
+                : I18n.T("Recovery_VerificationFailed", "Snapshot verification failed: {0}", snapshot.SnapshotId);
             await LoadFullStateSnapshotsCoreAsync(snapshot.SnapshotId);
         });
     }
@@ -49,7 +50,7 @@ public sealed partial class ToolsViewModel
     [RelayCommand]
     public async Task LoadFullStateSnapshotsAsync()
     {
-        await RunServiceActionAsync("Load full-state snapshots", s => FullStateSnapshotStatus = s,
+        await RunServiceActionAsync(I18n.T("Recovery_ActionLoad", "Load full-state snapshots"), s => FullStateSnapshotStatus = s,
             () => LoadFullStateSnapshotsCoreAsync(SelectedFullStateSnapshot?.SnapshotId));
     }
 
@@ -65,8 +66,8 @@ public sealed partial class ToolsViewModel
         SelectedFullStateSnapshot = FullStateSnapshots.FirstOrDefault(item =>
             item.SnapshotId.Equals(selectId, StringComparison.Ordinal)) ?? FullStateSnapshots.FirstOrDefault();
         FullStateSnapshotStatus = FullStateSnapshots.Count == 0
-            ? "No full-state snapshots yet."
-            : $"{FullStateSnapshots.Count} recovery point{(FullStateSnapshots.Count == 1 ? string.Empty : "s")} available.";
+            ? I18n.T("Recovery_None", "No full-state snapshots yet.")
+            : I18n.T("Recovery_Count", "{0} recovery point(s) available.", FullStateSnapshots.Count);
     }
 
     [RelayCommand(CanExecute = nameof(CanPreviewFullStateRestore))]
@@ -77,7 +78,7 @@ public sealed partial class ToolsViewModel
             return;
         }
 
-        await RunServiceActionAsync("Preview full-state restore", s => FullStateRestorePreview = s, async () =>
+        await RunServiceActionAsync(I18n.T("Recovery_ActionPreview", "Preview full-state restore"), s => FullStateRestorePreview = s, async () =>
         {
             var preview = await _client.Recovery.PreviewFullStateRestoreAsync(new FullStateSnapshotRef
             {
@@ -93,8 +94,11 @@ public sealed partial class ToolsViewModel
             {
                 _previewedSnapshotId = preview.SnapshotId;
                 _previewedSnapshotHash = preview.Sha256;
-                var changes = preview.Changes.Count == 0 ? "No state differences." : string.Join(Environment.NewLine, preview.Changes.Select(change => $"• {change}"));
-                FullStateRestorePreview = $"Verified SHA-256: {preview.Sha256}{Environment.NewLine}Target: HostsGuard {preview.AppVersion}, schema {preview.SchemaVersion}{Environment.NewLine}{changes}";
+                var changes = preview.Changes.Count == 0
+                    ? I18n.T("Recovery_NoDifferences", "No state differences.")
+                    : string.Join(Environment.NewLine, preview.Changes.Select(change => $"• {change}"));
+                FullStateRestorePreview = I18n.T("Recovery_PreviewDetails", "Verified SHA-256: {0}{3}Target: HostsGuard {1}, schema {2}{3}{4}",
+                    preview.Sha256, preview.AppVersion, preview.SchemaVersion, Environment.NewLine, changes);
             }
 
             RestoreFullStateSnapshotCommand.NotifyCanExecuteChanged();
@@ -108,11 +112,11 @@ public sealed partial class ToolsViewModel
     {
         if (SelectedFullStateSnapshot is not { } selected || !CanRestoreFullStateSnapshot())
         {
-            FullStateRestorePreview = "Preview this snapshot again before restoring.";
+            FullStateRestorePreview = I18n.T("Recovery_PreviewAgain", "Preview this snapshot again before restoring.");
             return;
         }
 
-        await RunServiceActionAsync("Restore full-state snapshot", s => FullStateRestorePreview = s, async () =>
+        await RunServiceActionAsync(I18n.T("Recovery_ActionRestore", "Restore full-state snapshot"), s => FullStateRestorePreview = s, async () =>
         {
             var ack = await _client.Recovery.RestoreFullStateSnapshotAsync(new FullStateRestoreRequest
             {

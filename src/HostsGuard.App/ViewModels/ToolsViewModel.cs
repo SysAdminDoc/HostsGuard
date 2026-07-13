@@ -19,7 +19,7 @@ public sealed partial class ToolsViewModel : ObservableObject
 {
     public static readonly IReadOnlyList<(string Name, string[] Servers)> ResolverPresets = new[]
     {
-        ("DHCP (default)", Array.Empty<string>()),
+        (I18n.T("Dns_ResolverDhcpDefault", "DHCP (default)"), Array.Empty<string>()),
         ("Cloudflare (1.1.1.1)", new[] { "1.1.1.1", "1.0.0.1" }),
         ("Google (8.8.8.8)", new[] { "8.8.8.8", "8.8.4.4" }),
         ("Quad9 (9.9.9.9)", new[] { "9.9.9.9", "149.112.112.112" }),
@@ -32,7 +32,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _statusText = I18n.T("Status.Ready", "Ready");
 
     [ObservableProperty]
-    private string _selectedResolver = "DHCP (default)";
+    private string _selectedResolver = I18n.T("Dns_ResolverDhcpDefault", "DHCP (default)");
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(InspectCommand))]
@@ -79,7 +79,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task FlushDnsAsync()
     {
-        await RunServiceActionAsync("Flush DNS cache", async () =>
+        await RunServiceActionAsync(I18n.T("Tools_ActionFlushDns", "Flush DNS cache"), async () =>
         {
             var ack = await _client.Dns.FlushCacheAsync(new Empty());
             StatusText = ack.Message;
@@ -95,7 +95,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private int _dnsCacheLimit = 500;
 
     [ObservableProperty]
-    private string _dnsCacheStatusText = "Load DNS cache entries to verify what Windows is still resolving locally.";
+    private string _dnsCacheStatusText = I18n.T("DnsCache_StatusHint", "Load DNS cache entries to verify what Windows is still resolving locally.");
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(FlushDnsCacheEntryCommand))]
@@ -104,7 +104,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDnsCacheAsync()
     {
-        await RunServiceActionAsync("Load DNS cache", s => DnsCacheStatusText = s, LoadDnsCacheCoreAsync);
+        await RunServiceActionAsync(I18n.T("DnsCache_ActionLoad", "Load DNS cache"), s => DnsCacheStatusText = s, LoadDnsCacheCoreAsync);
     }
 
     [RelayCommand(CanExecute = nameof(CanFlushDnsCacheEntry))]
@@ -112,11 +112,11 @@ public sealed partial class ToolsViewModel : ObservableObject
     {
         if (SelectedDnsCacheEntry is not { } row)
         {
-            DnsCacheStatusText = "Select a cached DNS entry first.";
+            DnsCacheStatusText = I18n.T("DnsCache_SelectFirst", "Select a cached DNS entry first.");
             return;
         }
 
-        await RunServiceActionAsync("Flush DNS cache entry", s => DnsCacheStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("DnsCache_ActionFlushEntry", "Flush DNS cache entry"), s => DnsCacheStatusText = s, async () =>
         {
             var ack = await _client.Dns.FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = row.Name });
             StatusText = ack.Message;
@@ -150,26 +150,26 @@ public sealed partial class ToolsViewModel : ObservableObject
         var svcb = DnsCacheEntries.Count(e => e.Type.Equals("SVCB", StringComparison.OrdinalIgnoreCase));
         DnsCacheStatusText = https + svcb == 0
             ? list.Message
-            : $"{list.Message}; HTTPS/SVCB: {https} HTTPS, {svcb} SVCB. Windows cache does not expose ECH SVCB parameters.";
+            : I18n.T("DnsCache_Status", "{0}; HTTPS/SVCB: {1} HTTPS, {2} SVCB. Windows cache does not expose ECH SVCB parameters.", list.Message, https, svcb);
     }
 
     [RelayCommand]
     public async Task LoadLockStateAsync()
     {
-        await RunServiceActionAsync("Load settings lock state", s => LockStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("SettingsLock_ActionLoad", "Load settings lock state"), s => LockStatus = s, async () =>
         {
             var state = await _client.Policy.GetLockStateAsync(new Empty());
             LockEnabled = state.Enabled;
             LockStatus = state.Enabled
-                ? state.Unlocked ? "Locked (temporarily unlocked)" : "Locked"
-                : "Not locked";
+                ? state.Unlocked ? I18n.T("SettingsLock_TemporarilyUnlocked", "Locked (temporarily unlocked)") : I18n.T("SettingsLock_Locked", "Locked")
+                : I18n.T("SettingsLock_NotLocked", "Not locked");
         });
     }
 
     [RelayCommand]
     public async Task EnableLockAsync()
     {
-        await RunServiceActionAsync("Enable settings lock", s => LockStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("SettingsLock_ActionEnable", "Enable settings lock"), s => LockStatus = s, async () =>
         {
             var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "enable", Password = LockPassword });
             LockStatus = ack.Message;
@@ -181,7 +181,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task DisableLockAsync()
     {
-        await RunServiceActionAsync("Disable settings lock", s => LockStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("SettingsLock_ActionDisable", "Disable settings lock"), s => LockStatus = s, async () =>
         {
             var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "disable", Password = LockPassword });
             LockStatus = ack.Message;
@@ -193,7 +193,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task UnlockAsync()
     {
-        await RunServiceActionAsync("Unlock settings", s => LockStatus = s, async () =>
+        await RunServiceActionAsync(I18n.T("SettingsLock_ActionUnlock", "Unlock settings"), s => LockStatus = s, async () =>
         {
             var ack = await _client.Policy.UnlockAsync(new LockRequest { Password = LockPassword, Minutes = UnlockMinutes });
             LockStatus = ack.Message;
@@ -205,7 +205,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ProtectHostsAsync()
     {
-        await RunServiceActionAsync("Protect hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("Tools_ActionProtectHosts", "Protect hosts file"), async () =>
         {
             var ack = await _client.Policy.SetHostsProtectionAsync(new HostsProtectionRequest { Enabled = true });
             StatusText = ack.Message;
@@ -215,7 +215,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ApplyResolverAsync()
     {
-        await RunServiceActionAsync("Apply DNS resolver", async () =>
+        await RunServiceActionAsync(I18n.T("Dns_ActionApplyResolver", "Apply DNS resolver"), async () =>
         {
             var preset = ResolverPresets.FirstOrDefault(p => p.Name == SelectedResolver);
             var request = new ResolverRequest();
@@ -223,7 +223,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             request.AdapterIds.AddRange(DnsAdapters.Where(adapter => adapter.IsSelected).Select(adapter => adapter.Id));
             if (request.AdapterIds.Count == 0)
             {
-                StatusText = "Select at least one DNS adapter. VPN/tunnel adapters are never changed implicitly.";
+                StatusText = I18n.T("Dns_SelectAdapter", "Select at least one DNS adapter. VPN/tunnel adapters are never changed implicitly.");
                 return;
             }
 
@@ -236,7 +236,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDnsAdaptersAsync()
     {
-        await RunServiceActionAsync("Load DNS adapters", LoadDnsAdaptersCoreAsync);
+        await RunServiceActionAsync(I18n.T("Dns_ActionLoadAdapters", "Load DNS adapters"), LoadDnsAdaptersCoreAsync);
     }
 
     private async Task LoadDnsAdaptersCoreAsync()
@@ -260,10 +260,10 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task BackupHostsAsync()
     {
-        await RunServiceActionAsync("Back up hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("Backup_ActionCreate", "Back up hosts file"), async () =>
         {
             var ack = await _client.Hosts.BackupHostsAsync(new Empty());
-            StatusText = ack.Ok ? $"Backup written: {ack.Message}" : ack.Message;
+            StatusText = ack.Ok ? I18n.T("Backup_Written", "Backup written: {0}", ack.Message) : ack.Message;
             await LoadBackupsAsync();
         });
     }
@@ -279,7 +279,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadBackupsAsync()
     {
-        await RunServiceActionAsync("Load hosts backups", async () =>
+        await RunServiceActionAsync(I18n.T("Backup_ActionLoad", "Load hosts backups"), async () =>
         {
             var list = await _client.Hosts.ListBackupsAsync(new Empty());
             Backups.Clear();
@@ -302,17 +302,17 @@ public sealed partial class ToolsViewModel : ObservableObject
     {
         if (SelectedBackup is null)
         {
-            StatusText = "Choose a backup before restoring.";
+            StatusText = I18n.T("Backup_SelectFirst", "Choose a backup before restoring.");
             return;
         }
 
-        if (!_confirm.Confirm("Restore hosts backup",
-            $"Replace the live hosts file with '{SelectedBackup.FileName}'? HostsGuard will write the selected backup immediately."))
+        if (!_confirm.Confirm(I18n.T("Backup_RestoreTitle", "Restore hosts backup"),
+            I18n.T("Backup_RestoreMessage", "Replace the live hosts file with '{0}'? HostsGuard will write the selected backup immediately.", SelectedBackup.FileName)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Restore hosts backup", async () =>
+        await RunServiceActionAsync(I18n.T("Backup_ActionRestore", "Restore hosts backup"), async () =>
         {
             var ack = await _client.Hosts.RestoreBackupAsync(new BackupRequest { FileName = SelectedBackup.FileName });
             StatusText = ack.Message;
@@ -328,7 +328,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task HardenAclAsync()
     {
-        await RunServiceActionAsync("Harden hosts ACL", async () =>
+        await RunServiceActionAsync(I18n.T("Tools_ActionHardenAcl", "Harden hosts ACL"), async () =>
         {
             var ack = await _client.Hosts.HardenAclAsync(new Empty());
             StatusText = ack.Message;
@@ -338,26 +338,27 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ExportBundleAsync()
     {
-        await RunServiceActionAsync("Export support bundle", async () =>
+        await RunServiceActionAsync(I18n.T("Support_ActionExport", "Export support bundle"), async () =>
         {
             var ack = await _client.Diagnostics.ExportSupportBundleAsync(new SupportBundleRequest());
-            StatusText = ack.Ok ? $"Support bundle: {ack.Message}" : ack.Message;
+            StatusText = ack.Ok ? I18n.T("Support_Exported", "Support bundle: {0}", ack.Message) : ack.Message;
         });
     }
 
     [RelayCommand(CanExecute = nameof(CanInspect))]
     public async Task InspectAsync()
     {
-        await RunServiceActionAsync("Inspect domain", s => InspectResult = s, async () =>
+        await RunServiceActionAsync(I18n.T("Inspect_ActionDomain", "Inspect domain"), s => InspectResult = s, async () =>
         {
             var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain.Trim() });
             var records = result.Records.Count == 0
-                ? "no records"
+                ? I18n.T("Inspect_NoRecords", "no records")
                 : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
             var ech = string.IsNullOrWhiteSpace(result.EchSummary)
                 ? string.Empty
-                : $" | ECH: {result.EchSummary} {result.EchRemediation}";
-            InspectResult = $"{(result.Blocked ? "BLOCKED" : "reachable")} - {records} ({result.LatencyMs} ms){ech}";
+                : I18n.T("Inspect_EchSuffix", " | ECH: {0} {1}", result.EchSummary, result.EchRemediation);
+            InspectResult = I18n.T("Inspect_Result", "{0} - {1} ({2} ms){3}",
+                result.Blocked ? I18n.T("Inspect_Blocked", "BLOCKED") : I18n.T("Inspect_Reachable", "reachable"), records, result.LatencyMs, ech);
         });
     }
 
@@ -369,23 +370,23 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDefenderStatusAsync()
     {
-        await RunServiceActionAsync("Load Defender status", s => DefenderStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("Defender_ActionLoad", "Load Defender status"), s => DefenderStatusText = s, async () =>
         {
             var status = await _client.Diagnostics.GetDefenderStatusAsync(new Empty());
             DefenderStatusText = !status.Available
-                ? "Defender: not accessible"
+                ? I18n.T("Defender_NotAccessible", "Defender: not accessible")
                 : status.HostsExcluded
-                    ? "Defender: hosts file is excluded"
+                    ? I18n.T("Defender_Excluded", "Defender: hosts file is excluded")
                     : status.PossibleRevert
-                        ? "Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)"
-                        : "Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)";
+                        ? I18n.T("Defender_RevertLikely", "Defender: hosts file NOT excluded — blocks are missing (possible Defender revert)")
+                        : I18n.T("Defender_NotExcluded", "Defender: hosts file not excluded (HostsFileHijack detection may remove telemetry blocks)");
         });
     }
 
     [RelayCommand]
     public async Task AddDefenderExclusionAsync()
     {
-        await RunServiceActionAsync("Add Defender exclusion", async () =>
+        await RunServiceActionAsync(I18n.T("Defender_ActionExclude", "Add Defender exclusion"), async () =>
         {
             var ack = await _client.Hosts.AddDefenderExclusionAsync(new Empty());
             StatusText = ack.Message;
@@ -396,9 +397,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshThreatIntelAsync()
     {
-        await RunServiceActionAsync("Refresh threat intelligence", async () =>
+        await RunServiceActionAsync(I18n.T("ThreatIntel_ActionRefresh", "Refresh threat intelligence"), async () =>
         {
-            StatusText = "Refreshing threat intel...";
+            StatusText = I18n.T("ThreatIntel_Refreshing", "Refreshing threat intelligence…");
             var ack = await _client.Lists.RefreshThreatIntelAsync(new Empty());
             StatusText = ack.Message;
         });
@@ -407,9 +408,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshGeoIpAsync()
     {
-        await RunServiceActionAsync("Refresh GeoIP database", async () =>
+        await RunServiceActionAsync(I18n.T("GeoIp_ActionRefresh", "Refresh GeoIP database"), async () =>
         {
-            StatusText = "Downloading GeoIP database...";
+            StatusText = I18n.T("GeoIp_Downloading", "Downloading GeoIP database…");
             var ack = await _client.Lists.RefreshGeoIpAsync(new Empty());
             StatusText = ack.Message;
         });
@@ -418,13 +419,13 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task EmergencyResetAsync()
     {
-        if (!_confirm.Confirm("Emergency reset",
-            "Reset the hosts file to Windows defaults? This removes every HostsGuard hosts-file block immediately."))
+        if (!_confirm.Confirm(I18n.T("Tools_EmergencyResetTitle", "Emergency reset"),
+            I18n.T("Tools_EmergencyResetMessage", "Reset the hosts file to Windows defaults? This removes every HostsGuard hosts-file block immediately.")))
         {
             return;
         }
 
-        await RunServiceActionAsync("Emergency reset hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("Tools_ActionEmergencyReset", "Emergency reset hosts file"), async () =>
         {
             var ack = await _client.Hosts.EmergencyResetAsync(new Empty());
             StatusText = ack.Message;
@@ -450,7 +451,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadProfilesAsync()
     {
-        await RunServiceActionAsync("Load network profiles", async () =>
+        await RunServiceActionAsync(I18n.T("Profile_ActionLoad", "Load network profiles"), async () =>
         {
             var list = await _client.Policy.ListProfilesAsync(new Empty());
             Profiles.Clear();
@@ -459,7 +460,9 @@ public sealed partial class ToolsViewModel : ObservableObject
                 Profiles.Add(name);
             }
 
-            ActiveProfile = list.Active.Length != 0 ? $"Active: {list.Active}" : "No active profile";
+            ActiveProfile = list.Active.Length != 0
+                ? I18n.T("Profile_Active", "Active: {0}", list.Active)
+                : I18n.T("Profile_NoneActive", "No active profile");
             SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
         });
     }
@@ -467,7 +470,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSaveProfile))]
     public async Task SaveProfileAsync()
     {
-        await RunServiceActionAsync("Save network profile", async () =>
+        await RunServiceActionAsync(I18n.T("Profile_ActionSave", "Save network profile"), async () =>
         {
             var ack = await _client.Policy.SaveProfileAsync(new ProfileRequest { Name = NewProfileName.Trim() });
             StatusText = ack.Message;
@@ -491,7 +494,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Switch network profile", async () =>
+        await RunServiceActionAsync(I18n.T("Profile_ActionSwitch", "Switch network profile"), async () =>
         {
             var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });
             StatusText = ack.Message;
@@ -503,13 +506,13 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task DeleteProfileAsync()
     {
         if (string.IsNullOrEmpty(SelectedProfile) ||
-            !_confirm.Confirm("Delete network profile",
-                $"Delete network profile '{SelectedProfile}'? Saved firewall and hosts policy snapshots for this profile will be removed."))
+            !_confirm.Confirm(I18n.T("Profile_DeleteTitle", "Delete network profile"),
+                I18n.T("Profile_DeleteMessage", "Delete network profile '{0}'? Saved firewall and hosts policy snapshots for this profile will be removed.", SelectedProfile)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Delete network profile", async () =>
+        await RunServiceActionAsync(I18n.T("Profile_ActionDelete", "Delete network profile"), async () =>
         {
             var ack = await _client.Policy.DeleteProfileAsync(new ProfileRequest { Name = SelectedProfile });
             StatusText = ack.Message;
@@ -523,7 +526,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _dohStatusText = string.Empty;
 
     [ObservableProperty]
-    private string _echPostureText = "Load encrypted DNS status to review HTTPS/SVCB and ECH visibility.";
+    private string _echPostureText = I18n.T("Ech_StatusHint", "Load encrypted DNS status to review HTTPS/SVCB and ECH visibility.");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SeeEverythingActive))]
@@ -564,7 +567,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadDohStatusAsync()
     {
-        await RunServiceActionAsync("Load encrypted DNS status", s => DohStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("EncryptedDns_ActionLoad", "Load encrypted DNS status"), s => DohStatusText = s, async () =>
         {
             var status = await _client.Dns.GetDohStatusAsync(new Empty());
             DohBlockingActive = status.BlockingActive;
@@ -573,14 +576,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             SniCaptureActive = status.SniCapture;
             DnsEncryptedOnly = status.DnsEncryptedOnly;
             DnrEnabled = status.DnrEnabled;
-            var serviceBindings = $"{status.HttpsRecords} HTTPS / {status.SvcbRecords} SVCB cache rows";
-            var dnrNote = status.DnrEnabled ? "; DNR on (network may auto-provision an encrypted resolver)" : string.Empty;
+            var serviceBindings = I18n.T("EncryptedDns_CacheRows", "{0} HTTPS / {1} SVCB cache rows", status.HttpsRecords, status.SvcbRecords);
+            var dnrNote = status.DnrEnabled ? I18n.T("EncryptedDns_DnrSuffix", "; DNR on (network may auto-provision an encrypted resolver)") : string.Empty;
             DohStatusText = (status.Updated.Length != 0
-                ? $"DoH intelligence: {status.ResolverIps} resolver IPs; {status.Source}; updated {status.Updated}; {serviceBindings}"
-                : $"DoH intelligence: {status.ResolverIps} built-in resolver IPs; no refresh yet; {serviceBindings}") + dnrNote;
+                ? I18n.T("EncryptedDns_IntelUpdated", "DoH intelligence: {0} resolver IPs; {1}; updated {2}; {3}", status.ResolverIps, status.Source, status.Updated, serviceBindings)
+                : I18n.T("EncryptedDns_IntelBuiltin", "DoH intelligence: {0} built-in resolver IPs; no refresh yet; {1}", status.ResolverIps, serviceBindings)) + dnrNote;
             EchPostureText = string.IsNullOrWhiteSpace(status.EchSummary)
-                ? "ECH posture unavailable."
-                : $"{status.EchSummary} {status.EchRemediation}";
+                ? I18n.T("Ech_Unavailable", "ECH posture unavailable.")
+                : I18n.T("Ech_Posture", "{0} {1}", status.EchSummary, status.EchRemediation);
         });
     }
 
@@ -597,9 +600,8 @@ public sealed partial class ToolsViewModel : ObservableObject
     /// before arming. Returns false to abort.
     /// </summary>
     private bool ConfirmDohBlockArm()
-        => !DnsEncryptedOnly || _confirm.Confirm("Encrypted-DNS-only system detected",
-            "Your system is set to require encrypted DNS with no plaintext fallback. HostsGuard exempts your "
-            + "current resolver, but blocking encrypted DNS could break name resolution if your DNS server changes. Continue?");
+        => !DnsEncryptedOnly || _confirm.Confirm(I18n.T("EncryptedDns_OnlyTitle", "Encrypted-DNS-only system detected"),
+            I18n.T("EncryptedDns_OnlyMessage", "Your system is set to require encrypted DNS with no plaintext fallback. HostsGuard exempts your current resolver, but blocking encrypted DNS could break name resolution if your DNS server changes. Continue?"));
 
     [RelayCommand]
     public async Task ToggleSeeEverythingAsync()
@@ -609,7 +611,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Toggle see-everything mode", async () =>
+        await RunServiceActionAsync(I18n.T("Visibility_ActionToggle", "Toggle see-everything mode"), async () =>
         {
             if (SeeEverythingActive)
             {
@@ -623,7 +625,7 @@ public sealed partial class ToolsViewModel : ObservableObject
                     await _client.Firewall.UnblockEncryptedDnsAsync(new Empty());
                 }
 
-                StatusText = "See-everything OFF — QUIC + DoH blocking removed";
+                StatusText = I18n.T("Visibility_Off", "See-everything OFF — QUIC + DoH blocking removed");
             }
             else
             {
@@ -637,7 +639,7 @@ public sealed partial class ToolsViewModel : ObservableObject
                     await _client.Firewall.BlockEncryptedDnsAsync(new DohBlockRequest());
                 }
 
-                StatusText = "See-everything ON — browser DNS forced onto the OS resolver so the feed can see it";
+                StatusText = I18n.T("Visibility_On", "See-everything ON — browser DNS forced onto the OS resolver so the feed can see it");
             }
 
             await LoadDohStatusAsync();
@@ -647,7 +649,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ToggleQuicAsync()
     {
-        await RunServiceActionAsync("Toggle QUIC blocking", async () =>
+        await RunServiceActionAsync(I18n.T("Quic_ActionToggle", "Toggle QUIC blocking"), async () =>
         {
             var ack = QuicBlockingActive
                 ? await _client.Firewall.UnblockQuicAsync(new Empty())
@@ -660,7 +662,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ToggleCnameCloakAsync()
     {
-        await RunServiceActionAsync("Toggle CNAME cloak detection", async () =>
+        await RunServiceActionAsync(I18n.T("Cname_ActionToggle", "Toggle CNAME cloak detection"), async () =>
         {
             var ack = await _client.Dns.SetCnameCloakAsync(new CnameCloakRequest { Enabled = !CnameCloakActive });
             StatusText = ack.Message;
@@ -672,7 +674,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ToggleSniCaptureAsync()
     {
-        await RunServiceActionAsync("Toggle SNI capture", async () =>
+        await RunServiceActionAsync(I18n.T("Sni_ActionToggle", "Toggle SNI capture"), async () =>
         {
             var ack = await _client.Dns.SetSniCaptureAsync(new SniCaptureRequest { Enabled = !SniCaptureActive });
             StatusText = ack.Message;
@@ -683,7 +685,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task ApplyBaselineAsync()
     {
-        await RunServiceActionAsync("Apply baseline rules", async () =>
+        await RunServiceActionAsync(I18n.T("Baseline_ActionApply", "Apply baseline rules"), async () =>
         {
             var ack = await _client.Consent.ApplyBaselineAsync(new Empty());
             StatusText = ack.Message;
@@ -697,7 +699,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadTrustedPublishersAsync()
     {
-        await RunServiceActionAsync("Load trusted publishers", async () =>
+        await RunServiceActionAsync(I18n.T("Trust_ActionLoadPublishers", "Load trusted publishers"), async () =>
         {
             var list = await _client.Consent.GetTrustedPublishersAsync(new Empty());
             TrustedPublishers.Clear();
@@ -712,13 +714,13 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task RemoveTrustedPublisherAsync(string publisher)
     {
         if (string.IsNullOrWhiteSpace(publisher) ||
-            !_confirm.Confirm("Remove trusted publisher",
-                $"Stop auto-allowing software signed by \"{publisher}\"? Existing rules are unchanged."))
+            !_confirm.Confirm(I18n.T("Trust_RemovePublisherTitle", "Remove trusted publisher"),
+                I18n.T("Trust_RemovePublisherMessage", "Stop auto-allowing software signed by \"{0}\"? Existing rules are unchanged.", publisher)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Remove trusted publisher", async () =>
+        await RunServiceActionAsync(I18n.T("Trust_ActionRemovePublisher", "Remove trusted publisher"), async () =>
         {
             var remaining = new PublisherList();
             remaining.Publishers.AddRange(TrustedPublishers.Where(p => p != publisher));
@@ -735,7 +737,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadTrustedFoldersAsync()
     {
-        await RunServiceActionAsync("Load trusted folders", async () =>
+        await RunServiceActionAsync(I18n.T("Trust_ActionLoadFolders", "Load trusted folders"), async () =>
         {
             var list = await _client.Consent.GetTrustedFoldersAsync(new Empty());
             TrustedFolders.Clear();
@@ -750,13 +752,13 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task RemoveTrustedFolderAsync(string folder)
     {
         if (string.IsNullOrWhiteSpace(folder) ||
-            !_confirm.Confirm("Remove trusted folder",
-                $"Stop auto-allowing software in \"{folder}\"? Existing rules are unchanged."))
+            !_confirm.Confirm(I18n.T("Trust_RemoveFolderTitle", "Remove trusted folder"),
+                I18n.T("Trust_RemoveFolderMessage", "Stop auto-allowing software in \"{0}\"? Existing rules are unchanged.", folder)))
         {
             return;
         }
 
-        await RunServiceActionAsync("Remove trusted folder", async () =>
+        await RunServiceActionAsync(I18n.T("Trust_ActionRemoveFolder", "Remove trusted folder"), async () =>
         {
             var remaining = new FolderList();
             remaining.Folders.AddRange(TrustedFolders.Where(f => f != folder));
@@ -775,20 +777,20 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadSecureRulesAsync()
     {
-        await RunServiceActionAsync("Load Secure Rules status", s => SecureRulesText = s, async () =>
+        await RunServiceActionAsync(I18n.T("SecureRules_ActionLoad", "Load Secure Rules status"), s => SecureRulesText = s, async () =>
         {
             var status = await _client.Firewall.GetSecureRulesAsync(new Empty());
             SecureRulesActive = status.Enabled;
             SecureRulesText = status.Enabled
-                ? $"Secure Rules ON — {status.Tracked} HostsGuard rules protected"
-                : "Secure Rules OFF — HostsGuard rules are not tamper-guarded";
+                ? I18n.T("SecureRules_On", "Secure Rules ON — {0} HostsGuard rules protected", status.Tracked)
+                : I18n.T("SecureRules_Off", "Secure Rules OFF — HostsGuard rules are not tamper-guarded");
         });
     }
 
     [RelayCommand]
     public async Task ToggleSecureRulesAsync()
     {
-        await RunServiceActionAsync("Toggle Secure Rules", s => SecureRulesText = s, async () =>
+        await RunServiceActionAsync(I18n.T("SecureRules_ActionToggle", "Toggle Secure Rules"), s => SecureRulesText = s, async () =>
         {
             var ack = await _client.Firewall.SetSecureRulesAsync(new SecureRulesRequest { Enabled = !SecureRulesActive });
             StatusText = ack.Message;
@@ -804,7 +806,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Toggle encrypted DNS blocking", s => DohStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("EncryptedDns_ActionToggle", "Toggle encrypted DNS blocking"), s => DohStatusText = s, async () =>
         {
             Ack ack;
             if (DohBlockingActive)
@@ -824,7 +826,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshDohAsync()
     {
-        await RunServiceActionAsync("Refresh encrypted DNS intelligence", s => DohStatusText = s, async () =>
+        await RunServiceActionAsync(I18n.T("EncryptedDns_ActionRefresh", "Refresh encrypted DNS intelligence"), s => DohStatusText = s, async () =>
         {
             var ack = await _client.Dns.RefreshDohIntelligenceAsync(new DohRefreshRequest
             {
@@ -841,7 +843,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadLanAttackSurfaceAsync()
     {
-        await RunServiceActionAsync("Load LAN attack-surface controls", async () =>
+        await RunServiceActionAsync(I18n.T("Lan_ActionLoad", "Load LAN attack-surface controls"), async () =>
         {
             var status = await _client.Firewall.GetLanAttackSurfaceAsync(new Empty());
             LanAttackSurface.Clear();
@@ -860,7 +862,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
-        await RunServiceActionAsync("Toggle LAN attack-surface control", async () =>
+        await RunServiceActionAsync(I18n.T("Lan_ActionToggle", "Toggle LAN attack-surface control"), async () =>
         {
             var ack = await _client.Firewall.SetLanAttackSurfaceAsync(new LanAttackSurfaceRequest
             {
@@ -875,7 +877,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadServicesAsync()
     {
-        await RunServiceActionAsync("Load blockable services", async () =>
+        await RunServiceActionAsync(I18n.T("Services_ActionLoad", "Load blockable services"), async () =>
         {
             var list = await _client.Policy.ListServicesAsync(new Empty());
             Services.Clear();
@@ -896,12 +898,12 @@ public sealed partial class ToolsViewModel : ObservableObject
     public async Task ToggleServiceAsync(BlockableServiceViewModel service)
     {
         if (!service.Blocked && service.Note.Length != 0 &&
-            !_confirm.Confirm($"Block {service.Name}", service.Note))
+            !_confirm.Confirm(I18n.T("Services_BlockTitle", "Block {0}", service.Name), service.Note))
         {
             return;
         }
 
-        await RunServiceActionAsync("Toggle blockable service", async () =>
+        await RunServiceActionAsync(I18n.T("Services_ActionToggle", "Toggle blockable service"), async () =>
         {
             var ack = await _client.Policy.ToggleServiceAsync(new ServiceToggleRequest
             {
@@ -918,7 +920,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadSchedulesAsync()
     {
-        await RunServiceActionAsync("Load schedules", async () =>
+        await RunServiceActionAsync(I18n.T("Schedules_ActionLoad", "Load schedules"), async () =>
         {
             var list = await _client.Policy.GetSchedulesAsync(new Empty());
             Schedules.Clear();
@@ -927,7 +929,7 @@ public sealed partial class ToolsViewModel : ObservableObject
                 Schedules.Add(ScheduleRowViewModel.From(s));
             }
 
-            StatusText = Plural.Of(Schedules.Count, "schedule");
+            StatusText = I18n.T("Schedules_Count", "{0} schedule(s)", Schedules.Count);
         });
     }
 
@@ -948,7 +950,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             list.Schedules.Add(schedule);
         }
 
-        await RunServiceActionAsync("Save schedules", async () =>
+        await RunServiceActionAsync(I18n.T("Schedules_ActionSave", "Save schedules"), async () =>
         {
             var ack = await _client.Policy.SetSchedulesAsync(list);
             StatusText = ack.Message;
@@ -996,7 +998,7 @@ public sealed class IpBlocklistRowViewModel
         Enabled = source.Enabled,
         AddressCount = source.AddressCount,
         RuleCount = source.RuleCount,
-        HealthText = (source.HealthStatus.Length != 0 ? source.HealthStatus : "new")
+        HealthText = (source.HealthStatus.Length != 0 ? source.HealthStatus : I18n.T("Common_NewLower", "new"))
                      + (source.Truncated ? $" · {I18n.T("IpBlock_TruncatedFlag", "truncated")}" : string.Empty),
         LastRefreshText = source.LastRefresh.Length != 0 ? TimeText.Compact(source.LastRefresh) : string.Empty,
         ErrorText = source.LastError,

@@ -68,23 +68,6 @@ public sealed class I18nTests
             $"every {resourceFile} key must exist in Strings.resx");
     }
 
-    /// <summary>All satellites translate the same curated core-key set, so no locale silently lags.</summary>
-    [Theory]
-    [InlineData("Strings.de.resx")]
-    [InlineData("Strings.fr.resx")]
-    public void New_satellites_cover_every_spanish_core_key(string resourceFile)
-    {
-        static List<string> Keys(string file) => Regex.Matches(
-                File.ReadAllText(file), "<data name=\"(?<key>[^\"]+)\"")
-            .Select(m => m.Groups["key"].Value)
-            .ToList();
-
-        var spanish = Keys(Path.Combine(AppDir, "Resources", "Strings.es.resx"));
-        var candidate = Keys(Path.Combine(AppDir, "Resources", resourceFile));
-
-        candidate.Should().BeEquivalentTo(spanish, $"{resourceFile} must track the Spanish core-key set");
-    }
-
     [Fact]
     public void LocExtension_provides_the_localized_value()
     {
@@ -120,6 +103,81 @@ public sealed class I18nTests
         {
             CultureInfo.CurrentUICulture = original;
         }
+    }
+
+    [Fact]
+    public void Canonical_language_menu_exposes_every_shipped_locale_through_root_command_binding()
+    {
+        AppConfigStore.LanguageOptions.Select(option => option.Tag)
+            .Should().Equal("", "en", "es", "de", "fr");
+        AppConfigStore.LanguageOptions.Select(option => option.Name)
+            .Should().Equal("System default", "English", "Espa\u00f1ol", "Deutsch", "Fran\u00e7ais");
+
+        var xaml = File.ReadAllText(Path.Combine(AppDir, "MainWindow.xaml"));
+        xaml.Should().Contain("ItemsSource=\"{x:Static svc:AppConfigStore.LanguageOptions}\"");
+        xaml.Should().Contain("Event=\"Click\" Handler=\"OnLanguageMenuClick\"");
+    }
+
+    [Theory]
+    [InlineData("Strings.es.resx")]
+    [InlineData("Strings.de.resx")]
+    [InlineData("Strings.fr.resx")]
+    public void Critical_shell_menu_dialog_and_recovery_keys_have_full_satellite_coverage(string resourceFile)
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var file in LocalizedXamlFiles().Where(file => !file.EndsWith("MainWindow.xaml", StringComparison.Ordinal)))
+        {
+            required.UnionWith(XamlKeys(file));
+        }
+
+        required.UnionWith(NeutralResourceKeys().Where(key =>
+            key.StartsWith("Language_", StringComparison.Ordinal) ||
+            key.StartsWith("Menu_", StringComparison.Ordinal) ||
+            key.StartsWith("About_", StringComparison.Ordinal) ||
+            key.StartsWith("Ncsi_", StringComparison.Ordinal) ||
+            key.StartsWith("Recovery_", StringComparison.Ordinal)));
+
+        var satellite = ResourceKeys(resourceFile);
+        required.Where(key => !satellite.Contains(key)).Should().BeEmpty(
+            $"{resourceFile} must fully translate language, menu, dialog, and critical recovery surfaces");
+    }
+
+    [Theory]
+    [InlineData("Strings.es.resx", 408, 1633)]
+    [InlineData("Strings.de.resx", 408, 1633)]
+    [InlineData("Strings.fr.resx", 408, 1633)]
+    public void Overall_used_string_coverage_is_measured_and_cannot_regress(
+        string resourceFile,
+        int minimumCovered,
+        int expectedUsed)
+    {
+        var used = UsedLocalizationKeys();
+        var neutral = ResourceValues("Strings.resx");
+        var satellite = ResourceValues(resourceFile);
+        var invariantKeys = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Language_English", "Language_Spanish", "Language_German", "Language_French",
+            "Xaml_HostsGuard_bf992a7e", "Consent_Pid", "ListenerExposure_Package", "FwRules_PreviewPackage",
+        };
+        var covered = used.Count(key => satellite.TryGetValue(key, out var translated) &&
+            (invariantKeys.Contains(key) || !neutral.TryGetValue(key, out var english) || translated != english));
+        used.Count.Should().Be(expectedUsed, "the measured localization surface must change deliberately");
+        covered.Should().BeGreaterThanOrEqualTo(minimumCovered,
+            $"{resourceFile} must not regress below its measured translated-key baseline");
+    }
+
+    [Fact]
+    public void Xaml_and_resources_have_no_utf8_mojibake_markers()
+    {
+        var markers = new[] { "Ã", "Â", "â€", "â€¦", "â€”", "ï¿½", "\uFFFD" };
+        var offenders = LocalizedXamlFiles()
+            .Concat(Directory.EnumerateFiles(Path.Combine(AppDir, "Resources"), "Strings*.resx"))
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, index)))
+            .Where(item => markers.Any(item.line.Contains))
+            .Select(item => $"{Path.GetFileName(item.file)}:{item.index + 1}")
+            .ToList();
+
+        offenders.Should().BeEmpty("localized source must be clean UTF-8, not double-decoded text");
     }
 
     [Fact]
@@ -162,6 +220,31 @@ public sealed class I18nTests
         }
 
         missing.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Firewall_and_tools_runtime_actions_and_statuses_are_localized()
+    {
+        var files = Directory.EnumerateFiles(Path.Combine(AppDir, "ViewModels"), "*.cs")
+            .Where(file =>
+            {
+                var name = Path.GetFileName(file);
+                return name.StartsWith("FwActivityViewModel", StringComparison.Ordinal)
+                       || name.StartsWith("FwRulesViewModel", StringComparison.Ordinal)
+                       || name.StartsWith("ToolsViewModel", StringComparison.Ordinal)
+                       || name.Equals("ToolsRows.cs", StringComparison.Ordinal);
+            });
+        var rawAction = new Regex("(?:RunServiceActionAsync|ServiceActionGuard\\.RunAsync|_confirm\\.Confirm|_prompt\\?\\.Ask)\\(\\s*\\$?\"", RegexOptions.Compiled);
+        var rawStatus = new Regex(
+            "\\b(?:StatusText|HistoryStatus|EventStatus|BandwidthStatus|UsageStatus|UsageQuotaStatus|TimelineStatus|DecisionSummary|FlowTeardownText|ListenerStatus|AnalysisStatus|LearnedStatus|InspectResult|ActiveProfile|EchPostureText|SecureRulesText)\\s*=\\s*\\$?\"",
+            RegexOptions.Compiled);
+        var offenders = files
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, index)))
+            .Where(item => rawAction.IsMatch(item.line) || rawStatus.IsMatch(item.line))
+            .Select(item => $"{Path.GetFileName(item.file)}:{item.index + 1}")
+            .ToList();
+
+        offenders.Should().BeEmpty("operator-visible runtime actions and statuses must use I18n.T");
     }
 
     [Fact]
@@ -320,12 +403,48 @@ public sealed class I18nTests
             .ToHashSet(StringComparer.Ordinal);
     }
 
+    private static IReadOnlySet<string> ResourceKeys(string resourceFile)
+    {
+        var doc = XDocument.Load(Path.Combine(AppDir, "Resources", resourceFile));
+        return doc.Root!.Elements("data")
+            .Select(element => element.Attribute("name")?.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyDictionary<string, string> ResourceValues(string resourceFile)
+    {
+        var doc = XDocument.Load(Path.Combine(AppDir, "Resources", resourceFile));
+        return doc.Root!.Elements("data").ToDictionary(
+            element => element.Attribute("name")!.Value,
+            element => element.Element("value")?.Value ?? string.Empty,
+            StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<string> XamlKeys(string file) => Regex.Matches(
+            File.ReadAllText(file), @"\{svc:Loc\s+Key=([^,\}\s]+)")
+        .Select(match => match.Groups[1].Value);
+
+    private static IReadOnlySet<string> UsedLocalizationKeys()
+    {
+        var keys = LocalizedXamlFiles().SelectMany(XamlKeys).ToHashSet(StringComparer.Ordinal);
+        var pattern = new Regex("I18n\\.T\\(\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
+        foreach (var file in Directory.EnumerateFiles(AppDir, "*.cs", SearchOption.AllDirectories))
+        {
+            keys.UnionWith(pattern.Matches(File.ReadAllText(file)).Select(match => match.Groups["key"].Value));
+        }
+
+        return keys;
+    }
+
     private static IEnumerable<string> LocalizedXamlFiles()
     {
         yield return Path.Combine(AppDir, "MainWindow.xaml");
         yield return Path.Combine(AppDir, "ConfirmDialog.xaml");
         yield return Path.Combine(AppDir, "InputDialog.xaml");
         yield return Path.Combine(AppDir, "ConsentWindow.xaml");
+        yield return Path.Combine(AppDir, "AboutDialog.xaml");
     }
 
     private static string AppDir

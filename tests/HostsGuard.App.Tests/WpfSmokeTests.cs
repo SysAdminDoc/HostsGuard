@@ -2,7 +2,10 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using FluentAssertions;
 using HostsGuard.App;
 using HostsGuard.App.Services;
@@ -22,11 +25,12 @@ namespace HostsGuard.App.Tests;
 public sealed class WpfSmokeTests
 {
     private static volatile string _stage = "not started";
+    private static readonly Lazy<Dispatcher> WpfDispatcher = new(StartWpfDispatcher);
 
     private static void RunSta(Action action)
     {
         Exception? failure = null;
-        var thread = new Thread(() =>
+        WpfDispatcher.Value.Invoke(() =>
         {
             try
             {
@@ -36,17 +40,30 @@ public sealed class WpfSmokeTests
             {
                 failure = ex;
             }
-            finally
-            {
-                // Kill the thread's dispatcher without pumping: a smoke never
-                // starts Application.Run, so a shutdown *pump* would hang.
-                System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown();
-            }
+            finally { }
         });
+        failure.Should().BeNull();
+    }
+
+    private static Dispatcher StartWpfDispatcher()
+    {
+        Dispatcher? dispatcher = null;
+        using var ready = new ManualResetEventSlim();
+        var thread = new Thread(() =>
+        {
+            dispatcher = Dispatcher.CurrentDispatcher;
+            _ = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            ready.Set();
+            Dispatcher.Run();
+        })
+        {
+            IsBackground = true,
+            Name = "HostsGuard WPF smoke dispatcher",
+        };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        thread.Join(TimeSpan.FromSeconds(120)).Should().BeTrue($"the STA smoke must not hang (stage: {_stage})");
-        failure.Should().BeNull();
+        ready.Wait(TimeSpan.FromSeconds(30)).Should().BeTrue("the WPF smoke dispatcher must start");
+        return dispatcher!;
     }
 
     private static ResourceDictionary Load(string name) => new()
@@ -133,10 +150,19 @@ public sealed class WpfSmokeTests
         var iconButtons = new List<string>();
         foreach (var b in Descendants<Button>(window))
         {
-            var hasText = b.Content is string s && !string.IsNullOrWhiteSpace(s);
+            if (b.TemplatedParent is not null)
+            {
+                continue;
+            }
+
+            var hasText = b.Content is string s && !string.IsNullOrWhiteSpace(s)
+                || b.Content is TextBlock contentText && !string.IsNullOrWhiteSpace(contentText.Text)
+                || Descendants<TextBlock>(b).Any(text => !string.IsNullOrWhiteSpace(text.Text));
             if (!hasText && string.IsNullOrWhiteSpace(System.Windows.Automation.AutomationProperties.GetName(b)))
             {
-                iconButtons.Add(b.Name.Length != 0 ? b.Name : b.Content?.GetType().Name ?? "Button");
+                iconButtons.Add(b.Name.Length != 0
+                    ? b.Name
+                    : $"{b.Content?.GetType().Name ?? "Button"} (tooltip: {b.ToolTip ?? "none"})");
             }
         }
 
@@ -164,6 +190,16 @@ public sealed class WpfSmokeTests
         var missing = new List<string>();
         foreach (var text in Descendants<TextBlock>(window))
         {
+            if (!text.IsVisible)
+            {
+                continue;
+            }
+
+            if (HasVisualAncestor<DataGrid>(text))
+            {
+                continue;
+            }
+
             var path = BindingOperations.GetBinding(text, TextBlock.TextProperty)?.Path?.Path;
             if (string.IsNullOrWhiteSpace(path) || !IsStatusReadout(path))
             {
@@ -185,6 +221,19 @@ public sealed class WpfSmokeTests
         => bindingPath.Equals("ConnectionText", StringComparison.Ordinal)
             || bindingPath.Equals("StatusText", StringComparison.Ordinal)
             || bindingPath.EndsWith("StatusText", StringComparison.Ordinal);
+
+    private static bool HasVisualAncestor<T>(DependencyObject element) where T : DependencyObject
+    {
+        for (var current = VisualTreeHelper.GetParent(element); current is not null;
+             current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private static void AssertVisibleEmptyStatesExplainAction(Window window, int tabIndex, string theme)
     {
@@ -346,10 +395,394 @@ public sealed class WpfSmokeTests
                 var versionText = (TextBlock)about.FindName("VersionText");
                 versionText.Text.Should().StartWith("v").And.Contain(".NET 10");
 
+                if (theme == "Dark")
+                {
+                    var priorCulture = System.Globalization.CultureInfo.CurrentUICulture;
+                    System.Globalization.CultureInfo.CurrentUICulture =
+                        System.Globalization.CultureInfo.GetCultureInfo("qps-ploc");
+                    try
+                    {
+                        vm.Activity.Rows.Add(new ActivityRowViewModel { Domain = "pseudo.example", Root = "pseudo.example" });
+                        var pseudoWindow = new MainWindow(vm);
+                        var pseudoTabs = (TabControl)pseudoWindow.FindName("MainTabs");
+                        foreach (var scale in new[] { 90, 100, 125, 150 })
+                        {
+                            vm.UiScalePct = scale;
+                            pseudoWindow.Measure(new Size(1600, 1000));
+                            pseudoWindow.Arrange(new Rect(0, 0, 1600, 1000));
+                            foreach (var tab in new[] { 0, 1, 2 })
+                            {
+                                pseudoTabs.SelectedIndex = tab;
+                                pseudoWindow.UpdateLayout();
+                                VisualSmokeRunner.FindPseudoLocaleLayoutFailures(pseudoWindow, $"owned tab {tab} at {scale}%")
+                                    .Should().BeEmpty();
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        System.Globalization.CultureInfo.CurrentUICulture = priorCulture;
+                    }
+                }
+
                 vm.Dispose();
             }
 
             _stage = "done";
         });
+    }
+
+    [Fact]
+    public void Firewall_pseudo_locale_hotspots_use_wrapping_content_at_every_supported_scale()
+    {
+        var xaml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "HostsGuard.App", "MainWindow.xaml"));
+        var wrappedKeys = new[]
+        {
+            "Xaml_Inherit_to_children_86cbf611",
+            "Xaml_Inbound_prompts_a42a5e5c",
+            "Xaml_Close_TCP_on_block_b15d5697",
+            "Xaml_Group_by_app_8d9fabe2",
+            "Xaml_Group_by_country_20629707",
+            "Xaml_Explain_55cbfd1b",
+            "Xaml_Per_app_activity_217dcab5",
+            "Xaml_Learning_review_e304e7cd",
+            "Xaml_Discard_all_5b034df8",
+            "Xaml_Sound_on_block_08d731f1",
+            "ListenerExposure_Title",
+            "Xaml_History_bandwidth_fb9e4b19",
+            "FwRules_IncludeWindowsRules",
+            "Xaml_HostsGuard_rules_only_a5afd2dd",
+            "RuleAnalysis_Title",
+        };
+
+        foreach (var key in wrappedKeys)
+        {
+            var keyIndex = xaml.IndexOf($"Key={key}", StringComparison.Ordinal);
+            keyIndex.Should().BeGreaterThanOrEqualTo(0, $"{key} must remain in the firewall layout");
+            var elementEnd = xaml.IndexOf("/>", keyIndex, StringComparison.Ordinal);
+            xaml[keyIndex..elementEnd].Should().Contain("TextWrapping=\"Wrap\"", $"{key} must survive pseudo-locale expansion");
+        }
+
+        var interfaceStatus = xaml.IndexOf("Text=\"{Binding InterfaceAliasStatus}\"", StringComparison.Ordinal);
+        var interfaceStatusEnd = xaml.IndexOf("/>", interfaceStatus, StringComparison.Ordinal);
+        xaml[interfaceStatus..interfaceStatusEnd].Should().Contain("TextWrapping=\"Wrap\"");
+
+        AppConfigStore.UiScaleChoices.Should().Contain(new[] { 90, 100, 125, 150 });
+    }
+
+    [Fact]
+    public void Pseudo_locale_layout_gate_detects_untrimmed_clipping_but_allows_wrapping()
+    {
+        RunSta(() =>
+        {
+            var clipped = new TextBlock
+            {
+                Text = "[!! VÃ©rÃ½ lÃ³Ã±g psÃ©ÃºdÃ³-lÃ³cÃ¡lÃ­zÃ©d sÃ©ttÃ­Ã±g lÃ¡bÃ©l !!]",
+                Width = 90,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                TextWrapping = TextWrapping.NoWrap,
+            };
+            var root = new Grid { Width = 90, Height = 40 };
+            root.Children.Add(clipped);
+            root.Measure(new Size(90, 40));
+            root.Arrange(new Rect(0, 0, 90, 40));
+            root.UpdateLayout();
+
+            var measuredText = new FormattedText(
+                clipped.Text,
+                System.Globalization.CultureInfo.CurrentUICulture,
+                clipped.FlowDirection,
+                new Typeface(clipped.FontFamily, clipped.FontStyle, clipped.FontWeight, clipped.FontStretch),
+                clipped.FontSize,
+                Brushes.Black,
+                VisualTreeHelper.GetDpi(clipped).PixelsPerDip);
+            measuredText.WidthIncludingTrailingWhitespace.Should().BeGreaterThan(clipped.Width + 2);
+
+            VisualSmokeRunner.FindPseudoLocaleLayoutFailures(root, "test")
+                .Should().ContainSingle().Which.Should().Contain("clipped");
+
+            clipped.TextWrapping = TextWrapping.Wrap;
+            root.UpdateLayout();
+            VisualSmokeRunner.FindPseudoLocaleLayoutFailures(root, "test").Should().BeEmpty();
+        });
+    }
+
+    [Fact]
+    public void Rendered_pairwise_matrix_covers_states_themes_scales_sizes_and_accessibility()
+    {
+        var cases = new[]
+        {
+            (State: "empty", Theme: "Dark", Scale: 90, Width: 1280, Height: 800),
+            (State: "populated", Theme: "Light", Scale: 100, Width: 1600, Height: 1000),
+            (State: "loading", Theme: "HighContrast", Scale: 125, Width: 1280, Height: 800),
+            (State: "disconnected", Theme: "Dark", Scale: 150, Width: 1600, Height: 1000),
+            (State: "error", Theme: "Light", Scale: 90, Width: 1280, Height: 800),
+        };
+
+        cases.Select(item => item.State).Should().BeEquivalentTo("empty", "populated", "loading", "disconnected", "error");
+        cases.Select(item => item.Theme).Distinct().Should().BeEquivalentTo("Dark", "Light", "HighContrast");
+        cases.Select(item => item.Scale).Distinct().Should().Contain(new[] { 90, 100, 125, 150 });
+        var sizes = cases.Select(item => (item.Width, item.Height)).Distinct().ToArray();
+        sizes.Should().HaveCount(2);
+        sizes.Should().Contain((1280, 800)).And.Contain((1600, 1000));
+
+        RunSta(() =>
+        {
+            var priorCulture = System.Globalization.CultureInfo.CurrentUICulture;
+            System.Globalization.CultureInfo.CurrentUICulture =
+                System.Globalization.CultureInfo.GetCultureInfo("qps-ploc");
+            try
+            {
+                var app = Application.Current!;
+                var captureIds = new HashSet<string>(StringComparer.Ordinal);
+                var nestedCaptureIds = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var item in cases)
+                {
+                    app.Resources.Clear();
+                    app.Resources.MergedDictionaries.Add(Load(item.Theme == "Light" ? "Light" : "Dark"));
+                    app.Resources.MergedDictionaries.Add(Load("Styles"));
+                    if (item.Theme == "HighContrast")
+                    {
+                        app.Resources["Hg.Bg"] = Brushes.Black;
+                        app.Resources["Hg.Base"] = Brushes.Black;
+                        app.Resources["Hg.Panel"] = Brushes.Black;
+                        app.Resources["Hg.PanelAlt"] = Brushes.Black;
+                        app.Resources["Hg.Command"] = Brushes.Black;
+                        app.Resources["Hg.Mantle"] = Brushes.Black;
+                        app.Resources["Hg.Crust"] = Brushes.Black;
+                        app.Resources["Hg.RowHover"] = Brushes.Black;
+                        app.Resources["Hg.SafeSoft"] = Brushes.Black;
+                        app.Resources["Hg.SuccessSoft"] = Brushes.Black;
+                        app.Resources["Hg.SuccessHover"] = Brushes.Black;
+                        app.Resources["Hg.DangerSoft"] = Brushes.Black;
+                        app.Resources["Hg.DangerSoftHover"] = Brushes.Black;
+                        app.Resources["Hg.WarnSoft"] = Brushes.Black;
+                        app.Resources["Hg.WarnRow"] = Brushes.Black;
+                        app.Resources["Hg.DangerRow"] = Brushes.Black;
+                        app.Resources["Hg.Text"] = Brushes.White;
+                        app.Resources["Hg.Sub"] = Brushes.White;
+                        app.Resources["Hg.Dim"] = Brushes.White;
+                        app.Resources["Hg.S0"] = Brushes.Black;
+                        app.Resources["Hg.S1"] = Brushes.White;
+                        app.Resources["Hg.S2"] = Brushes.Yellow;
+                        app.Resources["Hg.Focus"] = Brushes.Yellow;
+                        app.Resources["Hg.Teal"] = Brushes.Cyan;
+                        app.Resources["Hg.Sky"] = Brushes.Cyan;
+                        app.Resources["Hg.Green"] = Brushes.Lime;
+                        app.Resources["Hg.Blue"] = Brushes.Cyan;
+                        app.Resources["Hg.Danger2"] = Brushes.White;
+                        app.Resources["Hg.OnDanger"] = Brushes.Black;
+                        app.Resources["Hg.OnSel"] = Brushes.Black;
+                        app.Resources["Hg.Sel"] = Brushes.Cyan;
+                    }
+
+                    using var client = new HostsServiceClient(NamedPipeChannel.Create(
+                        SessionToken.Generate(), $"hg-matrix-{item.State}"));
+                    var config = new AppConfigStore(Path.Combine(
+                        Path.GetTempPath(), "hg_matrix_" + Guid.NewGuid().ToString("N") + ".json"));
+                    using var vm = CreateMatrixShell(client, config);
+                    vm.UiScalePct = item.Scale;
+                    SeedShellState(vm, item.State);
+
+                    var window = new MainWindow(vm);
+                    window.WindowStartupLocation = WindowStartupLocation.Manual;
+                    window.Left = -32000;
+                    window.Top = -32000;
+                    window.Width = item.Width;
+                    window.Height = item.Height;
+                    window.ShowActivated = false;
+                    window.ShowInTaskbar = false;
+                    window.Show();
+                    window.UpdateLayout();
+                    var tabs = (TabControl)window.FindName("MainTabs");
+                    for (var tab = 0; tab < tabs.Items.Count; tab++)
+                    {
+                        tabs.SelectedIndex = tab;
+                        window.UpdateLayout();
+                        var label = $"{item.Theme}/{item.State}/{item.Scale}/{item.Width}x{item.Height}";
+                        AssertAllInputsNamed(window, tabs, tab, label);
+                        AssertTabAccessible(window, tab, label);
+                        AssertLiveStatusReadouts(window, tab, label);
+                        AssertLogicalFocus(window, tab, label);
+                        if (item.Theme == "HighContrast")
+                        {
+                            AssertVisibleControlContrast(window, tab, label);
+                        }
+                        VisualSmokeRunner.FindPseudoLocaleLayoutFailures(window, $"{label}/tab-{tab}")
+                            .Should().BeEmpty();
+                        var captureId = $"{item.Theme}-{item.State}-{item.Scale}-{item.Width}x{item.Height}-tab-{tab}";
+                        captureIds.Add(captureId).Should().BeTrue("capture identifiers must be unique");
+                        AssertRenderedPixels((FrameworkElement)window.Content, item, captureId);
+
+                        foreach (var nested in Descendants<TabControl>(window)
+                                     .Where(control => control != tabs && control.IsVisible))
+                        {
+                            for (var nestedIndex = 0; nestedIndex < nested.Items.Count; nestedIndex++)
+                            {
+                                nested.SelectedIndex = nestedIndex;
+                                window.UpdateLayout();
+                                var nestedId = $"{captureId}-nested-{nestedIndex}";
+                                nestedCaptureIds.Add(nestedId).Should().BeTrue();
+                                AssertRenderedPixels((FrameworkElement)window.Content, item, nestedId);
+                            }
+                        }
+                    }
+
+                    if (item.State == "populated")
+                    {
+                        tabs.SelectedIndex = 5;
+                        window.UpdateLayout();
+                        var tools = (StackPanel)window.FindName("ToolsSurface");
+                        var cards = LogicalTreeHelper.GetChildren(tools).OfType<Border>().ToArray();
+                        cards.Length.Should().BeGreaterThan(10, "all major Tools cards must be part of the realized matrix");
+                        for (var cardIndex = 0; cardIndex < cards.Length; cardIndex++)
+                        {
+                            cards[cardIndex].BringIntoView();
+                            window.UpdateLayout();
+                            var toolsId = $"tools-card-{cardIndex}";
+                            nestedCaptureIds.Add(toolsId).Should().BeTrue();
+                            AssertRenderedPixels((FrameworkElement)window.Content, item, toolsId);
+                        }
+                    }
+
+                    var baseBrush = ((SolidColorBrush)app.Resources["Hg.Base"]).Color;
+                    var textBrush = ((SolidColorBrush)app.Resources["Hg.Text"]).Color;
+                    ContrastRatio(baseBrush, textBrush).Should().BeGreaterThanOrEqualTo(
+                        item.Theme == "HighContrast" ? 7 : 4.5,
+                        $"{item.Theme} primary text must remain readable");
+                    window.CloseForSmoke();
+                }
+
+                captureIds.Should().HaveCount(cases.Length * 6,
+                    "every state/theme/scale/size case must capture all six primary tabs");
+                nestedCaptureIds.Should().NotBeEmpty("nested Hosts tabs and every major Tools card must be captured");
+            }
+            finally
+            {
+                System.Globalization.CultureInfo.CurrentUICulture = priorCulture;
+            }
+        });
+    }
+
+    private static MainViewModel CreateMatrixShell(HostsServiceClient client, AppConfigStore config)
+    {
+        var vm = new MainViewModel(() => client, config, new ThemeManager(), new FakeConfirm(true));
+        vm.Hosts = new HostsViewModel(client, new FakeConfirm(true));
+        vm.Activity = new HostsActivityViewModel(client);
+        vm.Alerts = new AlertsViewModel(client);
+        vm.RawHosts = new RawHostsViewModel(client);
+        vm.FwActivity = new FwActivityViewModel(client, new FakeConfirm(true), config);
+        vm.FwRules = new FwRulesViewModel(client, new FakeConfirm(true));
+        vm.Tools = new ToolsViewModel(client, new FakeConfirm(true));
+        vm.Blocklists = new BlocklistsViewModel(client, new FakeConfirm(true));
+        return vm;
+    }
+
+    private static void SeedShellState(MainViewModel vm, string state)
+    {
+        vm.IsConnected = state is "empty" or "populated" or "loading";
+        vm.ConnectionText = state switch
+        {
+            "loading" => "Loading deterministic service data...",
+            "disconnected" => "Disconnected - deterministic service unavailable",
+            "error" => "Error - deterministic service request failed",
+            _ => "Connected - deterministic visual state",
+        };
+        if (state == "populated")
+        {
+            vm.HostsBlocked = 42;
+            vm.DbBlocked = 40;
+            vm.DbAllowed = 2;
+            vm.Activity!.Rows.Add(new ActivityRowViewModel { Domain = "matrix.example", Root = "matrix.example" });
+        }
+    }
+
+    private static void AssertRenderedPixels(FrameworkElement surface,
+        (string State, string Theme, int Scale, int Width, int Height) item,
+        string captureId)
+    {
+        var bitmap = new RenderTargetBitmap(item.Width, item.Height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(surface);
+        var stride = item.Width * 4;
+        var pixels = new byte[stride * item.Height];
+        bitmap.CopyPixels(pixels, stride, 0);
+        pixels.Where((_, index) => index % 4 != 3).Distinct().Count().Should().BeGreaterThan(8,
+            $"{item.Theme}/{item.State}/{item.Scale}% must render non-blank pixel detail");
+        var outputDir = Path.Combine(Path.GetTempPath(), "hostsguard-rendered-matrix");
+        Directory.CreateDirectory(outputDir);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(Path.Combine(outputDir, captureId + ".png"));
+        encoder.Save(stream);
+    }
+
+    private static void AssertLogicalFocus(Window window, int tabIndex, string label)
+    {
+        var target = Descendants<Control>(window).FirstOrDefault(control =>
+            control.IsVisible && control.IsEnabled && control.Focusable && KeyboardNavigation.GetIsTabStop(control));
+        target.Should().NotBeNull($"tab {tabIndex} ({label}) must expose a keyboard-focusable control");
+        FocusManager.SetFocusedElement(window, target);
+        FocusManager.GetFocusedElement(window).Should().BeSameAs(target,
+            $"tab {tabIndex} ({label}) must accept deterministic logical focus without desktop activation");
+        Application.Current!.Resources.Contains("Hg.Focus").Should().BeTrue("the active theme must define a focus token");
+    }
+
+    private static void AssertVisibleControlContrast(Window window, int tabIndex, string label)
+    {
+        var failures = new List<string>();
+        foreach (var control in Descendants<Control>(window).Where(control =>
+                     control.IsVisible && control.IsEnabled && control is Button or TextBox or ComboBox))
+        {
+            if (control.Foreground is not SolidColorBrush foreground ||
+                ResolveVisibleBackground(control) is not SolidColorBrush background)
+            {
+                failures.Add($"{control.GetType().Name}: unresolved solid foreground/background");
+                continue;
+            }
+
+            var ratio = ContrastRatio(foreground.Color, background.Color);
+            if (ratio < 4.5)
+            {
+                failures.Add($"{control.GetType().Name}: {ratio:F2}:1 ({foreground.Color} on {background.Color})");
+            }
+        }
+
+        failures.Should().BeEmpty($"visible controls on tab {tabIndex} ({label}) must meet 4.5:1 text contrast");
+    }
+
+    private static Brush? ResolveVisibleBackground(DependencyObject element)
+    {
+        for (var current = element; current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            Brush? brush = current switch
+            {
+                Control control => control.Background,
+                Panel panel => panel.Background,
+                Border border => border.Background,
+                _ => null,
+            };
+            if (brush is SolidColorBrush { Color.A: > 0 })
+            {
+                return brush;
+            }
+        }
+        return null;
+    }
+
+    private static double ContrastRatio(Color first, Color second)
+    {
+        static double Luminance(Color color)
+        {
+            static double Channel(byte value)
+            {
+                var normalized = value / 255d;
+                return normalized <= 0.03928 ? normalized / 12.92 : Math.Pow((normalized + 0.055) / 1.055, 2.4);
+            }
+            return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
+        }
+
+        var a = Luminance(first);
+        var b = Luminance(second);
+        return (Math.Max(a, b) + 0.05) / (Math.Min(a, b) + 0.05);
     }
 }

@@ -47,7 +47,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _filter = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = "Waiting for live connections…";
+    private string _statusText = I18n.T("FwActivity_WaitingLive", "Waiting for live connections…");
 
     [ObservableProperty]
     private bool _lockdown;
@@ -62,13 +62,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private bool _observeMode;
 
     [ObservableProperty]
-    private string _timelineStatus = "No activity yet";
+    private string _timelineStatus = I18n.T("FwActivity_NoActivity", "No activity yet");
 
     [ObservableProperty]
     private string _explainInput = string.Empty;
 
     [ObservableProperty]
-    private string _decisionSummary = "Select a connection or enter a target to explain.";
+    private string _decisionSummary = I18n.T("FwActivity_ExplainPrompt", "Select a connection or enter a target to explain.");
 
     [ObservableProperty]
     private string _decisionNextAction = string.Empty;
@@ -77,7 +77,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private bool _flowTeardownEnabled;
 
     [ObservableProperty]
-    private string _flowTeardownText = "TCP teardown: off";
+    private string _flowTeardownText = I18n.T("FwPosture_TeardownOff", "TCP teardown: off");
 
     private bool _suppressFlowTeardownWrite;
 
@@ -213,7 +213,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             return;
         }
 
-        SetOperatorStatus($"Resolving {ips.Count} addresses…");
+        SetOperatorStatus(ips.Count == 1
+            ? I18n.T("FwActivity_ResolvingAddress", "Resolving {0} address…", ips.Count)
+            : I18n.T("FwActivity_ResolvingAddresses", "Resolving {0} addresses…", ips.Count));
         try
         {
             var request = new ResolveHostsRequest();
@@ -225,11 +227,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             }
 
             var applied = ApplyResolvedHosts();
-            SetOperatorStatus($"Resolved {applied} of {ips.Count} addresses");
+            SetOperatorStatus(ips.Count == 1
+                ? I18n.T("FwActivity_ResolvedAddress", "Resolved {0} of {1} address", applied, ips.Count)
+                : I18n.T("FwActivity_ResolvedAddresses", "Resolved {0} of {1} addresses", applied, ips.Count));
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
         {
-            SetOperatorStatus(ServiceErrors.DescribeActionFailure("Resolve remote IPs", ex));
+            SetOperatorStatus(ServiceErrors.DescribeActionFailure(I18n.T("FwActivity_ActionResolveIps", "Resolve remote IPs"), ex));
         }
     }
 
@@ -260,16 +264,18 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task IdentifyConnectionsAsync()
     {
-        await RunServiceActionAsync("Identify connections", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionIdentify", "Identify connections"), async () =>
         {
             var pending = Rows.Where(r => r.Info.Length == 0).ToList();
             if (pending.Count == 0)
             {
-                SetOperatorStatus("Every connection is already identified");
+                SetOperatorStatus(I18n.T("FwActivity_AllIdentified", "Every connection is already identified"));
                 return;
             }
 
-            SetOperatorStatus($"Asking DeepSeek about {Plural.Of(pending.Count, "connection")}…");
+            SetOperatorStatus(pending.Count == 1
+                ? I18n.T("FwActivity_IdentifyingConnection", "Asking DeepSeek about {0} connection…", pending.Count)
+                : I18n.T("FwActivity_IdentifyingConnections", "Asking DeepSeek about {0} connections…", pending.Count));
             var request = new IdentifyRequest();
             foreach (var row in pending)
             {
@@ -310,7 +316,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var target = (ExplainInput ?? string.Empty).Trim();
         if (target.Length == 0)
         {
-            DecisionSummary = "Enter a domain, IP, process, or executable path to explain.";
+            DecisionSummary = I18n.T("FwActivity_ExplainTargetRequired", "Enter a domain, IP, process, or executable path to explain.");
             DecisionNextAction = string.Empty;
             DecisionChain.Clear();
             return;
@@ -324,7 +330,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            DecisionSummary = "Select a connection first.";
+            DecisionSummary = I18n.T("FwActivity_SelectConnectionFirstPeriod", "Select a connection first.");
             DecisionNextAction = string.Empty;
             DecisionChain.Clear();
             return;
@@ -364,14 +370,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
                 });
             }
 
-            DecisionSummary = $"{result.Verdict}: {result.Summary}";
+            DecisionSummary = I18n.T("FwActivity_DecisionSummary", "{0}: {1}", result.Verdict, result.Summary);
             DecisionNextAction = result.NextSafeAction;
             SetOperatorStatus(result.Summary);
         }
         catch (Exception ex) when (ex is Grpc.Core.RpcException or IOException)
         {
-            DecisionSummary = "Decision explanation failed - service unavailable";
-            DecisionNextAction = "Reconnect from the status bar, then retry.";
+            DecisionSummary = I18n.T("FwActivity_ExplainUnavailable", "Decision explanation failed — service unavailable");
+            DecisionNextAction = I18n.T("FwActivity_ExplainReconnect", "Reconnect from the status bar, then retry.");
             DecisionChain.Clear();
             SetOperatorStatus(DecisionSummary);
         }
@@ -460,11 +466,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
                     if (WatchRetry.IsAuthenticationFailure(ex))
                     {
-                        OnUi(() => SetLiveStatus("Live feed authentication expired - reconnect to the service", force: true));
+                        OnUi(() => SetLiveStatus(I18n.T("FwActivity_LiveAuthExpired", "Live feed authentication expired — reconnect to the service"), force: true));
                         break;
                     }
 
-                    OnUi(() => SetLiveStatus("Live feed disconnected - retrying", force: true));
+                    OnUi(() => SetLiveStatus(I18n.T("FwActivity_LiveDisconnected", "Live feed disconnected — retrying"), force: true));
                 }
 
                 if (!ct.IsCancellationRequested)
@@ -548,7 +554,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             _rowByKey.Remove(evicted.Key);
         }
 
-        SetLiveStatus(Plural.Of(Rows.Count, "connection"));
+        SetLiveStatus(Rows.Count == 1
+            ? I18n.T("FwActivity_ConnectionCount", "{0} connection", Rows.Count)
+            : I18n.T("FwActivity_ConnectionCountPlural", "{0} connections", Rows.Count));
         RecordConnectionEvent(DateTime.Now, ev.Process);
     }
 
@@ -557,7 +565,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     /// <summary>Record a new-connection event; recomputes the timeline (throttled).</summary>
     public void RecordConnectionEvent(DateTime ts, string process)
     {
-        var name = string.IsNullOrWhiteSpace(process) ? "(unknown)" : process;
+        var name = string.IsNullOrWhiteSpace(process) ? I18n.T("Common_UnknownParenthesized", "(unknown)") : process;
         _events.Add((ts, name));
         var cutoff = ts.AddMinutes(-(TimelineMinutes + 5));
         _events.RemoveAll(e => e.Ts < cutoff);
@@ -601,7 +609,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         Timeline.Clear();
         if (top.Count == 0)
         {
-            TimelineStatus = "No activity yet";
+            TimelineStatus = I18n.T("FwActivity_NoActivity", "No activity yet");
             return;
         }
 
@@ -632,7 +640,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             });
         }
 
-        TimelineStatus = $"Top {Plural.Of(top.Count, "app")} · last {TimelineMinutes} min · peak {peak}/min";
+        TimelineStatus = top.Count == 1
+            ? I18n.T("FwActivity_TimelineStatus", "Top {0} app · last {1} min · peak {2}/min", top.Count, TimelineMinutes, peak)
+            : I18n.T("FwActivity_TimelineStatusPlural", "Top {0} apps · last {1} min · peak {2}/min", top.Count, TimelineMinutes, peak);
     }
 
     private void OnUi(Action action)
@@ -669,11 +679,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(remoteAddr))
         {
-            SetOperatorStatus("Select a row first");
+            SetOperatorStatus(I18n.T("Common_SelectRowFirst", "Select a row first"));
             return;
         }
 
-        await RunServiceActionAsync("Block remote IP", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockRemoteIp", "Block remote IP"), async () =>
         {
             var ack = await _client.Firewall.BlockIpAsync(new FirewallIpRequest { Address = remoteAddr, Direction = "Outbound" });
             SetOperatorStatus(ack.Message);
@@ -685,11 +695,11 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            SetOperatorStatus("Select a row first");
+            SetOperatorStatus(I18n.T("Common_SelectRowFirst", "Select a row first"));
             return;
         }
 
-        await RunServiceActionAsync("Close connection", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionCloseConnection", "Close connection"), async () =>
         {
             var ack = await _client.Firewall.CloseConnectionAsync(new FlowCloseRequest
             {
@@ -709,13 +719,13 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            SetOperatorStatus("Select a row first");
+            SetOperatorStatus(I18n.T("Common_SelectRowFirst", "Select a row first"));
             return;
         }
 
         if (row.Pid <= 0)
         {
-            SetOperatorStatus("No PID for this connection");
+            SetOperatorStatus(I18n.T("FwActivity_NoPid", "No PID for this connection"));
             return;
         }
 
@@ -726,17 +736,17 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
+            SetOperatorStatus(I18n.T("FwActivity_CannotResolveProgram", "Cannot resolve program for PID {0}", row.Pid));
             return;
         }
 
         if (path.Length == 0)
         {
-            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
+            SetOperatorStatus(I18n.T("FwActivity_CannotResolveProgram", "Cannot resolve program for PID {0}", row.Pid));
             return;
         }
 
-        await RunServiceActionAsync("Block process", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockProcess", "Block process"), async () =>
         {
             var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
             SetOperatorStatus(ack.Message);
@@ -771,17 +781,17 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            SetOperatorStatus("Select a row first");
+            SetOperatorStatus(I18n.T("Common_SelectRowFirst", "Select a row first"));
             return;
         }
 
         var host = row.Host.Trim().ToLowerInvariant();
         if (HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
-            await RunServiceActionAsync("Block site", async () =>
+            await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockSite", "Block site"), async () =>
             {
                 var ack = await _client.Hosts.BlockAsync(new DomainRequest { Domain = host, Source = "connection" });
-                SetOperatorStatus(ack.Ok ? $"Blocked {host} in hosts" : ack.Message);
+                SetOperatorStatus(ack.Ok ? I18n.T("FwActivity_BlockedInHosts", "Blocked {0} in hosts", host) : ack.Message);
             });
         }
         else if (!string.IsNullOrWhiteSpace(row.RemoteAddr))
@@ -790,7 +800,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         else
         {
-            SetOperatorStatus("No site or address to block for this row");
+            SetOperatorStatus(I18n.T("FwActivity_NoBlockTarget", "No site or address to block for this row"));
         }
     }
 
@@ -803,25 +813,25 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     {
         if (row is null)
         {
-            SetOperatorStatus("Select a row first");
+            SetOperatorStatus(I18n.T("Common_SelectRowFirst", "Select a row first"));
             return;
         }
 
         var host = row.Host.Trim().ToLowerInvariant();
         if (!HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
-            SetOperatorStatus("This row has no resolved domain for a domain firewall rule");
+            SetOperatorStatus(I18n.T("FwActivity_NoDomainForFirewallRule", "This row has no resolved domain for a domain firewall rule"));
             return;
         }
 
         var path = ResolveProgramPath(row.Pid);
         if (path.Length == 0)
         {
-            SetOperatorStatus($"Cannot resolve program for PID {row.Pid}");
+            SetOperatorStatus(I18n.T("FwActivity_CannotResolveProgram", "Cannot resolve program for PID {0}", row.Pid));
             return;
         }
 
-        await RunServiceActionAsync("Block site for this app", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockSiteForApp", "Block site for this app"), async () =>
         {
             var ack = await _client.Firewall.CreateDomainFirewallRuleAsync(new DomainFirewallRuleRequest
             {
@@ -839,14 +849,14 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var host = (row?.Host ?? string.Empty).Trim().ToLowerInvariant();
         if (!HostsGuard.Core.Domains.LooksLikeDomain(host))
         {
-            SetOperatorStatus("This row has no resolved domain to allow");
+            SetOperatorStatus(I18n.T("FwActivity_NoDomainToAllow", "This row has no resolved domain to allow"));
             return;
         }
 
-        await RunServiceActionAsync("Allow site", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionAllowSite", "Allow site"), async () =>
         {
             var ack = await _client.Hosts.AllowAsync(new DomainRequest { Domain = host, Source = "connection" });
-            SetOperatorStatus(ack.Ok ? $"Allowed {host} in hosts" : ack.Message);
+            SetOperatorStatus(ack.Ok ? I18n.T("FwActivity_AllowedInHosts", "Allowed {0} in hosts", host) : ack.Message);
         });
     }
 
@@ -858,7 +868,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         var parts = (parameter ?? string.Empty).Split('|', 2);
         if (parts.Length != 2 || !int.TryParse(parts[1], out var pid) || pid <= 0)
         {
-            SetOperatorStatus("No PID for this connection");
+            SetOperatorStatus(I18n.T("FwActivity_NoPid", "No PID for this connection"));
             return;
         }
 
@@ -869,17 +879,17 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
-            SetOperatorStatus($"Cannot resolve program for PID {pid}");
+            SetOperatorStatus(I18n.T("FwActivity_CannotResolveProgram", "Cannot resolve program for PID {0}", pid));
             return;
         }
 
         if (path.Length == 0)
         {
-            SetOperatorStatus($"Cannot resolve program for PID {pid}");
+            SetOperatorStatus(I18n.T("FwActivity_CannotResolveProgram", "Cannot resolve program for PID {0}", pid));
             return;
         }
 
-        await RunServiceActionAsync("Block app scope", async () =>
+        await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockAppScope", "Block app scope"), async () =>
         {
             var ack = await _client.Firewall.BlockAppScopeAsync(new AppScopeRequest { ProgramPath = path, Scope = parts[0] });
             SetOperatorStatus(ack.Message);

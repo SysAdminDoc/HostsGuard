@@ -10,6 +10,11 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         AutomationProperties.Name="{svc:Loc Key=About_AutomationName}">
+    <Window.Resources>
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Resources>
     <Border Style="{StaticResource Hg.DialogFrame}">
         <Grid Margin="24">
             <Grid.RowDefinitions>
@@ -92,10 +97,11 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Button Grid.Column="1"
-                        Content="{svc:Loc Key=About_OpenGitHub}"
                         MinWidth="112"
                         Margin="0,0,8,0"
-                        Click="OnOpenGitHub" />
+                        Click="OnOpenGitHub">
+                    <TextBlock Text="{svc:Loc Key=About_OpenGitHub}" TextAlignment="Center" />
+                </Button>
                 <Button Grid.Column="2"
                         x:Name="CloseButton"
                         Content="{svc:Loc Key=About_Close}"

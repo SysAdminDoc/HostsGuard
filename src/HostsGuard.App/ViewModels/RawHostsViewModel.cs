@@ -23,7 +23,7 @@ public sealed partial class RawHostsViewModel : ObservableObject
     private string _text = string.Empty;
 
     [ObservableProperty]
-    private string _statusText = "Ready";
+    private string _statusText = I18n.T("Status.Ready", "Ready");
 
     public RawHostsViewModel(HostsServiceClient client)
         => _client = client ?? throw new ArgumentNullException(nameof(client));
@@ -32,12 +32,12 @@ public sealed partial class RawHostsViewModel : ObservableObject
 
     [RelayCommand]
     public Task LoadAsync()
-        => RunServiceActionAsync("Load raw hosts file", LoadCoreAsync);
+        => RunServiceActionAsync(I18n.T("RawHosts_ActionLoad", "Load raw hosts file"), LoadCoreAsync);
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     public async Task SaveAsync()
     {
-        await RunServiceActionAsync("Save raw hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("RawHosts_ActionSave", "Save raw hosts file"), async () =>
         {
             var ack = await _client.Hosts.SetHostsTextAsync(new HostsText { Text = Text });
             StatusText = ack.Message;
@@ -54,9 +54,9 @@ public sealed partial class RawHostsViewModel : ObservableObject
     [RelayCommand]
     public async Task AiCategorizeAsync()
     {
-        await RunServiceActionAsync("Categorize raw hosts file", async () =>
+        await RunServiceActionAsync(I18n.T("RawHosts_ActionCategorize", "Categorize raw hosts file"), async () =>
         {
-            StatusText = "Asking DeepSeek to categorize hosts-file entries...";
+            StatusText = I18n.T("Hosts_Categorizing", "Asking DeepSeek to categorize hosts-file entries...");
             var result = await _client.Hosts.CategorizeDomainsAsync(new CategorizeRequest { HostsFile = true });
             StatusText = result.Message;
             if (result.Ok && result.Categorized > 0)
@@ -72,7 +72,7 @@ public sealed partial class RawHostsViewModel : ObservableObject
         var result = await _client.Hosts.GetHostsTextAsync(new Empty());
         _loadedText = result.Text;
         Text = result.Text;
-        StatusText = $"{Text.Split('\n').Length} lines";
+        StatusText = I18n.T("RawHosts_LineCount", "{0} lines", Text.Split('\n').Length);
         OnPropertyChanged(nameof(IsDirty));
         SaveCommand.NotifyCanExecuteChanged();
     }
