@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.90-blue)
+![Version](https://img.shields.io/badge/version-0.12.91-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -135,7 +135,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | LAN attack-surface hardening | One-click reversible cards block LLMNR, mDNS, NetBIOS-NS, SSDP/UPnP discovery, WPAD, and inbound SMB using registry-backed posture where Windows exposes it plus auditable `HG_LAN_*` firewall rules. Each card shows what may break before you turn it on. |
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |
 | DNS resolver switcher | Select physical or explicit VPN/tunnel adapters, preview DHCP/static state, then apply Cloudflare/Google/Quad9 or DHCP transactionally; a bounded A+AAAA probe reports RTT or restores every adapter exactly |
-| DNS resolver-cache viewer | Inspect Windows DNS Client cached names, including HTTPS/SVCB service-binding rows used by modern HTTPS/ECH bootstrap paths, and flush one selected entry when a newly blocked host still resolves |
+| DNS and HTTPS/SVCB inspector | Inspect Windows DNS Client cache entries or directly query a selected name through cancellable `DnsQueryEx`; decode priority, alias target, mandatory keys, ALPN, port, IPv4/IPv6 hints, ECH, DoH path, and bounded unknown parameters, while distinguishing DNS-advertised ECH from global, unattributable on-wire observations |
 | Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
 | IDN homograph alerts | Opt-in, alert-only comparison of observed IDNs against allowlisted, trusted, and recent domains using embedded Unicode 17.0.0 UTS #39 confusable data; Alerts shows decoded Unicode, punycode, scripts, restriction evidence, and the matching domain without auto-blocking |
 | Algorithmic-domain alerts | Opt-in, alert-only scoring of suspicious registrable labels with exact entropy, vowel, digit, consonant-run, contribution, and threshold evidence; a versioned 57-case corpus gates precision at 95% and recall at 75%, while IDNs, CDN subdomains, and short labels are protected against false positives |
@@ -154,7 +154,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
-| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,652-key surface currently has 430 Spanish, 428 German, and 427 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
+| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,673-key surface currently has 430 Spanish, 428 German, and 427 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
 ### CLI
@@ -183,6 +183,7 @@ HostsGuard.Cli proxy status
 HostsGuard.Cli proxy accept-baseline
 HostsGuard.Cli idn-homograph [status|enable|disable]
 HostsGuard.Cli dga-check <domain> [--json]
+HostsGuard.Cli dns-inspect <domain> [--json]
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
@@ -273,7 +274,7 @@ Report vulnerabilities via a GitHub issue with the redacted support bundle
 No. The UI and CLI run unelevated; all privileged work happens in the `HostsGuardSvc` LocalSystem service that the installer registers (installation itself elevates once).
 
 **Q: I blocked a domain but it still resolves**
-Use Tools -> DNS -> **Windows resolver cache** to load cached OS resolver entries, including HTTPS/SVCB rows that can bootstrap modern HTTPS/ECH behavior, and flush only the selected name. Or run `HostsGuard.Cli dns-cache --search example.com` followed by `HostsGuard.Cli dns-flush-entry <cached-name>`. Some applications maintain their own DNS cache separate from the OS; for those, use FW Activity -> **Block this site for this app (firewall)** after the site resolves to create a per-app `HG_Domain_` rule whose IP list follows later DNS answers. The DNS-bypass defenses (QUIC block, DoH blocklist) close the common tunnels, but remain opt-in.
+Use Tools -> DNS -> **Inspect domain** (or `HostsGuard.Cli dns-inspect <domain> [--json]`) to query and decode live HTTPS/SVCB service bindings. The result labels ECH advertised by that name separately from service-wide on-wire ECH observations, which cannot be attributed to a hidden domain. The **Windows resolver cache** panel loads cached names and can flush only the selected entry. Some applications maintain their own DNS cache separate from the OS; for those, use FW Activity -> **Block this site for this app (firewall)** after the site resolves to create a per-app `HG_Domain_` rule whose IP list follows later DNS answers. The DNS-bypass defenses (QUIC block, DoH blocklist) close the common tunnels, but remain opt-in.
 
 **Q: How do I undo everything?**
 Hosts File tab → **Restore** restores the most recent backup; **Emergency Reset** rewrites the hosts file to Windows defaults; FW Rules tab → **Delete HG Rules** removes all HostsGuard-created firewall rules. Uninstalling does all of this automatically and restores your prior firewall posture.

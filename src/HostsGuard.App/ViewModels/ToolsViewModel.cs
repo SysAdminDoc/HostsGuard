@@ -66,6 +66,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<DnsCacheEntryViewModel> DnsCacheEntries { get; } = new();
 
+    public ObservableCollection<ServiceBindingRecordViewModel> ServiceBindings { get; } = new();
+
     public ObservableCollection<DnsAdapterRowViewModel> DnsAdapters { get; } = new();
 
     public ObservableCollection<PolicySubscriptionViewModel> PolicySubscriptions { get; } = new();
@@ -351,16 +353,35 @@ public sealed partial class ToolsViewModel : ObservableObject
         await RunServiceActionAsync(I18n.T("Inspect_ActionDomain", "Inspect domain"), s => InspectResult = s, async () =>
         {
             var result = await _client.Dns.InspectAsync(new DomainRequest { Domain = InspectDomain.Trim() });
+            ServiceBindings.Clear();
+            foreach (var binding in result.ServiceBindings)
+            {
+                ServiceBindings.Add(ServiceBindingRecordViewModel.From(binding));
+            }
+
             var records = result.Records.Count == 0
                 ? I18n.T("Inspect_NoRecords", "no records")
                 : string.Join("; ", result.Records.Select(r => $"{r.Type} {r.Value}"));
             var ech = string.IsNullOrWhiteSpace(result.EchSummary)
                 ? string.Empty
-                : I18n.T("Inspect_EchSuffix", " | ECH: {0} {1}", result.EchSummary, result.EchRemediation);
+                : I18n.T("Inspect_EchSuffix", " | Service-wide ECH visibility (not attributable to this domain): {0} {1}", result.EchSummary, result.EchRemediation);
             InspectResult = I18n.T("Inspect_Result", "{0} - {1} ({2} ms){3}",
                 result.Blocked ? I18n.T("Inspect_Blocked", "BLOCKED") : I18n.T("Inspect_Reachable", "reachable"), records, result.LatencyMs, ech);
+            ServiceBindingStatusText = !result.ServiceBindingQueryAvailable
+                ? I18n.T("ServiceBinding_Unavailable", "Direct HTTPS/SVCB inspection unavailable: {0}", result.ServiceBindingMessage)
+                : I18n.T("ServiceBinding_Status",
+                    "{0} direct record(s). ECH advertised by this name={1}; ECH observed locally={2} ({3} global observation(s), not attributable to this name). {4}",
+                    result.ServiceBindings.Count,
+                    result.EchAdvertised ? I18n.T("Common_Yes", "yes") : I18n.T("Common_No", "no"),
+                    result.EchObserved ? I18n.T("Common_Yes", "yes") : I18n.T("Common_No", "no"),
+                    result.EchObservationCount,
+                    result.ServiceBindingMessage);
         });
     }
+
+    [ObservableProperty]
+    private string _serviceBindingStatusText = I18n.T("ServiceBinding_StatusHint",
+        "Inspect a domain to query HTTPS/SVCB records directly. ECH advertisement is not proof that an ECH connection occurred.");
 
     private bool CanInspect() => !string.IsNullOrWhiteSpace(InspectDomain);
 

@@ -43,6 +43,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage" => await UsageAsync(args),
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
+    "dns-inspect" => await DnsInspectAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "dga-check" => DgaCheck(args),
     "idn-homograph" => await IdnHomographAsync(args),
@@ -123,6 +124,7 @@ static int Usage()
           HostsGuard.Cli usage-quota reset
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
+          HostsGuard.Cli dns-inspect <domain> [--json]
           HostsGuard.Cli dns-flush-entry <cached-name>
           HostsGuard.Cli dga-check <domain> [--json]
           HostsGuard.Cli idn-homograph [status|enable|disable]
@@ -1861,6 +1863,66 @@ static async Task<int> DnsFlushEntryAsync(string[] args)
             .FlushCacheEntryAsync(new DnsCacheEntryRequest { Name = args[1] });
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
+    });
+}
+
+static async Task<int> DnsInspectAsync(string[] args)
+{
+    if (args.Length is < 2 or > 3 ||
+        (args.Length == 3 && !args[2].Equals("--json", StringComparison.OrdinalIgnoreCase)))
+    {
+        Console.Error.WriteLine("Usage: dns-inspect <domain> [--json]");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var result = await new DnsControl.DnsControlClient(channel)
+            .InspectAsync(new DomainRequest { Domain = args[1] });
+        if (args.Length == 3)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                domain = args[1],
+                service_binding_query_available = result.ServiceBindingQueryAvailable,
+                service_binding_message = result.ServiceBindingMessage,
+                ech_advertised = result.EchAdvertised,
+                ech_observed_locally = result.EchObserved,
+                ech_observation_count_global_unattributable = result.EchObservationCount,
+                records = result.ServiceBindings.Select(static record => new
+                {
+                    owner = record.OwnerName,
+                    type = record.DnsType,
+                    ttl_seconds = record.TtlSeconds,
+                    priority = record.Priority,
+                    target = record.Target,
+                    alias_mode = record.AliasMode,
+                    ech_advertised = record.EchAdvertised,
+                    malformed = record.Malformed,
+                    diagnostic = record.Diagnostic,
+                    parameters = record.Parameters.Select(static parameter => new
+                    {
+                        key = parameter.Key,
+                        name = parameter.Name,
+                        value = parameter.Value,
+                    }),
+                }),
+            }, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        else
+        {
+            Console.WriteLine($"direct HTTPS/SVCB query: {(result.ServiceBindingQueryAvailable ? "available" : "unavailable")} - {result.ServiceBindingMessage}");
+            Console.WriteLine($"ECH advertised by this name: {(result.EchAdvertised ? "yes" : "no")}");
+            Console.WriteLine($"ECH observed locally: {(result.EchObserved ? "yes" : "no")} ({result.EchObservationCount} global, unattributable observation(s))");
+            Console.WriteLine("owner\ttype\tttl\tpriority\tmode\ttarget\tECH\tparameters\tparse");
+            foreach (var record in result.ServiceBindings)
+            {
+                var parameters = string.Join(";", record.Parameters.Select(static parameter => $"{parameter.Name}={parameter.Value}"));
+                Console.WriteLine($"{record.OwnerName}\t{record.DnsType}\t{record.TtlSeconds}\t{record.Priority}\t{(record.AliasMode ? "alias" : "service")}\t{record.Target}\t{(record.EchAdvertised ? "advertised" : "not-advertised")}\t{parameters}\t{(record.Malformed ? record.Diagnostic : "ok")}");
+            }
+        }
+
+        return result.ServiceBindingQueryAvailable ? 0 : 2;
     });
 }
 

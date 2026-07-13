@@ -169,6 +169,53 @@ public sealed partial class DnsCacheEntryViewModel : ObservableObject
     };
 }
 
+/// <summary>One directly queried HTTPS/SVCB service-binding record.</summary>
+public sealed class ServiceBindingRecordViewModel
+{
+    public string DnsType { get; init; } = string.Empty;
+    public string OwnerName { get; init; } = string.Empty;
+    public uint TtlSeconds { get; init; }
+    public uint Priority { get; init; }
+    public string Target { get; init; } = string.Empty;
+    public bool AliasMode { get; init; }
+    public bool EchAdvertised { get; init; }
+    public bool Malformed { get; init; }
+    public string Diagnostic { get; init; } = string.Empty;
+    public IReadOnlyList<ServiceBindingParameter> Parameters { get; init; } = Array.Empty<ServiceBindingParameter>();
+
+    public string ModeText => AliasMode
+        ? I18n.T("ServiceBinding_AliasMode", "Alias")
+        : I18n.T("ServiceBinding_ServiceMode", "Service");
+
+    public string ParametersText => Parameters.Count == 0
+        ? I18n.T("Common_NoneLower", "none")
+        : string.Join("; ", Parameters.Select(static p => $"{p.Name}={p.Value}"));
+
+    public string EchText => EchAdvertised
+        ? I18n.T("ServiceBinding_EchAdvertised", "advertised")
+        : I18n.T("ServiceBinding_EchNotAdvertised", "not advertised");
+
+    public string HealthText => Malformed
+        ? I18n.T("ServiceBinding_Malformed", "Malformed: {0}", Diagnostic)
+        : string.IsNullOrWhiteSpace(Diagnostic)
+            ? I18n.T("Health_Ok", "OK")
+            : Diagnostic;
+
+    public static ServiceBindingRecordViewModel From(ServiceBindingRecord record) => new()
+    {
+        DnsType = record.DnsType,
+        OwnerName = record.OwnerName,
+        TtlSeconds = record.TtlSeconds,
+        Priority = record.Priority,
+        Target = record.Target,
+        AliasMode = record.AliasMode,
+        EchAdvertised = record.EchAdvertised,
+        Malformed = record.Malformed,
+        Diagnostic = record.Diagnostic,
+        Parameters = record.Parameters.ToArray(),
+    };
+}
+
 /// <summary>Row VM for the AI-knowledge review panel (NET-107).</summary>
 public sealed partial class KnowledgeEntryViewModel : ObservableObject
 {

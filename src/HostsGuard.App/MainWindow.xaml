@@ -3214,6 +3214,33 @@
                                     </DockPanel>
                                     <TextBlock Text="{Binding InspectResult}" Style="{StaticResource Hg.SubText}" Margin="0,6,0,0"
                                                TextWrapping="Wrap" />
+                                    <TextBlock Text="{svc:Loc Key=ServiceBinding_Title}" FontWeight="SemiBold" Margin="0,10,0,0" />
+                                    <TextBlock Text="{Binding ServiceBindingStatusText}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,4"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                    <DataGrid ItemsSource="{Binding ServiceBindings}"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              HeadersVisibility="Column"
+                                              MaxHeight="154"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                              AutomationProperties.Name="{svc:Loc Key=ServiceBinding_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Owner}" Binding="{Binding OwnerName}" Width="180" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Type}" Binding="{Binding DnsType}" Width="68" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Priority}" Binding="{Binding Priority}" Width="72" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Target}" Binding="{Binding Target}" Width="180" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Mode}" Binding="{Binding ModeText}" Width="76" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Parameters}" Binding="{Binding ParametersText}" Width="320" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Ech}" Binding="{Binding EchText}" Width="104" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Ttl}" Binding="{Binding TtlSeconds}" Width="68" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ServiceBinding_Health}" Binding="{Binding HealthText}" Width="240" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
 
                                     <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0">
                                         <Grid>

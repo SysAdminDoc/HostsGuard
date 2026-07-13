@@ -2,6 +2,24 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.91] - 2026-07-12
+
+### Added
+- Domain inspection now directly queries HTTPS and SVCB records through a
+  cancellable, three-second Windows `DnsQueryEx` boundary and decodes priority,
+  alias target, mandatory keys, ALPN, no-default-ALPN, port, IPv4/IPv6 hints,
+  ECH, DoH path, and bounded unknown parameters.
+- The Tools inspector and `dns-inspect <domain> [--json]` show structured
+  owner/TTL/parameter data, partial query outcomes, malformed-RDATA diagnostics,
+  and explicit API-unavailable degradation. ECH advertised by the selected name
+  is kept separate from global on-wire observations that cannot be attributed
+  to an encrypted domain.
+
+### Changed
+- The shared RFC 9460/9461 parser now rejects duplicate, unordered, truncated,
+  compressed, invalid AliasMode, and unsupported mandatory parameter layouts
+  without throwing; valid unknown extensions remain visible as bounded hex.
+
 ## [0.12.90] - 2026-07-12
 
 ### Added

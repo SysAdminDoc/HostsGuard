@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -14,6 +15,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 {
     private const int DefaultDnsCacheLimit = 500;
     private const int MaxDnsCacheLimit = 2_000;
+    private static readonly TimeSpan ServiceBindingQueryTimeout = TimeSpan.FromSeconds(3);
 
     private readonly ServiceState _state;
 
@@ -248,6 +250,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         };
         if (!Domains.LooksLikeDomain(d))
         {
+            result.ServiceBindingMessage = "The domain is invalid; no HTTPS/SVCB query was sent";
             return result;
         }
 
@@ -293,8 +296,127 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         result.HttpsRecords = counts.HttpsRecords;
         result.SvcbRecords = counts.SvcbRecords;
         ApplyPosture(result, BuildPosture(counts));
+        await ApplyDirectServiceBindingsAsync(result, d, context.CancellationToken);
         return result;
     }
+
+    private async Task ApplyDirectServiceBindingsAsync(
+        DnsInspectResult result,
+        string domain,
+        CancellationToken cancellationToken)
+    {
+        result.EchObservationCount = _state.EchUnavailableSniObservations;
+        result.EchObserved = result.EchObservationCount > 0;
+        if (_state.ServiceBindingQuery is not { } query)
+        {
+            result.ServiceBindingQueryAvailable = false;
+            result.ServiceBindingMessage = "Windows DnsQueryEx service-binding inspection is unavailable in this service instance";
+            return;
+        }
+
+        var httpsTask = query.QueryResourceRecordsAsync(domain, 65, ServiceBindingQueryTimeout, cancellationToken);
+        var svcbTask = query.QueryResourceRecordsAsync($"_443._tcp.{domain}", 64, ServiceBindingQueryTimeout, cancellationToken);
+        await Task.WhenAll(httpsTask, svcbTask);
+        var queries = new[] { await httpsTask, await svcbTask };
+        result.ServiceBindingQueryAvailable = queries.Any(static q => q.Outcome != Windows.DnsRawQueryOutcome.ApiUnavailable);
+
+        foreach (var queryResult in queries)
+        {
+            foreach (var raw in queryResult.Records)
+            {
+                result.ServiceBindings.Add(ToServiceBindingRecord(raw));
+            }
+        }
+
+        result.EchAdvertised = result.ServiceBindings.Any(static record => record.EchAdvertised);
+        result.ServiceBindingMessage = string.Join("; ", queries.Select((queryResult, index) =>
+            $"{(index == 0 ? "HTTPS" : "SVCB")}={FormatQueryOutcome(queryResult)}"));
+    }
+
+    private static ServiceBindingRecord ToServiceBindingRecord(Windows.DnsRawResourceRecord raw)
+    {
+        var dnsType = raw.Type == 65 ? "HTTPS" : raw.Type == 64 ? "SVCB" : raw.Type.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var parsed = DesignatedResolver.ParseSvcb(raw.Rdata);
+        if (parsed is null)
+        {
+            return new ServiceBindingRecord
+            {
+                DnsType = dnsType,
+                OwnerName = raw.Name,
+                TtlSeconds = raw.TtlSeconds,
+                Malformed = true,
+                Diagnostic = $"Malformed or oversized {dnsType} RDATA was rejected",
+            };
+        }
+
+        var record = new ServiceBindingRecord
+        {
+            DnsType = dnsType,
+            OwnerName = raw.Name,
+            TtlSeconds = raw.TtlSeconds,
+            Priority = checked((uint)parsed.Priority),
+            Target = parsed.TargetName,
+            AliasMode = parsed.Priority == 0,
+            EchAdvertised = parsed.EchAdvertised,
+            Diagnostic = parsed.HasUnsupportedMandatoryKeys
+                ? "Unsupported mandatory keys are present; this binding may not be usable by all clients"
+                : string.Empty,
+        };
+        AddParameter(record, 0, "mandatory", string.Join(',', parsed.MandatoryKeys.Select(ServiceBindingKeyName)));
+        AddParameter(record, 1, "alpn", string.Join(',', parsed.Alpn));
+        if (parsed.NoDefaultAlpn) AddParameter(record, 2, "no-default-alpn", "true");
+        if (parsed.Port is { } port) AddParameter(record, 3, "port", port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        AddParameter(record, 4, "ipv4hint", string.Join(',', parsed.Ipv4Hints));
+        if (parsed.Ech is { Length: > 0 } ech)
+        {
+            var digest = Convert.ToHexString(SHA256.HashData(ech)).ToLowerInvariant()[..12];
+            AddParameter(record, 5, "ech", $"{ech.Length} bytes; sha256={digest}");
+        }
+        AddParameter(record, 6, "ipv6hint", string.Join(',', parsed.Ipv6Hints));
+        if (!string.IsNullOrWhiteSpace(parsed.DohPath)) AddParameter(record, 7, "dohpath", parsed.DohPath);
+        foreach (var unknown in parsed.UnknownParameters)
+        {
+            var take = Math.Min(unknown.Value.Length, 32);
+            var value = Convert.ToHexString(unknown.Value.AsSpan(0, take)).ToLowerInvariant();
+            if (take != unknown.Value.Length) value += $"... ({unknown.Value.Length} bytes)";
+            AddParameter(record, unknown.Key, ServiceBindingKeyName(unknown.Key), value);
+        }
+
+        return record;
+    }
+
+    private static void AddParameter(ServiceBindingRecord record, uint key, string name, string value)
+    {
+        if (value.Length != 0)
+        {
+            record.Parameters.Add(new ServiceBindingParameter { Key = key, Name = name, Value = value });
+        }
+    }
+
+    private static string ServiceBindingKeyName(ushort key) => key switch
+    {
+        0 => "mandatory",
+        1 => "alpn",
+        2 => "no-default-alpn",
+        3 => "port",
+        4 => "ipv4hint",
+        5 => "ech",
+        6 => "ipv6hint",
+        7 => "dohpath",
+        _ => $"key{key}",
+    };
+
+    private static string FormatQueryOutcome(Windows.DnsRawQueryResult result) => result.Outcome switch
+    {
+        Windows.DnsRawQueryOutcome.Success => $"{result.Records.Count} record(s)",
+        Windows.DnsRawQueryOutcome.NoRecords => "no records",
+        Windows.DnsRawQueryOutcome.NameNotFound => "name not found",
+        Windows.DnsRawQueryOutcome.Timeout => "timed out",
+        Windows.DnsRawQueryOutcome.ApiUnavailable => "Windows API unavailable",
+        _ => string.IsNullOrWhiteSpace(result.Error)
+            ? $"failed (DNS status {result.NativeStatus})"
+            : $"failed: {result.Error}",
+    };
 
     public override Task<DohStatus> GetDohStatus(Empty request, ServerCallContext context)
     {

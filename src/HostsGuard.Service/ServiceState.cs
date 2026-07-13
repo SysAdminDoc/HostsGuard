@@ -30,7 +30,8 @@ public sealed class ServiceState : IDisposable
         Func<IReadOnlyList<ConnectionInfo>>? connectionSnapshot = null,
         Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null,
         ILanAttackSurfaceStore? lanSurfaceStore = null,
-        IProxyConfigurationSnapshotSource? proxySnapshotSource = null)
+        IProxyConfigurationSnapshotSource? proxySnapshotSource = null,
+        IDnsServiceBindingQuery? serviceBindingQuery = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -39,6 +40,7 @@ public sealed class ServiceState : IDisposable
         Firewall = firewall;
         Identity = identity;
         Dns = dns;
+        ServiceBindingQuery = serviceBindingQuery;
         DataDir = dataDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
         Snapshots = new StateSnapshotCoordinator(
@@ -117,6 +119,9 @@ public sealed class ServiceState : IDisposable
     public FirewallIdentity? Identity { get; }
 
     public IDnsConfig? Dns { get; }
+
+    /// <summary>Cancellable direct HTTPS/SVCB query seam; null when the Windows API is unavailable.</summary>
+    public IDnsServiceBindingQuery? ServiceBindingQuery { get; }
 
     /// <summary>Service data directory (backups, support bundles). ProgramData in production.</summary>
     public string DataDir { get; }

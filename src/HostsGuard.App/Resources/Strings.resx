@@ -1457,7 +1457,7 @@
   <data name="Support_Exported" xml:space="preserve"><value>Support bundle: {0}</value></data>
   <data name="Inspect_ActionDomain" xml:space="preserve"><value>Inspect domain</value></data>
   <data name="Inspect_NoRecords" xml:space="preserve"><value>no records</value></data>
-  <data name="Inspect_EchSuffix" xml:space="preserve"><value> | ECH: {0} {1}</value></data>
+  <data name="Inspect_EchSuffix" xml:space="preserve"><value> | Service-wide ECH visibility (not attributable to this domain): {0} {1}</value></data>
   <data name="Inspect_Result" xml:space="preserve"><value>{0} - {1} ({2} ms){3}</value></data>
   <data name="Inspect_Blocked" xml:space="preserve"><value>BLOCKED</value></data>
   <data name="Inspect_Reachable" xml:space="preserve"><value>reachable</value></data>
@@ -1710,4 +1710,25 @@
   <data name="Dga_RunValue" xml:space="preserve"><value>{0} (threshold {1})</value></data>
   <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} characters; {2})</value></data>
   <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorithmic={1}</value></data>
+  <data name="ServiceBinding_Title" xml:space="preserve"><value>Direct HTTPS/SVCB inspection</value></data>
+  <data name="ServiceBinding_TableName" xml:space="preserve"><value>Direct HTTPS and SVCB service-binding records</value></data>
+  <data name="ServiceBinding_Owner" xml:space="preserve"><value>Owner</value></data>
+  <data name="ServiceBinding_Type" xml:space="preserve"><value>Type</value></data>
+  <data name="ServiceBinding_Priority" xml:space="preserve"><value>Priority</value></data>
+  <data name="ServiceBinding_Target" xml:space="preserve"><value>Target</value></data>
+  <data name="ServiceBinding_Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="ServiceBinding_Parameters" xml:space="preserve"><value>Parameters</value></data>
+  <data name="ServiceBinding_Ech" xml:space="preserve"><value>ECH</value></data>
+  <data name="ServiceBinding_Ttl" xml:space="preserve"><value>TTL (s)</value></data>
+  <data name="ServiceBinding_Health" xml:space="preserve"><value>Parse status</value></data>
+  <data name="ServiceBinding_AliasMode" xml:space="preserve"><value>Alias</value></data>
+  <data name="ServiceBinding_ServiceMode" xml:space="preserve"><value>Service</value></data>
+  <data name="ServiceBinding_EchAdvertised" xml:space="preserve"><value>advertised</value></data>
+  <data name="ServiceBinding_EchNotAdvertised" xml:space="preserve"><value>not advertised</value></data>
+  <data name="ServiceBinding_Malformed" xml:space="preserve"><value>Malformed: {0}</value></data>
+  <data name="ServiceBinding_Unavailable" xml:space="preserve"><value>Direct HTTPS/SVCB inspection unavailable: {0}</value></data>
+  <data name="ServiceBinding_Status" xml:space="preserve"><value>{0} direct record(s). ECH advertised by this name={1}; ECH observed locally={2} ({3} global observation(s), not attributable to this name). {4}</value></data>
+  <data name="ServiceBinding_StatusHint" xml:space="preserve"><value>Inspect a domain to query HTTPS/SVCB records directly. ECH advertisement is not proof that an ECH connection occurred.</value></data>
+  <data name="Common_Yes" xml:space="preserve"><value>yes</value></data>
+  <data name="Common_No" xml:space="preserve"><value>no</value></data>
 </root>

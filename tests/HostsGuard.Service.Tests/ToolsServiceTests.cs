@@ -78,6 +78,23 @@ internal sealed class FakeDnsConfig : IDnsConfig
         => Task.FromResult(ProbeResult);
 }
 
+internal sealed class FakeServiceBindingQuery : IDnsServiceBindingQuery
+{
+    public Dictionary<ushort, DnsRawQueryResult> Results { get; } = new();
+
+    public Task<DnsRawQueryResult> QueryResourceRecordsAsync(
+        string name,
+        ushort recordType,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Results.TryGetValue(recordType, out var result)
+            ? result
+            : new DnsRawQueryResult(DnsRawQueryOutcome.NoRecords, [], 0, string.Empty));
+    }
+}
+
 /// <summary>
 /// NET-023 service surface: DNS flush/resolver, scheduled blocking (editor +
 /// enforcement), hosts backup, ACL hardening, and the redacted support bundle.
@@ -89,6 +106,7 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     private WebApplication _app = null!;
     private ServiceState _state = null!;
     private FakeDnsConfig _dns = null!;
+    private FakeServiceBindingQuery _serviceBindingQuery = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -100,11 +118,13 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         File.WriteAllText(hostsPath, "# hosts\n");
 
         _dns = new FakeDnsConfig();
+        _serviceBindingQuery = new FakeServiceBindingQuery();
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             dns: _dns,
-            dataDir: _dir);
+            dataDir: _dir,
+            serviceBindingQuery: _serviceBindingQuery);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.ToolsTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -254,6 +274,71 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         result.Records.Should().NotContain(r => r.Name == "other.example.com");
         result.EchState.Should().NotBeEmpty();
         result.EchSummary.Should().Contain("unobservable");
+    }
+
+    [Fact]
+    public async Task Inspect_exposes_direct_https_parameters_and_keeps_ech_observation_global()
+    {
+        _serviceBindingQuery.Results[65] = new DnsRawQueryResult(
+            DnsRawQueryOutcome.Success,
+            [new DnsRawResourceRecord("inspect-me.test", 65, 300,
+            [
+                0, 1,
+                3, (byte)'s', (byte)'v', (byte)'c',
+                7, (byte)'e', (byte)'x', (byte)'a', (byte)'m', (byte)'p', (byte)'l', (byte)'e',
+                3, (byte)'n', (byte)'e', (byte)'t', 0,
+                0, 1, 0, 6, 2, (byte)'h', (byte)'2', 2, (byte)'h', (byte)'3',
+                0, 3, 0, 2, 0x20, 0xfb,
+                0, 5, 0, 3, 1, 2, 3,
+            ])],
+            0,
+            string.Empty);
+        _state.RecordSni(new SniObservation("203.0.113.44", string.Empty, EchUnavailable: true));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var result = await new DnsControl.DnsControlClient(channel)
+            .InspectAsync(new DomainRequest { Domain = "inspect-me.test" });
+
+        result.ServiceBindingQueryAvailable.Should().BeTrue();
+        result.ServiceBindingMessage.Should().Contain("HTTPS=1 record(s)").And.Contain("SVCB=no records");
+        result.EchAdvertised.Should().BeTrue();
+        result.EchObserved.Should().BeTrue();
+        result.EchObservationCount.Should().Be(1);
+        var binding = result.ServiceBindings.Should().ContainSingle().Subject;
+        binding.OwnerName.Should().Be("inspect-me.test");
+        binding.DnsType.Should().Be("HTTPS");
+        binding.TtlSeconds.Should().Be(300);
+        binding.Priority.Should().Be(1);
+        binding.Target.Should().Be("svc.example.net");
+        binding.AliasMode.Should().BeFalse();
+        binding.Parameters.Should().Contain(parameter => parameter.Name == "alpn" && parameter.Value == "h2,h3");
+        binding.Parameters.Should().Contain(parameter => parameter.Name == "port" && parameter.Value == "8443");
+        binding.Parameters.Should().Contain(parameter => parameter.Name == "ech" && parameter.Value.StartsWith("3 bytes; sha256="));
+    }
+
+    [Fact]
+    public async Task Inspect_reports_api_unavailability_and_rejects_malformed_rdata()
+    {
+        _serviceBindingQuery.Results[65] = new DnsRawQueryResult(
+            DnsRawQueryOutcome.Success,
+            [new DnsRawResourceRecord("bad.test", 65, 10, [0])],
+            0,
+            string.Empty);
+        _serviceBindingQuery.Results[64] = new DnsRawQueryResult(
+            DnsRawQueryOutcome.ApiUnavailable,
+            [],
+            127,
+            "DnsQueryEx not found");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var result = await new DnsControl.DnsControlClient(channel)
+            .InspectAsync(new DomainRequest { Domain = "bad.test" });
+
+        result.ServiceBindingQueryAvailable.Should().BeTrue("the HTTPS query remained available");
+        result.ServiceBindingMessage.Should().Contain("SVCB=Windows API unavailable");
+        var malformed = result.ServiceBindings.Should().ContainSingle().Subject;
+        malformed.Malformed.Should().BeTrue();
+        malformed.Diagnostic.Should().Contain("rejected");
     }
 
     [Fact]

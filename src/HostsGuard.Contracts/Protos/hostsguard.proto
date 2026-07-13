@@ -1225,6 +1225,31 @@ message DnsInspectResult {
   int32 https_records = 7;
   int32 svcb_records = 8;
   bool service_binding_observed = 9;
+  repeated ServiceBindingRecord service_bindings = 10;
+  bool service_binding_query_available = 11;
+  string service_binding_message = 12;
+  bool ech_advertised = 13; // ECHConfig was present in queried HTTPS/SVCB data
+  bool ech_observed = 14;   // ECH was observed locally; not attributable to this domain
+  int32 ech_observation_count = 15; // global service-lifetime observations
+}
+
+message ServiceBindingRecord {
+  string dns_type = 1; // HTTPS or SVCB
+  uint32 priority = 2;
+  string target = 3;
+  bool alias_mode = 4; // priority 0; target aliases to another owner name
+  repeated ServiceBindingParameter parameters = 5;
+  bool ech_advertised = 6;
+  bool malformed = 7;
+  string diagnostic = 8;
+  string owner_name = 9;
+  uint32 ttl_seconds = 10;
+}
+
+message ServiceBindingParameter {
+  uint32 key = 1;
+  string name = 2;  // mandatory/alpn/no-default-alpn/port/ipv4hint/ech/ipv6hint/dohpath/keyNN
+  string value = 3; // bounded decoded value; opaque values are bounded hex
 }
 
 message IdnHomographRequest {

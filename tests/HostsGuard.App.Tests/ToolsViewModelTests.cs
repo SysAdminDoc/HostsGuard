@@ -140,6 +140,31 @@ public sealed class ToolsViewModelTests
     }
 
     [Fact]
+    public void Direct_service_binding_row_preserves_exact_parameters_and_ech_semantics()
+    {
+        var record = new ServiceBindingRecord
+        {
+            OwnerName = "example.com",
+            DnsType = "HTTPS",
+            TtlSeconds = 300,
+            Priority = 1,
+            Target = "svc.example.net",
+            EchAdvertised = true,
+        };
+        record.Parameters.Add(new ServiceBindingParameter { Key = 1, Name = "alpn", Value = "h2,h3" });
+        record.Parameters.Add(new ServiceBindingParameter { Key = 3, Name = "port", Value = "8443" });
+
+        var row = ServiceBindingRecordViewModel.From(record);
+
+        row.OwnerName.Should().Be("example.com");
+        row.Target.Should().Be("svc.example.net");
+        row.ModeText.Should().Be("Service");
+        row.ParametersText.Should().Be("alpn=h2,h3; port=8443");
+        row.EchText.Should().Be("advertised");
+        row.HealthText.Should().Be("OK");
+    }
+
+    [Fact]
     public void Full_state_snapshot_row_exposes_only_redacted_manifest_metadata()
     {
         var row = FullStateSnapshotRowViewModel.From(new FullStateSnapshot
