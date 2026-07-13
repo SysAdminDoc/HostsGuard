@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Net.NetworkInformation;
 using Microsoft.CSharp.RuntimeBinder;
 using HostsGuard.Core;
 
@@ -92,6 +93,18 @@ public sealed class FirewallEngine : IFirewallEngine
         }
     }
 
+    public IReadOnlyList<FwInterfaceAlias> ListInterfaceAliases() => NetworkInterface.GetAllNetworkInterfaces()
+        .Where(static adapter => adapter.Name.Length != 0)
+        .Select(static adapter => new FwInterfaceAlias(
+            adapter.Name,
+            adapter.Description,
+            adapter.OperationalStatus == OperationalStatus.Up,
+            adapter.NetworkInterfaceType.ToString()))
+        .DistinctBy(static adapter => adapter.Alias, StringComparer.OrdinalIgnoreCase)
+        .OrderByDescending(static adapter => adapter.IsUp)
+        .ThenBy(static adapter => adapter.Alias, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
     /// <summary>Create a rule. Returns false if a rule with the same name already exists.</summary>
     public bool CreateRule(FwRule rule)
     {
@@ -163,6 +176,33 @@ public sealed class FirewallEngine : IFirewallEngine
 
         policy.Rules.Add(com);
         return true;
+    }
+
+    public bool ReplaceRule(FwRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var original = ListRules().FirstOrDefault(existing =>
+            existing.Name.Equals(rule.Name, StringComparison.Ordinal));
+        if (original is null || !DeleteRule(rule.Name))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (CreateRule(rule))
+            {
+                return true;
+            }
+        }
+        catch
+        {
+            _ = CreateRule(original);
+            throw;
+        }
+
+        _ = CreateRule(original);
+        return false;
     }
 
     /// <summary>Delete a rule by name. Returns false if it did not exist.</summary>

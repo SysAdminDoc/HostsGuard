@@ -32,6 +32,8 @@ public sealed record FwAppPackage(
     string PackageFullName,
     string Binaries);
 
+public sealed record FwInterfaceAlias(string Alias, string Description, bool IsUp, string InterfaceType);
+
 /// <summary>
 /// Shape-tolerant mapping of raw firewall-rule scalar values into <see cref="FwRule"/>.
 /// Replaces the Python <c>_parse_fw_rules</c>: tolerant of int/string/bool/list/missing

@@ -207,4 +207,41 @@
   <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Ã‰tat de la dÃ©tection des homographes IDN non chargÃ©.</value></data>
   <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>DÃ©tection par alerte activÃ©e Â· {0} cibles de comparaison Â· {1}. Aucun blocage automatique.</value></data>
   <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>DÃ©sactivÃ© par dÃ©faut. Une fois activÃ©e, la preuve structurÃ©e apparaÃ®t dans Alertes ; aucun blocage automatique.</value></data>
+  <data name="FwRules_EditManaged" xml:space="preserve"><value>Modifier la rÃ¨gle gÃ©rÃ©e</value></data>
+  <data name="FwRules_EditManagedTip" xml:space="preserve"><value>Charge cette rÃ¨gle HG_ dans le formulaire. Les rÃ¨gles Windows et de stratÃ©gie de groupe restent en lecture seule.</value></data>
+  <data name="FwRules_CancelEdit" xml:space="preserve"><value>Annuler la modification</value></data>
+  <data name="FwRules_EditTitle" xml:space="preserve"><value>Modifier la rÃ¨gle HostsGuard</value></data>
+  <data name="FwRules_UpdateAction" xml:space="preserve"><value>Mettre Ã  jour</value></data>
+  <data name="FwRules_EditManagedOnly" xml:space="preserve"><value>Seules les rÃ¨gles HG_ gÃ©rÃ©es par HostsGuard peuvent Ãªtre modifiÃ©es ici.</value></data>
+  <data name="FwRules_LocalPortsLabel" xml:space="preserve"><value>Ports locaux</value></data>
+  <data name="FwRules_RemotePortsLabel" xml:space="preserve"><value>Ports distants</value></data>
+  <data name="FwRules_LocalPortsName" xml:space="preserve"><value>Ports locaux de la nouvelle rÃ¨gle</value></data>
+  <data name="FwRules_RemotePortsName" xml:space="preserve"><value>Ports distants de la nouvelle rÃ¨gle</value></data>
+  <data name="FwRules_PortsHint" xml:space="preserve"><value>Any ou 80,443,8000-8010</value></data>
+  <data name="FwRules_PortsTip" xml:space="preserve"><value>TCP/UDP uniquement. Utilisez Any, des ports sÃ©parÃ©s par des virgules ou des plages croissantes de 1 Ã  65535.</value></data>
+  <data name="FwRules_ManualInterfacesLabel" xml:space="preserve"><value>Autres alias d'interface</value></data>
+  <data name="FwRules_ManualInterfacesName" xml:space="preserve"><value>Alias d'interface de pare-feu supplÃ©mentaires</value></data>
+  <data name="FwRules_InterfacesHint" xml:space="preserve"><value>Alias facultatifs sÃ©parÃ©s par des virgules</value></data>
+  <data name="FwRules_ManualInterfacesTip" xml:space="preserve"><value>Saisissez un alias d'interface Windows actuel exact ; les alias inconnus sont rejetÃ©s.</value></data>
+  <data name="FwRules_InterfaceAliasesLabel" xml:space="preserve"><value>Alias d'interface actuels</value></data>
+  <data name="FwRules_PreviewName" xml:space="preserve"><value>AperÃ§u de la portÃ©e effective de la rÃ¨gle</value></data>
+  <data name="FwRules_InterfacesNotLoaded" xml:space="preserve"><value>Alias non chargÃ©s. Actualisez pour valider les alias actuels exacts.</value></data>
+  <data name="FwRules_NoInterfaces" xml:space="preserve"><value>Aucun alias actuel renvoyÃ© ; la portÃ©e par interface nommÃ©e est indisponible.</value></data>
+  <data name="FwRules_InterfaceCount" xml:space="preserve"><value>{0} alias d'interface actuels</value></data>
+  <data name="FwRules_InterfaceUp" xml:space="preserve"><value>active</value></data>
+  <data name="FwRules_InterfaceDown" xml:space="preserve"><value>inactive</value></data>
+  <data name="FwRules_AnyInterface" xml:space="preserve"><value>Toutes</value></data>
+  <data name="FwRules_LocalPortsError" xml:space="preserve"><value>Ports locaux : {0}</value></data>
+  <data name="FwRules_RemotePortsError" xml:space="preserve"><value>Ports distants : {0}</value></data>
+  <data name="FwRules_PortFormatError" xml:space="preserve"><value>utilisez des ports sÃ©parÃ©s par des virgules ou des plages croissantes de 1 Ã  65535</value></data>
+  <data name="FwRules_PortsNeedProtocol" xml:space="preserve"><value>sÃ©lectionnez TCP ou UDP pour restreindre les ports</value></data>
+  <data name="FwRules_InterfaceFormatError" xml:space="preserve"><value>Les alias doivent Ãªtre des noms visibles sÃ©parÃ©s par des virgules (64 maximum, 256 caractÃ¨res chacun).</value></data>
+  <data name="FwRules_PreviewPackage" xml:space="preserve"><value>package {0}</value></data>
+  <data name="FwRules_PreviewProgram" xml:space="preserve"><value>programme {0}</value></data>
+  <data name="FwRules_PreviewAllPrograms" xml:space="preserve"><value>tous les programmes</value></data>
+  <data name="FwRules_ScopePreview" xml:space="preserve"><value>AperÃ§u : {0} {1} | {2} | {3} | ports locaux {4} | ports distants {5} | interfaces {6} | {7}</value></data>
+  <data name="FwRules_EnabledLabel" xml:space="preserve"><value>ActivÃ©e</value></data>
+  <data name="FwRules_EnabledName" xml:space="preserve"><value>Ã‰tat activÃ© de la rÃ¨gle du pare-feu</value></data>
+  <data name="FwRules_Enabled" xml:space="preserve"><value>activÃ©e</value></data>
+  <data name="FwRules_Disabled" xml:space="preserve"><value>dÃ©sactivÃ©e</value></data>
 </root>

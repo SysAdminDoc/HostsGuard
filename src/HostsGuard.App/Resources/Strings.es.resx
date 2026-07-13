@@ -207,4 +207,41 @@
   <data name="IdnHomograph_NotLoaded" xml:space="preserve"><value>Estado de detecciÃ³n de homÃ³grafos IDN no cargado.</value></data>
   <data name="IdnHomograph_OnStatus" xml:space="preserve"><value>DetecciÃ³n solo con alertas activada Â· {0} objetivos de comparaciÃ³n Â· {1}. No se aplica ningÃºn bloqueo automÃ¡tico.</value></data>
   <data name="IdnHomograph_OffStatus" xml:space="preserve"><value>Desactivado por defecto. Al activarlo, la evidencia estructurada aparece en Alertas; no se bloquea automÃ¡ticamente.</value></data>
+  <data name="FwRules_EditManaged" xml:space="preserve"><value>Editar regla administrada</value></data>
+  <data name="FwRules_EditManagedTip" xml:space="preserve"><value>Carga esta regla HG_ en el formulario. Las reglas de Windows y de directiva de grupo son de solo lectura.</value></data>
+  <data name="FwRules_CancelEdit" xml:space="preserve"><value>Cancelar ediciÃ³n</value></data>
+  <data name="FwRules_EditTitle" xml:space="preserve"><value>Editar regla de HostsGuard</value></data>
+  <data name="FwRules_UpdateAction" xml:space="preserve"><value>Actualizar regla</value></data>
+  <data name="FwRules_EditManagedOnly" xml:space="preserve"><value>Solo se pueden editar aquÃ­ reglas HG_ administradas por HostsGuard.</value></data>
+  <data name="FwRules_LocalPortsLabel" xml:space="preserve"><value>Puertos locales</value></data>
+  <data name="FwRules_RemotePortsLabel" xml:space="preserve"><value>Puertos remotos</value></data>
+  <data name="FwRules_LocalPortsName" xml:space="preserve"><value>Puertos locales de la nueva regla</value></data>
+  <data name="FwRules_RemotePortsName" xml:space="preserve"><value>Puertos remotos de la nueva regla</value></data>
+  <data name="FwRules_PortsHint" xml:space="preserve"><value>Any o 80,443,8000-8010</value></data>
+  <data name="FwRules_PortsTip" xml:space="preserve"><value>Solo TCP/UDP. Use Any, puertos separados por comas o rangos ascendentes de 1 a 65535.</value></data>
+  <data name="FwRules_ManualInterfacesLabel" xml:space="preserve"><value>Otros alias de interfaz</value></data>
+  <data name="FwRules_ManualInterfacesName" xml:space="preserve"><value>Alias adicionales de interfaz del firewall</value></data>
+  <data name="FwRules_InterfacesHint" xml:space="preserve"><value>Alias opcionales separados por comas</value></data>
+  <data name="FwRules_ManualInterfacesTip" xml:space="preserve"><value>Introduzca un alias actual exacto de Windows; los alias desconocidos se rechazan.</value></data>
+  <data name="FwRules_InterfaceAliasesLabel" xml:space="preserve"><value>Alias de interfaz actuales</value></data>
+  <data name="FwRules_PreviewName" xml:space="preserve"><value>Vista previa del Ã¡mbito efectivo de la regla</value></data>
+  <data name="FwRules_InterfacesNotLoaded" xml:space="preserve"><value>Alias no cargados. Actualice para validar los alias actuales exactos.</value></data>
+  <data name="FwRules_NoInterfaces" xml:space="preserve"><value>No se devolvieron alias actuales; el Ã¡mbito por interfaz no estÃ¡ disponible.</value></data>
+  <data name="FwRules_InterfaceCount" xml:space="preserve"><value>{0} alias de interfaz actuales</value></data>
+  <data name="FwRules_InterfaceUp" xml:space="preserve"><value>activa</value></data>
+  <data name="FwRules_InterfaceDown" xml:space="preserve"><value>inactiva</value></data>
+  <data name="FwRules_AnyInterface" xml:space="preserve"><value>Cualquiera</value></data>
+  <data name="FwRules_LocalPortsError" xml:space="preserve"><value>Puertos locales: {0}</value></data>
+  <data name="FwRules_RemotePortsError" xml:space="preserve"><value>Puertos remotos: {0}</value></data>
+  <data name="FwRules_PortFormatError" xml:space="preserve"><value>use puertos separados por comas o rangos ascendentes de 1 a 65535</value></data>
+  <data name="FwRules_PortsNeedProtocol" xml:space="preserve"><value>seleccione TCP o UDP al restringir puertos</value></data>
+  <data name="FwRules_InterfaceFormatError" xml:space="preserve"><value>Los alias deben ser nombres visibles separados por comas (mÃ¡ximo 64 y 256 caracteres cada uno).</value></data>
+  <data name="FwRules_PreviewPackage" xml:space="preserve"><value>paquete {0}</value></data>
+  <data name="FwRules_PreviewProgram" xml:space="preserve"><value>programa {0}</value></data>
+  <data name="FwRules_PreviewAllPrograms" xml:space="preserve"><value>todos los programas</value></data>
+  <data name="FwRules_ScopePreview" xml:space="preserve"><value>Vista previa: {0} {1} | {2} | {3} | puertos locales {4} | puertos remotos {5} | interfaces {6} | {7}</value></data>
+  <data name="FwRules_EnabledLabel" xml:space="preserve"><value>Activada</value></data>
+  <data name="FwRules_EnabledName" xml:space="preserve"><value>Estado activado de la regla del firewall</value></data>
+  <data name="FwRules_Enabled" xml:space="preserve"><value>activada</value></data>
+  <data name="FwRules_Disabled" xml:space="preserve"><value>desactivada</value></data>
 </root>

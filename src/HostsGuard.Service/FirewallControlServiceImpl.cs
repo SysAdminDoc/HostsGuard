@@ -197,60 +197,16 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        var name = (request.Name ?? string.Empty).Trim();
-        if (name.Length == 0)
-        {
-            return Task.FromResult(Error("invalid_rule", "rule name is required"));
-        }
-
         if (_state.GateWhenLocked() is { } gate)
         {
             return Task.FromResult(gate);
         }
 
-        if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+        if (!TryBuildAuthoredRule(fw, request, requireExistingPrefix: false, out var rule, out var error))
         {
-            name = FwRuleMapper.HostsGuardPrefix + name;
+            return Task.FromResult(error!);
         }
 
-        var remote = (request.RemoteAddr ?? string.Empty).Trim();
-        if (remote is not ("" or "Any") && !remote.Split(',').All(a => FirewallAddress.IsValid(a)))
-        {
-            return Task.FromResult(Error("invalid_address", $"'{remote}' is not a valid IP/CIDR/range list"));
-        }
-
-        var program = (request.Program ?? string.Empty).Trim();
-        var packageFamily = (request.PackageFamilyName ?? string.Empty).Trim();
-        var packageSid = (request.PackageSid ?? string.Empty).Trim();
-        if (program.Length != 0 && (packageFamily.Length != 0 || packageSid.Length != 0))
-        {
-            return Task.FromResult(Error("ambiguous_target", "use either a program path or a package family name, not both"));
-        }
-
-        var package = ResolvePackage(fw, packageFamily, packageSid);
-        if ((packageFamily.Length != 0 || packageSid.Length != 0) && package is null)
-        {
-            return Task.FromResult(Error("package_not_found", $"package '{(packageFamily.Length == 0 ? packageSid : packageFamily)}' was not found on this machine"));
-        }
-
-        var rule = new FwRule(
-            name,
-            FwRuleMapper.MapDirection(request.Direction),
-            FwRuleMapper.MapAction(request.Action),
-            request.Enabled,
-            remote.Length == 0 ? "Any" : remote,
-            FwRuleMapper.MapProtocol(request.Protocol),
-            program,
-            "hostsguard",
-            FwRuleMapper.MapPorts(request.RemotePorts),
-            FwRuleMapper.MapService(request.ServiceName),
-            FwRuleMapper.MapPorts(request.LocalPorts),
-            FwRuleMapper.MapInterfaces(request.Interfaces),
-            package?.PackageFamilyName ?? string.Empty,
-            package?.PackageSid ?? string.Empty,
-            package?.DisplayName ?? string.Empty,
-            package?.PackageFullName ?? string.Empty,
-            package?.Binaries ?? string.Empty);
         var created = fw.CreateRule(rule);
         if (created)
         {
@@ -277,6 +233,100 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         }
 
         return Task.FromResult(Ok(created ? $"created {rule.Name}" : $"{rule.Name} already exists"));
+    }
+
+    public override Task<Ack> UpdateRule(FirewallRule request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw) return Task.FromResult(Unavailable());
+        if (_state.GateWhenLocked() is { } gate) return Task.FromResult(gate);
+        if (!TryBuildAuthoredRule(fw, request, requireExistingPrefix: true, out var rule, out var error))
+            return Task.FromResult(error!);
+        if (!fw.RuleExists(rule.Name)) return Task.FromResult(Error("not_found", $"{rule.Name} does not exist"));
+        if (!fw.ReplaceRule(rule)) return Task.FromResult(Error("update_failed", $"could not replace {rule.Name}; prior rule was restored"));
+
+        _state.Db.UpsertFwState(rule.Name, rule.Direction, rule.Action, rule.RemoteAddr, rule.Protocol,
+            rule.Program, rule.RemotePorts, rule.LocalPorts, rule.ServiceName, rule.Interfaces,
+            rule.PackageFamilyName, rule.PackageSid, rule.PackageDisplayName, rule.PackageFullName, rule.PackageBinaries);
+        if (rule.Program.Length != 0) _state.Identity?.Remember(rule.Name, rule.Program);
+        _state.Db.LogEvent(rule.Name, "fw_rule_updated", process: rule.Program,
+            details: $"{rule.Protocol} local={rule.LocalPorts} remote={rule.RemotePorts} interfaces={rule.Interfaces}", reason: "manual");
+        return Task.FromResult(Ok($"updated {rule.Name}"));
+    }
+
+    public override Task<FirewallInterfaceList> ListInterfaceAliases(Empty request, ServerCallContext context)
+    {
+        var response = new FirewallInterfaceList();
+        if (_state.Firewall is not { } fw) return Task.FromResult(response);
+        foreach (var item in fw.ListInterfaceAliases())
+        {
+            response.Interfaces.Add(new FirewallInterface
+            {
+                Alias = item.Alias,
+                Description = item.Description,
+                IsUp = item.IsUp,
+                InterfaceType = item.InterfaceType,
+            });
+        }
+
+        return Task.FromResult(response);
+    }
+
+    private static bool TryBuildAuthoredRule(IFirewallEngine fw, FirewallRule request, bool requireExistingPrefix,
+        out FwRule rule, out Ack? error)
+    {
+        rule = null!;
+        error = null;
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            error = Error("invalid_rule", "rule name is required");
+            return false;
+        }
+
+        if (requireExistingPrefix && !name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+        {
+            error = Error("not_ours", "only HG_-prefixed rules can be edited through HostsGuard");
+            return false;
+        }
+
+        if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)) name = FwRuleMapper.HostsGuardPrefix + name;
+        var remote = (request.RemoteAddr ?? string.Empty).Trim();
+        if (remote is not ("" or "Any") && !remote.Split(',').All(a => FirewallAddress.IsValid(a)))
+        {
+            error = Error("invalid_address", $"'{remote}' is not a valid IP/CIDR/range list");
+            return false;
+        }
+
+        var program = (request.Program ?? string.Empty).Trim();
+        var family = (request.PackageFamilyName ?? string.Empty).Trim();
+        var sid = (request.PackageSid ?? string.Empty).Trim();
+        if (program.Length != 0 && (family.Length != 0 || sid.Length != 0))
+        {
+            error = Error("ambiguous_target", "use either a program path or a package family name, not both");
+            return false;
+        }
+
+        var package = ResolvePackage(fw, family, sid);
+        if ((family.Length != 0 || sid.Length != 0) && package is null)
+        {
+            error = Error("package_not_found", $"package '{(family.Length == 0 ? sid : family)}' was not found on this machine");
+            return false;
+        }
+
+        var candidate = new FwRule(name, FwRuleMapper.MapDirection(request.Direction), FwRuleMapper.MapAction(request.Action),
+            request.Enabled, remote.Length == 0 ? "Any" : remote, FwRuleMapper.MapProtocol(request.Protocol), program, "hostsguard",
+            FwRuleMapper.MapPorts(request.RemotePorts), FwRuleMapper.MapService(request.ServiceName),
+            FwRuleMapper.MapPorts(request.LocalPorts), FwRuleMapper.MapInterfaces(request.Interfaces),
+            package?.PackageFamilyName ?? string.Empty, package?.PackageSid ?? string.Empty,
+            package?.DisplayName ?? string.Empty, package?.PackageFullName ?? string.Empty, package?.Binaries ?? string.Empty);
+        if (!FirewallRuleAuthoring.TryNormalize(candidate, out rule, out var validation,
+                fw.ListInterfaceAliases().Select(static item => item.Alias)))
+        {
+            error = Error("invalid_rule", validation);
+            return false;
+        }
+
+        return true;
     }
 
     public override Task<Ack> DeleteRule(RuleNameRequest request, ServerCallContext context)

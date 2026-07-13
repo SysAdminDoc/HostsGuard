@@ -2436,6 +2436,10 @@
                                     <MenuItem Header="{svc:Loc Key=Xaml_Enable_disable_37f81b0c}"
                                               Command="{Binding PlacementTarget.DataContext.ToggleRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="{svc:Loc Key=FwRules_EditManaged}"
+                                              Command="{Binding PlacementTarget.DataContext.EditRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              ToolTip="{svc:Loc Key=FwRules_EditManagedTip}" />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Delete_f6fdbe48}"
                                               Command="{Binding PlacementTarget.DataContext.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
@@ -2529,15 +2533,29 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
                                 <DockPanel Grid.Row="0" LastChildFill="True">
-                                    <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Create_rule_69c3acdb}"
+                                    <Button DockPanel.Dock="Right" Content="{Binding AuthoringActionText}"
                                             Style="{StaticResource Hg.AccentButton}"
                                             Command="{Binding CreateRuleCommand}" Margin="12,0,0,0"
                                             ToolTip="{Binding CreateRuleHelpText}" />
+                                    <Button DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_CancelEdit}"
+                                            Command="{Binding CancelRuleEditCommand}" Margin="12,0,0,0"
+                                            Visibility="{Binding IsEditingRule, Converter={StaticResource BoolToVis}}" />
+                                    <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_EnabledLabel}"
+                                              IsChecked="{Binding NewRuleEnabled}" Margin="12,0,0,0"
+                                              VerticalAlignment="Center"
+                                              AutomationProperties.Name="{svc:Loc Key=FwRules_EnabledName}" />
                                     <StackPanel>
-                                        <TextBlock Text="{svc:Loc Key=Xaml_Create_HostsGuard_rule_0516d184}" Style="{StaticResource Hg.SectionTitle}" />
+                                        <TextBlock Text="{svc:Loc Key=Xaml_Create_HostsGuard_rule_0516d184}"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   Visibility="{Binding IsEditingRule, Converter={StaticResource InverseBoolToVis}}" />
+                                        <TextBlock Text="{svc:Loc Key=FwRules_EditTitle}"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   Visibility="{Binding IsEditingRule, Converter={StaticResource BoolToVis}}" />
                                         <TextBlock Text="{svc:Loc Key=Xaml_Rules_created_here_use_the_HG_b7f8e3c1}"
                                                    Style="{StaticResource Hg.HelperText}" Margin="0,3,0,0" />
                                     </StackPanel>
@@ -2568,10 +2586,19 @@
 
                                     <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
                                              Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
-                                             Style="{StaticResource Hg.HintBox}"
                                              Tag="{svc:Loc Key=Xaml_RequiredHint}"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_name_025d122b}"
-                                             ToolTip="{svc:Loc Key=Xaml_Rule_name_HG_prefix_added_automatically_80fd16a4}" />
+                                             ToolTip="{svc:Loc Key=Xaml_Rule_name_HG_prefix_added_automatically_80fd16a4}">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox" BasedOn="{StaticResource Hg.HintBox}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEditingRule}" Value="True">
+                                                        <Setter Property="IsReadOnly" Value="True" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
                                     <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
                                               ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
                                               AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_direction_d8bbd16c}"
@@ -2604,7 +2631,71 @@
                                              ToolTip="{svc:Loc Key=Xaml_Program_path_optional_c4107d4a}" />
                                 </Grid>
 
-                                <TextBlock Grid.Row="2" Margin="0,8,0,0"
+                                <Grid Grid.Row="2" Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="170" />
+                                        <ColumnDefinition Width="240" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{svc:Loc Key=FwRules_LocalPortsLabel}"
+                                               Style="{StaticResource Hg.FieldLabel}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{svc:Loc Key=FwRules_RemotePortsLabel}"
+                                               Style="{StaticResource Hg.FieldLabel}" />
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{svc:Loc Key=FwRules_ManualInterfacesLabel}"
+                                               Style="{StaticResource Hg.FieldLabel}" />
+                                    <DockPanel Grid.Row="0" Grid.Column="3" LastChildFill="True">
+                                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                                Command="{Binding LoadInterfaceAliasesCommand}" Padding="8,1" />
+                                        <TextBlock Text="{svc:Loc Key=FwRules_InterfaceAliasesLabel}"
+                                                   Style="{StaticResource Hg.FieldLabel}" />
+                                    </DockPanel>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                                             Text="{Binding NewRuleLocalPorts, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_PortsHint}"
+                                             AutomationProperties.Name="{svc:Loc Key=FwRules_LocalPortsName}"
+                                             ToolTip="{svc:Loc Key=FwRules_PortsTip}" />
+                                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
+                                             Text="{Binding NewRuleRemotePorts, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_PortsHint}"
+                                             AutomationProperties.Name="{svc:Loc Key=FwRules_RemotePortsName}"
+                                             ToolTip="{svc:Loc Key=FwRules_PortsTip}" />
+                                    <TextBox Grid.Row="1" Grid.Column="2" Margin="0,0,8,0"
+                                             Text="{Binding NewRuleInterfaces, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_InterfacesHint}"
+                                             AutomationProperties.Name="{svc:Loc Key=FwRules_ManualInterfacesName}"
+                                             ToolTip="{svc:Loc Key=FwRules_ManualInterfacesTip}" />
+                                    <ScrollViewer Grid.Row="1" Grid.Column="3" MaxHeight="72"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding InterfaceAliases}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                                              Margin="0,0,12,4" ToolTip="{Binding Description}"
+                                                              AutomationProperties.Name="{Binding Name}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding InterfaceAliasStatus}"
+                                               Style="{StaticResource Hg.DimText}" Margin="0,3,0,0"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                </Grid>
+
+                                <Border Grid.Row="3" Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding CreateRulePreview}" TextWrapping="Wrap"
+                                               AutomationProperties.Name="{svc:Loc Key=FwRules_PreviewName}" />
+                                </Border>
+
+                                <TextBlock Grid.Row="4" Margin="0,8,0,0"
                                            Text="{Binding CreateRuleHelpText}"
                                            Style="{StaticResource Hg.HelperText}"
                                            AutomationProperties.LiveSetting="Polite" />

@@ -180,6 +180,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await FwActivity.LoadLearnedAsync();
             await Alerts.LoadAsync();
             await FwRules.RefreshAsync();
+            await FwRules.LoadInterfaceAliasesAsync();
             await Tools.LoadSchedulesAsync();
             await Tools.LoadServicesAsync();
             await Tools.LoadDohStatusAsync();
@@ -942,6 +943,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (FwRules is not null)
         {
             await FwRules.RefreshAsync();
+            await FwRules.LoadInterfaceAliasesAsync();
         }
 
         if (Blocklists is not null)

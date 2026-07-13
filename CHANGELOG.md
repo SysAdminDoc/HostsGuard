@@ -2,6 +2,23 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.86] - 2026-07-12
+
+### Added
+- FW Rules can now create and edit HostsGuard-managed rules with normalized
+  local/remote TCP or UDP ports, live-selected Windows interface aliases,
+  enabled state, and a complete effective-scope preview. Existing disabled
+  rules retain their state during edits, while Windows and policy rules remain
+  read-only.
+- `HostsGuard.Cli firewall-rule interfaces|create|edit` provides the same
+  authoring surface; edits overlay only explicitly supplied options.
+
+### Changed
+- Shared validation rejects malformed, reversed, out-of-range, protocol-
+  incompatible, or unknown-interface scopes before COM mutation. Updates
+  restore the prior live rule if replacement fails, and scoped rules continue
+  to round-trip through list, database state, and portable policy export/import.
+
 ## [0.12.85] - 2026-07-12
 
 ### Added

@@ -30,6 +30,8 @@ public class FirewallEngineTests
 
         engine.GetActiveInboundProfiles().Should().OnlyContain(profile =>
             profile.Name == "Domain" || profile.Name == "Private" || profile.Name == "Public");
+        engine.ListInterfaceAliases().Should().OnlyHaveUniqueItems(item => item.Alias)
+            .And.OnlyContain(item => item.Alias.Length != 0 && item.InterfaceType.Length != 0);
     }
 
     [Fact]
@@ -78,10 +80,15 @@ public class FirewallEngineTests
         var name = "HG_Test_" + Guid.NewGuid().ToString("N")[..8];
         try
         {
-            var rule = new FwRule(name, "Out", "Block", true, "203.0.113.5", "TCP", string.Empty, "hostsguard");
+            var selectedInterface = engine.ListInterfaceAliases().FirstOrDefault()?.Alias ?? "Any";
+            var rule = new FwRule(name, "In", "Allow", true, "Any", "TCP", string.Empty, "hostsguard",
+                RemotePorts: "443", LocalPorts: "8000-8010", Interfaces: selectedInterface);
             engine.CreateRule(rule).Should().BeTrue();
             engine.RuleExists(name).Should().BeTrue();
-            engine.ListRules().Should().Contain(r => r.Name == name && r.Action == "Block" && r.Direction == "Out");
+            engine.ListRules().Should().Contain(r => r.Name == name && r.Action == "Allow" && r.Direction == "In" &&
+                r.RemotePorts == "443" && r.LocalPorts == "8000-8010" && r.Interfaces == selectedInterface);
+            engine.ReplaceRule(rule with { LocalPorts = "9000" }).Should().BeTrue();
+            engine.ListRules().Should().Contain(r => r.Name == name && r.LocalPorts == "9000");
             engine.DeleteRule(name).Should().BeTrue();
             engine.RuleExists(name).Should().BeFalse();
         }

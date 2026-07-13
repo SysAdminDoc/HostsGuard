@@ -80,6 +80,7 @@ public class SchemaLockTests
           GetSecureRules(Empty) returns (SecureRulesStatus)
           ListAppPackages(Empty) returns (AppPackageList)
           ListDomainFirewallRules(Empty) returns (DomainFirewallRuleList)
+          ListInterfaceAliases(Empty) returns (FirewallInterfaceList)
           ListRuleGroups(Empty) returns (RuleGroupList)
           ListRules(Empty) returns (FirewallRuleList)
           PauseEnforcement(EnforcementPauseRequest) returns (Ack)
@@ -98,6 +99,7 @@ public class SchemaLockTests
           UnblockAppScope(AppScopeRequest) returns (Ack)
           UnblockEncryptedDns(Empty) returns (Ack)
           UnblockQuic(Empty) returns (Ack)
+          UpdateRule(FirewallRule) returns (Ack)
         service HostsControl
           AddDefenderExclusion(Empty) returns (Ack)
           AdoptHostsEntries(Empty) returns (AdoptResult)

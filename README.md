@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.85-blue)
+![Version](https://img.shields.io/badge/version-0.12.86-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -125,7 +125,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back (only HostsGuard's own rules — your other configuration is never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
 | Rule groups | Assign `HG_` rules to a named group and toggle the whole group on/off atomically; groups round-trip through the portable policy |
-| Rule authoring | Custom rules with direction, action, protocol, address, and program — COM API, no PowerShell shelling |
+| Rule authoring | Create and edit `HG_` rules with direction, action, TCP/UDP local and remote port ranges, remote addresses, program/package target, enabled state, and live-validated interface aliases; the form previews the effective scope and portable policy preserves it |
 
 ### Tools
 
@@ -161,6 +161,8 @@ HostsGuard.Cli block <domain> [reason]
 HostsGuard.Cli allow <domain> [reason]
 HostsGuard.Cli unblock <domain>
 HostsGuard.Cli firewall-packages [--search text]
+HostsGuard.Cli firewall-rule interfaces
+HostsGuard.Cli firewall-rule create|edit --name Rule [--protocol tcp|udp] [--local-ports ports] [--remote-ports ports] [--interfaces alias,alias]
 HostsGuard.Cli block-package <package-family-name|sid> [out|in]
 HostsGuard.Cli allow-package <package-family-name|sid> [out|in]
 HostsGuard.Cli unblock-package <package-family-name|sid> [out|in]
@@ -208,7 +210,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1338 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1368 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

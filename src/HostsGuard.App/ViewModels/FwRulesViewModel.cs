@@ -87,9 +87,16 @@ public sealed partial class FwRuleViewModel : ObservableObject
     [ObservableProperty]
     private string _interfaces = string.Empty;
 
-    public string Ports => LocalPorts is not ("" or "Any")
-        ? $"local {LocalPorts}"
-        : RemotePortsForDisplay is "" or "Any" ? "Any" : $"remote {RemotePortsForDisplay}";
+    public string Ports
+    {
+        get
+        {
+            var parts = new List<string>(2);
+            if (LocalPorts is not ("" or "Any")) parts.Add($"local {LocalPorts}");
+            if (RemotePortsForDisplay is not ("" or "Any")) parts.Add($"remote {RemotePortsForDisplay}");
+            return parts.Count == 0 ? "Any" : string.Join(" | ", parts);
+        }
+    }
 
     public string TargetKind => PackageFamilyName.Length != 0 || PackageSid.Length != 0
         ? "package"
@@ -284,7 +291,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CreateRuleHelpText))]
     private string _newRulePackageFamily = string.Empty;
 
-    public string CreateRuleHelpText => string.IsNullOrWhiteSpace(NewRuleName)
+    public string CreateRuleHelpText => AuthoringValidationError() is { } validationError
+        ? validationError
+        : string.IsNullOrWhiteSpace(NewRuleName)
         ? I18n.T("FwRules_CreateNeedsName", "Enter a name to create this rule.")
         : HasConflictingTarget
             ? I18n.T("FwRules_CreateChooseOneTarget", "Choose either a package or a program path, not both.")
@@ -626,24 +635,34 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 return;
             }
 
-            var ack = await _client.Firewall.CreateRuleAsync(new FirewallRule
+            if (!TryNormalizePorts(NewRuleLocalPorts, NewRuleProtocol, out var localPorts, out _) ||
+                !TryNormalizePorts(NewRuleRemotePorts, NewRuleProtocol, out var remotePorts, out _))
             {
-                Name = NewRuleName.Trim(),
+                StatusText = CreateRuleHelpText;
+                return;
+            }
+
+            var request = new FirewallRule
+            {
+                Name = IsEditingRule ? _editingOriginalName : NewRuleName.Trim(),
                 Direction = NewRuleDirection,
                 Action = NewRuleAction,
                 Protocol = NewRuleProtocol,
                 RemoteAddr = NewRuleRemoteAddr.Trim(),
                 Program = NewRuleProgram.Trim(),
                 PackageFamilyName = NewRulePackageFamily.Trim(),
-                Enabled = true,
-            });
+                LocalPorts = localPorts,
+                RemotePorts = remotePorts,
+                Interfaces = SelectedInterfaceValue(),
+                Enabled = NewRuleEnabled,
+            };
+            var ack = IsEditingRule
+                ? await _client.Firewall.UpdateRuleAsync(request)
+                : await _client.Firewall.CreateRuleAsync(request);
             StatusText = ack.Message;
             if (ack.Ok)
             {
-                NewRuleName = string.Empty;
-                NewRuleRemoteAddr = string.Empty;
-                NewRuleProgram = string.Empty;
-                NewRulePackageFamily = string.Empty;
+                ResetRuleAuthoring();
                 await RefreshCoreAsync();
             }
         });
@@ -654,7 +673,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
         && !string.IsNullOrWhiteSpace(NewRulePackageFamily);
 
     private bool CanCreateRule() =>
-        !string.IsNullOrWhiteSpace(NewRuleName) && !HasConflictingTarget;
+        !string.IsNullOrWhiteSpace(NewRuleName) && !HasConflictingTarget && AuthoringValidationError() is null;
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => StatusText = s, work);

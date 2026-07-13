@@ -13,7 +13,12 @@ public interface IFirewallEngine
 
     IReadOnlyList<FwAppPackage> ListPackages();
 
+    IReadOnlyList<FwInterfaceAlias> ListInterfaceAliases() => Array.Empty<FwInterfaceAlias>();
+
     bool CreateRule(FwRule rule);
+
+    /// <summary>Replace one existing rule while restoring the prior rule if replacement fails.</summary>
+    bool ReplaceRule(FwRule rule) => false;
 
     bool DeleteRule(string name);
 

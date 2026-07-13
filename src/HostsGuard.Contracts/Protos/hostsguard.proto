@@ -656,8 +656,10 @@ service FirewallControl {
   // decision chain for a selected row or manually entered domain/IP/process.
   rpc ExplainDecision(DecisionExplainRequest) returns (DecisionExplanation);
   rpc SetRuleEnabled(RuleEnabledRequest) returns (Ack);
+  rpc UpdateRule(FirewallRule) returns (Ack);
   // AppContainer/MSIX package inventory for package-family firewall rules.
   rpc ListAppPackages(Empty) returns (AppPackageList);
+  rpc ListInterfaceAliases(Empty) returns (FirewallInterfaceList);
   rpc ListRules(Empty) returns (FirewallRuleList);
   // Cleanup is never automatic: preview validates selected HG_ findings and
   // returns a selection fingerprint; apply requires the unchanged analysis,
@@ -946,6 +948,17 @@ message FirewallRule {
 
 message FirewallRuleList {
   repeated FirewallRule rules = 1;
+}
+
+message FirewallInterface {
+  string alias = 1;
+  string description = 2;
+  bool is_up = 3;
+  string interface_type = 4;
+}
+
+message FirewallInterfaceList {
+  repeated FirewallInterface interfaces = 1;
 }
 
 message FirewallRuleAnalysisRequest {

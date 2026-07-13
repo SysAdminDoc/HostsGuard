@@ -18,6 +18,8 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public List<FwAppPackage> Packages { get; } = new();
 
+    public List<FwInterfaceAlias> InterfaceAliases { get; } = new();
+
     public int ListRulesCalls { get; private set; }
 
     public IReadOnlyList<FwRule> ListRules()
@@ -27,6 +29,8 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
     }
 
     public IReadOnlyList<FwAppPackage> ListPackages() => Packages.ToList();
+
+    public IReadOnlyList<FwInterfaceAlias> ListInterfaceAliases() => InterfaceAliases.ToList();
 
     public List<InboundFirewallProfile> ActiveInboundProfiles { get; } = new();
 
@@ -43,6 +47,13 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
             return false;
         }
 
+        Rules[rule.Name] = rule;
+        return true;
+    }
+
+    public bool ReplaceRule(FwRule rule)
+    {
+        if (!Rules.ContainsKey(rule.Name)) return false;
         Rules[rule.Name] = rule;
         return true;
     }
@@ -482,6 +493,91 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         ack.Ok.Should().BeFalse();
         ack.ErrorCode.Should().Be("hostsguard.error.v1/ambiguous_target");
         _fw.Rules.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Rule_authoring_round_trips_local_remote_ports_and_selected_interface_aliases()
+    {
+        _fw.InterfaceAliases.Add(new FwInterfaceAlias("Ethernet", "Intel adapter", true, "Ethernet"));
+        _fw.InterfaceAliases.Add(new FwInterfaceAlias("Wi-Fi", "Wireless adapter", false, "Wireless80211"));
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        var aliases = await client.ListInterfaceAliasesAsync(new Empty());
+        aliases.Interfaces.Should().Contain(row => row.Alias == "Ethernet" && row.IsUp && row.Description == "Intel adapter")
+            .And.Contain(row => row.Alias == "Wi-Fi" && !row.IsUp);
+
+        var created = await client.CreateRuleAsync(new FirewallRule
+        {
+            Name = "ScopedWeb",
+            Direction = "In",
+            Action = "Allow",
+            Protocol = "TCP",
+            LocalPorts = "8000-8010",
+            RemotePorts = "443",
+            Interfaces = "wi-fi, Ethernet,WI-FI",
+            RemoteAddr = "Any",
+            Enabled = true,
+        });
+
+        created.Ok.Should().BeTrue();
+        var rule = _fw.Rules["HG_ScopedWeb"];
+        rule.LocalPorts.Should().Be("8000-8010");
+        rule.RemotePorts.Should().Be("443");
+        rule.Interfaces.Should().Be("Ethernet,Wi-Fi");
+
+        var updated = await client.UpdateRuleAsync(new FirewallRule
+        {
+            Name = "HG_ScopedWeb",
+            Direction = "In",
+            Action = "Allow",
+            Protocol = "TCP",
+            LocalPorts = "8000-8005,8006-8010",
+            RemotePorts = "443",
+            Interfaces = "Ethernet",
+            RemoteAddr = "Any",
+            Enabled = true,
+        });
+
+        updated.Ok.Should().BeTrue();
+        _fw.Rules["HG_ScopedWeb"].LocalPorts.Should().Be("8000-8010");
+        _fw.Rules["HG_ScopedWeb"].Interfaces.Should().Be("Ethernet");
+        _state.Db.GetFwState().Should().ContainSingle(row =>
+            row.Name == "HG_ScopedWeb" && row.LocalPorts == "8000-8010" &&
+            row.RemotePorts == "443" && row.Interfaces == "Ethernet");
+    }
+
+    [Fact]
+    public async Task Rule_authoring_rejects_ports_on_incompatible_protocol_unknown_alias_and_foreign_edit()
+    {
+        _fw.InterfaceAliases.Add(new FwInterfaceAlias("Ethernet", "Adapter", true, "Ethernet"));
+        _fw.Rules["System rule"] = new FwRule("System rule", "In", "Allow", true, "Any", "TCP", "", "system");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        var incompatible = await client.CreateRuleAsync(new FirewallRule
+        {
+            Name = "BadProtocol", Direction = "In", Action = "Allow", Protocol = "Any",
+            LocalPorts = "8000-8010", RemotePorts = "443", Enabled = true,
+        });
+        var typo = await client.CreateRuleAsync(new FirewallRule
+        {
+            Name = "BadAlias", Direction = "In", Action = "Allow", Protocol = "TCP",
+            LocalPorts = "8000-8010", Interfaces = "Etherneet", Enabled = true,
+        });
+        var foreign = await client.UpdateRuleAsync(new FirewallRule
+        {
+            Name = "System rule", Direction = "In", Action = "Allow", Protocol = "TCP", Enabled = true,
+        });
+
+        incompatible.Ok.Should().BeFalse();
+        incompatible.ErrorCode.Should().EndWith("/invalid_rule");
+        incompatible.Message.Should().Contain("cannot specify").And.Contain("ports");
+        typo.Ok.Should().BeFalse();
+        typo.Message.Should().Contain("not available");
+        foreign.Ok.Should().BeFalse();
+        foreign.ErrorCode.Should().EndWith("/not_ours");
+        _fw.Rules.Should().ContainKey("System rule").And.NotContainKey("HG_BadProtocol").And.NotContainKey("HG_BadAlias");
     }
 
     [Fact]

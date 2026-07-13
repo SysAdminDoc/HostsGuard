@@ -27,6 +27,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "firewall-packages" or "packages" => await ListPackagesAsync(args),
     "firewall-analyze" => await AnalyzeFirewallRulesAsync(args),
     "firewall-cleanup" => await CleanupFirewallRulesAsync(args),
+    "firewall-rule" => await FirewallRuleAuthoringAsync(args),
     "block-package" => await PackageOpAsync(args, "Block"),
     "allow-package" => await PackageOpAsync(args, "Allow"),
     "unblock-package" => await PackageOpAsync(args, "Delete"),
@@ -85,6 +86,11 @@ static int Usage()
                                [--cleanup-eligible] [--export path.csv|path.json]
           HostsGuard.Cli firewall-cleanup preview --analysis-hash SHA256 --name HG_Rule [--name HG_Other]
           HostsGuard.Cli firewall-cleanup apply --analysis-hash SHA256 --preview-hash SHA256 --name HG_Rule [--name HG_Other]
+          HostsGuard.Cli firewall-rule interfaces
+          HostsGuard.Cli firewall-rule create|edit --name Rule [--direction in|out] [--action allow|block]
+                               [--protocol tcp|udp|any|icmpv4|icmpv6] [--local-ports ports]
+                               [--remote-ports ports] [--interfaces alias,alias] [--remote-addresses list]
+                               [--program path] [--enabled|--disabled]
           HostsGuard.Cli block-package <package-family-name|sid> [out|in]
           HostsGuard.Cli allow-package <package-family-name|sid> [out|in]
           HostsGuard.Cli unblock-package <package-family-name|sid> [out|in]
@@ -749,6 +755,115 @@ static async Task<int> CleanupFirewallRulesAsync(string[] args)
         Console.WriteLine($"preview-hash: {result.PreviewHash}");
         if (result.RejectedNames.Count != 0) Console.WriteLine($"rejected: {string.Join(", ", result.RejectedNames)}");
         return result.Ok ? 0 : 2;
+    });
+}
+
+static async Task<int> FirewallRuleAuthoringAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].ToLowerInvariant() : string.Empty;
+    if (action == "interfaces")
+    {
+        if (args.Length != 2) return Usage();
+        return await RunCommandAsync(async channel =>
+        {
+            var list = await new FirewallControl.FirewallControlClient(channel).ListInterfaceAliasesAsync(new Empty());
+            Console.WriteLine("up\talias\ttype\tdescription");
+            foreach (var item in list.Interfaces)
+                Console.WriteLine($"{(item.IsUp ? "yes" : "no")}\t{item.Alias}\t{item.InterfaceType}\t{item.Description}");
+            return 0;
+        });
+    }
+
+    if (action is not ("create" or "edit"))
+    {
+        Console.Error.WriteLine("Usage: firewall-rule create|edit --name Rule [authoring options], or firewall-rule interfaces");
+        return 1;
+    }
+
+    var options = new Dictionary<string, string>(StringComparer.Ordinal);
+    var enabled = (bool?)null;
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (arg == "--enabled") enabled = true;
+        else if (arg == "--disabled") enabled = false;
+        else
+        {
+            var names = new[] { "--name", "--direction", "--action", "--protocol", "--local-ports",
+                "--remote-ports", "--interfaces", "--remote-addresses", "--program" };
+            var matched = false;
+            foreach (var name in names)
+            {
+                if (!TryReadOptionValue(args, ref i, arg, name, out var value)) continue;
+                options[name] = value;
+                matched = true;
+                break;
+            }
+
+            if (!matched)
+            {
+                Console.Error.WriteLine($"Unknown firewall-rule option: {arg}");
+                return 1;
+            }
+        }
+    }
+
+    if (!options.TryGetValue("--name", out var ruleName) || string.IsNullOrWhiteSpace(ruleName))
+    {
+        Console.Error.WriteLine("firewall-rule create/edit requires --name.");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new FirewallControl.FirewallControlClient(channel);
+        FirewallRule request;
+        if (action == "edit")
+        {
+            var rules = await client.ListRulesAsync(new Empty());
+            var lookupName = ruleName.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)
+                ? ruleName
+                : FwRuleMapper.HostsGuardPrefix + ruleName;
+            var current = rules.Rules.FirstOrDefault(rule => rule.Name.Equals(lookupName, StringComparison.Ordinal));
+            if (current is null)
+            {
+                Console.Error.WriteLine($"Rule '{lookupName}' was not found.");
+                return 2;
+            }
+
+            request = current.Clone();
+            ruleName = lookupName;
+        }
+        else
+        {
+            request = new FirewallRule
+            {
+                Name = ruleName,
+                Direction = "Out",
+                Action = "Block",
+                Protocol = "Any",
+                RemoteAddr = "Any",
+                LocalPorts = "Any",
+                RemotePorts = "Any",
+                Interfaces = "Any",
+                Enabled = true,
+            };
+        }
+
+        request.Name = ruleName;
+        if (options.TryGetValue("--direction", out var value)) request.Direction = value;
+        if (options.TryGetValue("--action", out value)) request.Action = value;
+        if (options.TryGetValue("--protocol", out value)) request.Protocol = value;
+        if (options.TryGetValue("--local-ports", out value)) request.LocalPorts = value;
+        if (options.TryGetValue("--remote-ports", out value)) request.RemotePorts = value;
+        if (options.TryGetValue("--interfaces", out value)) request.Interfaces = value;
+        if (options.TryGetValue("--remote-addresses", out value)) request.RemoteAddr = value;
+        if (options.TryGetValue("--program", out value)) request.Program = value;
+        if (enabled is { } state) request.Enabled = state;
+
+        var ack = action == "create" ? await client.CreateRuleAsync(request) : await client.UpdateRuleAsync(request);
+        Console.WriteLine(ack.Message);
+        return ack.Ok ? 0 : 2;
     });
 }
 
