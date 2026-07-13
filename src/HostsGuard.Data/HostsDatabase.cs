@@ -353,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 34;
+    public const int SchemaVersion = 35;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -606,6 +606,10 @@ public sealed partial class HostsDatabase : IDisposable
                 scope TEXT NOT NULL CHECK(scope IN ('app','domain')),
                 match TEXT NOT NULL, added TEXT NOT NULL,
                 PRIMARY KEY(scope,match)) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS binary_network_first_seen(
+                identity TEXT PRIMARY KEY, process TEXT NOT NULL, path TEXT NOT NULL DEFAULT '',
+                sha256 TEXT NOT NULL DEFAULT '', signer TEXT NOT NULL DEFAULT '',
+                destination TEXT NOT NULL DEFAULT '', first_seen TEXT NOT NULL) WITHOUT ROWID;
             CREATE TABLE IF NOT EXISTS usage_quota_rules(
                 id INTEGER PRIMARY KEY,
                 scope TEXT NOT NULL,

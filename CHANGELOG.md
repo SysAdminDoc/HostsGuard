@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.95] - 2026-07-13
+
+### Added
+- A default-off First Network Activity alert records each binary identity's
+  first destination and purpose without blocking. SHA-256 is the primary stable
+  identity; repeat sightings deduplicate, while a changed binary hash is a new
+  version and can alert once. Schema 35 persists the first-seen ledger.
+
 ## [0.12.94] - 2026-07-12
 
 ### Added

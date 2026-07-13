@@ -24,6 +24,7 @@ public sealed partial class HostsDatabase
         // Opt-in (off by default): a first-contact signal is high-volume, so it
         // only records/surfaces once the user enables the type.
         ("newly_observed_domain", "Newly observed domains", false),
+        ("first_network_activity", "First network activity", false),
         // Opt-in (off by default): a process talking DNS directly (port 53 to a
         // public resolver, or a known DoH endpoint) bypasses the system resolver.
         ("dns_bypass", "Apps bypassing system DNS", false),

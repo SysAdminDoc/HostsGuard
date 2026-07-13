@@ -4381,12 +4381,17 @@
                                     <ItemsControl ItemsSource="{Binding TrustedFolders}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
-                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding}" VerticalAlignment="Center" />
-                                                    <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Remove_e963907d}" Padding="8,2"
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding}" VerticalAlignment="Center"
+                                                               TextWrapping="Wrap" Margin="0,0,8,0" />
+                                                    <Button Grid.Column="1" Content="{svc:Loc Key=Xaml_Remove_e963907d}" Padding="8,2"
                                                             Command="{Binding DataContext.RemoveTrustedFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                             CommandParameter="{Binding}" />
-                                                </DockPanel>
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

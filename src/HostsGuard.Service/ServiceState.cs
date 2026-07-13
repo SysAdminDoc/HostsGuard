@@ -350,6 +350,8 @@ public sealed class ServiceState : IDisposable
 
     private readonly HashSet<string> _dgaAlerted = new(StringComparer.Ordinal);
     private readonly HashSet<string> _newlyObservedAlerted = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, FileIdentity> _binaryIdentityCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _binaryIdentityGate = new();
 
     /// <summary>
     /// Opt-in first-contact signal: when a domain is observed that this machine
@@ -544,6 +546,7 @@ public sealed class ServiceState : IDisposable
         var country = GeoIp.Lookup(info.RemoteAddress);
         var asn = Asn.Lookup(info.RemoteAddress);
         var host = ResolveKnownHost(info.RemoteAddress);
+        MaybeAlertFirstNetworkActivity(info, host);
         var threat = Threats.Contains(info.RemoteAddress);
         var fwStatus = threat ? "THREAT"
             : DirectIp.IsDirect(info.RemoteAddress, DateTime.Now) ? "DIRECT-IP"
@@ -586,6 +589,52 @@ public sealed class ServiceState : IDisposable
             Service = LookupService?.Invoke(info.Pid) ?? string.Empty,
             Ts = Timestamp.FromDateTime(DateTime.UtcNow),
         });
+    }
+
+    private void MaybeAlertFirstNetworkActivity(ConnectionInfo info, string host)
+    {
+        var path = (info.ProcessPath ?? string.Empty).Trim();
+        var process = (info.Process ?? string.Empty).Trim();
+        var fileIdentity = ResolveBinaryIdentity(path);
+        var identity = fileIdentity?.Sha256.Length > 0 ? "sha256:" + fileIdentity.Sha256
+            : path.Length != 0 ? "path:" + path.ToLowerInvariant()
+            : "process:" + process.ToLowerInvariant();
+        if (identity.EndsWith(':') || !Db.TryRecordBinaryNetworkFirstSeen(new BinaryNetworkFirstSeenRow(
+                identity, process, path, fileIdentity?.Sha256 ?? string.Empty,
+                fileIdentity?.Signer ?? string.Empty, host.Length != 0 ? host : info.RemoteAddress,
+                DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture))))
+            return;
+
+        if (!Db.IsAlertTypeSurfaced("first_network_activity")) return;
+        var destination = host.Length != 0 ? host : info.RemoteAddress;
+        var purpose = host.Length != 0 ? DomainPurpose.Lookup(host) : string.Empty;
+        Db.AddAlert("first_network_activity", "info", "First network activity",
+            process.Length != 0 ? process : path,
+            $"{process} first contacted {destination}:{info.RemotePort} over {info.Protocol}. " +
+            (purpose.Length != 0 ? $"Purpose: {purpose}. " : string.Empty) +
+            $"Identity: {(fileIdentity?.Sha256.Length > 0 ? "SHA-256 " + fileIdentity.Sha256 : identity)}. Binary hash changes are treated as a new identity; repeated paths/hashes are deduplicated.",
+            action: "first_network_activity", process: process);
+    }
+
+    private FileIdentity? ResolveBinaryIdentity(string path)
+    {
+        if (path.Length == 0 || !File.Exists(path)) return null;
+        try
+        {
+            var file = new FileInfo(path);
+            var key = $"{path}|{file.Length}|{file.LastWriteTimeUtc.Ticks}";
+            lock (_binaryIdentityGate)
+            {
+                if (_binaryIdentityCache.TryGetValue(key, out var cached)) return cached;
+            }
+            var computed = FirewallIdentity.Compute(path);
+            lock (_binaryIdentityGate) _binaryIdentityCache[key] = computed;
+            return computed;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

@@ -93,6 +93,31 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public void First_network_activity_is_default_off_and_dedupes_by_binary_hash()
+    {
+        var binary = Path.Combine(_dir, "first-contact.exe");
+        File.WriteAllText(binary, "version-one");
+        var info = new ConnectionInfo("TCP", "127.0.0.1", 5000, "93.184.216.34", 443,
+            "ESTABLISHED", 42, "first-contact.exe", ProcessPath: binary);
+
+        _state.PublishConnection(info);
+        _db.GetAlerts(new AlertFilter(Type: "first_network_activity", SurfaceOnly: false)).Rows.Should().BeEmpty();
+        _db.GetBinaryNetworkFirstSeen().Should().ContainSingle();
+
+        _db.SetAlertTypeSurface("first_network_activity", true);
+        _state.PublishConnection(info);
+        _db.GetAlerts(new AlertFilter(Type: "first_network_activity", SurfaceOnly: false)).Rows.Should().BeEmpty();
+
+        File.WriteAllText(binary, "version-two");
+        File.SetLastWriteTimeUtc(binary, DateTime.UtcNow.AddSeconds(2));
+        _state.PublishConnection(info);
+        var alert = _db.GetAlerts(new AlertFilter(Type: "first_network_activity", SurfaceOnly: false)).Rows
+            .Should().ContainSingle().Subject;
+        alert.Details.Should().Contain("Binary hash changes are treated as a new identity");
+        _db.GetBinaryNetworkFirstSeen().Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task ListListeners_returns_effective_profile_coverage_and_owner_identity()
     {
         var firewall = new FakeFirewallEngine();
