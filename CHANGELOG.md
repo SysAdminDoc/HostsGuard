@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.96] - 2026-07-13
+
+### Changed
+- Reduced idle service memory by streaming blocklist analysis instead of
+  buffering and splitting multi-megabyte feeds, caching a lightweight app
+  package inventory without executable-path expansion, and limiting SNI
+  capture to relevant adapters with a smaller receive buffer.
+- `status` and support diagnostics now expose process/GC memory, active SNI
+  adapter count, and cached package count for live resource verification.
+- Firewall drift ignores optional package-binary enrichment, preventing the
+  lightweight inventory from producing false rule-change alerts.
+
 ## [0.12.95] - 2026-07-13
 
 ### Added

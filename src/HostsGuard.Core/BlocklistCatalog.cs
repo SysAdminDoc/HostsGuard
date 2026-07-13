@@ -167,70 +167,96 @@ public static class BlocklistCatalog
     public static BlocklistScan Scan(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
+        using var reader = new StringReader(text);
+        return Scan(reader);
+    }
+
+    /// <summary>Parse a list incrementally so large remote sources never need one full payload string.</summary>
+    public static async Task<BlocklistScan> ScanAsync(TextReader reader, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
         var domains = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         int total = 0, duplicates = 0, invalid = 0, hijack = 0, stripped = 0;
 
-        foreach (var raw in text.Split('\n'))
+        while (await reader.ReadLineAsync(ct) is { } raw)
         {
-            var line = raw.Trim();
-            if (line.Length == 0 || line[0] is '#' or '!')
-            {
-                continue;
-            }
-
-            total++;
-
-            string? d;
-            if (LooksLikeAdblockRule(line))
-            {
-                // NET-174 RemoveModifiers transform: a plain ||domain^ rule is a
-                // whole-domain block and converts safely; a rule with $modifiers
-                // is conditional (third-party, script, ...) and blocking the bare
-                // domain would over-block — strip it, never import it.
-                var (converted, hadModifier) = ConvertAdblockRule(line);
-                if (hadModifier)
-                {
-                    stripped++;
-                    continue;
-                }
-
-                if (converted is null)
-                {
-                    invalid++;
-                    continue;
-                }
-
-                d = converted;
-            }
-            else
-            {
-                // Hosts-format line: "<ip> <domain> [more]". Flag a non-sink target.
-                var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                if (fields.Length >= 2 && System.Net.IPAddress.TryParse(fields[0], out _) && !SinkIps.Contains(fields[0]))
-                {
-                    hijack++;
-                    continue;
-                }
-
-                d = HostsFile.NormLine(line, normalize: false);
-                if (d is null || !Domains.LooksLikeDomain(d))
-                {
-                    invalid++;
-                    continue;
-                }
-            }
-
-            if (!seen.Add(d))
-            {
-                duplicates++;
-                continue;
-            }
-
-            domains.Add(d);
+            ProcessLine(raw, domains, seen, ref total, ref duplicates, ref invalid, ref hijack, ref stripped);
         }
 
         return new BlocklistScan(domains, total, duplicates, invalid, hijack, stripped);
+    }
+
+    private static BlocklistScan Scan(TextReader reader)
+    {
+        var domains = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        int total = 0, duplicates = 0, invalid = 0, hijack = 0, stripped = 0;
+
+        while (reader.ReadLine() is { } raw)
+        {
+            ProcessLine(raw, domains, seen, ref total, ref duplicates, ref invalid, ref hijack, ref stripped);
+        }
+
+        return new BlocklistScan(domains, total, duplicates, invalid, hijack, stripped);
+    }
+
+    private static void ProcessLine(
+        string raw,
+        List<string> domains,
+        HashSet<string> seen,
+        ref int total,
+        ref int duplicates,
+        ref int invalid,
+        ref int hijack,
+        ref int stripped)
+    {
+        var line = raw.Trim();
+        if (line.Length == 0 || line[0] is '#' or '!') return;
+        total++;
+
+        string? domain;
+        if (LooksLikeAdblockRule(line))
+        {
+            var (converted, hadModifier) = ConvertAdblockRule(line);
+            if (hadModifier)
+            {
+                stripped++;
+                return;
+            }
+
+            if (converted is null)
+            {
+                invalid++;
+                return;
+            }
+
+            domain = converted;
+        }
+        else
+        {
+            var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length >= 2 && System.Net.IPAddress.TryParse(fields[0], out _) && !SinkIps.Contains(fields[0]))
+            {
+                hijack++;
+                return;
+            }
+
+            domain = HostsFile.NormLine(line, normalize: false);
+            if (domain is null || !Domains.LooksLikeDomain(domain))
+            {
+                invalid++;
+                return;
+            }
+        }
+
+        if (!seen.Add(domain))
+        {
+            duplicates++;
+            return;
+        }
+
+        domains.Add(domain);
     }
 
     /// <summary>

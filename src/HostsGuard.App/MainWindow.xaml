@@ -2000,7 +2000,10 @@
                                             <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
                                                 <Rectangle Width="10" Height="3" VerticalAlignment="Center" Margin="0,0,5,0"
                                                            Fill="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}" />
-                                                <TextBlock Text="{Binding Name}" Style="{StaticResource Hg.DimText}" />
+                                                <TextBlock Text="{Binding Name}"
+                                                           ToolTip="{Binding Name}"
+                                                           Style="{StaticResource Hg.DimText}"
+                                                           TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

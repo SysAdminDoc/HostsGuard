@@ -93,8 +93,7 @@ public sealed class BlocklistIntelligence : IDisposable
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    var text = await FetchWithMirrorAsync(source, ct);
-                    var domains = BlocklistCatalog.Scan(text).Domains;
+                    var domains = (await FetchWithMirrorAsync(source, ct)).Domains;
                     _db.ReplaceListIndex(source.Name, domains);
                     indexed++;
                 }
@@ -121,18 +120,21 @@ public sealed class BlocklistIntelligence : IDisposable
         }
     }
 
-    private async Task<string> FetchWithMirrorAsync(BlocklistSourceInfo source, CancellationToken ct)
+    private async Task<BlocklistScan> FetchWithMirrorAsync(BlocklistSourceInfo source, CancellationToken ct)
     {
         try
         {
-            return await _fetcher.FetchAsync(source.Url, BlocklistCatalog.MaxBlocklistBytes, ct);
+            return await ScanRemoteAsync(source.Url, ct);
         }
         catch (Exception ex) when (source.Mirror.Length != 0 &&
             ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {
-            return await _fetcher.FetchAsync(source.Mirror, BlocklistCatalog.MaxBlocklistBytes, ct);
+            return await ScanRemoteAsync(source.Mirror, ct);
         }
     }
+
+    private Task<BlocklistScan> ScanRemoteAsync(string url, CancellationToken ct) =>
+        _fetcher.ReadTextAsync(url, BlocklistCatalog.MaxBlocklistBytes, BlocklistCatalog.ScanAsync, ct);
 
     public void Dispose()
     {

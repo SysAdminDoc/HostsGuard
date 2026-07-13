@@ -204,6 +204,34 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Firewall_snapshot_ignores_optional_package_binary_enrichment()
+    {
+        using var db = new HostsDatabase(DbPath("fw-package-binaries.db"));
+        var full = new FwRule(
+            "Package rule",
+            "Out",
+            "Block",
+            true,
+            "Any",
+            "Any",
+            string.Empty,
+            "system",
+            PackageFamilyName: "Contoso.Reader_123abc",
+            PackageSid: "S-1-15-2-123",
+            PackageDisplayName: "Contoso Reader",
+            PackageFullName: "Contoso.Reader_1.0.0.0_x64__123abc",
+            PackageBinaries: @"C:\Program Files\WindowsApps\Contoso.Reader\reader.exe");
+
+        db.SnapshotFirewallRules(new[] { full }, new DateTime(2026, 7, 8, 12, 0, 0)).Should().BeEmpty();
+
+        var lightweight = full with { PackageBinaries = string.Empty };
+        db.SnapshotFirewallRules(new[] { lightweight }, new DateTime(2026, 7, 8, 12, 5, 0))
+            .Should().BeEmpty();
+        db.GetFirewallRuleSnapshots().Should().ContainSingle(r =>
+            r.PackageBinaries == full.PackageBinaries);
+    }
+
+    [Fact]
     public void Upsert_preserves_added_notes_hits_and_allowlist_wins()
     {
         var path = DbPath("upsert.db");

@@ -187,4 +187,15 @@ public class BlocklistScanTests
     public void ParseDomains_still_returns_the_clean_set() =>
         BlocklistCatalog.ParseDomains("0.0.0.0 a.com\n0.0.0.0 a.com\nb.com")
             .Should().BeEquivalentTo(["a.com", "b.com"]);
+
+    [Fact]
+    public async Task Streaming_scan_matches_buffered_scan()
+    {
+        const string text = "# comment\n0.0.0.0 Ads.Example\n||tracker.example^\n0.0.0.0 ads.example\n8.8.8.8 hijack.example\n";
+        using var reader = new StringReader(text);
+
+        var streamed = await BlocklistCatalog.ScanAsync(reader, CancellationToken.None);
+
+        streamed.Should().BeEquivalentTo(BlocklistCatalog.Scan(text));
+    }
 }

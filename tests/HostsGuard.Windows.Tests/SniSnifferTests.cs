@@ -89,6 +89,33 @@ public class SniSnifferTests
     }
 
     [Fact]
+    public void Capture_selection_prefers_default_route_and_skips_host_virtual_adapters()
+    {
+        var physical = System.Net.IPAddress.Parse("192.168.1.20");
+        var wsl = System.Net.IPAddress.Parse("172.22.64.1");
+        var hostOnly = System.Net.IPAddress.Parse("192.168.116.1");
+
+        var selected = SniSniffer.SelectCaptureAddresses([
+            new(wsl, HasGateway: false, IsHostVirtualAdapter: true),
+            new(hostOnly, HasGateway: false, IsHostVirtualAdapter: true),
+            new(physical, HasGateway: true, IsHostVirtualAdapter: false),
+        ]);
+
+        selected.Should().Equal(physical);
+    }
+
+    [Fact]
+    public void Capture_selection_falls_back_when_only_virtual_default_route_exists()
+    {
+        var vpn = System.Net.IPAddress.Parse("10.8.0.2");
+        var selected = SniSniffer.SelectCaptureAddresses([
+            new(vpn, HasGateway: true, IsHostVirtualAdapter: true),
+        ]);
+
+        selected.Should().Equal(vpn);
+    }
+
+    [Fact]
     public void Stop_waits_for_pump_threads_to_exit()
     {
         using var sniffer = new SniSniffer(_ => { });

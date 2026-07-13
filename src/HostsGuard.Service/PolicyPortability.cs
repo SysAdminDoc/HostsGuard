@@ -42,7 +42,7 @@ public static class PolicyPortability
         // Drifted (tracked-but-missing) rows are skipped — nothing to recreate.
         if (state.Firewall is { } fw)
         {
-            foreach (var r in fw.ListRules()
+            foreach (var r in fw.ListRules(includePackageBinaries: true)
                 .Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal)
                     && !r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal)
                     && !r.Name.StartsWith("HG_VPNBind_", StringComparison.Ordinal)))

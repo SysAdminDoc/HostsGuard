@@ -261,6 +261,8 @@ static async Task<int> StatusAsync()
         var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
         Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");
         Console.WriteLine($"runtime:      .NET {status.RuntimeVersion}, SQLite {status.SqliteVersion}");
+        Console.WriteLine($"memory:       working={FormatBytes(status.ProcessWorkingSetBytes)} private={FormatBytes(status.ProcessPrivateBytes)} managed={FormatBytes(status.GcHeapBytes)} gc-committed={FormatBytes(status.GcCommittedBytes)} fragmented={FormatBytes(status.GcFragmentedBytes)}");
+        Console.WriteLine($"memory inputs: sni-adapters={status.SniCaptureAdapters} cached-firewall-packages={status.FirewallCachedPackages}");
         var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
         Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
         return 0;

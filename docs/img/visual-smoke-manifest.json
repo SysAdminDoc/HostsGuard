@@ -1,18 +1,18 @@
 {
     "schemaVersion":  2,
     "product":  "HostsGuard",
-    "version":  "0.12.95",
-    "generatedAtUtc":  "2026-07-13T04:10:35.6038135+00:00",
+    "version":  "0.12.96",
+    "generatedAtUtc":  "2026-07-13T15:07:30.8434146+00:00",
     "expectedSize":  "1600x1000",
     "app":  {
                 "path":  "dist/dotnet/win-x64/app/HostsGuard.App.exe",
-                "fileVersion":  "0.12.95.0",
-                "productVersion":  "0.12.95+76fe590d86336f1363b235b655b50efe46b1387e"
+                "fileVersion":  "0.12.96.0",
+                "productVersion":  "0.12.96+d7340260379391303254427f717af9f5f29fbe75"
             },
     "service":  {
                     "path":  "dist/dotnet/win-x64/service/HostsGuard.Service.exe",
-                    "fileVersion":  "0.12.95.0",
-                    "productVersion":  "0.12.95+76fe590d86336f1363b235b655b50efe46b1387e"
+                    "fileVersion":  "0.12.96.0",
+                    "productVersion":  "0.12.96+d7340260379391303254427f717af9f5f29fbe75"
                 },
     "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
     "readmeScreenshots":  [
@@ -20,29 +20,29 @@
                                   "theme":  "dark",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "9E8DDF0B9BE3E9320C32B7BE040FCA2A3F173A4C9D5BB94FEB25B7A789D6510C",
-                                  "bytes":  230298,
+                                  "sha256":  "800FEAABE2B5A750FFE04A1B4A2D5D58D998B6D572732E5F42AFAE7A9B02B23A",
+                                  "bytes":  178449,
                                   "width":  1600,
                                   "height":  1000,
-                                  "averageLuminance":  25.3,
+                                  "averageLuminance":  24.8,
                                   "luminanceRange":  246.4,
                                   "opaqueRatio":  1,
                                   "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.9625
+                                  "contentTileRatio":  0.9
                               },
                               {
                                   "theme":  "light",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "6672A5ED0BF66B1FD00D49CB38D755DEB441801A6A940FC31E7EB5A01E20D02D",
-                                  "bytes":  230384,
+                                  "sha256":  "414379E76FBA115D80C413F01FB925DCF6649BEAB515C697965EFA5AAF8EC92F",
+                                  "bytes":  178151,
                                   "width":  1600,
                                   "height":  1000,
-                                  "averageLuminance":  239.4,
+                                  "averageLuminance":  240.6,
                                   "luminanceRange":  250,
                                   "opaqueRatio":  1,
                                   "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.975
+                                  "contentTileRatio":  0.9125
                               }
                           ]
 }

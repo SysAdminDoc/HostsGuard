@@ -11,7 +11,16 @@ public interface IFirewallEngine
 {
     IReadOnlyList<FwRule> ListRules();
 
+    /// <summary>
+    /// Enumerate rules while allowing background diagnostics to omit packaged-app
+    /// binary inventories. Implementations that do not distinguish projections
+    /// retain their existing behavior.
+    /// </summary>
+    IReadOnlyList<FwRule> ListRules(bool includePackageBinaries) => ListRules();
+
     IReadOnlyList<FwAppPackage> ListPackages();
+
+    FirewallMemorySnapshot GetMemorySnapshot() => default;
 
     IReadOnlyList<FwInterfaceAlias> ListInterfaceAliases() => Array.Empty<FwInterfaceAlias>();
 
@@ -55,3 +64,6 @@ public interface IFirewallEngine
     /// <summary>Replace an existing rule's remote-address set.</summary>
     bool SetRuleRemoteAddresses(string name, string remoteAddresses);
 }
+
+/// <summary>Allocation-relevant firewall cache state exposed through diagnostics.</summary>
+public readonly record struct FirewallMemorySnapshot(int LightweightPackageCount, DateTime CachedAtUtc);

@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Reflection;
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Text.Json;
@@ -23,6 +24,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     {
         var stats = _state.Db.GetStats();
         var resolverHealth = _state.ResolverHealth.Snapshot();
+        var memory = CaptureMemory();
+        var firewallMemory = _state.Firewall?.GetMemorySnapshot() ?? default;
         var status = new ServiceStatus
         {
             Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0",
@@ -35,8 +38,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             FeedTotal = stats.FeedTotal,
             DnsMonitorActive = _state.DnsMonitorActive,
             ConnectionMonitorActive = _state.ConnectionMonitorActive,
-            SniMonitorActive = _state.Sni is not null,
-            BandwidthMonitorActive = _state.Bandwidth is not null,
+            SniMonitorActive = _state.Sni?.Active ?? false,
+            BandwidthMonitorActive = _state.Bandwidth?.CountersActive ?? false,
             KillSwitchEngaged = _state.KillSwitch?.IsEngaged ?? false,
             SecureRulesArmed = _state.SecureRules.Enabled,
             PersistenceDroppedWrites = _state.ActivityPersistence.DroppedWriteCount,
@@ -56,6 +59,13 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
                 !IsSuccessfulResolverHealth(row) && !IsFailedResolverHealth(row)),
             ResolverHealthScheduleEnabled = resolverHealth.ScheduleEnabled,
             ResolverHealthNextScheduledAt = resolverHealth.NextScheduledAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            ProcessWorkingSetBytes = memory.WorkingSetBytes,
+            ProcessPrivateBytes = memory.PrivateBytes,
+            GcHeapBytes = memory.GcHeapBytes,
+            GcCommittedBytes = memory.GcCommittedBytes,
+            GcFragmentedBytes = memory.GcFragmentedBytes,
+            SniCaptureAdapters = _state.Sni?.CaptureAdapterCount ?? 0,
+            FirewallCachedPackages = firewallMemory.LightweightPackageCount,
         };
         return Task.FromResult(status);
     }
@@ -268,6 +278,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     {
         var recent = _state.Db.GetLog(2000);
         var resolverHealth = _state.ResolverHealth.Snapshot();
+        var memory = CaptureMemory();
+        var firewallMemory = _state.Firewall?.GetMemorySnapshot() ?? default;
         var byCategory = recent.GroupBy(l => EventTaxonomy.Category(l.Action))
             .ToDictionary(g => g.Key, g => g.Count());
         var byAction = recent.GroupBy(l => l.Action)
@@ -302,6 +314,16 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             app_version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
             runtime_version = Environment.Version.ToString(),
             sqlite_version = _state.Db.SqliteEngineVersion(),
+            memory = new
+            {
+                process_working_set_bytes = memory.WorkingSetBytes,
+                process_private_bytes = memory.PrivateBytes,
+                gc_heap_bytes = memory.GcHeapBytes,
+                gc_committed_bytes = memory.GcCommittedBytes,
+                gc_fragmented_bytes = memory.GcFragmentedBytes,
+                sni_capture_adapters = _state.Sni?.CaptureAdapterCount ?? 0,
+                firewall_cached_packages = firewallMemory.LightweightPackageCount,
+            },
             filtering_mode = _state.Consent.Mode,
             detection_armed = _state.Consent.DetectionArmed,
             default_outbound = posture,
@@ -341,8 +363,8 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             {
                 dns_monitor_active = _state.DnsMonitorActive,
                 connection_monitor_active = _state.ConnectionMonitorActive,
-                sni_monitor_active = _state.Sni is not null,
-                bandwidth_monitor_active = _state.Bandwidth is not null,
+                sni_monitor_active = _state.Sni?.Active ?? false,
+                bandwidth_monitor_active = _state.Bandwidth?.CountersActive ?? false,
                 secure_rules_armed = _state.SecureRules.Enabled,
                 kill_switch_engaged = _state.KillSwitch?.IsEngaged ?? false,
                 pending_consent = _state.Consent.PendingCount,
@@ -378,6 +400,26 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         DnsResolverTlsStatus.CertificateFailure => "certificate_failure",
         _ => "unavailable",
     };
+
+    private static RuntimeMemorySnapshot CaptureMemory()
+    {
+        using var process = Process.GetCurrentProcess();
+        process.Refresh();
+        var gc = GC.GetGCMemoryInfo();
+        return new RuntimeMemorySnapshot(
+            process.WorkingSet64,
+            process.PrivateMemorySize64,
+            GC.GetTotalMemory(forceFullCollection: false),
+            gc.TotalCommittedBytes,
+            gc.FragmentedBytes);
+    }
+
+    private readonly record struct RuntimeMemorySnapshot(
+        long WorkingSetBytes,
+        long PrivateBytes,
+        long GcHeapBytes,
+        long GcCommittedBytes,
+        long GcFragmentedBytes);
 
     private static void AddEntry(ZipArchive zip, string name, string content)
     {

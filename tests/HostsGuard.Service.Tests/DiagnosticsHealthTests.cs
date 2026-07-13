@@ -50,6 +50,13 @@ public sealed class DiagnosticsHealthTests : IDisposable
         status.EchUnavailable.Should().Be(0);
         status.KillSwitchEngaged.Should().BeFalse();
         status.FilteringMode.Should().NotBeNullOrEmpty();
+        status.ProcessWorkingSetBytes.Should().BeGreaterThan(0);
+        status.ProcessPrivateBytes.Should().BeGreaterThan(0);
+        status.GcHeapBytes.Should().BeGreaterThan(0);
+        status.GcCommittedBytes.Should().BeGreaterThan(0);
+        status.GcFragmentedBytes.Should().BeGreaterThanOrEqualTo(0);
+        status.SniCaptureAdapters.Should().Be(0);
+        status.FirewallCachedPackages.Should().Be(0);
     }
 
     [Fact]

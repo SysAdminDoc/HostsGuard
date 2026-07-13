@@ -15,6 +15,14 @@ namespace HostsGuard.Windows;
 [SupportedOSPlatform("windows")]
 public sealed class FirewallEngine : IFirewallEngine
 {
+    private static readonly TimeSpan LightweightPackageCacheTtl = TimeSpan.FromMinutes(15);
+
+    private readonly object _packageCacheGate = new();
+    private readonly Func<bool, IReadOnlyList<FwAppPackage>> _packageLoader;
+    private readonly Func<DateTime> _utcNow;
+    private IReadOnlyList<FwAppPackage>? _lightweightPackageCache;
+    private DateTime _lightweightPackageCachedAtUtc;
+
     // NET_FW_RULE_DIRECTION_
     private const int DirIn = 1;
     private const int DirOut = 2;
@@ -31,6 +39,19 @@ public sealed class FirewallEngine : IFirewallEngine
     // NET_FW_PROFILE2_ALL
     private const int ProfileAll = 0x7FFFFFFF;
 
+    public FirewallEngine()
+        : this(AppContainerPackages.List, static () => DateTime.UtcNow)
+    {
+    }
+
+    internal FirewallEngine(
+        Func<bool, IReadOnlyList<FwAppPackage>> packageLoader,
+        Func<DateTime>? utcNow = null)
+    {
+        _packageLoader = packageLoader ?? throw new ArgumentNullException(nameof(packageLoader));
+        _utcNow = utcNow ?? (static () => DateTime.UtcNow);
+    }
+
     private static dynamic CreatePolicy()
     {
         var type = Type.GetTypeFromProgID("HNetCfg.FwPolicy2")
@@ -40,11 +61,16 @@ public sealed class FirewallEngine : IFirewallEngine
     }
 
     /// <summary>Enumerate all rules, mapped into <see cref="FwRule"/> records.</summary>
-    public IReadOnlyList<FwRule> ListRules()
+    // Most service callers need enforcement selectors, not every executable in
+    // every installed app package. Keep the default lightweight; explicit UI /
+    // export surfaces opt into the full package inventory.
+    public IReadOnlyList<FwRule> ListRules() => ListRules(includePackageBinaries: false);
+
+    public IReadOnlyList<FwRule> ListRules(bool includePackageBinaries)
     {
         var policy = CreatePolicy();
         var rules = new List<FwRule>();
-        var packages = ListPackages()
+        var packages = (includePackageBinaries ? ListPackages() : ListLightweightPackages())
             .ToDictionary(p => p.PackageSid, StringComparer.OrdinalIgnoreCase);
         foreach (var comRule in policy.Rules)
         {
@@ -82,14 +108,44 @@ public sealed class FirewallEngine : IFirewallEngine
     }
 
     public IReadOnlyList<FwAppPackage> ListPackages()
+        => TryLoadPackages(includeBinaries: true);
+
+    private IReadOnlyList<FwAppPackage> ListLightweightPackages()
+    {
+        lock (_packageCacheGate)
+        {
+            var now = _utcNow();
+            if (_lightweightPackageCache is not null &&
+                now - _lightweightPackageCachedAtUtc < LightweightPackageCacheTtl)
+            {
+                return _lightweightPackageCache;
+            }
+
+            _lightweightPackageCache = TryLoadPackages(includeBinaries: false).ToArray();
+            _lightweightPackageCachedAtUtc = now;
+            return _lightweightPackageCache;
+        }
+    }
+
+    private IReadOnlyList<FwAppPackage> TryLoadPackages(bool includeBinaries)
     {
         try
         {
-            return AppContainerPackages.List();
+            return _packageLoader(includeBinaries);
         }
         catch (Exception ex) when (ex is COMException or System.ComponentModel.Win32Exception or EntryPointNotFoundException or DllNotFoundException)
         {
             return Array.Empty<FwAppPackage>();
+        }
+    }
+
+    public FirewallMemorySnapshot GetMemorySnapshot()
+    {
+        lock (_packageCacheGate)
+        {
+            return new FirewallMemorySnapshot(
+                _lightweightPackageCache?.Count ?? 0,
+                _lightweightPackageCachedAtUtc);
         }
     }
 

@@ -220,7 +220,11 @@ public sealed partial class HostsDatabase
                     continue;
                 }
 
-                if (!old.Present || !string.Equals(old.Hash, hash, StringComparison.Ordinal))
+                // Package binary paths are optional enrichment and are omitted by the
+                // service's lightweight inventory. Recompute old hashes so snapshots
+                // written by earlier versions migrate without a false drift event.
+                var oldHash = HashFirewallRule(old);
+                if (!old.Present || !string.Equals(oldHash, hash, StringComparison.Ordinal))
                 {
                     var kind = old.Present ? "changed" : "added";
                     var detail = kind == "changed" ? DescribeChanges(old, rule) : $"added {Describe(rule)}";
@@ -246,8 +250,8 @@ public sealed partial class HostsDatabase
                 else
                 {
                     _conn.Execute(
-                        "UPDATE firewall_rule_snapshot SET present=1, last_seen=@now WHERE name=@Name",
-                        new { rule.Name, now }, tx);
+                        "UPDATE firewall_rule_snapshot SET hash=@hash, present=1, last_seen=@now WHERE name=@Name",
+                        new { rule.Name, hash, now }, tx);
                 }
             }
 
@@ -339,8 +343,28 @@ public sealed partial class HostsDatabase
             Clean(rule.PackageFamilyName),
             Clean(rule.PackageSid),
             Clean(rule.PackageDisplayName),
-            Clean(rule.PackageFullName),
-            Clean(rule.PackageBinaries));
+            Clean(rule.PackageFullName));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static string HashFirewallRule(FirewallRuleSnapshotRow rule)
+    {
+        var canonical = string.Join('\n',
+            Clean(rule.Direction),
+            Clean(rule.Action),
+            rule.Enabled ? "1" : "0",
+            Clean(rule.RemoteAddr),
+            Clean(rule.Protocol),
+            Clean(rule.Program),
+            Clean(rule.Source),
+            Clean(rule.RemotePorts),
+            Clean(rule.LocalPorts),
+            Clean(rule.ServiceName),
+            Clean(rule.Interfaces),
+            Clean(rule.PackageFamilyName),
+            Clean(rule.PackageSid),
+            Clean(rule.PackageDisplayName),
+            Clean(rule.PackageFullName));
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -411,7 +435,6 @@ public sealed partial class HostsDatabase
         Add("package sid", old.PackageSid, current.PackageSid);
         Add("package display", old.PackageDisplayName, current.PackageDisplayName);
         Add("package full name", old.PackageFullName, current.PackageFullName);
-        Add("package binaries", old.PackageBinaries, current.PackageBinaries);
         return changes.Count == 0 ? $"changed {Describe(current)}" : "changed " + string.Join("; ", changes);
 
         void Add(string label, string? before, string? after)

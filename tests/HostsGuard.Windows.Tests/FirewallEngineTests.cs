@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using System.Security.Principal;
+using System.Reflection;
 using FluentAssertions;
 using HostsGuard.Core;
 using HostsGuard.Windows;
@@ -32,6 +33,34 @@ public class FirewallEngineTests
             profile.Name == "Domain" || profile.Name == "Private" || profile.Name == "Public");
         engine.ListInterfaceAliases().Should().OnlyHaveUniqueItems(item => item.Alias)
             .And.OnlyContain(item => item.Alias.Length != 0 && item.InterfaceType.Length != 0);
+    }
+
+    [Fact]
+    public void Lightweight_package_metadata_is_cached_without_binary_inventories()
+    {
+        var now = new DateTime(2026, 7, 13, 12, 0, 0, DateTimeKind.Utc);
+        var calls = new List<bool>();
+        var package = new FwAppPackage("Family", "S-1-15-2-1", "Display", "Full", "large.exe;other.exe");
+        var engine = new FirewallEngine(includeBinaries =>
+        {
+            calls.Add(includeBinaries);
+            return [includeBinaries ? package : package with { Binaries = string.Empty }];
+        }, () => now);
+
+        engine.GetMemorySnapshot().LightweightPackageCount.Should().Be(0);
+        var method = typeof(FirewallEngine).GetMethod(
+            "ListLightweightPackages", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var first = (IReadOnlyList<FwAppPackage>)method.Invoke(engine, null)!;
+        var second = (IReadOnlyList<FwAppPackage>)method.Invoke(engine, null)!;
+
+        first.Should().BeSameAs(second);
+        first.Should().ContainSingle().Which.Binaries.Should().BeEmpty();
+        calls.Should().Equal(false);
+        engine.GetMemorySnapshot().LightweightPackageCount.Should().Be(1);
+
+        now = now.AddMinutes(16);
+        _ = method.Invoke(engine, null);
+        calls.Should().Equal(false, false);
     }
 
     [Fact]

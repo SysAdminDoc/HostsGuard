@@ -24,6 +24,7 @@ public sealed class SniSniffer : IDisposable
 {
     private const int SioRcvAll = unchecked((int)0x98000001);
     private const int HttpsPort = 443;
+    private const int ReceiveBufferBytes = 256 * 1024;
     private static readonly TimeSpan PumpJoinTimeout = TimeSpan.FromMilliseconds(500);
 
     private readonly Action<SniObservation> _onSni;
@@ -41,6 +42,11 @@ public sealed class SniSniffer : IDisposable
     }
 
     public bool Active => _active;
+
+    public int CaptureAdapterCount
+    {
+        get { lock (_gate) return _sockets.Count; }
+    }
 
     /// <summary>Start capture on every up, non-loopback IPv4 interface. Non-throwing.</summary>
     public DnsMonitorStatus Start()
@@ -72,7 +78,7 @@ public sealed class SniSniffer : IDisposable
                     var socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.IP);
                     socket.Bind(new IPEndPoint(ip, 0));
                     socket.IOControl(SioRcvAll, BitConverter.GetBytes(1), null);
-                    socket.ReceiveBufferSize = 1 << 20;
+                    socket.ReceiveBufferSize = ReceiveBufferBytes;
                     _sockets.Add(socket);
                     var pump = new Thread(() => Pump(socket, token)) { IsBackground = true, Name = "HostsGuardSni" };
                     _pumps.Add(pump);
@@ -92,6 +98,7 @@ public sealed class SniSniffer : IDisposable
 
     private static IEnumerable<IPAddress> LocalIPv4Addresses()
     {
+        var candidates = new List<CaptureAddress>();
         foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
         {
             if (nic.OperationalStatus != OperationalStatus.Up ||
@@ -100,15 +107,45 @@ public sealed class SniSniffer : IDisposable
                 continue;
             }
 
-            foreach (var addr in nic.GetIPProperties().UnicastAddresses)
+            var properties = nic.GetIPProperties();
+            var hasGateway = properties.GatewayAddresses.Any(static gateway =>
+                gateway.Address.AddressFamily == AddressFamily.InterNetwork &&
+                !gateway.Address.Equals(IPAddress.Any));
+            var virtualHostAdapter = IsHostVirtualAdapter(nic.Name, nic.Description);
+            foreach (var addr in properties.UnicastAddresses)
             {
                 if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    yield return addr.Address;
+                    candidates.Add(new CaptureAddress(addr.Address, hasGateway, virtualHostAdapter));
                 }
             }
         }
+
+        foreach (var address in SelectCaptureAddresses(candidates))
+        {
+            yield return address;
+        }
     }
+
+    internal static IReadOnlyList<IPAddress> SelectCaptureAddresses(IEnumerable<CaptureAddress> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+        var rows = candidates.DistinctBy(static row => row.Address).ToArray();
+        var selected = rows.Where(static row => row.HasGateway && !row.IsHostVirtualAdapter).ToArray();
+        if (selected.Length == 0) selected = rows.Where(static row => row.HasGateway).ToArray();
+        if (selected.Length == 0) selected = rows.Where(static row => !row.IsHostVirtualAdapter).ToArray();
+        if (selected.Length == 0) selected = rows;
+        return selected.Select(static row => row.Address).ToArray();
+    }
+
+    private static bool IsHostVirtualAdapter(string name, string description)
+    {
+        var value = name + " " + description;
+        string[] markers = ["vEthernet", "Hyper-V", "VMware", "VirtualBox", "WSL", "Default Switch"];
+        return markers.Any(marker => value.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
+
+    internal sealed record CaptureAddress(IPAddress Address, bool HasGateway, bool IsHostVirtualAdapter);
 
     private void Pump(Socket socket, CancellationToken token)
     {

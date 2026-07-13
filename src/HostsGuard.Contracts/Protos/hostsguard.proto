@@ -191,6 +191,15 @@ message ServiceStatus {
   bool resolver_health_schedule_enabled = 28;
   string resolver_health_next_scheduled_at = 29;
   int32 resolver_health_unavailable = 30;
+  // Allocation diagnostics: distinguish managed retention from native/mapped
+  // process memory without requiring an elevated EventPipe attachment.
+  int64 process_working_set_bytes = 31;
+  int64 process_private_bytes = 32;
+  int64 gc_heap_bytes = 33;
+  int64 gc_committed_bytes = 34;
+  int64 gc_fragmented_bytes = 35;
+  int32 sni_capture_adapters = 36;
+  int32 firewall_cached_packages = 37;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────

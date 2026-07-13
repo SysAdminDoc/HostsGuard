@@ -11,9 +11,10 @@ internal static class AppContainerPackages
 {
     private const uint ForceComputeBinaries = 0x1;
 
-    public static IReadOnlyList<FwAppPackage> List()
+    public static IReadOnlyList<FwAppPackage> List(bool includeBinaries = true)
     {
-        var error = NetworkIsolationEnumAppContainers(ForceComputeBinaries, out var count, out var containers);
+        var flags = includeBinaries ? ForceComputeBinaries : 0;
+        var error = NetworkIsolationEnumAppContainers(flags, out var count, out var containers);
         if (error != 0)
         {
             throw new Win32Exception((int)error, "NetworkIsolationEnumAppContainers failed");
@@ -43,7 +44,9 @@ internal static class AppContainerPackages
                     sid,
                     PtrToString(native.DisplayName),
                     PtrToString(native.PackageFullName),
-                    ReadStringArray(native.Binaries.Binaries, native.Binaries.Count)));
+                    includeBinaries
+                        ? ReadStringArray(native.Binaries.Binaries, native.Binaries.Count)
+                        : string.Empty));
             }
 
             return rows

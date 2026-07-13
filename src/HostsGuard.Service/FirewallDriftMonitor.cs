@@ -43,7 +43,11 @@ public sealed class FirewallDriftMonitor : IDisposable
                 return Array.Empty<FirewallRuleDriftRow>();
             }
 
-            var rules = liveRules ?? _firewall!.ListRules();
+            // Package binary inventories can contain thousands of long paths and
+            // are metadata rather than firewall enforcement state. The drift loop
+            // runs every 45 seconds, so use the lightweight projection here and
+            // reserve full inventories for explicit package-management requests.
+            var rules = liveRules ?? _firewall!.ListRules(includePackageBinaries: false);
             var diffs = _db.SnapshotFirewallRules(rules);
             foreach (var diff in diffs.Where(d => !string.Equals(d.Source, "hostsguard", StringComparison.Ordinal)))
             {

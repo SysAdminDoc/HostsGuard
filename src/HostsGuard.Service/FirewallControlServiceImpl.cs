@@ -458,7 +458,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(list);
         }
 
-        var live = fw.ListRules();
+        var live = fw.ListRules(includePackageBinaries: true);
         _state.FirewallDrift.CaptureNow(live);
         var snapshots = _state.Db.GetFirewallRuleSnapshots()
             .ToDictionary(s => s.Name, StringComparer.Ordinal);

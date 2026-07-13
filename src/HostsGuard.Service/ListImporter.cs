@@ -58,9 +58,8 @@ public sealed class ListImporter : IDisposable
     {
         // Mirror fallback (NET-077): if the primary URL fails and the catalog
         // knows a mirror for this source, retry the mirror before giving up.
-        var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
-        var contentHash = Sha256(text);
-        var scan = BlocklistCatalog.Scan(text);
+        var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        var contentHash = Sha256(scan.Domains);
         var domains = scan.Domains;
         var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(domains);
         existing ??= _db.GetBlocklistSub(name);
@@ -144,8 +143,7 @@ public sealed class ListImporter : IDisposable
 
     public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
     {
-        var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
-        var scan = BlocklistCatalog.Scan(text);
+        var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
         var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(scan.Domains);
         var blocked = _db.GetDomains(status: "blocked").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
         var whitelisted = _db.GetDomains(status: "whitelisted").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
@@ -182,11 +180,11 @@ public sealed class ListImporter : IDisposable
     }
 
     /// <summary>Fetch a list, falling back to the catalog mirror on failure.</summary>
-    private async Task<(string Text, bool MirrorUsed)> FetchWithMirrorAsync(string name, string url, CancellationToken ct)
+    private async Task<(BlocklistScan Scan, bool MirrorUsed)> FetchWithMirrorAsync(string name, string url, CancellationToken ct)
     {
         try
         {
-            return (await _fetcher.FetchAsync(url, BlocklistCatalog.MaxBlocklistBytes, ct), false);
+            return (await ScanRemoteAsync(url, BlocklistCatalog.MaxBlocklistBytes, ct), false);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {
@@ -198,9 +196,12 @@ public sealed class ListImporter : IDisposable
             }
 
             _db.LogEvent($"list:{name}", "mirror_fallback", details: $"primary failed ({ex.GetType().Name}); trying mirror");
-            return (await _fetcher.FetchAsync(mirror, BlocklistCatalog.MaxBlocklistBytes, ct), true);
+            return (await ScanRemoteAsync(mirror, BlocklistCatalog.MaxBlocklistBytes, ct), true);
         }
     }
+
+    private Task<BlocklistScan> ScanRemoteAsync(string url, int maxBytes, CancellationToken ct) =>
+        _fetcher.ReadTextAsync(url, maxBytes, BlocklistCatalog.ScanAsync, ct);
 
     public async Task<ImportOutcome> RefreshAllAsync(CancellationToken ct)
     {
@@ -255,8 +256,8 @@ public sealed class ListImporter : IDisposable
         var domains = new HashSet<string>(StringComparer.Ordinal);
         foreach (var url in _db.GetAllowlistSubs())
         {
-            var text = await _fetcher.FetchAsync(url, BlocklistCatalog.MaxAllowlistBytes, ct);
-            foreach (var d in BlocklistCatalog.ParseDomains(text))
+            var scan = await ScanRemoteAsync(url, BlocklistCatalog.MaxAllowlistBytes, ct);
+            foreach (var d in scan.Domains)
             {
                 domains.Add(d);
             }
@@ -351,10 +352,18 @@ public sealed class ListImporter : IDisposable
         return (false, string.Empty);
     }
 
-    private static string Sha256(string text)
+    private static string Sha256(IEnumerable<string> domains)
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(text));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> encoded = stackalloc byte[512];
+        foreach (var domain in domains)
+        {
+            var count = Encoding.UTF8.GetBytes(domain, encoded);
+            hash.AppendData(encoded[..count]);
+            hash.AppendData("\n"u8);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     public void Dispose()

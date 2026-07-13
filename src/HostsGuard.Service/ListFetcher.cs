@@ -9,6 +9,27 @@ public interface IListFetcher
     /// <summary>Fetch a text list, enforcing a hard byte cap while streaming.</summary>
     Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct);
 
+    /// <summary>
+    /// Consume a text response without requiring one full payload string. Test
+    /// fakes keep working through this default buffered adapter; the production
+    /// HTTP fetcher overrides it with a byte-limited streaming reader.
+    /// </summary>
+    async Task<T> ReadTextAsync<T>(
+        string url,
+        int maxBytes,
+        Func<TextReader, CancellationToken, Task<T>> consume,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(consume);
+        using var reader = new StringReader(await FetchAsync(url, maxBytes, ct));
+        // Preserve the legacy fake/custom-fetcher contract: once a buffered
+        // FetchAsync implementation has accepted and returned a payload, finish
+        // parsing it even if owner shutdown raced the return. The production
+        // HttpListFetcher override remains cooperatively cancellable while the
+        // network stream is being read.
+        return await consume(reader, CancellationToken.None);
+    }
+
     /// <summary>Fetch a binary payload (e.g. a gzipped MMDB), byte-capped while streaming.</summary>
     Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct);
 }
@@ -45,6 +66,27 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
     public async Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct)
         => System.Text.Encoding.UTF8.GetString(await FetchBytesAsync(url, maxBytes, ct));
 
+    public async Task<T> ReadTextAsync<T>(
+        string url,
+        int maxBytes,
+        Func<TextReader, CancellationToken, Task<T>> consume,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(consume);
+        await SsrfGuard.EnsurePublicHttpsAsync(url, ct);
+        using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        ValidateResponse(url, response);
+        await using var responseStream = await response.Content.ReadAsStreamAsync(ct);
+        await using var limited = new LimitedReadStream(responseStream, maxBytes, url);
+        using var reader = new StreamReader(
+            limited,
+            System.Text.Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 65536,
+            leaveOpen: true);
+        return await consume(reader, ct);
+    }
+
     public async Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct)
     {
         // Every real egress passes here — validate the target is public https
@@ -52,13 +94,7 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
         await SsrfGuard.EnsurePublicHttpsAsync(url, ct);
 
         using var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        if ((int)response.StatusCode is >= 300 and < 400)
-        {
-            // A redirect on a client-supplied URL is refused, not chased.
-            throw new InvalidOperationException($"list at {url} redirected ({(int)response.StatusCode}); refusing to follow");
-        }
-
-        response.EnsureSuccessStatusCode();
+        ValidateResponse(url, response);
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var buffer = new MemoryStream();
@@ -75,6 +111,66 @@ public sealed class HttpListFetcher : IListFetcher, IDisposable
         }
 
         return buffer.ToArray();
+    }
+
+    private static void ValidateResponse(string url, HttpResponseMessage response)
+    {
+        if ((int)response.StatusCode is >= 300 and < 400)
+        {
+            throw new InvalidOperationException($"list at {url} redirected ({(int)response.StatusCode}); refusing to follow");
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    private sealed class LimitedReadStream(Stream inner, int maxBytes, string url) : Stream
+    {
+        private long _read;
+
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => _read;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = inner.Read(buffer, offset, count);
+            Account(read);
+            return read;
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            var read = await inner.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+            Account(read);
+            return read;
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var read = await inner.ReadAsync(buffer, cancellationToken);
+            Account(read);
+            return read;
+        }
+
+        private void Account(int read)
+        {
+            _read += read;
+            if (_read > maxBytes)
+            {
+                throw new InvalidOperationException($"list at {url} exceeds {maxBytes} bytes");
+            }
+        }
+
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>
