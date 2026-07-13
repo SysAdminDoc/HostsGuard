@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.92] - 2026-07-12
+
+### Added
+- A read-only resolver health matrix probes every eligible adapter/resolver
+  endpoint with bounded UDP or configured DoH A+AAAA requests and reports RTT,
+  protocol, record counts, TLS state, certificate failure, and explicit
+  unavailable/error details without changing adapter or DNS configuration.
+- Tools and `resolver-health [--run] [--host name] [--schedule off|minutes]
+  [--json]` expose cached/manual results and an opt-in 15–1,440 minute schedule.
+  Schedules persist, default off, suppress overlap, recover after cancellation,
+  and enforce three-second endpoint and 30-second whole-run limits.
+- Service status and support diagnostics include health aggregates and redacted
+  matrix evidence. DNS parsing rejects mismatched IDs, error responses,
+  truncation, oversized names/payloads, and malformed compression safely.
+
 ## [0.12.91] - 2026-07-12
 
 ### Added

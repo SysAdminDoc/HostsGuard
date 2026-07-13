@@ -33,6 +33,12 @@ internal sealed class FakeDnsConfig : IDnsConfig
 
     public DnsProbeResult ProbeResult { get; set; } = new(true, TimeSpan.FromMilliseconds(12), 1, 1, string.Empty);
 
+    public List<(string Host, TimeSpan Timeout)> ResolverHealthCalls { get; } = new();
+
+    public IReadOnlyList<DnsResolverHealthResult> ResolverHealthResults { get; set; } = [];
+
+    public Func<string, TimeSpan, CancellationToken, Task<IReadOnlyList<DnsResolverHealthResult>>>? ResolverHealthCheck { get; set; }
+
     public bool FlushCache()
     {
         Flushes++;
@@ -76,6 +82,17 @@ internal sealed class FakeDnsConfig : IDnsConfig
 
     public Task<DnsProbeResult> ProbeAsync(string host, TimeSpan timeout, CancellationToken cancellationToken)
         => Task.FromResult(ProbeResult);
+
+    public Task<IReadOnlyList<DnsResolverHealthResult>> CheckResolverHealthAsync(
+        string host,
+        TimeSpan perProbeTimeout,
+        CancellationToken cancellationToken)
+    {
+        ResolverHealthCalls.Add((host, perProbeTimeout));
+        return ResolverHealthCheck is null
+            ? Task.FromResult(ResolverHealthResults)
+            : ResolverHealthCheck(host, perProbeTimeout, cancellationToken);
+    }
 }
 
 internal sealed class FakeServiceBindingQuery : IDnsServiceBindingQuery
@@ -184,6 +201,97 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         _dns.RestoredSnapshots.Should().ContainSingle().Which.Adapters.Should()
             .ContainSingle(adapter => adapter.Id == "vpn-id");
         _state.Db.GetLog().Should().Contain(entry => entry.Action == "resolver_rollback");
+    }
+
+    [Fact]
+    public async Task Resolver_health_is_report_only_explicit_and_schedule_is_bounded()
+    {
+        _dns.ResolverHealthResults =
+        [
+            new DnsResolverHealthResult(
+                "ethernet-id",
+                "Ethernet0",
+                "192.168.1.1",
+                DnsResolverProtocol.Udp,
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Available, 1, "A response"),
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Unavailable, 0, "no AAAA response"),
+                TimeSpan.FromMilliseconds(17.6),
+                DnsResolverTlsStatus.NotApplicable,
+                string.Empty),
+            new DnsResolverHealthResult(
+                "ethernet-id",
+                "Ethernet0",
+                "https://dns.example/dns-query",
+                DnsResolverProtocol.Doh,
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Failed, 0, "HTTP failure"),
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Failed, 0, "HTTP failure"),
+                null,
+                DnsResolverTlsStatus.CertificateFailure,
+                "certificate name mismatch"),
+        ];
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = new DnsControl.DnsControlClient(channel);
+
+        var initial = await client.GetResolverHealthAsync(new Empty());
+        initial.ScheduleEnabled.Should().BeFalse();
+        initial.ScheduleIntervalMinutes.Should().Be(ResolverHealthCoordinator.DefaultIntervalMinutes);
+        initial.Entries.Should().BeEmpty();
+        _dns.ResolverHealthCalls.Should().BeEmpty("scheduled network probes are default-off");
+
+        var report = await client.RunResolverHealthAsync(new ResolverHealthRequest { Host = "example.net" });
+
+        report.ErrorCode.Should().BeEmpty();
+        report.Host.Should().Be("example.net");
+        report.Source.Should().Be("manual");
+        report.CheckedAt.Should().NotBeEmpty();
+        report.Entries.Should().HaveCount(2);
+        report.Entries[0].Protocol.Should().Be("udp");
+        report.Entries[0].AStatus.Should().Be("available");
+        report.Entries[0].AaaaStatus.Should().Be("unavailable");
+        report.Entries[0].RttAvailable.Should().BeTrue();
+        report.Entries[0].RttMs.Should().Be(18);
+        report.Entries[0].TlsStatus.Should().Be("not_applicable");
+        report.Entries[0].Success.Should().BeTrue("one usable address family is healthy and the other is explicitly unavailable");
+        report.Entries[1].TlsStatus.Should().Be("certificate_failure");
+        report.Entries[1].Error.Should().Contain("mismatch");
+        _dns.ResolverHealthCalls.Should().ContainSingle().Which.Host.Should().Be("example.net");
+        _dns.ResolverHealthCalls[0].Timeout.Should().Be(TimeSpan.FromSeconds(3));
+        _dns.ResolverSets.Should().BeEmpty("health checks never mutate resolver settings");
+        _dns.ResolverAdapterSets.Should().BeEmpty();
+
+        var invalid = await client.SetResolverHealthScheduleAsync(
+            new ResolverHealthScheduleRequest { Enabled = true, IntervalMinutes = 14 });
+        invalid.ErrorCode.Should().Be("hostsguard.error.v1/invalid_schedule_interval");
+        invalid.ScheduleEnabled.Should().BeFalse();
+
+        var scheduled = await client.SetResolverHealthScheduleAsync(
+            new ResolverHealthScheduleRequest { Enabled = true, IntervalMinutes = 15 });
+        scheduled.ErrorCode.Should().BeEmpty();
+        scheduled.ScheduleEnabled.Should().BeTrue();
+        scheduled.ScheduleIntervalMinutes.Should().Be(15);
+        scheduled.NextScheduledAt.Should().NotBeEmpty();
+
+        var disabled = await client.SetResolverHealthScheduleAsync(
+            new ResolverHealthScheduleRequest { Enabled = false });
+        disabled.ScheduleEnabled.Should().BeFalse();
+        disabled.NextScheduledAt.Should().BeEmpty();
+
+        _state.Lock.Enable("locked1").Ok.Should().BeTrue();
+        var locked = await client.SetResolverHealthScheduleAsync(
+            new ResolverHealthScheduleRequest { Enabled = true, IntervalMinutes = 15 });
+        locked.ErrorCode.Should().Be("hostsguard.error.v1/locked");
+        locked.ScheduleEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Resolver_health_rejects_invalid_host_without_probing()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var report = await new DnsControl.DnsControlClient(channel)
+            .RunResolverHealthAsync(new ResolverHealthRequest { Host = "not a domain" });
+
+        report.ErrorCode.Should().Be("hostsguard.error.v1/invalid_probe_host");
+        _dns.ResolverHealthCalls.Should().BeEmpty();
     }
 
     [Fact]
@@ -544,7 +652,17 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         _state.Db.LogEvent("203.0.113.9", "fw_blocked", details: "remote 203.0.113.9");
         _state.Db.LogEvent("ads.example.com", "blocked", details: "hosts file");
         _state.Consent.SetMode("notify");
+        _dns.ResolverHealthResults =
+        [
+            new DnsResolverHealthResult(
+                "ethernet-id", "Ethernet0", "203.0.113.53", DnsResolverProtocol.Udp,
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Available, 1, "ok"),
+                new DnsResolverAddressResult(DnsResolverProbeStatus.Available, 1, "ok"),
+                TimeSpan.FromMilliseconds(9), DnsResolverTlsStatus.NotApplicable, string.Empty),
+        ];
         using var channel = NamedPipeChannel.Create(_token, _pipe);
+        await new DnsControl.DnsControlClient(channel)
+            .RunResolverHealthAsync(new ResolverHealthRequest { Host = "resolver-check.example" });
 
         var ack = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
             .ExportSupportBundleAsync(new SupportBundleRequest());
@@ -562,7 +680,12 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         json.Should().Contain("\"dns_tunnel_active_aggregates\": 0");
         json.Should().Contain("\"dns_tunnel_buffered_observations\": 0");
         json.Should().Contain("\"dns_tunnel_detections\": 0");
+        json.Should().Contain("\"resolver_health\"");
+        json.Should().Contain("\"rtt_ms\": 9");
+        json.Should().Contain("REDACTED_IP:");
         json.Should().NotContain("203.0.113.9"); // counts only, no IPs
+        json.Should().NotContain("203.0.113.53");
+        json.Should().NotContain("resolver-check.example");
         json.Should().NotContain("ads.example.com");
     }
 }

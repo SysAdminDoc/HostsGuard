@@ -457,4 +457,49 @@
   <data name="Dga_RunValue" xml:space="preserve"><value>{0} (Schwelle {1})</value></data>
   <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} Zeichen; {2})</value></data>
   <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorithmisch={1}</value></data>
+  <data name="ResolverHealth_Title" xml:space="preserve"><value>Resolver-Zustand</value></data>
+  <data name="ResolverHealth_Help" xml:space="preserve"><value>Schreibgeschützte A-/AAAA-Erreichbarkeit, Latenz und Zustand verschlüsselter Transporte nach Adapter und Endpunkt. Prüfungen ändern niemals die DNS-Systemeinstellungen.</value></data>
+  <data name="ResolverHealth_Run" xml:space="preserve"><value>Jetzt prüfen</value></data>
+  <data name="ResolverHealth_RunName" xml:space="preserve"><value>Resolver-Zustand jetzt prüfen</value></data>
+  <data name="ResolverHealth_RunTip" xml:space="preserve"><value>Begrenzte Resolver-Prüfungen ohne Änderung der Adapterkonfiguration ausführen</value></data>
+  <data name="ResolverHealth_Load" xml:space="preserve"><value>Letzten laden</value></data>
+  <data name="ResolverHealth_LoadName" xml:space="preserve"><value>Letzten geplanten Resolver-Bericht laden</value></data>
+  <data name="ResolverHealth_LoadTip" xml:space="preserve"><value>Die letzte zwischengespeicherte geplante Prüfung laden</value></data>
+  <data name="ResolverHealth_HostHint" xml:space="preserve"><value>Prüfhost (Standard: example.com)</value></data>
+  <data name="ResolverHealth_HostName" xml:space="preserve"><value>Prüfhost für Resolver-Zustand</value></data>
+  <data name="ResolverHealth_HostTip" xml:space="preserve"><value>Host für A- und AAAA-Abfragen</value></data>
+  <data name="ResolverHealth_TableName" xml:space="preserve"><value>DNS-Resolver-Zustandsergebnisse</value></data>
+  <data name="ResolverHealth_Adapter" xml:space="preserve"><value>Adapter</value></data>
+  <data name="ResolverHealth_Endpoint" xml:space="preserve"><value>Endpunkt</value></data>
+  <data name="ResolverHealth_Protocol" xml:space="preserve"><value>Protokoll</value></data>
+  <data name="ResolverHealth_A" xml:space="preserve"><value>A</value></data>
+  <data name="ResolverHealth_Aaaa" xml:space="preserve"><value>AAAA</value></data>
+  <data name="ResolverHealth_Rtt" xml:space="preserve"><value>RTT</value></data>
+  <data name="ResolverHealth_Tls" xml:space="preserve"><value>TLS</value></data>
+  <data name="ResolverHealth_Certificate" xml:space="preserve"><value>Zertifikat</value></data>
+  <data name="ResolverHealth_Result" xml:space="preserve"><value>Ergebnis</value></data>
+  <data name="ResolverHealth_Unavailable" xml:space="preserve"><value>Nicht verfügbar</value></data>
+  <data name="ResolverHealth_RttMs" xml:space="preserve"><value>{0} ms</value></data>
+  <data name="ResolverHealth_ResultOk" xml:space="preserve"><value>Fehlerfrei</value></data>
+  <data name="ResolverHealth_NoReport" xml:space="preserve"><value>Noch kein Resolver-Bericht. Geplante Prüfungen erscheinen hier, sobald sie verfügbar sind.</value></data>
+  <data name="ResolverHealth_Status" xml:space="preserve"><value>{0} Endpunkt(e); geprüft {1}; geplant={2}; nächste={3}. {4}</value></data>
+  <data name="ResolverHealth_Running" xml:space="preserve"><value>Resolver-Zustandsprüfung läuft.</value></data>
+  <data name="ResolverHealth_ScheduleEnabled" xml:space="preserve"><value>Geplante Prüfungen</value></data>
+  <data name="ResolverHealth_ScheduleEnabledName" xml:space="preserve"><value>Geplante Resolver-Prüfungen aktivieren</value></data>
+  <data name="ResolverHealth_ScheduleIntervalName" xml:space="preserve"><value>Prüfintervall in Minuten</value></data>
+  <data name="ResolverHealth_ScheduleIntervalTip" xml:space="preserve"><value>Intervall von 15 bis 1440 Minuten</value></data>
+  <data name="ResolverHealth_Minutes" xml:space="preserve"><value>Min.</value></data>
+  <data name="ResolverHealth_ApplySchedule" xml:space="preserve"><value>Zeitplan anwenden</value></data>
+  <data name="ResolverHealth_ApplyScheduleName" xml:space="preserve"><value>Resolver-Prüfzeitplan anwenden</value></data>
+  <data name="ResolverHealth_ApplyScheduleTip" xml:space="preserve"><value>Hintergrundzeitplan speichern; Prüfungen bleiben schreibgeschützt</value></data>
+  <data name="ResolverHealth_ActionLoad" xml:space="preserve"><value>Resolver-Zustand laden</value></data>
+  <data name="ResolverHealth_ActionRun" xml:space="preserve"><value>Resolver-Zustand prüfen</value></data>
+  <data name="ResolverHealth_ActionSchedule" xml:space="preserve"><value>Resolver-Prüfzeitplan speichern</value></data>
+  <data name="ResolverHealth_AddressAvailable" xml:space="preserve"><value>Verfügbar ({0})</value></data>
+  <data name="ResolverHealth_Failed" xml:space="preserve"><value>Fehlgeschlagen</value></data>
+  <data name="ResolverHealth_TlsValid" xml:space="preserve"><value>Gültig</value></data>
+  <data name="ResolverHealth_TlsCertificateFailure" xml:space="preserve"><value>Zertifikatfehler</value></data>
+  <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>Nicht anwendbar</value></data>
+  <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Gültig</value></data>
+  <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Fehlgeschlagen</value></data>
 </root>

@@ -1731,4 +1731,49 @@
   <data name="ServiceBinding_StatusHint" xml:space="preserve"><value>Inspect a domain to query HTTPS/SVCB records directly. ECH advertisement is not proof that an ECH connection occurred.</value></data>
   <data name="Common_Yes" xml:space="preserve"><value>yes</value></data>
   <data name="Common_No" xml:space="preserve"><value>no</value></data>
+  <data name="ResolverHealth_Title" xml:space="preserve"><value>Resolver health</value></data>
+  <data name="ResolverHealth_Help" xml:space="preserve"><value>Read-only A and AAAA reachability, latency, and encrypted-transport health by adapter and endpoint. Checks never change system DNS settings.</value></data>
+  <data name="ResolverHealth_Run" xml:space="preserve"><value>Check now</value></data>
+  <data name="ResolverHealth_RunName" xml:space="preserve"><value>Run resolver health check now</value></data>
+  <data name="ResolverHealth_RunTip" xml:space="preserve"><value>Run bounded resolver probes without changing adapter configuration</value></data>
+  <data name="ResolverHealth_Load" xml:space="preserve"><value>Load latest</value></data>
+  <data name="ResolverHealth_LoadName" xml:space="preserve"><value>Load latest scheduled resolver health report</value></data>
+  <data name="ResolverHealth_LoadTip" xml:space="preserve"><value>Load the most recent cached scheduled check</value></data>
+  <data name="ResolverHealth_HostHint" xml:space="preserve"><value>Probe host (default: example.com)</value></data>
+  <data name="ResolverHealth_HostName" xml:space="preserve"><value>Resolver health probe host</value></data>
+  <data name="ResolverHealth_HostTip" xml:space="preserve"><value>Host queried for both A and AAAA records</value></data>
+  <data name="ResolverHealth_TableName" xml:space="preserve"><value>DNS resolver health results</value></data>
+  <data name="ResolverHealth_Adapter" xml:space="preserve"><value>Adapter</value></data>
+  <data name="ResolverHealth_Endpoint" xml:space="preserve"><value>Endpoint</value></data>
+  <data name="ResolverHealth_Protocol" xml:space="preserve"><value>Protocol</value></data>
+  <data name="ResolverHealth_A" xml:space="preserve"><value>A</value></data>
+  <data name="ResolverHealth_Aaaa" xml:space="preserve"><value>AAAA</value></data>
+  <data name="ResolverHealth_Rtt" xml:space="preserve"><value>RTT</value></data>
+  <data name="ResolverHealth_Tls" xml:space="preserve"><value>TLS</value></data>
+  <data name="ResolverHealth_Certificate" xml:space="preserve"><value>Certificate</value></data>
+  <data name="ResolverHealth_Result" xml:space="preserve"><value>Result</value></data>
+  <data name="ResolverHealth_Unavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="ResolverHealth_RttMs" xml:space="preserve"><value>{0} ms</value></data>
+  <data name="ResolverHealth_ResultOk" xml:space="preserve"><value>Healthy</value></data>
+  <data name="ResolverHealth_NoReport" xml:space="preserve"><value>No resolver health report yet. Scheduled checks will appear here when available.</value></data>
+  <data name="ResolverHealth_Status" xml:space="preserve"><value>{0} endpoint(s); checked {1}; scheduled={2}; next={3}. {4}</value></data>
+  <data name="ResolverHealth_Running" xml:space="preserve"><value>Resolver health check is running.</value></data>
+  <data name="ResolverHealth_ScheduleEnabled" xml:space="preserve"><value>Scheduled checks</value></data>
+  <data name="ResolverHealth_ScheduleEnabledName" xml:space="preserve"><value>Enable scheduled resolver health checks</value></data>
+  <data name="ResolverHealth_ScheduleIntervalName" xml:space="preserve"><value>Resolver health schedule interval in minutes</value></data>
+  <data name="ResolverHealth_ScheduleIntervalTip" xml:space="preserve"><value>Interval from 15 to 1440 minutes</value></data>
+  <data name="ResolverHealth_Minutes" xml:space="preserve"><value>min</value></data>
+  <data name="ResolverHealth_ApplySchedule" xml:space="preserve"><value>Apply schedule</value></data>
+  <data name="ResolverHealth_ApplyScheduleName" xml:space="preserve"><value>Apply resolver health schedule</value></data>
+  <data name="ResolverHealth_ApplyScheduleTip" xml:space="preserve"><value>Save the background-check schedule; probes remain read-only</value></data>
+  <data name="ResolverHealth_ActionLoad" xml:space="preserve"><value>Load resolver health</value></data>
+  <data name="ResolverHealth_ActionRun" xml:space="preserve"><value>Run resolver health check</value></data>
+  <data name="ResolverHealth_ActionSchedule" xml:space="preserve"><value>Save resolver health schedule</value></data>
+  <data name="ResolverHealth_AddressAvailable" xml:space="preserve"><value>Available ({0})</value></data>
+  <data name="ResolverHealth_Failed" xml:space="preserve"><value>Failed</value></data>
+  <data name="ResolverHealth_TlsValid" xml:space="preserve"><value>Valid</value></data>
+  <data name="ResolverHealth_TlsCertificateFailure" xml:space="preserve"><value>Certificate failure</value></data>
+  <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>Not applicable</value></data>
+  <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Valid</value></data>
+  <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Failed</value></data>
 </root>

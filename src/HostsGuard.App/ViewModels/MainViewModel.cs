@@ -190,6 +190,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadDohStatusAsync();
             await Tools.LoadIdnHomographStatusAsync();
             await Tools.LoadDnsAdaptersAsync();
+            await Tools.LoadResolverHealthAsync();
             await Tools.LoadLanAttackSurfaceAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadPolicySubscriptionsAsync();
@@ -980,6 +981,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             await Tools.LoadServicesAsync();
             await Tools.LoadDohStatusAsync();
             await Tools.LoadIdnHomographStatusAsync();
+            await Tools.LoadResolverHealthAsync();
             await Tools.LoadLanAttackSurfaceAsync();
             await Tools.LoadProfilesAsync();
             await Tools.LoadPolicySubscriptionsAsync();

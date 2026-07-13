@@ -44,6 +44,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-inspect" => await DnsInspectAsync(args),
+    "resolver-health" => await ResolverHealthAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "dga-check" => DgaCheck(args),
     "idn-homograph" => await IdnHomographAsync(args),
@@ -125,6 +126,7 @@ static int Usage()
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-inspect <domain> [--json]
+          HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
           HostsGuard.Cli dns-flush-entry <cached-name>
           HostsGuard.Cli dga-check <domain> [--json]
           HostsGuard.Cli idn-homograph [status|enable|disable]
@@ -1848,6 +1850,148 @@ static async Task<int> DnsCacheAsync(string[] args)
         return 0;
     });
 }
+
+static async Task<int> ResolverHealthAsync(string[] args)
+{
+    var run = false;
+    var json = false;
+    var host = string.Empty;
+    int? scheduleMinutes = null;
+    var disableSchedule = false;
+
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (arg.Equals("--run", StringComparison.OrdinalIgnoreCase))
+        {
+            run = true;
+            continue;
+        }
+
+        if (arg.Equals("--json", StringComparison.OrdinalIgnoreCase))
+        {
+            json = true;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--host", out var value))
+        {
+            host = value;
+            run = true;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--schedule", out value))
+        {
+            if (value.Equals("off", StringComparison.OrdinalIgnoreCase))
+            {
+                disableSchedule = true;
+                continue;
+            }
+
+            if (!int.TryParse(value, out var minutes) || minutes is < 15 or > 1_440)
+            {
+                Console.Error.WriteLine("--schedule must be off or an interval from 15 to 1440 minutes.");
+                return 1;
+            }
+
+            scheduleMinutes = minutes;
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown resolver-health option: {arg}");
+        return 1;
+    }
+
+    if (disableSchedule && scheduleMinutes.HasValue)
+    {
+        Console.Error.WriteLine("Specify one --schedule value: off or an interval.");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new DnsControl.DnsControlClient(channel);
+        ResolverHealthReport report;
+        if (disableSchedule || scheduleMinutes.HasValue)
+        {
+            report = await client.SetResolverHealthScheduleAsync(new ResolverHealthScheduleRequest
+            {
+                Enabled = !disableSchedule,
+                IntervalMinutes = scheduleMinutes ?? 60,
+            });
+        }
+        else if (run)
+        {
+            report = await client.RunResolverHealthAsync(new ResolverHealthRequest { Host = host });
+        }
+        else
+        {
+            report = await client.GetResolverHealthAsync(new Empty());
+        }
+
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                host = report.Host,
+                source = report.Source,
+                checked_at = report.CheckedAt,
+                running = report.Running,
+                schedule_enabled = report.ScheduleEnabled,
+                schedule_interval_minutes = report.ScheduleIntervalMinutes,
+                next_scheduled_at = report.NextScheduledAt,
+                message = report.Message,
+                entries = report.Entries.Select(static entry => new
+                {
+                    adapter_id = entry.AdapterId,
+                    adapter = entry.AdapterName,
+                    endpoint = entry.Endpoint,
+                    protocol = entry.Protocol,
+                    a_status = entry.AStatus,
+                    a_count = entry.ACount,
+                    a_detail = entry.ADetail,
+                    aaaa_status = entry.AaaaStatus,
+                    aaaa_count = entry.AaaaCount,
+                    aaaa_detail = entry.AaaaDetail,
+                    rtt_ms = entry.RttAvailable ? entry.RttMs : (int?)null,
+                    tls_status = entry.TlsStatus,
+                    certificate_failure = entry.TlsStatus.Equals("certificate_failure", StringComparison.OrdinalIgnoreCase),
+                    error = entry.Error,
+                    success = entry.Success,
+                }),
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return 0;
+        }
+
+        Console.WriteLine($"resolver-health: host={TextOrUnavailable(report.Host)} source={TextOrUnavailable(report.Source)} checked={TextOrUnavailable(report.CheckedAt)} running={report.Running.ToString().ToLowerInvariant()}");
+        Console.WriteLine($"schedule: {(report.ScheduleEnabled ? $"every {report.ScheduleIntervalMinutes} min" : "off")} next={TextOrUnavailable(report.NextScheduledAt)}");
+        Console.WriteLine("adapter\tendpoint\tprotocol\tA\tAAAA\tRTT\tTLS/certificate\tresult");
+        foreach (var entry in report.Entries)
+        {
+            var a = AddressResult(entry.AStatus, entry.ACount, entry.ADetail);
+            var aaaa = AddressResult(entry.AaaaStatus, entry.AaaaCount, entry.AaaaDetail);
+            var rtt = entry.RttAvailable ? $"{entry.RttMs} ms" : "unavailable";
+            var result = entry.Success ? "healthy" : TextOrUnavailable(entry.Error);
+            Console.WriteLine($"{TextOrUnavailable(entry.AdapterName)}\t{entry.Endpoint}\t{entry.Protocol}\t{a}\t{aaaa}\t{rtt}\t{TextOrUnavailable(entry.TlsStatus)}\t{result}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(report.Message))
+        {
+            Console.WriteLine(report.Message);
+        }
+
+        Console.WriteLine("read-only: resolver health checks never change system DNS settings");
+        return 0;
+    });
+}
+
+static string AddressResult(string status, int count, string detail) =>
+    status.Equals("available", StringComparison.OrdinalIgnoreCase)
+        ? $"available ({count})"
+        : string.IsNullOrWhiteSpace(detail) ? TextOrUnavailable(status) : detail;
+
+static string TextOrUnavailable(string value) => string.IsNullOrWhiteSpace(value) ? "unavailable" : value;
 
 static async Task<int> DnsFlushEntryAsync(string[] args)
 {

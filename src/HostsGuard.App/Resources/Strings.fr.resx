@@ -457,4 +457,49 @@
   <data name="Dga_RunValue" xml:space="preserve"><value>{0} (seuil {1})</value></data>
   <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} caractères ; {2})</value></data>
   <data name="Dga_ReasonValue" xml:space="preserve"><value>{0} ; algorithmique={1}</value></data>
+  <data name="ResolverHealth_Title" xml:space="preserve"><value>État des résolveurs</value></data>
+  <data name="ResolverHealth_Help" xml:space="preserve"><value>Accessibilité A et AAAA, latence et état du transport chiffré en lecture seule, par carte et point de terminaison. Les vérifications ne modifient jamais les paramètres DNS du système.</value></data>
+  <data name="ResolverHealth_Run" xml:space="preserve"><value>Vérifier maintenant</value></data>
+  <data name="ResolverHealth_RunName" xml:space="preserve"><value>Vérifier maintenant l’état des résolveurs</value></data>
+  <data name="ResolverHealth_RunTip" xml:space="preserve"><value>Exécute des tests limités sans modifier la configuration des cartes</value></data>
+  <data name="ResolverHealth_Load" xml:space="preserve"><value>Charger le dernier</value></data>
+  <data name="ResolverHealth_LoadName" xml:space="preserve"><value>Charger le dernier rapport planifié</value></data>
+  <data name="ResolverHealth_LoadTip" xml:space="preserve"><value>Charge la vérification planifiée la plus récente</value></data>
+  <data name="ResolverHealth_HostHint" xml:space="preserve"><value>Hôte de test (par défaut : example.com)</value></data>
+  <data name="ResolverHealth_HostName" xml:space="preserve"><value>Hôte de test des résolveurs</value></data>
+  <data name="ResolverHealth_HostTip" xml:space="preserve"><value>Hôte interrogé pour les enregistrements A et AAAA</value></data>
+  <data name="ResolverHealth_TableName" xml:space="preserve"><value>Résultats d’état des résolveurs DNS</value></data>
+  <data name="ResolverHealth_Adapter" xml:space="preserve"><value>Carte</value></data>
+  <data name="ResolverHealth_Endpoint" xml:space="preserve"><value>Point de terminaison</value></data>
+  <data name="ResolverHealth_Protocol" xml:space="preserve"><value>Protocole</value></data>
+  <data name="ResolverHealth_A" xml:space="preserve"><value>A</value></data>
+  <data name="ResolverHealth_Aaaa" xml:space="preserve"><value>AAAA</value></data>
+  <data name="ResolverHealth_Rtt" xml:space="preserve"><value>RTT</value></data>
+  <data name="ResolverHealth_Tls" xml:space="preserve"><value>TLS</value></data>
+  <data name="ResolverHealth_Certificate" xml:space="preserve"><value>Certificat</value></data>
+  <data name="ResolverHealth_Result" xml:space="preserve"><value>Résultat</value></data>
+  <data name="ResolverHealth_Unavailable" xml:space="preserve"><value>Indisponible</value></data>
+  <data name="ResolverHealth_RttMs" xml:space="preserve"><value>{0} ms</value></data>
+  <data name="ResolverHealth_ResultOk" xml:space="preserve"><value>Sain</value></data>
+  <data name="ResolverHealth_NoReport" xml:space="preserve"><value>Aucun rapport pour le moment. Les vérifications planifiées apparaîtront ici dès qu’elles seront disponibles.</value></data>
+  <data name="ResolverHealth_Status" xml:space="preserve"><value>{0} point(s); vérifié {1}; planifié={2}; prochain={3}. {4}</value></data>
+  <data name="ResolverHealth_Running" xml:space="preserve"><value>La vérification des résolveurs est en cours.</value></data>
+  <data name="ResolverHealth_ScheduleEnabled" xml:space="preserve"><value>Vérifications planifiées</value></data>
+  <data name="ResolverHealth_ScheduleEnabledName" xml:space="preserve"><value>Activer les vérifications planifiées</value></data>
+  <data name="ResolverHealth_ScheduleIntervalName" xml:space="preserve"><value>Intervalle planifié en minutes</value></data>
+  <data name="ResolverHealth_ScheduleIntervalTip" xml:space="preserve"><value>Intervalle de 15 à 1440 minutes</value></data>
+  <data name="ResolverHealth_Minutes" xml:space="preserve"><value>min</value></data>
+  <data name="ResolverHealth_ApplySchedule" xml:space="preserve"><value>Appliquer le planning</value></data>
+  <data name="ResolverHealth_ApplyScheduleName" xml:space="preserve"><value>Appliquer le planning des vérifications</value></data>
+  <data name="ResolverHealth_ApplyScheduleTip" xml:space="preserve"><value>Enregistre le planning ; les tests restent en lecture seule</value></data>
+  <data name="ResolverHealth_ActionLoad" xml:space="preserve"><value>Charger l’état des résolveurs</value></data>
+  <data name="ResolverHealth_ActionRun" xml:space="preserve"><value>Vérifier l’état des résolveurs</value></data>
+  <data name="ResolverHealth_ActionSchedule" xml:space="preserve"><value>Enregistrer le planning des vérifications</value></data>
+  <data name="ResolverHealth_AddressAvailable" xml:space="preserve"><value>Disponible ({0})</value></data>
+  <data name="ResolverHealth_Failed" xml:space="preserve"><value>Échec</value></data>
+  <data name="ResolverHealth_TlsValid" xml:space="preserve"><value>Valide</value></data>
+  <data name="ResolverHealth_TlsCertificateFailure" xml:space="preserve"><value>Échec du certificat</value></data>
+  <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>Non applicable</value></data>
+  <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Valide</value></data>
+  <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Échec</value></data>
 </root>

@@ -85,6 +85,12 @@ public interface IDnsConfig
 
     /// <summary>Run one bounded A+AAAA lookup through the current Windows resolver path.</summary>
     Task<DnsProbeResult> ProbeAsync(string host, TimeSpan timeout, CancellationToken cancellationToken);
+
+    /// <summary>Read-only per-adapter/per-endpoint resolver health matrix.</summary>
+    Task<IReadOnlyList<DnsResolverHealthResult>> CheckResolverHealthAsync(
+        string host,
+        TimeSpan perProbeTimeout,
+        CancellationToken cancellationToken);
 }
 
 internal sealed record DnsAdapterCandidate(
@@ -126,6 +132,7 @@ public sealed class DnsConfig : IDnsConfig
     private readonly IDnsRegistryStore _registry;
     private readonly Func<bool> _flushCache;
     private readonly Func<string, CancellationToken, Task<IPAddress[]>> _resolve;
+    private readonly DnsResolverHealthProbe _healthProbe;
 
     public DnsConfig()
         : this(
@@ -140,12 +147,17 @@ public sealed class DnsConfig : IDnsConfig
         IDnsAdapterSource adapters,
         IDnsRegistryStore registry,
         Func<bool>? flushCache = null,
-        Func<string, CancellationToken, Task<IPAddress[]>>? resolve = null)
+        Func<string, CancellationToken, Task<IPAddress[]>>? resolve = null,
+        IDnsResolverHealthTargetSource? healthTargets = null,
+        IDnsResolverHealthTransport? healthTransport = null)
     {
         _adapters = adapters;
         _registry = registry;
         _flushCache = flushCache ?? (() => true);
         _resolve = resolve ?? ((host, cancellationToken) => Dns.GetHostAddressesAsync(host, cancellationToken));
+        _healthProbe = new DnsResolverHealthProbe(
+            healthTargets ?? new WindowsDnsResolverHealthTargetSource(),
+            healthTransport ?? new SystemDnsResolverHealthTransport());
     }
 
     [DllImport("dnsapi.dll", SetLastError = false)]
@@ -360,6 +372,12 @@ public sealed class DnsConfig : IDnsConfig
             return new DnsProbeResult(false, timer.Elapsed, 0, 0, ex.GetType().Name);
         }
     }
+
+    public Task<IReadOnlyList<DnsResolverHealthResult>> CheckResolverHealthAsync(
+        string host,
+        TimeSpan perProbeTimeout,
+        CancellationToken cancellationToken)
+        => _healthProbe.CheckAsync(ListResolverAdapters(), host, perProbeTimeout, cancellationToken);
 
     private IReadOnlyList<DnsAdapterCandidate> EligibleAdapters()
         => _adapters.GetAdapters()

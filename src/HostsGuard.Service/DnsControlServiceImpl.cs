@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
+using HostsGuard.Windows;
 
 namespace HostsGuard.Service;
 
@@ -156,6 +157,53 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         return Task.FromResult(result);
     }
 
+    public override Task<ResolverHealthReport> GetResolverHealth(Empty request, ServerCallContext context) =>
+        Task.FromResult(ToResolverHealthReport(_state.ResolverHealth.Snapshot()));
+
+    public override async Task<ResolverHealthReport> RunResolverHealth(
+        ResolverHealthRequest request,
+        ServerCallContext context)
+    {
+        var host = string.IsNullOrWhiteSpace(request.Host)
+            ? ResolverHealthCoordinator.DefaultProbeHost
+            : request.Host.Trim().TrimEnd('.');
+        if (!Domains.LooksLikeDomain(host))
+        {
+            return ToResolverHealthReport(_state.ResolverHealth.Snapshot(),
+                "hostsguard.error.v1/invalid_probe_host", "Resolver health probe host must be a valid domain");
+        }
+
+        var snapshot = await _state.ResolverHealth.RunManualAsync(host, context.CancellationToken);
+        return ToResolverHealthReport(snapshot);
+    }
+
+    public override Task<ResolverHealthReport> SetResolverHealthSchedule(
+        ResolverHealthScheduleRequest request,
+        ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } locked)
+        {
+            return Task.FromResult(ToResolverHealthReport(_state.ResolverHealth.Snapshot(),
+                locked.ErrorCode, locked.Message));
+        }
+
+        try
+        {
+            var interval = request.Enabled
+                ? request.IntervalMinutes
+                : _state.ResolverHealth.Snapshot().ScheduleIntervalMinutes;
+            var snapshot = _state.ResolverHealth.ConfigureSchedule(request.Enabled, interval);
+            _state.Db.LogEvent("dns", request.Enabled ? "resolver_health_schedule_enabled" : "resolver_health_schedule_disabled",
+                details: request.Enabled ? $"interval={interval}m; report-only" : "report-only");
+            return Task.FromResult(ToResolverHealthReport(snapshot));
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Task.FromResult(ToResolverHealthReport(_state.ResolverHealth.Snapshot(),
+                "hostsguard.error.v1/invalid_schedule_interval", ex.Message));
+        }
+    }
+
     public override async Task<Ack> SetResolver(ResolverRequest request, ServerCallContext context)
     {
         if (_state.Dns is not { } dns)
@@ -240,6 +288,74 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
                      $"probe={probeHost} {probe.RoundTrip.TotalMilliseconds:F0}ms A={probe.Ipv4Count} AAAA={probe.Ipv6Count}");
         return Ok($"DNS updated on {names}; {probeHost} A+AAAA probe passed in {probe.RoundTrip.TotalMilliseconds:F0} ms");
     }
+
+    private static ResolverHealthReport ToResolverHealthReport(
+        ResolverHealthSnapshot snapshot,
+        string errorCode = "",
+        string? message = null)
+    {
+        var report = new ResolverHealthReport
+        {
+            CheckedAt = snapshot.CheckedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            Host = snapshot.Host,
+            Source = snapshot.Source,
+            Running = snapshot.Running,
+            ScheduleEnabled = snapshot.ScheduleEnabled,
+            ScheduleIntervalMinutes = snapshot.ScheduleIntervalMinutes,
+            NextScheduledAt = snapshot.NextScheduledAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            Message = message ?? snapshot.Message,
+            ErrorCode = errorCode,
+        };
+
+        foreach (var row in snapshot.Entries)
+        {
+            var aStatus = ProbeStatusToken(row.Ipv4.Status);
+            var aaaaStatus = ProbeStatusToken(row.Ipv6.Status);
+            var tlsStatus = TlsStatusToken(row.TlsStatus);
+            var success = (row.Ipv4.Status == DnsResolverProbeStatus.Available
+                           || row.Ipv6.Status == DnsResolverProbeStatus.Available)
+                && row.Ipv4.Status != DnsResolverProbeStatus.Failed
+                && row.Ipv6.Status != DnsResolverProbeStatus.Failed
+                && row.TlsStatus is DnsResolverTlsStatus.NotApplicable or DnsResolverTlsStatus.Valid;
+            report.Entries.Add(new ResolverHealthEntry
+            {
+                AdapterId = row.AdapterId,
+                AdapterName = row.AdapterName,
+                Endpoint = row.ResolverEndpoint,
+                Protocol = row.Protocol == DnsResolverProtocol.Doh ? "doh" : "udp",
+                AStatus = aStatus,
+                ACount = row.Ipv4.Count,
+                ADetail = row.Ipv4.Detail,
+                AaaaStatus = aaaaStatus,
+                AaaaCount = row.Ipv6.Count,
+                AaaaDetail = row.Ipv6.Detail,
+                RttAvailable = row.RoundTrip.HasValue,
+                RttMs = row.RoundTrip.HasValue
+                    ? (int)Math.Clamp(Math.Round(row.RoundTrip.Value.TotalMilliseconds), 0, int.MaxValue)
+                    : 0,
+                TlsStatus = tlsStatus,
+                Error = row.Error,
+                Success = success,
+            });
+        }
+
+        return report;
+    }
+
+    private static string ProbeStatusToken(DnsResolverProbeStatus status) => status switch
+    {
+        DnsResolverProbeStatus.Available => "available",
+        DnsResolverProbeStatus.Unavailable => "unavailable",
+        _ => "failed",
+    };
+
+    private static string TlsStatusToken(DnsResolverTlsStatus status) => status switch
+    {
+        DnsResolverTlsStatus.NotApplicable => "not_applicable",
+        DnsResolverTlsStatus.Valid => "valid",
+        DnsResolverTlsStatus.CertificateFailure => "certificate_failure",
+        _ => "unavailable",
+    };
 
     public override async Task<DnsInspectResult> Inspect(DomainRequest request, ServerCallContext context)
     {

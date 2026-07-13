@@ -22,6 +22,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     public override Task<ServiceStatus> GetStatus(Empty request, ServerCallContext context)
     {
         var stats = _state.Db.GetStats();
+        var resolverHealth = _state.ResolverHealth.Snapshot();
         var status = new ServiceStatus
         {
             Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0",
@@ -48,6 +49,13 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             FilteringMode = _state.Consent.Mode,
             RuntimeVersion = Environment.Version.ToString(),
             SqliteVersion = _state.Db.SqliteEngineVersion(),
+            ResolverHealthCheckedAt = resolverHealth.CheckedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            ResolverHealthSuccessful = resolverHealth.Entries.Count(IsSuccessfulResolverHealth),
+            ResolverHealthFailed = resolverHealth.Entries.Count(IsFailedResolverHealth),
+            ResolverHealthUnavailable = resolverHealth.Entries.Count(row =>
+                !IsSuccessfulResolverHealth(row) && !IsFailedResolverHealth(row)),
+            ResolverHealthScheduleEnabled = resolverHealth.ScheduleEnabled,
+            ResolverHealthNextScheduledAt = resolverHealth.NextScheduledAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
         };
         return Task.FromResult(status);
     }
@@ -237,6 +245,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     private string BuildDiagnostics()
     {
         var recent = _state.Db.GetLog(2000);
+        var resolverHealth = _state.ResolverHealth.Snapshot();
         var byCategory = recent.GroupBy(l => EventTaxonomy.Category(l.Action))
             .ToDictionary(g => g.Key, g => g.Count());
         var byAction = recent.GroupBy(l => l.Action)
@@ -279,6 +288,30 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             events_by_category = byCategory,
             events_by_action_top = byAction,
             alert_types = alertTypes,
+            resolver_health = new
+            {
+                checked_at = resolverHealth.CheckedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                host = Redaction.RedactText(resolverHealth.Host),
+                source = resolverHealth.Source,
+                running = resolverHealth.Running,
+                schedule_enabled = resolverHealth.ScheduleEnabled,
+                schedule_interval_minutes = resolverHealth.ScheduleIntervalMinutes,
+                next_scheduled_at = resolverHealth.NextScheduledAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                message = resolverHealth.Message,
+                entries = resolverHealth.Entries.Select(row => new
+                {
+                    adapter = Redaction.RedactText(row.AdapterName),
+                    endpoint = Redaction.RedactText(row.ResolverEndpoint),
+                    protocol = row.Protocol.ToString().ToLowerInvariant(),
+                    a_status = row.Ipv4.Status.ToString().ToLowerInvariant(),
+                    a_count = row.Ipv4.Count,
+                    aaaa_status = row.Ipv6.Status.ToString().ToLowerInvariant(),
+                    aaaa_count = row.Ipv6.Count,
+                    rtt_ms = row.RoundTrip.HasValue ? Math.Round(row.RoundTrip.Value.TotalMilliseconds) : (double?)null,
+                    tls_status = ResolverTlsStatusToken(row.TlsStatus),
+                    error = Redaction.RedactText(row.Error),
+                }),
+            },
 
             // NET-169 runtime health: monitor liveness, silent-drop counters, and
             // schema drift — the signals a support engineer cannot otherwise see.
@@ -303,6 +336,26 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             },
         }, new JsonSerializerOptions { WriteIndented = true });
     }
+
+    private static bool IsSuccessfulResolverHealth(DnsResolverHealthResult row) =>
+        (row.Ipv4.Status == DnsResolverProbeStatus.Available
+         || row.Ipv6.Status == DnsResolverProbeStatus.Available)
+        && row.Ipv4.Status != DnsResolverProbeStatus.Failed
+        && row.Ipv6.Status != DnsResolverProbeStatus.Failed
+        && row.TlsStatus is DnsResolverTlsStatus.NotApplicable or DnsResolverTlsStatus.Valid;
+
+    private static bool IsFailedResolverHealth(DnsResolverHealthResult row) =>
+        row.Ipv4.Status == DnsResolverProbeStatus.Failed
+        || row.Ipv6.Status == DnsResolverProbeStatus.Failed
+        || row.TlsStatus == DnsResolverTlsStatus.CertificateFailure;
+
+    private static string ResolverTlsStatusToken(DnsResolverTlsStatus status) => status switch
+    {
+        DnsResolverTlsStatus.NotApplicable => "not_applicable",
+        DnsResolverTlsStatus.Valid => "valid",
+        DnsResolverTlsStatus.CertificateFailure => "certificate_failure",
+        _ => "unavailable",
+    };
 
     private static void AddEntry(ZipArchive zip, string name, string content)
     {

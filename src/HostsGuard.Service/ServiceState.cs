@@ -40,6 +40,7 @@ public sealed class ServiceState : IDisposable
         Firewall = firewall;
         Identity = identity;
         Dns = dns;
+        ResolverHealth = new ResolverHealthCoordinator(dns, db);
         ServiceBindingQuery = serviceBindingQuery;
         DataDir = dataDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
@@ -119,6 +120,9 @@ public sealed class ServiceState : IDisposable
     public FirewallIdentity? Identity { get; }
 
     public IDnsConfig? Dns { get; }
+
+    /// <summary>Cached manual/opt-in scheduled, report-only resolver health matrix.</summary>
+    internal ResolverHealthCoordinator ResolverHealth { get; }
 
     /// <summary>Cancellable direct HTTPS/SVCB query seam; null when the Windows API is unavailable.</summary>
     public IDnsServiceBindingQuery? ServiceBindingQuery { get; }
@@ -649,6 +653,7 @@ public sealed class ServiceState : IDisposable
         TempAllows.Dispose();
         TempBlocks.Dispose();
         ActivityPersistence.Dispose();
+        ResolverHealth.Dispose();
         Ai.Dispose();
         Db.Dispose();
     }

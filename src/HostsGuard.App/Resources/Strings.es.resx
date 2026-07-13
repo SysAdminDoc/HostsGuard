@@ -458,4 +458,49 @@
   <data name="Dga_RunValue" xml:space="preserve"><value>{0} (umbral {1})</value></data>
   <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} caracteres; {2})</value></data>
   <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorítmico={1}</value></data>
+  <data name="ResolverHealth_Title" xml:space="preserve"><value>Estado de los resolutores</value></data>
+  <data name="ResolverHealth_Help" xml:space="preserve"><value>Alcance A y AAAA, latencia y estado del transporte cifrado por adaptador y extremo, en modo de solo lectura. Las comprobaciones nunca cambian la configuración DNS del sistema.</value></data>
+  <data name="ResolverHealth_Run" xml:space="preserve"><value>Comprobar ahora</value></data>
+  <data name="ResolverHealth_RunName" xml:space="preserve"><value>Ejecutar ahora la comprobación de resolutores</value></data>
+  <data name="ResolverHealth_RunTip" xml:space="preserve"><value>Ejecuta pruebas limitadas sin cambiar la configuración de los adaptadores</value></data>
+  <data name="ResolverHealth_Load" xml:space="preserve"><value>Cargar último</value></data>
+  <data name="ResolverHealth_LoadName" xml:space="preserve"><value>Cargar el último informe programado</value></data>
+  <data name="ResolverHealth_LoadTip" xml:space="preserve"><value>Carga la comprobación programada más reciente</value></data>
+  <data name="ResolverHealth_HostHint" xml:space="preserve"><value>Host de prueba (predeterminado: example.com)</value></data>
+  <data name="ResolverHealth_HostName" xml:space="preserve"><value>Host para comprobar los resolutores</value></data>
+  <data name="ResolverHealth_HostTip" xml:space="preserve"><value>Host consultado para registros A y AAAA</value></data>
+  <data name="ResolverHealth_TableName" xml:space="preserve"><value>Resultados de estado de los resolutores DNS</value></data>
+  <data name="ResolverHealth_Adapter" xml:space="preserve"><value>Adaptador</value></data>
+  <data name="ResolverHealth_Endpoint" xml:space="preserve"><value>Extremo</value></data>
+  <data name="ResolverHealth_Protocol" xml:space="preserve"><value>Protocolo</value></data>
+  <data name="ResolverHealth_A" xml:space="preserve"><value>A</value></data>
+  <data name="ResolverHealth_Aaaa" xml:space="preserve"><value>AAAA</value></data>
+  <data name="ResolverHealth_Rtt" xml:space="preserve"><value>RTT</value></data>
+  <data name="ResolverHealth_Tls" xml:space="preserve"><value>TLS</value></data>
+  <data name="ResolverHealth_Certificate" xml:space="preserve"><value>Certificado</value></data>
+  <data name="ResolverHealth_Result" xml:space="preserve"><value>Resultado</value></data>
+  <data name="ResolverHealth_Unavailable" xml:space="preserve"><value>No disponible</value></data>
+  <data name="ResolverHealth_RttMs" xml:space="preserve"><value>{0} ms</value></data>
+  <data name="ResolverHealth_ResultOk" xml:space="preserve"><value>Correcto</value></data>
+  <data name="ResolverHealth_NoReport" xml:space="preserve"><value>Aún no hay informe. Las comprobaciones programadas aparecerán aquí cuando estén disponibles.</value></data>
+  <data name="ResolverHealth_Status" xml:space="preserve"><value>{0} extremo(s); comprobado {1}; programado={2}; siguiente={3}. {4}</value></data>
+  <data name="ResolverHealth_Running" xml:space="preserve"><value>La comprobación de los resolutores está en curso.</value></data>
+  <data name="ResolverHealth_ScheduleEnabled" xml:space="preserve"><value>Comprobaciones programadas</value></data>
+  <data name="ResolverHealth_ScheduleEnabledName" xml:space="preserve"><value>Activar comprobaciones programadas</value></data>
+  <data name="ResolverHealth_ScheduleIntervalName" xml:space="preserve"><value>Intervalo programado en minutos</value></data>
+  <data name="ResolverHealth_ScheduleIntervalTip" xml:space="preserve"><value>Intervalo de 15 a 1440 minutos</value></data>
+  <data name="ResolverHealth_Minutes" xml:space="preserve"><value>min</value></data>
+  <data name="ResolverHealth_ApplySchedule" xml:space="preserve"><value>Aplicar programa</value></data>
+  <data name="ResolverHealth_ApplyScheduleName" xml:space="preserve"><value>Aplicar el programa de comprobación</value></data>
+  <data name="ResolverHealth_ApplyScheduleTip" xml:space="preserve"><value>Guarda el programa; las pruebas siguen siendo de solo lectura</value></data>
+  <data name="ResolverHealth_ActionLoad" xml:space="preserve"><value>Cargar estado de los resolutores</value></data>
+  <data name="ResolverHealth_ActionRun" xml:space="preserve"><value>Comprobar los resolutores</value></data>
+  <data name="ResolverHealth_ActionSchedule" xml:space="preserve"><value>Guardar programa de comprobación</value></data>
+  <data name="ResolverHealth_AddressAvailable" xml:space="preserve"><value>Disponible ({0})</value></data>
+  <data name="ResolverHealth_Failed" xml:space="preserve"><value>Error</value></data>
+  <data name="ResolverHealth_TlsValid" xml:space="preserve"><value>Válido</value></data>
+  <data name="ResolverHealth_TlsCertificateFailure" xml:space="preserve"><value>Error de certificado</value></data>
+  <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>No aplicable</value></data>
+  <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Válido</value></data>
+  <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Error</value></data>
 </root>

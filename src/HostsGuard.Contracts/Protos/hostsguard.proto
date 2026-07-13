@@ -169,6 +169,12 @@ message ServiceStatus {
   // deployed patch level without guessing from the app version.
   string runtime_version = 23;
   string sqlite_version = 24;
+  string resolver_health_checked_at = 25;
+  int32 resolver_health_successful = 26;
+  int32 resolver_health_failed = 27;
+  bool resolver_health_schedule_enabled = 28;
+  string resolver_health_next_scheduled_at = 29;
+  int32 resolver_health_unavailable = 30;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────
@@ -1108,6 +1114,11 @@ service DnsControl {
   // Enumerate the exact adapters and current DHCP/static resolver state before
   // a transactional resolver change.
   rpc ListResolverAdapters(Empty) returns (ResolverAdapterList);
+  // Report-only resolver matrix. Scheduled checks are opt-in and never change
+  // adapter or resolver configuration.
+  rpc GetResolverHealth(Empty) returns (ResolverHealthReport);
+  rpc RunResolverHealth(ResolverHealthRequest) returns (ResolverHealthReport);
+  rpc SetResolverHealthSchedule(ResolverHealthScheduleRequest) returns (ResolverHealthReport);
   rpc SetResolver(ResolverRequest) returns (Ack);
   // TLS SNI capture (NET-109): recover hostnames for HTTPS connections resolved
   // over DoH by reading the ClientHello SNI (driver-free raw socket). Opt-in;
@@ -1206,6 +1217,46 @@ message ResolverAdapterInfo {
 
 message ResolverAdapterList {
   repeated ResolverAdapterInfo adapters = 1;
+}
+
+message ResolverHealthRequest {
+  string host = 1; // optional; defaults to example.com
+}
+
+message ResolverHealthScheduleRequest {
+  bool enabled = 1;
+  int32 interval_minutes = 2; // 15..1440 when enabled
+}
+
+message ResolverHealthEntry {
+  string adapter_id = 1;
+  string adapter_name = 2;
+  string endpoint = 3;
+  string protocol = 4; // udp or doh
+  string a_status = 5; // available, unavailable, or failed
+  int32 a_count = 6;
+  string a_detail = 7;
+  string aaaa_status = 8;
+  int32 aaaa_count = 9;
+  string aaaa_detail = 10;
+  bool rtt_available = 11;
+  int32 rtt_ms = 12;
+  string tls_status = 13; // not_applicable, valid, certificate_failure, unavailable
+  string error = 14;
+  bool success = 15;
+}
+
+message ResolverHealthReport {
+  repeated ResolverHealthEntry entries = 1;
+  string checked_at = 2;
+  string host = 3;
+  string source = 4; // manual or scheduled
+  bool running = 5;
+  bool schedule_enabled = 6;
+  int32 schedule_interval_minutes = 7;
+  string next_scheduled_at = 8;
+  string message = 9;
+  string error_code = 10;
 }
 
 message DnsRecord {
