@@ -461,6 +461,7 @@ public sealed partial class ToolsViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SwitchProfileCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteProfileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveNetworkProfileRuleCommand))]
     private string? _selectedProfile;
 
     [ObservableProperty]

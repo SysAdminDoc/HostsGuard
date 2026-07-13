@@ -446,6 +446,38 @@ public sealed class PolicyPortabilityTests : IDisposable
     }
 
     [Fact]
+    public void Multi_signal_network_profile_round_trips_without_a_schema_migration()
+    {
+        var (src, _) = NewMachine();
+        src.Db.AddDomain("work.example", "blocked");
+        src.Db.SaveProfile("Work");
+        var rule = new NetworkProfileMatchRule(
+            "Work",
+            "Corporate Wi-Fi",
+            GatewayMac: "AA:BB:CC:DD:EE:FF",
+            Ssid: "Office",
+            InterfaceName: "Wi-Fi",
+            DnsSuffix: "corp.example",
+            VpnPresent: true);
+        src.Db.SetNetworkProfile(NetworkProfileSelectorCodec.Encode(rule), rule.Profile, rule.Label);
+
+        var exported = PortablePolicy.FromJson(PolicyPortability.Export(src).ToJson());
+        exported.NetworkProfiles.Should().ContainSingle(n =>
+            n.Profile == "Work"
+            && n.GatewayMac == "AA:BB:CC:DD:EE:FF"
+            && n.Ssid == "Office"
+            && n.InterfaceName == "Wi-Fi"
+            && n.DnsSuffix == "corp.example"
+            && n.VpnPresent == true);
+
+        var (dst, _) = NewMachine();
+        PolicyPortability.Import(dst, exported);
+        var stored = dst.Db.GetNetworkProfiles().Should().ContainSingle().Which;
+        NetworkProfileSelectorCodec.Decode(stored.Fingerprint, stored.Profile, stored.Label)
+            .Should().Be(rule);
+    }
+
+    [Fact]
     public void Malformed_policy_json_throws_a_readable_error()
     {
         var act = () => PortablePolicy.FromJson("{ not valid json");

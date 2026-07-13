@@ -35,6 +35,7 @@ public class SchemaLockTests
           WatchDecisions(Empty) returns (stream ConnectionDecisionRequest)
         service Diagnostics
           AcceptProxyBaseline(Empty) returns (Ack)
+          CheckCaptivePortal(Empty) returns (CaptivePortalStatus)
           ExportSupportBundle(SupportBundleRequest) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)
           GetStatus(Empty) returns (ServiceStatus)

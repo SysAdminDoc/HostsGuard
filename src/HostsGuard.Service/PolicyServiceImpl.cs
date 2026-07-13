@@ -286,6 +286,11 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             Fingerprint = net?.Fingerprint ?? string.Empty,
             Label = net?.Label ?? string.Empty,
             Online = net is not null,
+            GatewayMac = net?.GatewayMac ?? string.Empty,
+            Ssid = net?.Ssid ?? string.Empty,
+            InterfaceName = net?.InterfaceName ?? string.Empty,
+            DnsSuffix = net?.DnsSuffix ?? string.Empty,
+            VpnPresent = net?.VpnPresent ?? false,
         });
     }
 
@@ -294,7 +299,32 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         var map = new NetworkProfileMap();
         foreach (var (fingerprint, profile, label) in _state.Db.GetNetworkProfiles())
         {
-            map.Entries.Add(new NetworkProfileEntry { Fingerprint = fingerprint, Profile = profile, Label = label });
+            NetworkProfileMatchRule rule;
+            try
+            {
+                rule = NetworkProfileSelectorCodec.Decode(fingerprint, profile, label);
+            }
+            catch (FormatException)
+            {
+                continue;
+            }
+
+            var entry = new NetworkProfileEntry
+            {
+                Fingerprint = rule.Fingerprint,
+                Profile = rule.Profile,
+                Label = rule.Label,
+                GatewayMac = rule.GatewayMac,
+                Ssid = rule.Ssid,
+                InterfaceName = rule.InterfaceName,
+                DnsSuffix = rule.DnsSuffix,
+            };
+            if (rule.VpnPresent.HasValue)
+            {
+                entry.VpnPresent = rule.VpnPresent.Value;
+            }
+
+            map.Entries.Add(entry);
         }
 
         return Task.FromResult(map);
@@ -302,22 +332,31 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SetNetworkProfile(NetworkProfileEntry request, ServerCallContext context)
     {
-        var fingerprint = (request.Fingerprint ?? string.Empty).Trim();
-        if (fingerprint.Length == 0)
+        var profile = (request.Profile ?? string.Empty).Trim();
+        var label = (request.Label ?? string.Empty).Trim();
+        var rule = new NetworkProfileMatchRule(
+            profile,
+            label,
+            (request.Fingerprint ?? string.Empty).Trim(),
+            (request.GatewayMac ?? string.Empty).Trim(),
+            (request.Ssid ?? string.Empty).Trim(),
+            (request.InterfaceName ?? string.Empty).Trim(),
+            (request.DnsSuffix ?? string.Empty).Trim(),
+            request.HasVpnPresent ? request.VpnPresent : null);
+        if (rule.PredicateCount == 0)
         {
-            return Task.FromResult(Error("invalid_network", "a network fingerprint is required"));
+            return Task.FromResult(Error("invalid_network", "at least one network match criterion is required"));
         }
 
-        var profile = (request.Profile ?? string.Empty).Trim();
         if (profile.Length != 0 && !_state.Db.ListProfiles().Contains(profile))
         {
             return Task.FromResult(Error("unknown_profile", $"profile '{profile}' does not exist"));
         }
 
-        _state.Db.SetNetworkProfile(fingerprint, profile, (request.Label ?? string.Empty).Trim());
+        _state.Db.SetNetworkProfile(NetworkProfileSelectorCodec.Encode(rule), profile, label);
         return Task.FromResult(Ok(profile.Length == 0
             ? "network→profile mapping removed"
-            : $"'{request.Label}' will auto-activate profile '{profile}'"));
+            : $"'{label}' will auto-activate profile '{profile}'"));
     }
 
     // ─── Portable policy export/import (NET-089) ─────────────────────────────

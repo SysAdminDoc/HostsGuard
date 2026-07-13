@@ -3,8 +3,19 @@ using System.Runtime.Versioning;
 
 namespace HostsGuard.Windows;
 
-/// <summary>The currently-joined network's fingerprint and a human label.</summary>
-public sealed record NetworkFingerprint(string Fingerprint, string Label);
+/// <summary>The currently-joined network's legacy fingerprint and match signals.</summary>
+public sealed record NetworkFingerprint(string Fingerprint, string Label)
+{
+    public string GatewayMac { get; init; } = string.Empty;
+
+    public string Ssid { get; init; } = string.Empty;
+
+    public string InterfaceName { get; init; } = string.Empty;
+
+    public string DnsSuffix { get; init; } = string.Empty;
+
+    public bool VpnPresent { get; init; }
+}
 
 /// <summary>Current-network identity source, fakeable for tests.</summary>
 public interface INetworkIdentity
@@ -36,10 +47,13 @@ public sealed class NetworkIdentity : INetworkIdentity
 
     private static NetworkFingerprint? Resolve()
     {
-        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces()
+        var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+        var vpnPresent = interfaces.Any(IsActiveVpn);
+        foreach (var nic in interfaces
                      .Where(n => n.OperationalStatus == OperationalStatus.Up
                                  && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
-                                 && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel))
+                                 && n.NetworkInterfaceType != NetworkInterfaceType.Tunnel)
+                     .OrderBy(n => n.Id, StringComparer.Ordinal))
         {
             var props = nic.GetIPProperties();
             var gateway = props.GatewayAddresses.FirstOrDefault(g =>
@@ -58,9 +72,36 @@ public sealed class NetworkIdentity : INetworkIdentity
                 continue;
             }
 
-            return new NetworkFingerprint(fingerprint, nic.Name);
+            return new NetworkFingerprint(fingerprint, nic.Name)
+            {
+                GatewayMac = gatewayMac ?? string.Empty,
+                Ssid = WlanSsid.ForInterface(nic.Id) ?? string.Empty,
+                InterfaceName = nic.Name,
+                DnsSuffix = props.DnsSuffix ?? string.Empty,
+                VpnPresent = vpnPresent,
+            };
         }
 
         return null;
+    }
+
+    internal static bool IsActiveVpn(NetworkInterface nic)
+    {
+        if (nic.OperationalStatus != OperationalStatus.Up)
+        {
+            return false;
+        }
+
+        if (nic.NetworkInterfaceType is NetworkInterfaceType.Tunnel or NetworkInterfaceType.Ppp)
+        {
+            return true;
+        }
+
+        var identity = $"{nic.Name} {nic.Description}";
+        return identity.Contains("VPN", StringComparison.OrdinalIgnoreCase)
+            || identity.Contains("WIREGUARD", StringComparison.OrdinalIgnoreCase)
+            || identity.Contains("OPENVPN", StringComparison.OrdinalIgnoreCase)
+            || identity.Contains("TAP-WINDOWS", StringComparison.OrdinalIgnoreCase)
+            || identity.Contains("TUNNEL", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -23,6 +23,9 @@ message Ack {
 
 service Diagnostics {
   rpc GetStatus(Empty) returns (ServiceStatus);
+  // Explicit, read-only Windows NCSI probe. Detection never weakens policy;
+  // callers may separately invoke the existing timed PauseEnforcement RPC.
+  rpc CheckCaptivePortal(Empty) returns (CaptivePortalStatus);
   // Writes a redacted support bundle zip under the service data dir; the
   // resulting path is returned in Ack.message. Never contains tokens/secrets.
   rpc ExportSupportBundle(SupportBundleRequest) returns (Ack);
@@ -37,6 +40,19 @@ service Diagnostics {
   rpc InspectProxyBaseline(Empty) returns (ProxyBaselineReport);
   // Accepts the current observed state without changing any Windows setting.
   rpc AcceptProxyBaseline(Empty) returns (Ack);
+}
+
+message CaptivePortalStatus {
+  string state = 1;          // "clear" | "suspected" | "offline" | "unavailable"
+  string probe_url = 2;      // fixed Windows NCSI endpoint; never user-controlled
+  int32 http_status = 3;
+  bool redirected = 4;      // redirects are observed but never followed
+  string observed_host = 5; // redirect host only; path/query are never exposed
+  string detail = 6;
+  bool pause_available = 7;
+  repeated int32 allowed_pause_minutes = 8;
+  google.protobuf.Timestamp checked_at = 9;
+  bool enforcement_changed = 10; // always false for this read-only RPC
 }
 
 message ProxyBaselineEntry {
@@ -1945,12 +1961,22 @@ message CurrentNetwork {
   string fingerprint = 1;
   string label = 2;      // the interface/network name
   bool online = 3;
+  string gateway_mac = 4;
+  string ssid = 5;
+  string interface_name = 6;
+  string dns_suffix = 7;
+  bool vpn_present = 8;
 }
 
 message NetworkProfileEntry {
   string fingerprint = 1;
   string profile = 2;    // "" removes the mapping
   string label = 3;
+  string gateway_mac = 4;
+  string ssid = 5;
+  string interface_name = 6;
+  string dns_suffix = 7;
+  optional bool vpn_present = 8;
 }
 
 message NetworkProfileMap {

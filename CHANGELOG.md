@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.93] - 2026-07-12
+
+### Added
+- Automatic profile rules can now match gateway MAC, Wi-Fi SSID, interface,
+  DNS suffix, VPN presence/absence, and legacy fingerprints. Populated criteria
+  are conjunctive; precedence is deterministic by specificity, then gateway,
+  SSID, DNS suffix, interface, VPN, and stable profile/label order.
+- Tools and `profile-match` show the current identity and manage additive rules.
+  Native WLAN SSID discovery, full-signal debounce, stale/malformed-rule
+  fallback, and portable-policy export/import preserve legacy mappings without
+  a database migration.
+- A bounded read-only Windows NCSI captive-portal check exposes redirect/status
+  evidence through Tools and `captive-portal`. Detection never changes policy;
+  only an explicit suspected-portal action enables the existing 5/15/60-minute
+  pause with automatic enforcement resume.
+
 ## [0.12.92] - 2026-07-12
 
 ### Added

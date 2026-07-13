@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using FluentAssertions;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
 using Microsoft.Data.Sqlite;
@@ -112,5 +113,60 @@ public sealed class NetworkProfileWatcherTests : IDisposable
         _watcher.Evaluate(); // same fingerprint — no repeat
 
         _applied.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Evaluate_uses_multi_signal_matcher_precedence()
+    {
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Home", "SSID", Ssid: "Office")),
+            "Home",
+            "SSID");
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Public", "Exact", Ssid: "Office", DnsSuffix: "guest.example")),
+            "Public",
+            "Exact");
+        _identity.Value = new NetworkFingerprint("gateway", "Wi-Fi")
+        {
+            Ssid = "Office",
+            InterfaceName = "Wi-Fi",
+            DnsSuffix = "guest.example",
+        };
+
+        _watcher.Evaluate();
+
+        _applied.Should().ContainSingle().Which.Should().Be("Public");
+    }
+
+    [Fact]
+    public void Evaluate_rechecks_when_vpn_changes_without_fingerprint_change()
+    {
+        _db.SetNetworkProfile("same-gateway", "Home", "Home");
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Public", "VPN", Fingerprint: "same-gateway", VpnPresent: true)),
+            "Public",
+            "VPN");
+        _identity.Value = new NetworkFingerprint("same-gateway", "Wi-Fi") { VpnPresent = false };
+
+        _watcher.Evaluate();
+        _identity.Value = _identity.Value with { VpnPresent = true };
+        _watcher.Evaluate();
+
+        _applied.Should().Equal("Home", "Public");
+    }
+
+    [Fact]
+    public void Evaluate_ignores_stale_rules_instead_of_masking_a_valid_fallback()
+    {
+        _db.SetNetworkProfile("same-gateway", "Home", "Home");
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Deleted", "Stale", Fingerprint: "same-gateway", VpnPresent: true)),
+            "Deleted",
+            "Stale");
+        _identity.Value = new NetworkFingerprint("same-gateway", "Wi-Fi") { VpnPresent = true };
+
+        _watcher.Evaluate();
+
+        _applied.Should().ContainSingle().Which.Should().Be("Home");
     }
 }

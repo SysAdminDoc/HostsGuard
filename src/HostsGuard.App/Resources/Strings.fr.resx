@@ -502,4 +502,46 @@
   <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>Non applicable</value></data>
   <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Valide</value></data>
   <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Échec</value></data>
+  <data name="ProfileMatch_Title" xml:space="preserve"><value>Correspondance automatique des profils</value></data>
+  <data name="ProfileMatch_Help" xml:space="preserve"><value>Associez les profils enregistres par SSID, interface, suffixe DNS, MAC de passerelle et presence d'un VPN. Les regles les plus precises gagnent de maniere deterministe.</value></data>
+  <data name="ProfileMatch_Current" xml:space="preserve"><value>Reseau actuel : {0}</value></data>
+  <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>Le reseau actuel est hors ligne ou indisponible</value></data>
+  <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Utiliser le reseau actuel</value></data>
+  <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Remplir les criteres depuis le reseau actuel</value></data>
+  <data name="ProfileMatch_Label" xml:space="preserve"><value>Libelle de regle</value></data>
+  <data name="ProfileMatch_Profile" xml:space="preserve"><value>Profil</value></data>
+  <data name="ProfileMatch_Gateway" xml:space="preserve"><value>MAC de passerelle</value></data>
+  <data name="ProfileMatch_Ssid" xml:space="preserve"><value>SSID Wi-Fi</value></data>
+  <data name="ProfileMatch_Interface" xml:space="preserve"><value>Interface</value></data>
+  <data name="ProfileMatch_DnsSuffix" xml:space="preserve"><value>Suffixe DNS</value></data>
+  <data name="ProfileMatch_Vpn" xml:space="preserve"><value>VPN</value></data>
+  <data name="ProfileMatch_VpnAny" xml:space="preserve"><value>Tout etat VPN</value></data>
+  <data name="ProfileMatch_VpnPresent" xml:space="preserve"><value>VPN present</value></data>
+  <data name="ProfileMatch_VpnAbsent" xml:space="preserve"><value>VPN absent</value></data>
+  <data name="ProfileMatch_Save" xml:space="preserve"><value>Enregistrer la regle</value></data>
+  <data name="ProfileMatch_Delete" xml:space="preserve"><value>Supprimer la regle selectionnee</value></data>
+  <data name="ProfileMatch_TableName" xml:space="preserve"><value>Regles automatiques de profil reseau</value></data>
+  <data name="ProfileMatch_Criteria" xml:space="preserve"><value>Criteres</value></data>
+  <data name="ProfileMatch_Empty" xml:space="preserve"><value>Aucune regle automatique. Le changement manuel reste disponible.</value></data>
+  <data name="ProfileMatch_ActionLoad" xml:space="preserve"><value>Charger les regles automatiques</value></data>
+  <data name="ProfileMatch_ActionSave" xml:space="preserve"><value>Enregistrer la regle automatique</value></data>
+  <data name="ProfileMatch_ActionDelete" xml:space="preserve"><value>Supprimer la regle automatique</value></data>
+  <data name="ProfileMatch_SelectProfile" xml:space="preserve"><value>Selectionnez un profil enregistre et saisissez au moins un critere.</value></data>
+  <data name="CaptivePortal_Title" xml:space="preserve"><value>Recuperation du portail captif</value></data>
+  <data name="CaptivePortal_Help" xml:space="preserve"><value>Verifiez l'interception de connexion sans modifier la protection. Si un portail est suspecte, utilisez la pause temporisee existante ; la protection reprend automatiquement.</value></data>
+  <data name="CaptivePortal_NotChecked" xml:space="preserve"><value>Etat du portail captif non verifie</value></data>
+  <data name="CaptivePortal_Check" xml:space="preserve"><value>Verifier le portail</value></data>
+  <data name="CaptivePortal_CheckName" xml:space="preserve"><value>Verifier l'etat du portail captif</value></data>
+  <data name="CaptivePortal_ActionCheck" xml:space="preserve"><value>Verifier le portail captif</value></data>
+  <data name="CaptivePortal_ActionPause" xml:space="preserve"><value>Suspendre la protection pour la connexion</value></data>
+  <data name="CaptivePortal_Clear" xml:space="preserve"><value>Aucun portail</value></data>
+  <data name="CaptivePortal_Suspected" xml:space="preserve"><value>Portail suspecte</value></data>
+  <data name="CaptivePortal_Offline" xml:space="preserve"><value>Hors ligne</value></data>
+  <data name="CaptivePortal_Unavailable" xml:space="preserve"><value>Sonde indisponible</value></data>
+  <data name="CaptivePortal_Status" xml:space="preserve"><value>{0} : {1} (HTTP {2}, hote observe {3}). La protection n'a pas ete modifiee.</value></data>
+  <data name="CaptivePortal_StatusNoHttp" xml:space="preserve"><value>{0} : {1}. La protection n'a pas ete modifiee.</value></data>
+  <data name="CaptivePortal_Pause5" xml:space="preserve"><value>Suspendre 5 min</value></data>
+  <data name="CaptivePortal_Pause15" xml:space="preserve"><value>Suspendre 15 min</value></data>
+  <data name="CaptivePortal_Pause60" xml:space="preserve"><value>Suspendre 1 heure</value></data>
+  <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>La pause temporisee n'est proposee que si un portail captif est suspecte.</value></data>
 </root>

@@ -103,7 +103,18 @@ public static class PolicyPortability
 
         foreach (var (fingerprint, profile, label) in state.Db.GetNetworkProfiles())
         {
-            policy.NetworkProfiles.Add(new PolicyNetworkProfile { Fingerprint = fingerprint, Profile = profile, Label = label });
+            var rule = DecodeNetworkRule(fingerprint, profile, label);
+            policy.NetworkProfiles.Add(new PolicyNetworkProfile
+            {
+                Fingerprint = rule.Fingerprint,
+                Profile = rule.Profile,
+                Label = rule.Label,
+                GatewayMac = rule.GatewayMac,
+                Ssid = rule.Ssid,
+                InterfaceName = rule.InterfaceName,
+                DnsSuffix = rule.DnsSuffix,
+                VpnPresent = rule.VpnPresent,
+            });
         }
 
         foreach (var byGroup in state.Db.GetRuleGroups().GroupBy(g => g.Group, StringComparer.Ordinal))
@@ -315,7 +326,10 @@ public static class PolicyPortability
         AddSetDiff("allowlist subscriptions", currentAllow, desiredAllow, summary, ref added, ref removed);
 
         var currentNetworks = state.Db.GetNetworkProfiles().Select(n => n.Fingerprint).ToHashSet(StringComparer.Ordinal);
-        var desiredNetworks = policy.NetworkProfiles.Select(n => n.Fingerprint).Where(n => !string.IsNullOrWhiteSpace(n)).ToHashSet(StringComparer.Ordinal);
+        var desiredNetworks = policy.NetworkProfiles
+            .Select(StorageFingerprintOrEmpty)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.Ordinal);
         AddSetDiff("network profiles", currentNetworks, desiredNetworks, summary, ref added, ref removed, removeMissing: false);
 
         var currentGroups = state.Db.GetRuleGroups().Select(g => g.Group).ToHashSet(StringComparer.Ordinal);
@@ -511,9 +525,10 @@ public static class PolicyPortability
         // ── Network→profile mappings ──
         foreach (var n in policy.NetworkProfiles)
         {
-            if (!string.IsNullOrWhiteSpace(n.Fingerprint))
+            var fingerprint = StorageFingerprintOrEmpty(n);
+            if (!string.IsNullOrWhiteSpace(fingerprint))
             {
-                state.Db.SetNetworkProfile(n.Fingerprint, n.Profile ?? string.Empty, n.Label ?? string.Empty);
+                state.Db.SetNetworkProfile(fingerprint, n.Profile ?? string.Empty, n.Label ?? string.Empty);
             }
         }
 
@@ -1011,6 +1026,30 @@ public static class PolicyPortability
         if (value is not null)
         {
             state.Db.SetMeta(key, value);
+        }
+    }
+
+    private static NetworkProfileMatchRule DecodeNetworkRule(string fingerprint, string profile, string label)
+    {
+        try
+        {
+            return NetworkProfileSelectorCodec.Decode(fingerprint, profile, label);
+        }
+        catch (FormatException)
+        {
+            return new(profile, label, Fingerprint: fingerprint);
+        }
+    }
+
+    private static string StorageFingerprintOrEmpty(PolicyNetworkProfile network)
+    {
+        try
+        {
+            return network.StorageFingerprint();
+        }
+        catch (ArgumentException)
+        {
+            return string.Empty;
         }
     }
 

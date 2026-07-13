@@ -31,7 +31,8 @@ public sealed class ServiceState : IDisposable
         Func<string, CancellationToken, Task<IReadOnlyList<string>>>? domainResolver = null,
         ILanAttackSurfaceStore? lanSurfaceStore = null,
         IProxyConfigurationSnapshotSource? proxySnapshotSource = null,
-        IDnsServiceBindingQuery? serviceBindingQuery = null)
+        IDnsServiceBindingQuery? serviceBindingQuery = null,
+        ICaptivePortalProbe? captivePortalProbe = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -58,6 +59,7 @@ public sealed class ServiceState : IDisposable
         TempBlocks.Resume();
         EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
         EnforcementPause.Resume();
+        CaptivePortalProbe = captivePortalProbe ?? new WindowsNcsiCaptivePortalProbe();
         ConnectionSnapshot = connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot());
         FlowTeardown = new FlowTeardownCoordinator(
             db,
@@ -225,6 +227,8 @@ public sealed class ServiceState : IDisposable
     public TempBlockScheduler TempBlocks { get; }
 
     public EnforcementPauseCoordinator EnforcementPause { get; }
+
+    public ICaptivePortalProbe CaptivePortalProbe { get; }
 
     public FlowTeardownCoordinator FlowTeardown { get; }
 
@@ -650,6 +654,7 @@ public sealed class ServiceState : IDisposable
         Schedules.Dispose();
         DomainFirewall.Dispose();
         EnforcementPause.Dispose();
+        (CaptivePortalProbe as IDisposable)?.Dispose();
         TempAllows.Dispose();
         TempBlocks.Dispose();
         ActivityPersistence.Dispose();

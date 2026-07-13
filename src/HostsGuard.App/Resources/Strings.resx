@@ -1776,4 +1776,46 @@
   <data name="ResolverHealth_NotApplicable" xml:space="preserve"><value>Not applicable</value></data>
   <data name="ResolverHealth_CertificateValid" xml:space="preserve"><value>Valid</value></data>
   <data name="ResolverHealth_CertificateFailure" xml:space="preserve"><value>Failed</value></data>
+  <data name="ProfileMatch_Title" xml:space="preserve"><value>Automatic profile matching</value></data>
+  <data name="ProfileMatch_Help" xml:space="preserve"><value>Match saved profiles by SSID, interface, DNS suffix, gateway MAC, and VPN presence. More-specific rules win deterministically.</value></data>
+  <data name="ProfileMatch_Current" xml:space="preserve"><value>Current network: {0}</value></data>
+  <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>Current network is offline or unavailable</value></data>
+  <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Use current network</value></data>
+  <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Fill match criteria from the current network</value></data>
+  <data name="ProfileMatch_Label" xml:space="preserve"><value>Rule label</value></data>
+  <data name="ProfileMatch_Profile" xml:space="preserve"><value>Profile</value></data>
+  <data name="ProfileMatch_Gateway" xml:space="preserve"><value>Gateway MAC</value></data>
+  <data name="ProfileMatch_Ssid" xml:space="preserve"><value>Wi-Fi SSID</value></data>
+  <data name="ProfileMatch_Interface" xml:space="preserve"><value>Interface</value></data>
+  <data name="ProfileMatch_DnsSuffix" xml:space="preserve"><value>DNS suffix</value></data>
+  <data name="ProfileMatch_Vpn" xml:space="preserve"><value>VPN</value></data>
+  <data name="ProfileMatch_VpnAny" xml:space="preserve"><value>Any VPN state</value></data>
+  <data name="ProfileMatch_VpnPresent" xml:space="preserve"><value>VPN present</value></data>
+  <data name="ProfileMatch_VpnAbsent" xml:space="preserve"><value>VPN absent</value></data>
+  <data name="ProfileMatch_Save" xml:space="preserve"><value>Save match rule</value></data>
+  <data name="ProfileMatch_Delete" xml:space="preserve"><value>Delete selected rule</value></data>
+  <data name="ProfileMatch_TableName" xml:space="preserve"><value>Automatic network profile rules</value></data>
+  <data name="ProfileMatch_Criteria" xml:space="preserve"><value>Criteria</value></data>
+  <data name="ProfileMatch_Empty" xml:space="preserve"><value>No automatic profile rules. Manual profile switching remains available.</value></data>
+  <data name="ProfileMatch_ActionLoad" xml:space="preserve"><value>Load automatic profile rules</value></data>
+  <data name="ProfileMatch_ActionSave" xml:space="preserve"><value>Save automatic profile rule</value></data>
+  <data name="ProfileMatch_ActionDelete" xml:space="preserve"><value>Delete automatic profile rule</value></data>
+  <data name="ProfileMatch_SelectProfile" xml:space="preserve"><value>Select a saved profile and enter at least one match criterion.</value></data>
+  <data name="CaptivePortal_Title" xml:space="preserve"><value>Captive portal recovery</value></data>
+  <data name="CaptivePortal_Help" xml:space="preserve"><value>Check for sign-in interception without changing enforcement. If a portal is suspected, use the existing timed pause; enforcement resumes automatically.</value></data>
+  <data name="CaptivePortal_NotChecked" xml:space="preserve"><value>Captive portal status not checked</value></data>
+  <data name="CaptivePortal_Check" xml:space="preserve"><value>Check portal</value></data>
+  <data name="CaptivePortal_CheckName" xml:space="preserve"><value>Check captive portal status</value></data>
+  <data name="CaptivePortal_ActionCheck" xml:space="preserve"><value>Check captive portal</value></data>
+  <data name="CaptivePortal_ActionPause" xml:space="preserve"><value>Pause enforcement for captive portal sign-in</value></data>
+  <data name="CaptivePortal_Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="CaptivePortal_Suspected" xml:space="preserve"><value>Portal suspected</value></data>
+  <data name="CaptivePortal_Offline" xml:space="preserve"><value>Offline</value></data>
+  <data name="CaptivePortal_Unavailable" xml:space="preserve"><value>Probe unavailable</value></data>
+  <data name="CaptivePortal_Status" xml:space="preserve"><value>{0}: {1} (HTTP {2}, observed host {3}). Enforcement was not changed.</value></data>
+  <data name="CaptivePortal_StatusNoHttp" xml:space="preserve"><value>{0}: {1}. Enforcement was not changed.</value></data>
+  <data name="CaptivePortal_Pause5" xml:space="preserve"><value>Pause 5 min</value></data>
+  <data name="CaptivePortal_Pause15" xml:space="preserve"><value>Pause 15 min</value></data>
+  <data name="CaptivePortal_Pause60" xml:space="preserve"><value>Pause 1 hour</value></data>
+  <data name="CaptivePortal_PauseUnavailable" xml:space="preserve"><value>A timed pause is offered only when a captive portal is suspected.</value></data>
 </root>

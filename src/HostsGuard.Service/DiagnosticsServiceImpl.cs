@@ -60,6 +60,28 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         return Task.FromResult(status);
     }
 
+    public override async Task<CaptivePortalStatus> CheckCaptivePortal(Empty request, ServerCallContext context)
+    {
+        var result = await _state.CaptivePortalProbe.CheckAsync(context?.CancellationToken ?? CancellationToken.None);
+        var status = new CaptivePortalStatus
+        {
+            State = result.State.ToString().ToLowerInvariant(),
+            ProbeUrl = result.ProbeUri.AbsoluteUri,
+            HttpStatus = result.HttpStatus,
+            Redirected = result.Redirected,
+            ObservedHost = result.ObservedHost,
+            Detail = result.Detail,
+            PauseAvailable = result.State == CaptivePortalState.Suspected,
+            CheckedAt = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(
+                DateTime.SpecifyKind(result.CheckedAtUtc, DateTimeKind.Utc)),
+            EnforcementChanged = false,
+        };
+        status.AllowedPauseMinutes.Add(5);
+        status.AllowedPauseMinutes.Add(15);
+        status.AllowedPauseMinutes.Add(60);
+        return status;
+    }
+
     // ─── NET-187 SHA-256-verified self-update ────────────────────────────────
 
     public override async Task<UpdateStatus> GetUpdateStatus(Empty request, ServerCallContext context)

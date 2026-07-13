@@ -4114,6 +4114,87 @@
                                                 Margin="0,0,8,8"
                                                 ToolTip="{svc:Loc Key=Xaml_Enter_a_profile_name_before_saving_a706bf49}" />
                                     </WrapPanel>
+                                    <Separator Margin="0,4,0,10" />
+                                    <TextBlock Text="{svc:Loc Key=ProfileMatch_Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=ProfileMatch_Help}"
+                                               Style="{StaticResource Hg.HelperText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                                    <TextBlock Text="{Binding CurrentNetworkText}" Style="{StaticResource Hg.DimText}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                    <WrapPanel>
+                                        <TextBox Width="170" Margin="0,0,8,8" Text="{Binding NetworkRuleLabel, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_Label}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Label}" />
+                                        <ComboBox Width="150" Margin="0,0,8,8" ItemsSource="{Binding Profiles}"
+                                                  SelectedItem="{Binding SelectedProfile}"
+                                                  AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Profile}" />
+                                        <TextBox Width="150" Margin="0,0,8,8" Text="{Binding NetworkRuleSsid, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_Ssid}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Ssid}" />
+                                        <TextBox Width="170" Margin="0,0,8,8" Text="{Binding NetworkRuleInterface, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_Interface}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Interface}" />
+                                        <TextBox Width="170" Margin="0,0,8,8" Text="{Binding NetworkRuleDnsSuffix, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_DnsSuffix}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ProfileMatch_DnsSuffix}" />
+                                        <TextBox Width="160" Margin="0,0,8,8" Text="{Binding NetworkRuleGatewayMac, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_Gateway}"
+                                                 AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Gateway}" />
+                                        <ComboBox Width="240" Margin="0,0,8,8" ItemsSource="{Binding NetworkVpnOptions}"
+                                                  ItemTemplate="{StaticResource ToolsWrappedContent}"
+                                                  SelectedItem="{Binding SelectedNetworkVpnOption}"
+                                                  AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Vpn}" />
+                                    </WrapPanel>
+                                    <WrapPanel>
+                                        <Button Content="{svc:Loc Key=ProfileMatch_UseCurrent}" Command="{Binding UseCurrentNetworkCommand}"
+                                                MinWidth="180" Margin="0,0,8,8" AutomationProperties.Name="{svc:Loc Key=ProfileMatch_UseCurrentName}" />
+                                        <Button Content="{svc:Loc Key=ProfileMatch_Save}" Command="{Binding SaveNetworkProfileRuleCommand}"
+                                                Style="{StaticResource Hg.AccentButton}" MinWidth="240" Margin="0,0,8,8"
+                                                ContentTemplate="{StaticResource ToolsWrappedContent}"
+                                                AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Save}" />
+                                        <Button Content="{svc:Loc Key=ProfileMatch_Delete}" Command="{Binding DeleteNetworkProfileRuleCommand}"
+                                                Style="{StaticResource Hg.DangerButton}" MinWidth="180" Margin="0,0,8,8"
+                                                ContentTemplate="{StaticResource ToolsWrappedContent}"
+                                                AutomationProperties.Name="{svc:Loc Key=ProfileMatch_Delete}" />
+                                    </WrapPanel>
+                                    <DataGrid ItemsSource="{Binding NetworkProfileRules}" SelectedItem="{Binding SelectedNetworkProfileRule}"
+                                              AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                              HeadersVisibility="Column" MaxHeight="170" Margin="0,2,0,0"
+                                              AutomationProperties.Name="{svc:Loc Key=ProfileMatch_TableName}">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{svc:Loc Key=ProfileMatch_Label}" Binding="{Binding Label}" Width="1.1*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ProfileMatch_Profile}" Binding="{Binding Profile}" Width="1*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=ProfileMatch_Criteria}" Binding="{Binding CriteriaText}" Width="2.5*" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <Border Style="{StaticResource Hg.EmptyState}" Margin="0,8,0,0"
+                                            Visibility="{Binding NetworkProfileRules.Count, Converter={StaticResource EmptyStateVis}}">
+                                        <TextBlock Text="{svc:Loc Key=ProfileMatch_Empty}" Style="{StaticResource Hg.EmptyText}" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=CaptivePortal_Title}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <TextBlock Text="{svc:Loc Key=CaptivePortal_Help}" Style="{StaticResource Hg.HelperText}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8" />
+                                    <TextBlock Text="{Binding CaptivePortalStatusText}" Style="{StaticResource Hg.DimText}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8"
+                                               AutomationProperties.LiveSetting="Polite" />
+                                    <WrapPanel>
+                                        <Button Content="{svc:Loc Key=CaptivePortal_Check}" Command="{Binding CheckCaptivePortalCommand}"
+                                                MinWidth="150" Margin="0,0,8,8" AutomationProperties.Name="{svc:Loc Key=CaptivePortal_CheckName}" />
+                                        <Button Content="{svc:Loc Key=CaptivePortal_Pause5}" Command="{Binding PauseForCaptivePortalCommand}"
+                                                CommandParameter="5" IsEnabled="{Binding CaptivePortalPauseAvailable}" Margin="0,0,8,8"
+                                                AutomationProperties.Name="{svc:Loc Key=CaptivePortal_Pause5}" />
+                                        <Button Content="{svc:Loc Key=CaptivePortal_Pause15}" Command="{Binding PauseForCaptivePortalCommand}"
+                                                CommandParameter="15" IsEnabled="{Binding CaptivePortalPauseAvailable}" Margin="0,0,8,8"
+                                                AutomationProperties.Name="{svc:Loc Key=CaptivePortal_Pause15}" />
+                                        <Button Content="{svc:Loc Key=CaptivePortal_Pause60}" Command="{Binding PauseForCaptivePortalCommand}"
+                                                CommandParameter="60" IsEnabled="{Binding CaptivePortalPauseAvailable}" Margin="0,0,8,8"
+                                                AutomationProperties.Name="{svc:Loc Key=CaptivePortal_Pause60}" />
+                                    </WrapPanel>
                                 </StackPanel>
                             </Border>
 

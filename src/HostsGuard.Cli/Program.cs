@@ -45,6 +45,8 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "dns-cache" => await DnsCacheAsync(args),
     "dns-inspect" => await DnsInspectAsync(args),
     "resolver-health" => await ResolverHealthAsync(args),
+    "profile-match" => await ProfileMatchAsync(args),
+    "captive-portal" => await CaptivePortalAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
     "dga-check" => DgaCheck(args),
     "idn-homograph" => await IdnHomographAsync(args),
@@ -127,6 +129,12 @@ static int Usage()
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-inspect <domain> [--json]
           HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
+          HostsGuard.Cli profile-match [current|list] [--json]
+          HostsGuard.Cli profile-match set --profile name [--label text] [--gateway-mac mac]
+                               [--ssid name] [--interface name] [--dns-suffix suffix]
+                               [--vpn any|present|absent] [--fingerprint id]
+          HostsGuard.Cli profile-match delete <list-index>
+          HostsGuard.Cli captive-portal [--json] [--pause 5|15|60]
           HostsGuard.Cli dns-flush-entry <cached-name>
           HostsGuard.Cli dga-check <domain> [--json]
           HostsGuard.Cli idn-homograph [status|enable|disable]
@@ -1403,6 +1411,304 @@ static async Task<int> SupportBundleAsync(string[] args)
         return ack.Ok ? 0 : 2;
     });
 }
+
+static async Task<int> ProfileMatchAsync(string[] args)
+{
+    var action = args.Length > 1 && !args[1].StartsWith("--", StringComparison.Ordinal)
+        ? args[1].ToLowerInvariant()
+        : "list";
+    var json = args.Contains("--json", StringComparer.Ordinal);
+
+    return await RunCommandAsync(async channel =>
+    {
+        var policy = new Policy.PolicyClient(channel);
+        if (action == "current")
+        {
+            var current = await policy.GetCurrentNetworkAsync(new Empty());
+            PrintCurrentNetwork(current, json);
+            return current.Online ? 0 : 2;
+        }
+
+        if (action == "list")
+        {
+            var current = await policy.GetCurrentNetworkAsync(new Empty());
+            var map = await policy.GetNetworkProfilesAsync(new Empty());
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new
+                {
+                    current = CurrentNetworkExport(current),
+                    precedence = "most predicates; gateway/fingerprint, SSID, DNS suffix, interface, VPN; profile/label ordinal",
+                    rules = map.Entries.Select((entry, index) => NetworkProfileExport(entry, index)),
+                }, new JsonSerializerOptions { WriteIndented = true }));
+                return 0;
+            }
+
+            PrintCurrentNetwork(current, false);
+            Console.WriteLine("precedence: most predicates, then gateway/fingerprint > SSID > DNS suffix > interface > VPN");
+            Console.WriteLine("index\tprofile\tlabel\tcriteria");
+            foreach (var (entry, index) in map.Entries.Select((entry, index) => (entry, index)))
+            {
+                Console.WriteLine($"{index}\t{entry.Profile}\t{entry.Label}\t{DescribeNetworkCriteria(entry)}");
+            }
+
+            if (map.Entries.Count == 0)
+            {
+                Console.WriteLine("No automatic profile rules; manual profile switching remains available.");
+            }
+
+            return 0;
+        }
+
+        if (action == "delete")
+        {
+            if (args.Length < 3 || !int.TryParse(args[2], out var index) || index < 0)
+            {
+                Console.Error.WriteLine("usage: HostsGuard.Cli profile-match delete <list-index>");
+                return 1;
+            }
+
+            var map = await policy.GetNetworkProfilesAsync(new Empty());
+            if (index >= map.Entries.Count)
+            {
+                Console.Error.WriteLine($"profile-match index {index} does not exist; run 'profile-match list' first");
+                return 1;
+            }
+
+            var request = map.Entries[index].Clone();
+            request.Profile = string.Empty;
+            var ack = await policy.SetNetworkProfileAsync(request);
+            Console.WriteLine(ack.Message);
+            return ack.Ok ? 0 : 2;
+        }
+
+        if (action != "set")
+        {
+            Console.Error.WriteLine("profile-match action must be current, list, set, or delete");
+            return 1;
+        }
+
+        var requestRule = new NetworkProfileEntry();
+        string? vpn = null;
+        for (var i = 2; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (TryReadOptionValue(args, ref i, arg, "--profile", out var value)) requestRule.Profile = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--label", out value)) requestRule.Label = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--gateway-mac", out value)) requestRule.GatewayMac = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--ssid", out value)) requestRule.Ssid = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--interface", out value)) requestRule.InterfaceName = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--dns-suffix", out value)) requestRule.DnsSuffix = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--fingerprint", out value)) requestRule.Fingerprint = value;
+            else if (TryReadOptionValue(args, ref i, arg, "--vpn", out value)) vpn = value.ToLowerInvariant();
+            else
+            {
+                Console.Error.WriteLine($"unknown profile-match option: {arg}");
+                return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(requestRule.Profile))
+        {
+            Console.Error.WriteLine("--profile is required");
+            return 1;
+        }
+
+        if (vpn is "present") requestRule.VpnPresent = true;
+        else if (vpn is "absent") requestRule.VpnPresent = false;
+        else if (vpn is not null and not "any")
+        {
+            Console.Error.WriteLine("--vpn must be any, present, or absent");
+            return 1;
+        }
+
+        if (string.IsNullOrWhiteSpace(requestRule.Label))
+        {
+            requestRule.Label = requestRule.Profile;
+        }
+
+        if (NetworkProfilePredicateCount(requestRule) == 0)
+        {
+            Console.Error.WriteLine("at least one match criterion is required");
+            return 1;
+        }
+
+        var setAck = await policy.SetNetworkProfileAsync(requestRule);
+        Console.WriteLine(setAck.Message);
+        return setAck.Ok ? 0 : 2;
+    });
+}
+
+static async Task<int> CaptivePortalAsync(string[] args)
+{
+    var json = false;
+    int? pauseMinutes = null;
+    for (var i = 1; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (arg == "--json")
+        {
+            json = true;
+        }
+        else if (TryReadOptionValue(args, ref i, arg, "--pause", out var value) &&
+                 int.TryParse(value, out var parsed))
+        {
+            pauseMinutes = parsed;
+        }
+        else
+        {
+            Console.Error.WriteLine($"unknown captive-portal option: {arg}");
+            return 1;
+        }
+    }
+
+    if (pauseMinutes.HasValue && pauseMinutes.Value is not (5 or 15 or 60))
+    {
+        Console.Error.WriteLine("--pause must be 5, 15, or 60 minutes");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+        var status = await diagnostics.CheckCaptivePortalAsync(new Empty());
+        if (!pauseMinutes.HasValue)
+        {
+            if (json)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new
+                {
+                    state = status.State,
+                    probe_url = status.ProbeUrl,
+                    http_status = status.HttpStatus,
+                    redirected = status.Redirected,
+                    observed_host = status.ObservedHost,
+                    detail = status.Detail,
+                    pause_available = status.PauseAvailable,
+                    allowed_pause_minutes = status.AllowedPauseMinutes,
+                    checked_at = status.CheckedAt?.ToDateTime().ToString("O"),
+                    enforcement_changed = status.EnforcementChanged,
+                }, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            else
+            {
+                Console.WriteLine($"state: {status.State}");
+                Console.WriteLine($"detail: {status.Detail}");
+                if (status.HttpStatus > 0) Console.WriteLine($"HTTP: {status.HttpStatus}");
+                if (status.ObservedHost.Length != 0) Console.WriteLine($"observed host: {status.ObservedHost}");
+                Console.WriteLine("enforcement changed: no");
+                Console.WriteLine(status.PauseAvailable
+                    ? $"timed pause available: {string.Join(", ", status.AllowedPauseMinutes)} minutes"
+                    : "timed pause available: no");
+            }
+
+            return status.State == "unavailable" ? 2 : 0;
+        }
+
+        var minutes = pauseMinutes.Value;
+        if (!status.PauseAvailable || !status.AllowedPauseMinutes.Contains(minutes))
+        {
+            Console.Error.WriteLine($"timed pause refused: captive portal state is '{status.State}'");
+            return 2;
+        }
+
+        var ack = await new FirewallControl.FirewallControlClient(channel)
+            .PauseEnforcementAsync(new EnforcementPauseRequest { Minutes = minutes });
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                probe_state = status.State,
+                pause_minutes = minutes,
+                ok = ack.Ok,
+                message = ack.Message,
+                auto_resume = true,
+            }, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        else
+        {
+            Console.WriteLine(ack.Message);
+            if (ack.Ok) Console.WriteLine("enforcement will resume automatically when the timed pause expires");
+        }
+
+        return ack.Ok ? 0 : 2;
+    });
+}
+
+static void PrintCurrentNetwork(CurrentNetwork current, bool json)
+{
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(CurrentNetworkExport(current),
+            new JsonSerializerOptions { WriteIndented = true }));
+        return;
+    }
+
+    Console.WriteLine(current.Online
+        ? $"current: {current.Label}; {DescribeCurrentNetworkCriteria(current)}"
+        : "current: offline or unavailable");
+}
+
+static object CurrentNetworkExport(CurrentNetwork current) => new
+{
+    online = current.Online,
+    label = current.Label,
+    fingerprint = current.Fingerprint,
+    gateway_mac = current.GatewayMac,
+    ssid = current.Ssid,
+    interface_name = current.InterfaceName,
+    dns_suffix = current.DnsSuffix,
+    vpn_present = current.VpnPresent,
+};
+
+static object NetworkProfileExport(NetworkProfileEntry entry, int index) => new
+{
+    index,
+    profile = entry.Profile,
+    label = entry.Label,
+    fingerprint = entry.Fingerprint,
+    gateway_mac = entry.GatewayMac,
+    ssid = entry.Ssid,
+    interface_name = entry.InterfaceName,
+    dns_suffix = entry.DnsSuffix,
+    vpn_present = entry.HasVpnPresent ? entry.VpnPresent : (bool?)null,
+    predicate_count = NetworkProfilePredicateCount(entry),
+};
+
+static int NetworkProfilePredicateCount(NetworkProfileEntry entry) =>
+    Present(entry.Fingerprint) + Present(entry.GatewayMac) + Present(entry.Ssid) +
+    Present(entry.InterfaceName) + Present(entry.DnsSuffix) + (entry.HasVpnPresent ? 1 : 0);
+
+static string DescribeNetworkCriteria(NetworkProfileEntry entry)
+{
+    var parts = new List<string>();
+    AddPart(parts, "gateway", entry.GatewayMac);
+    AddPart(parts, "fingerprint", entry.Fingerprint);
+    AddPart(parts, "ssid", entry.Ssid);
+    AddPart(parts, "dns", entry.DnsSuffix);
+    AddPart(parts, "interface", entry.InterfaceName);
+    if (entry.HasVpnPresent) parts.Add($"vpn={(entry.VpnPresent ? "present" : "absent")}");
+    return string.Join(", ", parts);
+}
+
+static string DescribeCurrentNetworkCriteria(CurrentNetwork current)
+{
+    var parts = new List<string>();
+    AddPart(parts, "gateway", current.GatewayMac);
+    AddPart(parts, "fingerprint", current.Fingerprint);
+    AddPart(parts, "ssid", current.Ssid);
+    AddPart(parts, "dns", current.DnsSuffix);
+    AddPart(parts, "interface", current.InterfaceName);
+    parts.Add($"vpn={(current.VpnPresent ? "present" : "absent")}");
+    return string.Join(", ", parts);
+}
+
+static void AddPart(List<string> parts, string name, string value)
+{
+    if (Present(value) != 0) parts.Add($"{name}={value}");
+}
+
+static int Present(string value) => string.IsNullOrWhiteSpace(value) ? 0 : 1;
 
 static bool TryReadOptionValue(string[] args, ref int index, string arg, string name, out string value)
 {

@@ -102,6 +102,17 @@ public sealed class PortablePolicy
         policy.Profiles ??= new();
         policy.Lock ??= new();
         policy.NetworkProfiles ??= new();
+        policy.NetworkProfiles.RemoveAll(network => network is null);
+        foreach (var network in policy.NetworkProfiles)
+        {
+            network.Fingerprint ??= string.Empty;
+            network.Profile ??= string.Empty;
+            network.Label ??= string.Empty;
+            network.GatewayMac ??= string.Empty;
+            network.Ssid ??= string.Empty;
+            network.InterfaceName ??= string.Empty;
+            network.DnsSuffix ??= string.Empty;
+        }
         policy.RuleGroups ??= new();
         policy.BlocklistSubs ??= new();
         policy.IpBlocklists ??= new();
@@ -228,6 +239,28 @@ public sealed class PolicyNetworkProfile
     public string Profile { get; set; } = string.Empty;
 
     public string Label { get; set; } = string.Empty;
+
+    public string GatewayMac { get; set; } = string.Empty;
+
+    public string Ssid { get; set; } = string.Empty;
+
+    public string InterfaceName { get; set; } = string.Empty;
+
+    public string DnsSuffix { get; set; } = string.Empty;
+
+    public bool? VpnPresent { get; set; }
+
+    public NetworkProfileMatchRule ToMatchRule() => new(
+        Profile ?? string.Empty,
+        Label ?? string.Empty,
+        Fingerprint ?? string.Empty,
+        GatewayMac ?? string.Empty,
+        Ssid ?? string.Empty,
+        InterfaceName ?? string.Empty,
+        DnsSuffix ?? string.Empty,
+        VpnPresent);
+
+    public string StorageFingerprint() => NetworkProfileSelectorCodec.Encode(ToMatchRule());
 }
 
 /// <summary>A named rule group and its member HG_ rule names (NET-103).</summary>

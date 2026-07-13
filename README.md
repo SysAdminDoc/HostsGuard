@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.92-blue)
+![Version](https://img.shields.io/badge/version-0.12.93-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -143,7 +143,8 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | DNS-tunneling burst alerts | Opt-in, alert-only rolling detection scores per-root/process/PID subdomain length and entropy, unique-query ratio, rate, and DNS record-type mix; 60-second state, five-minute cooldowns, 2,048 aggregate/256 observation caps, and CDN/telemetry regression fixtures keep it bounded and conservative |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
-| Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
+| Network profiles | Save/switch named rule sets and auto-activate them with conjunctive gateway MAC, Wi-Fi SSID, interface, DNS suffix, VPN-presence, or legacy fingerprint rules; deterministic specificity precedence and portable-policy round trips preserve existing mappings |
+| Captive portal recovery | Run a bounded read-only Windows NCSI check with redirects disabled and sanitized evidence; a suspected portal explicitly enables the existing 5/15/60-minute enforcement pause, which auto-resumes and is never activated by detection alone |
 | Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; one-click hosts-file write protection |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector plus timed 5/15/60 minute enforcement pause with auto-resume (no restart) |
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
@@ -155,7 +156,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
-| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,716-key surface currently has 467 Spanish, 465 German, and 464 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
+| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,755-key surface currently has 505 Spanish, 502 German, and 499 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
 ### CLI
@@ -186,6 +187,8 @@ HostsGuard.Cli idn-homograph [status|enable|disable]
 HostsGuard.Cli dga-check <domain> [--json]
 HostsGuard.Cli dns-inspect <domain> [--json]
 HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
+HostsGuard.Cli profile-match [current|list|set|delete] [options] [--json]
+HostsGuard.Cli captive-portal [--json] [--pause 5|15|60]
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
@@ -219,7 +222,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1399 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1511 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

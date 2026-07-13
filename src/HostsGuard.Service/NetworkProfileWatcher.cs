@@ -1,5 +1,6 @@
 using System.Net.NetworkInformation;
 using System.Runtime.Versioning;
+using HostsGuard.Core;
 using HostsGuard.Windows;
 
 namespace HostsGuard.Service;
@@ -19,7 +20,7 @@ public sealed class NetworkProfileWatcher : IDisposable
     private readonly INetworkIdentity _identity;
     private readonly Action<string> _applyProfile;
     private readonly System.Threading.Timer _debounce;
-    private string _lastFingerprint = string.Empty;
+    private string _lastIdentity = string.Empty;
 
     public NetworkProfileWatcher(ServiceState state, INetworkIdentity identity, Action<string> applyProfile)
     {
@@ -52,14 +53,53 @@ public sealed class NetworkProfileWatcher : IDisposable
             return;
         }
 
-        if (net is null || net.Fingerprint == _lastFingerprint)
+        if (net is null)
         {
             return;
         }
 
-        _lastFingerprint = net.Fingerprint;
-        var profile = _state.Db.GetProfileForNetwork(net.Fingerprint);
-        if (string.IsNullOrEmpty(profile))
+        var identity = new NetworkProfileIdentity(
+            net.Fingerprint,
+            net.GatewayMac,
+            net.Ssid,
+            net.InterfaceName,
+            net.DnsSuffix,
+            net.VpnPresent);
+        var identityKey = string.Join('\n',
+            identity.Fingerprint,
+            identity.GatewayMac,
+            identity.Ssid,
+            identity.InterfaceName,
+            identity.DnsSuffix,
+            identity.VpnPresent);
+        if (identityKey == _lastIdentity)
+        {
+            return;
+        }
+
+        _lastIdentity = identityKey;
+        var rules = new List<NetworkProfileMatchRule>();
+        var savedProfiles = _state.Db.ListProfiles().ToHashSet(StringComparer.Ordinal);
+        foreach (var (fingerprint, mappedProfile, label) in _state.Db.GetNetworkProfiles())
+        {
+            if (!savedProfiles.Contains(mappedProfile))
+            {
+                continue;
+            }
+
+            try
+            {
+                rules.Add(NetworkProfileSelectorCodec.Decode(fingerprint, mappedProfile, label));
+            }
+            catch (FormatException)
+            {
+                // Malformed additive selectors are inert. Legacy plain values
+                // decode without entering this branch.
+            }
+        }
+
+        var match = NetworkProfileMatcher.Match(identity, rules);
+        if (match is null)
         {
             _state.Db.AddAlert(
                 "unknown_lan",
@@ -71,13 +111,38 @@ public sealed class NetworkProfileWatcher : IDisposable
             return;
         }
 
-        if (_state.Db.GetMeta("active_profile") == profile || !_state.Db.ListProfiles().Contains(profile))
+        var profile = match.Profile;
+        if (_state.Db.GetMeta("active_profile") == profile)
         {
             return;
         }
 
-        _state.Db.LogEvent(net.Label, "network_profile_auto", details: $"{net.Fingerprint} → {profile}");
+        _state.Db.LogEvent(net.Label, "network_profile_auto", details: $"{Describe(match)} → {profile}");
         _applyProfile(profile);
+    }
+
+    private static string Describe(NetworkProfileMatchRule rule)
+    {
+        var signals = new List<string>();
+        Add(signals, "gateway", rule.GatewayMac);
+        Add(signals, "fingerprint", rule.Fingerprint);
+        Add(signals, "ssid", rule.Ssid);
+        Add(signals, "dns", rule.DnsSuffix);
+        Add(signals, "interface", rule.InterfaceName);
+        if (rule.VpnPresent.HasValue)
+        {
+            signals.Add($"vpn={rule.VpnPresent.Value.ToString().ToLowerInvariant()}");
+        }
+
+        return string.Join(", ", signals);
+    }
+
+    private static void Add(List<string> signals, string name, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            signals.Add($"{name}={value}");
+        }
     }
 
     public void Dispose()

@@ -107,6 +107,46 @@ public sealed class GlobalModeAndScopeTests : IDisposable
     }
 
     [Fact]
+    public async Task Captive_portal_check_offers_only_explicit_timed_pause_without_changing_enforcement()
+    {
+        var portalProbe = new FixedCaptivePortalProbe(new CaptivePortalProbeResult(
+            CaptivePortalState.Suspected,
+            WindowsNcsiCaptivePortalProbe.ProbeUri,
+            302,
+            true,
+            "login.hotspot.example",
+            "The Windows connectivity probe was redirected.",
+            DateTime.UtcNow));
+        var testDir = Path.Combine(_dir, "portal");
+        Directory.CreateDirectory(testDir);
+        File.WriteAllText(Path.Combine(testDir, "hosts"), "# hosts\n");
+        var firewall = new FakeFirewallEngine();
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(testDir, "hosts")),
+            new HostsDatabase(Path.Combine(testDir, "db.sqlite")),
+            firewall,
+            dataDir: testDir,
+            captivePortalProbe: portalProbe);
+        var control = new FirewallControlServiceImpl(state);
+        state.Db.AddDomain("ads.example.com", "blocked", "manual");
+        state.Hosts.Block("ads.example.com").Should().BeTrue();
+        firewall.SetDefaultOutboundBlock(true);
+
+        var result = await new DiagnosticsServiceImpl(state).CheckCaptivePortal(new Empty(), null!);
+
+        result.State.Should().Be("suspected");
+        result.PauseAvailable.Should().BeTrue();
+        result.AllowedPauseMinutes.Should().Equal(5, 15, 60);
+        result.EnforcementChanged.Should().BeFalse();
+        state.Hosts.GetBlocked().Should().Contain("ads.example.com");
+        firewall.PerProfileBlock.Values.Should().OnlyContain(value => value);
+        (await control.GetEnforcementPause(new Empty(), null!)).Active.Should().BeFalse();
+
+        (await control.PauseEnforcement(new EnforcementPauseRequest { Minutes = 5 }, null!)).Ok.Should().BeTrue();
+        (await control.GetEnforcementPause(new Empty(), null!)).Active.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Kill_switch_suspends_active_pause_without_capturing_permissive_posture()
     {
         _state.Db.AddDomain("ads.example.com", "blocked", "manual");
@@ -144,6 +184,11 @@ public sealed class GlobalModeAndScopeTests : IDisposable
         var status = await _impl.GetEnforcementPause(new Empty(), null!);
         status.Active.Should().BeTrue();
         status.SuspendedByKillSwitch.Should().BeFalse();
+    }
+
+    private sealed class FixedCaptivePortalProbe(CaptivePortalProbeResult result) : ICaptivePortalProbe
+    {
+        public Task<CaptivePortalProbeResult> CheckAsync(CancellationToken cancellationToken) => Task.FromResult(result);
     }
 
     [Theory]
