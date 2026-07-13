@@ -1390,6 +1390,25 @@ message AlertEntry {
   string process = 10;
   bool is_read = 11;
   bool surfaced = 12;
+  DgaEvidence dga_evidence = 13; // populated only for suspicious_domain alerts
+}
+
+message DgaEvidence {
+  string version = 1;
+  string registrable_label = 2;
+  int32 label_length = 3;
+  double entropy = 4;
+  double entropy_threshold = 5;
+  double vowel_ratio = 6;
+  double vowel_ratio_threshold = 7;
+  double digit_ratio = 8;
+  double digit_ratio_threshold = 9;
+  int32 max_consonant_run = 10;
+  int32 consonant_run_threshold = 11;
+  double score = 12;
+  double decision_threshold = 13;
+  bool is_algorithmic = 14;
+  string reason = 15;
 }
 
 message AlertList {

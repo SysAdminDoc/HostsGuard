@@ -439,4 +439,23 @@
   <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
   <data name="Ncsi_ActionRecover" xml:space="preserve"><value>Recuperar las comprobaciones de conectividad de Windows</value></data>
+  <data name="Dga_AlertExplainerName" xml:space="preserve"><value>Evidencia de puntuación de dominio algorítmico</value></data>
+  <data name="Dga_AlertExplainerTitle" xml:space="preserve"><value>Evidencia de dominio algorítmico</value></data>
+  <data name="Dga_DefaultOffAlertOnly" xml:space="preserve"><value>Desactivado de forma predeterminada y solo genera alertas. HostsGuard no bloqueó ni reescribió este dominio.</value></data>
+  <data name="Dga_Label" xml:space="preserve"><value>Etiqueta registrable</value></data>
+  <data name="Dga_LabelName" xml:space="preserve"><value>Etiqueta de dominio registrable analizada</value></data>
+  <data name="Dga_Score" xml:space="preserve"><value>Puntuación</value></data>
+  <data name="Dga_ScoreName" xml:space="preserve"><value>Puntuación de dominio algorítmico y umbral de decisión</value></data>
+  <data name="Dga_Entropy" xml:space="preserve"><value>Entropía</value></data>
+  <data name="Dga_VowelRatio" xml:space="preserve"><value>Proporción de vocales</value></data>
+  <data name="Dga_DigitRatio" xml:space="preserve"><value>Proporción de dígitos</value></data>
+  <data name="Dga_ConsonantRun" xml:space="preserve"><value>Secuencia de consonantes</value></data>
+  <data name="Dga_Reason" xml:space="preserve"><value>Evidencia de la decisión</value></data>
+  <data name="Dga_ReasonName" xml:space="preserve"><value>Evidencia de decisión de dominio algorítmico</value></data>
+  <data name="Dga_ScoreValue" xml:space="preserve"><value>{0:F2} (umbral de decisión {1:F2})</value></data>
+  <data name="Dga_MetricValue" xml:space="preserve"><value>{0:F2} (umbral {1:F2})</value></data>
+  <data name="Dga_PercentValue" xml:space="preserve"><value>{0:P0} (umbral {1:P0})</value></data>
+  <data name="Dga_RunValue" xml:space="preserve"><value>{0} (umbral {1})</value></data>
+  <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} caracteres; {2})</value></data>
+  <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorítmico={1}</value></data>
 </root>

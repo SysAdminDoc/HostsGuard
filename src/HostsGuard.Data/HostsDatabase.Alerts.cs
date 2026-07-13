@@ -15,7 +15,10 @@ public sealed partial class HostsDatabase
         ("unknown_lan", "Unknown LAN / gateway", true),
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
-        ("suspicious_domain", "Algorithmic / DGA-looking domains", true),
+        // Opt-in (off by default): the DGA heuristic is alert-only and tuned
+        // conservatively, but unfamiliar/generated-looking names still need
+        // operator review before they become inbox noise.
+        ("suspicious_domain", "Algorithmic / DGA-looking domains", false),
         ("port_scan", "Blocked inbound port scans", true),
         ("idn_homograph", "IDN homograph alerts", true),
         // Opt-in (off by default): a first-contact signal is high-volume, so it

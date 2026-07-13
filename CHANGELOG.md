@@ -2,6 +2,23 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.89] - 2026-07-12
+
+### Added
+- Algorithmic-domain scoring now exposes a versioned breakdown of entropy,
+  vowel and digit ratios, consonant runs, signal contributions, thresholds,
+  decision reason, and total score through structured alert data, the Alerts
+  inspector, and `dga-check <domain> [--json]` diagnostics.
+- A 57-case deterministic corpus covers random, wordlist, and numeric DGA
+  labels plus brands, CDN subdomains, IDNs, short names, and adversarial
+  mutations. Its current 100% precision and 81.5% recall are protected by
+  95%/75% regression ratchets.
+
+### Changed
+- Algorithmic-domain detection is now genuinely off by default and records no
+  alert until explicitly enabled. Enabled alerts remain deduplicated per
+  registrable root and never block or rewrite a domain.
+
 ## [0.12.88] - 2026-07-12
 
 ### Changed

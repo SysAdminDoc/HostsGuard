@@ -1691,4 +1691,23 @@
   <data name="Trust_RemoveFolderMessage" xml:space="preserve"><value>Stop auto-allowing software in "{0}"? Existing rules are unchanged.</value></data>
   <data name="Services_BlockTitle" xml:space="preserve"><value>Block {0}</value></data>
   <data name="Schedules_Count" xml:space="preserve"><value>{0} schedule(s)</value></data>
+  <data name="Dga_AlertExplainerName" xml:space="preserve"><value>Algorithmic-domain score evidence</value></data>
+  <data name="Dga_AlertExplainerTitle" xml:space="preserve"><value>Algorithmic-domain evidence</value></data>
+  <data name="Dga_DefaultOffAlertOnly" xml:space="preserve"><value>Off by default and alert-only. HostsGuard did not block or rewrite this domain.</value></data>
+  <data name="Dga_Label" xml:space="preserve"><value>Registrable label</value></data>
+  <data name="Dga_LabelName" xml:space="preserve"><value>Analyzed registrable domain label</value></data>
+  <data name="Dga_Score" xml:space="preserve"><value>Score</value></data>
+  <data name="Dga_ScoreName" xml:space="preserve"><value>Algorithmic-domain score and decision threshold</value></data>
+  <data name="Dga_Entropy" xml:space="preserve"><value>Entropy</value></data>
+  <data name="Dga_VowelRatio" xml:space="preserve"><value>Vowel ratio</value></data>
+  <data name="Dga_DigitRatio" xml:space="preserve"><value>Digit ratio</value></data>
+  <data name="Dga_ConsonantRun" xml:space="preserve"><value>Consonant run</value></data>
+  <data name="Dga_Reason" xml:space="preserve"><value>Decision evidence</value></data>
+  <data name="Dga_ReasonName" xml:space="preserve"><value>Algorithmic-domain decision evidence</value></data>
+  <data name="Dga_ScoreValue" xml:space="preserve"><value>{0:F2} (decision threshold {1:F2})</value></data>
+  <data name="Dga_MetricValue" xml:space="preserve"><value>{0:F2} (threshold {1:F2})</value></data>
+  <data name="Dga_PercentValue" xml:space="preserve"><value>{0:P0} (threshold {1:P0})</value></data>
+  <data name="Dga_RunValue" xml:space="preserve"><value>{0} (threshold {1})</value></data>
+  <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} characters; {2})</value></data>
+  <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorithmic={1}</value></data>
 </root>

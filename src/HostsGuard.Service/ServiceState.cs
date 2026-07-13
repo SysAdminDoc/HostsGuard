@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using Google.Protobuf.WellKnownTypes;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
 
@@ -365,8 +366,14 @@ public sealed class ServiceState : IDisposable
     /// </summary>
     private void MaybeAlertSuspiciousDomain(string domain, string root, string process)
     {
-        if (root.Length == 0 || !Core.DgaHeuristic.LooksAlgorithmic(root)
+        if (root.Length == 0 || !Db.IsAlertTypeSurfaced("suspicious_domain")
             || Core.DomainPurpose.Lookup(domain).Length != 0)
+        {
+            return;
+        }
+
+        var evidence = DgaHeuristic.Analyze(root);
+        if (!evidence.IsAlgorithmic)
         {
             return;
         }
@@ -384,11 +391,15 @@ public sealed class ServiceState : IDisposable
                 "warning",
                 "Algorithmic-looking domain observed",
                 root,
-                $"{domain} has a random-looking registered name ({root}) — a DGA-malware / DNS-tunnel signature.",
+                BuildDgaEvidenceDetails(domain, evidence),
                 action: "suspicious_domain",
                 process: process);
         }
     }
+
+    internal static string BuildDgaEvidenceDetails(string domain, DgaScoreBreakdown evidence) =>
+        FormattableString.Invariant(
+            $"{domain} has an algorithmic-looking registered label '{evidence.RegistrableLabel}'. Score {evidence.Score:F2}/{evidence.DecisionThreshold:F2}; entropy {evidence.Entropy:F3} (threshold {evidence.EntropyThreshold:F3}); vowel ratio {evidence.VowelRatio:P1} (low below {evidence.VowelRatioThreshold:P1}); digit ratio {evidence.DigitRatio:P1} (high at {evidence.DigitRatioThreshold:P1}); max consonant run {evidence.MaxConsonantRun} (high at {evidence.ConsonantRunThreshold}); reason {evidence.Reason}; model {evidence.Version}. Alert only — no domain was blocked.");
 
     private readonly HashSet<string> _dnsBypassAlerted = new(StringComparer.OrdinalIgnoreCase);
 

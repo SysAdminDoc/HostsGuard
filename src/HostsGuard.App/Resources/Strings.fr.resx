@@ -438,4 +438,23 @@
   <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
   <data name="Ncsi_ActionRecover" xml:space="preserve"><value>R&#xE9;tablir les tests de connectivit&#xE9; Windows</value></data>
+  <data name="Dga_AlertExplainerName" xml:space="preserve"><value>Preuve de score de domaine algorithmique</value></data>
+  <data name="Dga_AlertExplainerTitle" xml:space="preserve"><value>Preuve de domaine algorithmique</value></data>
+  <data name="Dga_DefaultOffAlertOnly" xml:space="preserve"><value>Désactivé par défaut et limité aux alertes. HostsGuard n'a ni bloqué ni réécrit ce domaine.</value></data>
+  <data name="Dga_Label" xml:space="preserve"><value>Libellé enregistrable</value></data>
+  <data name="Dga_LabelName" xml:space="preserve"><value>Libellé de domaine enregistrable analysé</value></data>
+  <data name="Dga_Score" xml:space="preserve"><value>Score</value></data>
+  <data name="Dga_ScoreName" xml:space="preserve"><value>Score de domaine algorithmique et seuil de décision</value></data>
+  <data name="Dga_Entropy" xml:space="preserve"><value>Entropie</value></data>
+  <data name="Dga_VowelRatio" xml:space="preserve"><value>Proportion de voyelles</value></data>
+  <data name="Dga_DigitRatio" xml:space="preserve"><value>Proportion de chiffres</value></data>
+  <data name="Dga_ConsonantRun" xml:space="preserve"><value>Suite de consonnes</value></data>
+  <data name="Dga_Reason" xml:space="preserve"><value>Preuve de décision</value></data>
+  <data name="Dga_ReasonName" xml:space="preserve"><value>Preuve de décision de domaine algorithmique</value></data>
+  <data name="Dga_ScoreValue" xml:space="preserve"><value>{0:F2} (seuil de décision {1:F2})</value></data>
+  <data name="Dga_MetricValue" xml:space="preserve"><value>{0:F2} (seuil {1:F2})</value></data>
+  <data name="Dga_PercentValue" xml:space="preserve"><value>{0:P0} (seuil {1:P0})</value></data>
+  <data name="Dga_RunValue" xml:space="preserve"><value>{0} (seuil {1})</value></data>
+  <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} caractères ; {2})</value></data>
+  <data name="Dga_ReasonValue" xml:space="preserve"><value>{0} ; algorithmique={1}</value></data>
 </root>

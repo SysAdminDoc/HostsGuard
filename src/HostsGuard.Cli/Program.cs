@@ -44,6 +44,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "usage-quota" => await UsageQuotaAsync(args),
     "dns-cache" => await DnsCacheAsync(args),
     "dns-flush-entry" => await DnsFlushEntryAsync(args),
+    "dga-check" => DgaCheck(args),
     "idn-homograph" => await IdnHomographAsync(args),
     "proxy" => await ProxyBaselineAsync(args),
     "adopt-hosts" => await AdoptHostsAsync(args),
@@ -123,6 +124,7 @@ static int Usage()
           HostsGuard.Cli usage-quota export [path.csv|path.json] [--days N] [--scope app|domain] [--match value]
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-flush-entry <cached-name>
+          HostsGuard.Cli dga-check <domain> [--json]
           HostsGuard.Cli idn-homograph [status|enable|disable]
           HostsGuard.Cli proxy [status|accept-baseline]
           HostsGuard.Cli adopt-hosts [status|now|on|off]
@@ -1887,6 +1889,33 @@ static async Task<int> IdnHomographAsync(string[] args)
         Console.WriteLine("report-only: detections create alerts and never block domains automatically");
         return 0;
     });
+}
+
+static int DgaCheck(string[] args)
+{
+    if (args.Length is < 2 or > 3 || (args.Length == 3 && !args[2].Equals("--json", StringComparison.OrdinalIgnoreCase)))
+    {
+        Console.Error.WriteLine("Usage: dga-check <domain> [--json]");
+        return 1;
+    }
+
+    var score = DgaHeuristic.Analyze(args[1]);
+    if (args.Length == 3)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(score, new JsonSerializerOptions { WriteIndented = true }));
+    }
+    else
+    {
+        Console.WriteLine(FormattableString.Invariant($"DGA score: {score.Score:F2}/{score.DecisionThreshold:F2} ({(score.IsAlgorithmic ? "algorithmic-looking" : "not algorithmic-looking")})"));
+        Console.WriteLine(FormattableString.Invariant($"label: {score.RegistrableLabel} ({score.LabelLength} chars); reason: {score.Reason}; model: {score.Version}"));
+        Console.WriteLine(FormattableString.Invariant($"entropy: {score.Entropy:F3} (threshold {score.EntropyThreshold:F3})"));
+        Console.WriteLine(FormattableString.Invariant($"vowel ratio: {score.VowelRatio:P1} (low below {score.VowelRatioThreshold:P1})"));
+        Console.WriteLine(FormattableString.Invariant($"digit ratio: {score.DigitRatio:P1} (high at {score.DigitRatioThreshold:P1})"));
+        Console.WriteLine(FormattableString.Invariant($"max consonant run: {score.MaxConsonantRun} (high at {score.ConsonantRunThreshold})"));
+        Console.WriteLine("report-only: this diagnostic never blocks a domain");
+    }
+
+    return score.IsValidDomain ? 0 : 2;
 }
 
 static async Task<int> FullStateSnapshotAsync(string[] args)

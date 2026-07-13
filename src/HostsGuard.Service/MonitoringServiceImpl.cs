@@ -244,7 +244,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         };
         foreach (var row in page.Rows)
         {
-            list.Entries.Add(new AlertEntry
+            var entry = new AlertEntry
             {
                 Id = row.Id,
                 Created = row.Created,
@@ -258,11 +258,36 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
                 Process = row.Process,
                 IsRead = row.IsRead,
                 Surfaced = row.Surfaced,
-            });
+            };
+            if (row.Type.Equals("suspicious_domain", StringComparison.Ordinal))
+            {
+                entry.DgaEvidence = ToDgaEvidence(Core.DgaHeuristic.Analyze(row.Subject));
+            }
+
+            list.Entries.Add(entry);
         }
 
         return Task.FromResult(list);
     }
+
+    internal static DgaEvidence ToDgaEvidence(Core.DgaScoreBreakdown score) => new()
+    {
+        Version = score.Version,
+        RegistrableLabel = score.RegistrableLabel,
+        LabelLength = score.LabelLength,
+        Entropy = score.Entropy,
+        EntropyThreshold = score.EntropyThreshold,
+        VowelRatio = score.VowelRatio,
+        VowelRatioThreshold = score.VowelRatioThreshold,
+        DigitRatio = score.DigitRatio,
+        DigitRatioThreshold = score.DigitRatioThreshold,
+        MaxConsonantRun = score.MaxConsonantRun,
+        ConsonantRunThreshold = score.ConsonantRunThreshold,
+        Score = score.Score,
+        DecisionThreshold = score.DecisionThreshold,
+        IsAlgorithmic = score.IsAlgorithmic,
+        Reason = score.Reason,
+    };
 
     public override Task<Ack> AckAlert(AlertAckRequest request, ServerCallContext context)
     {

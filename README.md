@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.88-blue)
+![Version](https://img.shields.io/badge/version-0.12.89-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -138,6 +138,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | DNS resolver-cache viewer | Inspect Windows DNS Client cached names, including HTTPS/SVCB service-binding rows used by modern HTTPS/ECH bootstrap paths, and flush one selected entry when a newly blocked host still resolves |
 | Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
 | IDN homograph alerts | Opt-in, alert-only comparison of observed IDNs against allowlisted, trusted, and recent domains using embedded Unicode 17.0.0 UTS #39 confusable data; Alerts shows decoded Unicode, punycode, scripts, restriction evidence, and the matching domain without auto-blocking |
+| Algorithmic-domain alerts | Opt-in, alert-only scoring of suspicious registrable labels with exact entropy, vowel, digit, consonant-run, contribution, and threshold evidence; a versioned 57-case corpus gates precision at 95% and recall at 75%, while IDNs, CDN subdomains, and short labels are protected against false positives |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets, with **automatic switching** by joined-network fingerprint (gateway MAC) |
@@ -152,7 +153,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, and blocked inbound scans across distinct local ports |
-| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; each satellite currently translates 408 of 1,633 used keys (25.0%), with honest English fallback and a non-regression ratchet rather than a false completeness claim |
+| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,652-key surface currently has 430 Spanish, 428 German, and 427 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
 ### CLI
@@ -180,6 +181,7 @@ HostsGuard.Cli snapshot restore <snapshot-id> --sha256 <previewed-sha256>
 HostsGuard.Cli proxy status
 HostsGuard.Cli proxy accept-baseline
 HostsGuard.Cli idn-homograph [status|enable|disable]
+HostsGuard.Cli dga-check <domain> [--json]
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]

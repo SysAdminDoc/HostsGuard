@@ -438,4 +438,23 @@
   <data name="About_VersionFormat" xml:space="preserve"><value>v{0} | .NET 10 | Windows</value></data>
   <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
   <data name="Ncsi_ActionRecover" xml:space="preserve"><value>Windows-Konnektivit&#xE4;tspr&#xFC;fungen wiederherstellen</value></data>
+  <data name="Dga_AlertExplainerName" xml:space="preserve"><value>Bewertungsnachweis für algorithmische Domänen</value></data>
+  <data name="Dga_AlertExplainerTitle" xml:space="preserve"><value>Nachweis für algorithmische Domäne</value></data>
+  <data name="Dga_DefaultOffAlertOnly" xml:space="preserve"><value>Standardmäßig deaktiviert und nur alarmierend. HostsGuard hat diese Domäne weder blockiert noch umgeschrieben.</value></data>
+  <data name="Dga_Label" xml:space="preserve"><value>Registrierbare Bezeichnung</value></data>
+  <data name="Dga_LabelName" xml:space="preserve"><value>Analysierte registrierbare Domänenbezeichnung</value></data>
+  <data name="Dga_Score" xml:space="preserve"><value>Bewertung</value></data>
+  <data name="Dga_ScoreName" xml:space="preserve"><value>Bewertung und Entscheidungsschwelle für algorithmische Domänen</value></data>
+  <data name="Dga_Entropy" xml:space="preserve"><value>Entropie</value></data>
+  <data name="Dga_VowelRatio" xml:space="preserve"><value>Vokalanteil</value></data>
+  <data name="Dga_DigitRatio" xml:space="preserve"><value>Ziffernanteil</value></data>
+  <data name="Dga_ConsonantRun" xml:space="preserve"><value>Konsonantenfolge</value></data>
+  <data name="Dga_Reason" xml:space="preserve"><value>Entscheidungsnachweis</value></data>
+  <data name="Dga_ReasonName" xml:space="preserve"><value>Entscheidungsnachweis für algorithmische Domänen</value></data>
+  <data name="Dga_ScoreValue" xml:space="preserve"><value>{0:F2} (Entscheidungsschwelle {1:F2})</value></data>
+  <data name="Dga_MetricValue" xml:space="preserve"><value>{0:F2} (Schwelle {1:F2})</value></data>
+  <data name="Dga_PercentValue" xml:space="preserve"><value>{0:P0} (Schwelle {1:P0})</value></data>
+  <data name="Dga_RunValue" xml:space="preserve"><value>{0} (Schwelle {1})</value></data>
+  <data name="Dga_LabelValue" xml:space="preserve"><value>{0} ({1} Zeichen; {2})</value></data>
+  <data name="Dga_ReasonValue" xml:space="preserve"><value>{0}; algorithmisch={1}</value></data>
 </root>

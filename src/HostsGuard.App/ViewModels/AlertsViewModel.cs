@@ -171,6 +171,41 @@ public sealed partial class AlertRowViewModel : ObservableObject
 
     public bool IsIdnHomograph => Type.Equals("idn_homograph", StringComparison.OrdinalIgnoreCase);
 
+    public bool IsDgaAlert => Type.Equals("suspicious_domain", StringComparison.OrdinalIgnoreCase);
+
+    public DgaEvidence? DgaEvidence { get; private init; }
+
+    public bool HasDgaEvidence => IsDgaAlert && DgaEvidence is not null;
+
+    public string DgaRegistrableLabel => DgaEvidence is { } evidence
+        ? I18n.T("Dga_LabelValue", "{0} ({1} characters; {2})",
+            evidence.RegistrableLabel, evidence.LabelLength, evidence.Version)
+        : string.Empty;
+
+    public string DgaScoreText => DgaEvidence is { } evidence
+        ? I18n.T("Dga_ScoreValue", "{0:F2} (decision threshold {1:F2})", evidence.Score, evidence.DecisionThreshold)
+        : string.Empty;
+
+    public string DgaEntropyText => DgaEvidence is { } evidence
+        ? I18n.T("Dga_MetricValue", "{0:F2} (threshold {1:F2})", evidence.Entropy, evidence.EntropyThreshold)
+        : string.Empty;
+
+    public string DgaVowelRatioText => DgaEvidence is { } evidence
+        ? I18n.T("Dga_PercentValue", "{0:P0} (threshold {1:P0})", evidence.VowelRatio, evidence.VowelRatioThreshold)
+        : string.Empty;
+
+    public string DgaDigitRatioText => DgaEvidence is { } evidence
+        ? I18n.T("Dga_PercentValue", "{0:P0} (threshold {1:P0})", evidence.DigitRatio, evidence.DigitRatioThreshold)
+        : string.Empty;
+
+    public string DgaConsonantRunText => DgaEvidence is { } evidence
+        ? I18n.T("Dga_RunValue", "{0} (threshold {1})", evidence.MaxConsonantRun, evidence.ConsonantRunThreshold)
+        : string.Empty;
+
+    public string DgaReason => DgaEvidence is { } evidence
+        ? I18n.T("Dga_ReasonValue", "{0}; algorithmic={1}", evidence.Reason, evidence.IsAlgorithmic)
+        : string.Empty;
+
     [ObservableProperty]
     private string _severity = string.Empty;
 
@@ -212,6 +247,7 @@ public sealed partial class AlertRowViewModel : ObservableObject
             Process = row.Process,
             IsRead = row.IsRead,
             Surfaced = row.Surfaced,
+            DgaEvidence = row.DgaEvidence,
         };
     }
 }

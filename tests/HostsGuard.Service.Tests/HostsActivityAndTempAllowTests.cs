@@ -273,6 +273,47 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Dga_alert_is_opt_in_deduped_evidence_rich_and_never_blocks()
+    {
+        const string root = "kq3v9xzptlw.com";
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var monitoring = new Monitoring.MonitoringClient(channel);
+
+        _state.Db.GetAlertTypes().Single(type => type.Type == "suspicious_domain").Surface.Should().BeFalse();
+        _state.RecordDns($"first.{root}", "browser.exe");
+        _state.Db.GetAlerts(new AlertFilter(Type: "suspicious_domain", SurfaceOnly: false)).Rows.Should().BeEmpty();
+        _state.Hosts.GetBlocked().Should().NotContain(root);
+
+        _state.Db.SetAlertTypeSurface("suspicious_domain", true);
+        _state.RecordDns($"second.{root}", "browser.exe");
+        _state.RecordDns($"third.{root}", "browser.exe");
+
+        var stored = _state.Db.GetAlerts(new AlertFilter(Type: "suspicious_domain")).Rows.Should().ContainSingle().Subject;
+        stored.Subject.Should().Be(root);
+        stored.Details.Should().ContainAll(
+            "entropy ", "vowel ratio ", "digit ratio ", "max consonant run ",
+            "reason ", "model dga-score-v1", "Alert only — no domain was blocked");
+        _state.Hosts.GetBlocked().Should().NotContain(root);
+        _state.Db.GetDomainStatus(root).Should().NotBe("blocked");
+
+        var alerts = await monitoring.ListAlertsAsync(new AlertRequest
+        {
+            Type = "suspicious_domain",
+            IncludeLogOnly = true,
+        });
+        var evidence = alerts.Entries.Should().ContainSingle().Subject.DgaEvidence;
+        evidence.Should().NotBeNull();
+        evidence.Version.Should().Be("dga-score-v1");
+        evidence.RegistrableLabel.Should().Be("kq3v9xzptlw");
+        evidence.Entropy.Should().BeGreaterThanOrEqualTo(evidence.EntropyThreshold);
+        evidence.VowelRatio.Should().BeLessThan(evidence.VowelRatioThreshold);
+        evidence.DigitRatio.Should().BeGreaterThan(0);
+        evidence.MaxConsonantRun.Should().BeGreaterThan(0);
+        evidence.Score.Should().BeGreaterThanOrEqualTo(evidence.DecisionThreshold);
+        evidence.IsAlgorithmic.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task TempBlock_blocks_now_and_lists_pending_window()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

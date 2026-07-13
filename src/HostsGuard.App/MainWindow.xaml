@@ -227,7 +227,8 @@
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource Hg.ButtonGlyphPath}"
                                       Data="M 4 8 A 4 4 0 0 1 11 5 M 11 5 H 8 M 11 5 V 2 M 12 8 A 4 4 0 0 1 5 11 M 5 11 H 8 M 5 11 V 14" />
-                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" Margin="8,0,0,0" TextWrapping="Wrap"
+                                <TextBlock Text="{svc:Loc Key=Xaml_Flush_DNS_15214212}" Margin="8,0,0,0"
+                                           MaxWidth="100" TextWrapping="Wrap" TextAlignment="Center"
                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                             </StackPanel>
                         </Button>
@@ -1145,6 +1146,49 @@
                                             <TextBlock Text="{svc:Loc Key=IdnHomograph_NoBlockAlert}"
                                                        Style="{StaticResource Hg.HelperText}" Margin="0,7,0,0"
                                                        TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Row="1" Margin="0,8,0,2" Style="{StaticResource Hg.StatusStrip}"
+                                            Visibility="{Binding SelectedAlert.HasDgaEvidence, Converter={StaticResource BoolToVis}}"
+                                            AutomationProperties.Name="{svc:Loc Key=Dga_AlertExplainerName}">
+                                        <StackPanel>
+                                            <TextBlock Text="{svc:Loc Key=Dga_AlertExplainerTitle}"
+                                                       FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{svc:Loc Key=Dga_DefaultOffAlertOnly}"
+                                                       Style="{StaticResource Hg.HelperText}" Margin="0,4,0,8"
+                                                       TextWrapping="Wrap" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="{svc:Loc Key=Dga_Label}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedAlert.DgaRegistrableLabel}" TextWrapping="Wrap"
+                                                           AutomationProperties.Name="{svc:Loc Key=Dga_LabelName}" />
+                                                <TextBlock Grid.Row="1" Text="{svc:Loc Key=Dga_Score}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedAlert.DgaScoreText}" TextWrapping="Wrap"
+                                                           AutomationProperties.Name="{svc:Loc Key=Dga_ScoreName}" />
+                                                <TextBlock Grid.Row="2" Text="{svc:Loc Key=Dga_Entropy}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedAlert.DgaEntropyText}" TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="3" Text="{svc:Loc Key=Dga_VowelRatio}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedAlert.DgaVowelRatioText}" TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="4" Text="{svc:Loc Key=Dga_DigitRatio}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedAlert.DgaDigitRatioText}" TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="5" Text="{svc:Loc Key=Dga_ConsonantRun}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,4" />
+                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedAlert.DgaConsonantRunText}" TextWrapping="Wrap" />
+                                                <TextBlock Grid.Row="6" Text="{svc:Loc Key=Dga_Reason}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,12,0" />
+                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedAlert.DgaReason}" TextWrapping="Wrap"
+                                                           AutomationProperties.Name="{svc:Loc Key=Dga_ReasonName}" />
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
                                     <DataGrid Grid.Row="2" ItemsSource="{Binding AlertTypes}" Margin="0,8,0,0"

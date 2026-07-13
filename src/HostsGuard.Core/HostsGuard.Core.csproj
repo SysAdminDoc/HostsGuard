@@ -9,6 +9,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\confusables-17.0.0.txt" />
     <EmbeddedResource Include="Resources\Scripts-17.0.0.txt" />
+    <EmbeddedResource Include="Resources\dga-corpus-v1.json" />
   </ItemGroup>
 
 </Project>
