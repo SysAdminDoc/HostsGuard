@@ -367,6 +367,7 @@ service ListControl {
   rpc RestoreBlocklistCheckpoint(BlocklistRequest) returns (Ack);
   // Re-import every subscribed source now.
   rpc RefreshBlocklists(Empty) returns (BlocklistResult);
+  rpc RecoverWindowsConnectivity(WindowsConnectivityRecoveryRequest) returns (WindowsConnectivityRecoveryResult);
   // Allowlist subscriptions: whitelisted domains always win over blocklists.
   rpc GetAllowlists(Empty) returns (AllowlistUrls);
   rpc SetAllowlists(AllowlistUrls) returns (Ack);
@@ -495,6 +496,27 @@ message BlocklistResult {
   int64 failed = 17;           // refreshes that failed fetch/parse
   int64 checkpoint_id = 18;    // latest checkpoint created/restored by this operation
   int64 modifiers_stripped = 19; // adblock $modifier rules stripped, never imported (NET-174)
+  repeated WindowsConnectivityWarning connectivity_warnings = 20;
+}
+
+message WindowsConnectivityWarning {
+  string domain = 1;
+  string probe_kind = 2; // web | dns
+  string era = 3;        // current | legacy
+  string reason = 4;
+  string code = 5;       // windows_ncsi_dependency
+}
+
+message WindowsConnectivityRecoveryRequest {
+  repeated string domains = 1; // empty = every currently list-blocked exact NCSI dependency
+}
+
+message WindowsConnectivityRecoveryResult {
+  bool ok = 1;
+  string message = 2;
+  string error_code = 3;
+  repeated string recovered_domains = 4;
+  repeated string rejected_domains = 5;
 }
 
 message AllowlistUrls {

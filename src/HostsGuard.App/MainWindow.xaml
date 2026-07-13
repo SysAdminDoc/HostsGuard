@@ -1274,6 +1274,7 @@
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
                                 <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}"
@@ -1367,7 +1368,52 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                                <Border Grid.Row="1" Style="{StaticResource Hg.Card}" Margin="0,8,0,0"
+                                        Visibility="{Binding HasConnectivityWarnings, Converter={StaticResource BoolToVis}}"
+                                        AutomationProperties.Name="{svc:Loc Key=Ncsi_WarningName}">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="False">
+                                            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Ncsi_RecoverAction}"
+                                                    Command="{Binding RecoverWindowsConnectivityCommand}"
+                                                    Style="{StaticResource Hg.AccentButton}" Margin="10,0,0,0"
+                                                    AutomationProperties.Name="{svc:Loc Key=Ncsi_RecoverActionName}"
+                                                    ToolTip="{svc:Loc Key=Ncsi_RecoverTip}" />
+                                            <StackPanel>
+                                                <TextBlock Text="{svc:Loc Key=Ncsi_WarningTitle}"
+                                                           Style="{StaticResource Hg.SectionTitle}" />
+                                                <TextBlock Text="{svc:Loc Key=Ncsi_WarningHelp}"
+                                                           Style="{StaticResource Hg.HelperText}" Margin="0,3,0,0"
+                                                           TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <ItemsControl ItemsSource="{Binding ConnectivityWarnings}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,8,6" MinWidth="300">
+                                                        <StackPanel>
+                                                            <DockPanel>
+                                                                <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}"
+                                                                           Style="{StaticResource Hg.DimText}" Margin="8,0,0,0" />
+                                                                <TextBlock Text="{Binding Domain}" FontWeight="SemiBold" />
+                                                            </DockPanel>
+                                                            <TextBlock Text="{Binding DisplayReason}" Style="{StaticResource Hg.SubText}"
+                                                                       TextWrapping="Wrap" ToolTip="{Binding Reason}" />
+                                                            <TextBlock Text="{Binding DisplayMetadata}" Style="{StaticResource Hg.DimText}" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Text="{Binding ConnectivityWarningStatus}"
+                                                   Style="{StaticResource Hg.DimText}"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Save_apply_allowlists_c3ce8fa2}"
                                                 Style="{StaticResource Hg.AccentButton}"
@@ -1387,7 +1433,7 @@
                                     </DockPanel>
                                 </Border>
 
-                                <TextBlock Grid.Row="2" Margin="2,6,0,0"
+                                <TextBlock Grid.Row="3" Margin="2,6,0,0"
                                            Text="{Binding StatusText}"
                                            Style="{StaticResource Hg.DimText}"
                                            AutomationProperties.LiveSetting="Polite" />

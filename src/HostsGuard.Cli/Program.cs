@@ -130,6 +130,7 @@ static int Usage()
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
           HostsGuard.Cli blocklists disable|enable|remove|rollback <name>
+          HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
           HostsGuard.Cli ip-blocklists [list|refresh]
           HostsGuard.Cli ip-blocklists import <name> <https-url>
           HostsGuard.Cli ip-blocklists disable|enable|remove|rollback <name>
@@ -2194,6 +2195,14 @@ static async Task<int> BlocklistsAsync(string[] args)
                 var rollback = await client.RestoreBlocklistCheckpointAsync(new BlocklistRequest { Name = args[2] });
                 Console.WriteLine(rollback.Message);
                 return rollback.Ok ? 0 : 2;
+            case "recover-connectivity":
+                var recoveryRequest = new WindowsConnectivityRecoveryRequest();
+                recoveryRequest.Domains.AddRange(args.Skip(2));
+                var recovery = await client.RecoverWindowsConnectivityAsync(recoveryRequest);
+                Console.WriteLine(recovery.Message);
+                foreach (var domain in recovery.RecoveredDomains) Console.WriteLine($"  recovered: {domain}");
+                foreach (var domain in recovery.RejectedDomains) Console.WriteLine($"  rejected:  {domain}");
+                return recovery.Ok ? 0 : 2;
             default:
                 Console.Error.WriteLine($"Unknown blocklists command: {subcommand}");
                 return 1;
@@ -2328,6 +2337,12 @@ static int PrintBlocklistResult(BlocklistResult result)
     if (result.Warning.Length != 0)
     {
         Console.WriteLine($"  warning:     {result.Warning}");
+    }
+
+    foreach (var warning in result.ConnectivityWarnings)
+    {
+        Console.WriteLine($"  NCSI warning: {warning.Domain} ({warning.ProbeKind}, {warning.Era}) - {warning.Reason}");
+        Console.WriteLine("    deliberate import is allowed; recover with: blocklists recover-connectivity " + warning.Domain);
     }
 
     return result.Ok ? 0 : 2;

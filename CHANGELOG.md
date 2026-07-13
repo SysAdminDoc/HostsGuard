@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.87] - 2026-07-12
+
+### Added
+- Blocklist preview, import, and refresh now emit structured warnings when a
+  list contains one of the five exact current or legacy Windows NCSI DNS/web
+  probe hosts documented by Microsoft. Apexes, nested subdomains, unrelated
+  Microsoft domains, and CDN implementation hosts do not match, and deliberate
+  imports remain available.
+- Blocklists offers one-click recovery, also available through
+  `blocklists recover-connectivity`, which persistently allows only exact NCSI
+  domains currently blocked by a list. Mixed requests recover eligible rows
+  while leaving manual blocks, existing allows, and unrelated domains unchanged;
+  settings lock and the event ledger cover the mutation.
+
 ## [0.12.86] - 2026-07-12
 
 ### Added

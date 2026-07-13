@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.86-blue)
+![Version](https://img.shields.io/badge/version-0.12.87-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -107,7 +107,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Managed domains | Database-backed domain management with status, source, hit tracking, and canonical reasons |
 | Raw editor | Direct editing of `drivers\etc\hosts` with clean-and-save (dedupe, validate, normalize) |
 | Backup / restore | Timestamped hosts backups plus verified full-state recovery points covering SQLite, exact hosts content, and an explicit non-secret settings allowlist; restore is preview/SHA-bound, creates a pre-restore snapshot, and rolls back failed or interrupted startup application |
-| Blocklist import | 12+ curated community blocklists (HaGezi, StevenBlack, OISD, URLhaus, ...) with preview, enable/disable, source-scoped rollback, hosts/adblock-format diagnostics, source-health/churn guard checkpoints, allowlist-wins merge, and per-source hits/30d stats |
+| Blocklist import | 12+ curated community blocklists (HaGezi, StevenBlack, OISD, URLhaus, ...) with preview, enable/disable, source-scoped rollback, hosts/adblock-format diagnostics, source-health/churn guard checkpoints, allowlist-wins merge, per-source hits/30d stats, and exact NCSI probe warnings with list-only recovery that never overrides manual blocks |
 | Allowlist subscriptions | Remote allowlists that whitelist domains and win over blocklists |
 | Blocked services | One-click toggles to block YouTube, TikTok, Facebook, Discord, Netflix, and more |
 | Telemetry preset | One-click block of ~28 Microsoft telemetry endpoints, reversible as a unit |
@@ -190,6 +190,7 @@ HostsGuard.Cli usage-quota [list|set|delete|reset|export]
 HostsGuard.Cli dns-cache [--limit N] [--search text]
 HostsGuard.Cli dns-flush-entry <cached-name>
 HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove|rollback]
+HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
 HostsGuard.Cli safe-posture
 HostsGuard.Cli safe-posture-smoke
 HostsGuard.Cli release-smoke
@@ -210,7 +211,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1368 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1389 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

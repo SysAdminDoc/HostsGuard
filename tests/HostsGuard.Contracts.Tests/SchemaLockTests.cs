@@ -147,6 +147,7 @@ public class SchemaLockTests
           ListBlocklistSources(Empty) returns (BlocklistSources)
           ListIpBlocklists(Empty) returns (IpBlocklistList)
           PreviewBlocklist(BlocklistRequest) returns (BlocklistResult)
+          RecoverWindowsConnectivity(WindowsConnectivityRecoveryRequest) returns (WindowsConnectivityRecoveryResult)
           RefreshAllowlists(Empty) returns (Ack)
           RefreshBlocklistIntelligence(Empty) returns (Ack)
           RefreshBlocklists(Empty) returns (BlocklistResult)

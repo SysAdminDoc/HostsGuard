@@ -221,6 +221,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         {
             StatusText = $"Importing {source.Name}...";
             var result = await _client.Lists.ImportBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
+            CaptureConnectivityWarnings(result);
             StatusText = FormatResult(result);
             await RefreshCoreAsync();
         });
@@ -239,6 +240,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         {
             StatusText = $"Previewing {source.Name}...";
             var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
+            CaptureConnectivityWarnings(result);
             StatusText = FormatResult(result);
         });
     }

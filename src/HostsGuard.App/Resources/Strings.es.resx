@@ -244,4 +244,22 @@
   <data name="FwRules_EnabledName" xml:space="preserve"><value>Estado activado de la regla del firewall</value></data>
   <data name="FwRules_Enabled" xml:space="preserve"><value>activada</value></data>
   <data name="FwRules_Disabled" xml:space="preserve"><value>desactivada</value></data>
+  <data name="Ncsi_WarningName" xml:space="preserve"><value>Dominios de comprobaciÃ³n de conectividad de Windows en la lista</value></data>
+  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Comprobaciones de conectividad de Windows afectadas</value></data>
+  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>Este aviso solo se aplica a los dominios de prueba exactos mostrados, no a los dominios de Microsoft en general. Puede importar. La recuperaciÃ³n solo permite bloqueos de prueba pertenecientes a listas; se rechazan bloqueos ajenos o manuales.</value></data>
+  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>Permitir pruebas / revertir bloqueos</value></data>
+  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Permitir los dominios de prueba exactos y revertir sus bloqueos de lista</value></data>
+  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>Solo permite los dominios exactos mostrados que una lista bloquea actualmente. Puede bloquearlos de nuevo deliberadamente.</value></data>
+  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>Esta lista contiene {0} dominio(s) exactos de comprobaciÃ³n de Windows. Puede importar.</value></data>
+  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>La vista previa encontrÃ³ {0} dominio(s) exactos de comprobaciÃ³n. Puede importar; la recuperaciÃ³n estarÃ¡ disponible despuÃ©s.</value></data>
+  <data name="Ncsi_Recovered" xml:space="preserve"><value>permitido / bloqueo revertido</value></data>
+  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>esta lista lo bloquearÃ­a</value></data>
+  <data name="Ncsi_Blocked" xml:space="preserve"><value>bloqueado por esta lista</value></data>
+  <data name="Ncsi_WebReason" xml:space="preserve"><value>Prueba web activa de conectividad de Windows</value></data>
+  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Prueba DNS de conectividad de Windows</value></data>
+  <data name="Ncsi_WebKind" xml:space="preserve"><value>prueba web</value></data>
+  <data name="Ncsi_DnsKind" xml:space="preserve"><value>prueba DNS</value></data>
+  <data name="Ncsi_CurrentEra" xml:space="preserve"><value>Windows actual</value></data>
+  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>Windows anterior</value></data>
+  <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
 </root>

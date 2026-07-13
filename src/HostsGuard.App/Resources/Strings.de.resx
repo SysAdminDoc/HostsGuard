@@ -244,4 +244,22 @@
   <data name="FwRules_EnabledName" xml:space="preserve"><value>Aktivierungszustand der Firewallregel</value></data>
   <data name="FwRules_Enabled" xml:space="preserve"><value>aktiviert</value></data>
   <data name="FwRules_Disabled" xml:space="preserve"><value>deaktiviert</value></data>
+  <data name="Ncsi_WarningName" xml:space="preserve"><value>Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤nen in der Blockliste</value></data>
+  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Windows-KonnektivitÃ¤tsprÃ¼fungen betroffen</value></data>
+  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>Diese Warnung gilt nur fÃ¼r die exakt angezeigten PrÃ¼fdomÃ¤nen, nicht allgemein fÃ¼r Microsoft-DomÃ¤nen. Der Import bleibt mÃ¶glich. Die Wiederherstellung erlaubt nur listeneigene PrÃ¼fblocks; fremde oder manuelle Blocks werden abgelehnt.</value></data>
+  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>PrÃ¼fungen erlauben / Listenblocks aufheben</value></data>
+  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Exakt betroffene Windows-PrÃ¼fdomÃ¤nen erlauben und Listenblocks aufheben</value></data>
+  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>Erlaubt nur die exakt angezeigten DomÃ¤nen, die derzeit durch eine Liste blockiert sind. SpÃ¤teres bewusstes Blockieren bleibt mÃ¶glich.</value></data>
+  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>Diese Liste enthÃ¤lt {0} exakte Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤ne(n). Der Import bleibt mÃ¶glich.</value></data>
+  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>Die Vorschau fand {0} exakte Windows-KonnektivitÃ¤tsprÃ¼fdomÃ¤ne(n). Der Import bleibt mÃ¶glich; die Wiederherstellung ist danach verfÃ¼gbar.</value></data>
+  <data name="Ncsi_Recovered" xml:space="preserve"><value>erlaubt / Listenblock aufgehoben</value></data>
+  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>wÃ¼rde durch diese Liste blockiert</value></data>
+  <data name="Ncsi_Blocked" xml:space="preserve"><value>durch diese Liste blockiert</value></data>
+  <data name="Ncsi_WebReason" xml:space="preserve"><value>Aktive Windows-WebkonnektivitÃ¤tsprÃ¼fung</value></data>
+  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Windows-DNS-KonnektivitÃ¤tsprÃ¼fung</value></data>
+  <data name="Ncsi_WebKind" xml:space="preserve"><value>WebprÃ¼fung</value></data>
+  <data name="Ncsi_DnsKind" xml:space="preserve"><value>DNS-PrÃ¼fung</value></data>
+  <data name="Ncsi_CurrentEra" xml:space="preserve"><value>aktuelles Windows</value></data>
+  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>Ã¤lteres Windows</value></data>
+  <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
 </root>

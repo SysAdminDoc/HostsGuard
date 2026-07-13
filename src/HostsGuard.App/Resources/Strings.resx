@@ -1087,4 +1087,22 @@
   <data name="FwRules_EnabledName" xml:space="preserve"><value>Firewall rule enabled state</value></data>
   <data name="FwRules_Enabled" xml:space="preserve"><value>enabled</value></data>
   <data name="FwRules_Disabled" xml:space="preserve"><value>disabled</value></data>
+  <data name="Ncsi_WarningName" xml:space="preserve"><value>Windows connectivity-check domains in blocklist</value></data>
+  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Windows connectivity checks affected</value></data>
+  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>This warning applies only to the exact probe domains shown below, not Microsoft domains generally. Import remains available. Recovery persistently allows only list-owned probe blocks; unrelated or manual blocks are rejected.</value></data>
+  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>Allow probes / revert list blocks</value></data>
+  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Allow the exact affected Windows probe domains and revert their list blocks</value></data>
+  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>One click allowlists only the exact shown domains that are currently blocked by a list. You can deliberately block them again later.</value></data>
+  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>This list contains {0} exact Windows connectivity-check domain(s). Import remains available.</value></data>
+  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>Preview found {0} exact Windows connectivity-check domain(s). Import remains available; recovery becomes available after import.</value></data>
+  <data name="Ncsi_Recovered" xml:space="preserve"><value>allowed / list block reverted</value></data>
+  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>would be blocked by this list</value></data>
+  <data name="Ncsi_Blocked" xml:space="preserve"><value>blocked by this list</value></data>
+  <data name="Ncsi_WebReason" xml:space="preserve"><value>Windows active web connectivity probe</value></data>
+  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Windows DNS connectivity probe</value></data>
+  <data name="Ncsi_WebKind" xml:space="preserve"><value>web probe</value></data>
+  <data name="Ncsi_DnsKind" xml:space="preserve"><value>DNS probe</value></data>
+  <data name="Ncsi_CurrentEra" xml:space="preserve"><value>current Windows</value></data>
+  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>legacy Windows</value></data>
+  <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
 </root>

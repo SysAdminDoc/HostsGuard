@@ -15,7 +15,8 @@ public sealed record ImportOutcome(
     long AllowlistOverrides = 0, bool MirrorUsed = false,
     long Removed = 0, long Preserved = 0, bool Preview = false,
     long Guarded = 0, long Failed = 0, long CheckpointId = 0,
-    long ModifiersStripped = 0);
+    long ModifiersStripped = 0,
+    IReadOnlyList<WindowsConnectivityWarning>? ConnectivityWarnings = null);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -61,6 +62,7 @@ public sealed class ListImporter : IDisposable
         var contentHash = Sha256(text);
         var scan = BlocklistCatalog.Scan(text);
         var domains = scan.Domains;
+        var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(domains);
         existing ??= _db.GetBlocklistSub(name);
 
         if (guardChurn && existing is not null)
@@ -78,7 +80,7 @@ public sealed class ListImporter : IDisposable
                 _db.LogEvent($"list:{name}", "refresh_guarded", details: guard.Message, reason: "blocklist");
                 return new ImportOutcome(0, domains.Count, _hosts.GetBlocked().Count, guard.Message,
                     scan.Duplicates, scan.Invalid, scan.HijackFlagged, MirrorUsed: mirrorUsed,
-                    Guarded: 1, ModifiersStripped: scan.ModifiersStripped);
+                    Guarded: 1, ModifiersStripped: scan.ModifiersStripped, ConnectivityWarnings: connectivityWarnings);
             }
         }
 
@@ -135,13 +137,16 @@ public sealed class ListImporter : IDisposable
         return new ImportOutcome(added, domains.Count, entries, warning,
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed,
             Removed: dropped.Removed, Preserved: dropped.Preserved,
-            CheckpointId: checkpointId, ModifiersStripped: scan.ModifiersStripped);
+            CheckpointId: checkpointId, ModifiersStripped: scan.ModifiersStripped,
+            ConnectivityWarnings: connectivityWarnings);
+
     }
 
     public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
     {
         var (text, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
         var scan = BlocklistCatalog.Scan(text);
+        var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(scan.Domains);
         var blocked = _db.GetDomains(status: "blocked").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
         var whitelisted = _db.GetDomains(status: "whitelisted").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
         var wouldAdd = scan.Domains.Count(d => !blocked.Contains(d) && !whitelisted.Contains(d));
@@ -152,7 +157,7 @@ public sealed class ListImporter : IDisposable
             : string.Empty;
         return new ImportOutcome(wouldAdd, scan.Domains.Count, entries, warning,
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed, Preview: true,
-            ModifiersStripped: scan.ModifiersStripped);
+            ModifiersStripped: scan.ModifiersStripped, ConnectivityWarnings: connectivityWarnings);
     }
 
     public ImportOutcome RemoveSource(string name)
@@ -202,6 +207,7 @@ public sealed class ListImporter : IDisposable
         long added = 0, total = 0;
         var warning = string.Empty;
         long duplicates = 0, invalid = 0, hijack = 0, overrides = 0, guarded = 0, failed = 0, checkpointId = 0, stripped = 0;
+        var connectivityWarnings = new Dictionary<string, WindowsConnectivityWarning>(StringComparer.Ordinal);
         foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled))
         {
             ImportOutcome outcome;
@@ -226,6 +232,8 @@ public sealed class ListImporter : IDisposable
             overrides += outcome.AllowlistOverrides;
             stripped += outcome.ModifiersStripped;
             guarded += outcome.Guarded;
+            foreach (var item in outcome.ConnectivityWarnings ?? Array.Empty<WindowsConnectivityWarning>())
+                connectivityWarnings[item.Dependency.Domain] = item;
             if (outcome.CheckpointId != 0)
             {
                 checkpointId = outcome.CheckpointId;
@@ -239,7 +247,7 @@ public sealed class ListImporter : IDisposable
 
         return new ImportOutcome(added, total, _hosts.GetBlocked().Count, warning,
             duplicates, invalid, hijack, overrides, Guarded: guarded, Failed: failed, CheckpointId: checkpointId,
-            ModifiersStripped: stripped);
+            ModifiersStripped: stripped, ConnectivityWarnings: connectivityWarnings.Values.OrderBy(static item => item.Dependency.Domain, StringComparer.Ordinal).ToArray());
     }
 
     public async Task<int> RefreshAllowlistsAsync(CancellationToken ct)

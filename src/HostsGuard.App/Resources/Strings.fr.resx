@@ -244,4 +244,22 @@
   <data name="FwRules_EnabledName" xml:space="preserve"><value>Ã‰tat activÃ© de la rÃ¨gle du pare-feu</value></data>
   <data name="FwRules_Enabled" xml:space="preserve"><value>activÃ©e</value></data>
   <data name="FwRules_Disabled" xml:space="preserve"><value>dÃ©sactivÃ©e</value></data>
+  <data name="Ncsi_WarningName" xml:space="preserve"><value>Domaines de test de connectivitÃ© Windows dans la liste</value></data>
+  <data name="Ncsi_WarningTitle" xml:space="preserve"><value>Tests de connectivitÃ© Windows affectÃ©s</value></data>
+  <data name="Ncsi_WarningHelp" xml:space="preserve"><value>Cet avertissement concerne uniquement les domaines de test exacts affichÃ©s, et non les domaines Microsoft en gÃ©nÃ©ral. L'import reste possible. La rÃ©cupÃ©ration autorise uniquement les blocages de test appartenant Ã  une liste ; les blocages externes ou manuels sont rejetÃ©s.</value></data>
+  <data name="Ncsi_RecoverAction" xml:space="preserve"><value>Autoriser les tests / annuler les blocages</value></data>
+  <data name="Ncsi_RecoverActionName" xml:space="preserve"><value>Autoriser les domaines de test Windows exacts et annuler leurs blocages de liste</value></data>
+  <data name="Ncsi_RecoverTip" xml:space="preserve"><value>Autorise uniquement les domaines exacts affichÃ©s actuellement bloquÃ©s par une liste. Vous pourrez les bloquer volontairement plus tard.</value></data>
+  <data name="Ncsi_WarningStatus" xml:space="preserve"><value>Cette liste contient {0} domaine(s) exacts de test de connectivitÃ© Windows. L'import reste possible.</value></data>
+  <data name="Ncsi_PreviewStatus" xml:space="preserve"><value>L'aperÃ§u a trouvÃ© {0} domaine(s) exacts de test de connectivitÃ©. L'import reste possible ; la rÃ©cupÃ©ration sera disponible ensuite.</value></data>
+  <data name="Ncsi_Recovered" xml:space="preserve"><value>autorisÃ© / blocage de liste annulÃ©</value></data>
+  <data name="Ncsi_WouldBlock" xml:space="preserve"><value>serait bloquÃ© par cette liste</value></data>
+  <data name="Ncsi_Blocked" xml:space="preserve"><value>bloquÃ© par cette liste</value></data>
+  <data name="Ncsi_WebReason" xml:space="preserve"><value>Test web actif de connectivitÃ© Windows</value></data>
+  <data name="Ncsi_DnsReason" xml:space="preserve"><value>Test DNS de connectivitÃ© Windows</value></data>
+  <data name="Ncsi_WebKind" xml:space="preserve"><value>test web</value></data>
+  <data name="Ncsi_DnsKind" xml:space="preserve"><value>test DNS</value></data>
+  <data name="Ncsi_CurrentEra" xml:space="preserve"><value>Windows actuel</value></data>
+  <data name="Ncsi_LegacyEra" xml:space="preserve"><value>ancien Windows</value></data>
+  <data name="Ncsi_Metadata" xml:space="preserve"><value>{0} | {1}</value></data>
 </root>

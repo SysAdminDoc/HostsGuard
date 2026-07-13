@@ -299,6 +299,62 @@ public sealed class ListControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ncsi_dependencies_warn_without_blocking_import_and_recovery_is_exact_list_owned_and_locked()
+    {
+        _fetcher.Responses["https://lists.test/ncsi.txt"] = """
+            0.0.0.0 www.msftconnecttest.com
+            0.0.0.0 dns.msftncsi.com
+            0.0.0.0 ipv6.msftconnecttest.com
+            0.0.0.0 msftconnecttest.com
+            0.0.0.0 sub.www.msftconnecttest.com
+            0.0.0.0 unrelated.microsoft.com
+            """;
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        var preview = await client.PreviewBlocklistAsync(new BlocklistRequest
+            { Name = "NCSI", Url = "https://lists.test/ncsi.txt" });
+        preview.Ok.Should().BeTrue();
+        preview.Preview.Should().BeTrue();
+        preview.ConnectivityWarnings.Select(row => row.Domain).Should()
+            .BeEquivalentTo("dns.msftncsi.com", "ipv6.msftconnecttest.com", "www.msftconnecttest.com");
+
+        var imported = await client.ImportBlocklistAsync(new BlocklistRequest
+            { Name = "NCSI", Url = "https://lists.test/ncsi.txt" });
+        imported.Ok.Should().BeTrue("the warning does not prevent deliberate import");
+        imported.ConnectivityWarnings.Should().HaveCount(3);
+        _state.Hosts.GetBlocked().Should().Contain("www.msftconnecttest.com").And.Contain("dns.msftncsi.com");
+
+        var one = new WindowsConnectivityRecoveryRequest();
+        one.Domains.Add("www.msftconnecttest.com");
+        var recovered = await client.RecoverWindowsConnectivityAsync(one);
+        recovered.Ok.Should().BeTrue();
+        recovered.RecoveredDomains.Should().Equal("www.msftconnecttest.com");
+        _state.Db.GetDomainStatus("www.msftconnecttest.com").Should().Be("whitelisted");
+        _state.Hosts.GetBlocked().Should().NotContain("www.msftconnecttest.com").And.Contain("dns.msftncsi.com");
+
+        _state.Db.AddDomain("ipv6.msftncsi.com", "blocked", "manual");
+        _state.Hosts.Reconcile(_state.Db.GetDomains(status: "blocked").Select(row => row.Domain));
+        var unsafeRequest = new WindowsConnectivityRecoveryRequest();
+        unsafeRequest.Domains.Add("dns.msftncsi.com");
+        unsafeRequest.Domains.Add("www.msftconnecttest.com");
+        unsafeRequest.Domains.Add("ipv6.msftncsi.com");
+        unsafeRequest.Domains.Add("unrelated.microsoft.com");
+        var unsafeResult = await client.RecoverWindowsConnectivityAsync(unsafeRequest);
+        unsafeResult.Ok.Should().BeTrue("eligible list blocks recover even beside rejected selections");
+        unsafeResult.RecoveredDomains.Should().Equal("dns.msftncsi.com");
+        unsafeResult.RejectedDomains.Should().BeEquivalentTo(
+            "www.msftconnecttest.com", "ipv6.msftncsi.com", "unrelated.microsoft.com");
+        _state.Db.GetDomainStatus("ipv6.msftncsi.com").Should().Be("blocked", "manual blocks are never overridden");
+
+        _state.Lock.Enable("locked1");
+        var locked = await client.RecoverWindowsConnectivityAsync(new WindowsConnectivityRecoveryRequest());
+        locked.Ok.Should().BeFalse();
+        locked.ErrorCode.Should().EndWith("/locked");
+        _state.Db.GetDomainStatus("ipv6.msftconnecttest.com").Should().Be("blocked");
+    }
+
+    [Fact]
     public async Task Allowlist_subscriptions_whitelist_and_unblock()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

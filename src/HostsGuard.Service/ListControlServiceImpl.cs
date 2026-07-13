@@ -229,6 +229,65 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         }
     }
 
+    public override Task<WindowsConnectivityRecoveryResult> RecoverWindowsConnectivity(
+        WindowsConnectivityRecoveryRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(new WindowsConnectivityRecoveryResult
+            {
+                Ok = false,
+                Message = gate.Message,
+                ErrorCode = gate.ErrorCode,
+            });
+        }
+
+        var requested = request.Domains.Select(Domains.ToAscii)
+            .Where(static domain => domain.Length != 0)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var candidates = requested.Length == 0
+            ? _state.Db.GetDomains(status: "blocked")
+                .Where(static row => (row.Source ?? string.Empty).StartsWith("list:", StringComparison.Ordinal))
+                .Select(static row => row.Domain)
+                .Where(static domain => WindowsConnectivityChecks.TryGet(domain, out _))
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+            : requested;
+        var rejected = candidates.Where(domain =>
+                !WindowsConnectivityChecks.TryGet(domain, out _) ||
+                !string.Equals(_state.Db.GetDomainStatus(domain), "blocked", StringComparison.Ordinal) ||
+                !(_state.Db.GetDomainSource(domain) ?? string.Empty).StartsWith("list:", StringComparison.Ordinal))
+            .ToArray();
+        var recoverable = candidates.Except(rejected, StringComparer.Ordinal).ToArray();
+        if (recoverable.Length != 0)
+        {
+            _state.Db.AddDomainsBulk(recoverable.Select(static domain => (domain, "whitelisted", "ncsi_recovery")));
+            _state.Hosts.Reconcile(_state.Db.GetDomains(status: "blocked").Select(static row => row.Domain));
+            _state.Db.LogEvent("windows_ncsi", "connectivity_recovered",
+                details: $"allowlisted exact list-blocked probes: {string.Join(',', recoverable)}" +
+                    (rejected.Length == 0 ? string.Empty : $"; rejected: {string.Join(',', rejected)}"), reason: "blocklist_safety");
+        }
+
+        var result = new WindowsConnectivityRecoveryResult
+        {
+            Ok = recoverable.Length != 0 || candidates.Length == 0,
+            ErrorCode = recoverable.Length == 0 && rejected.Length != 0
+                ? "hostsguard.error.v1/unsafe_recovery_selection" : string.Empty,
+            Message = candidates.Length == 0
+                ? "no list-blocked Windows connectivity probes needed recovery"
+                : recoverable.Length == 0
+                    ? "no selected domains were exact NCSI probes currently blocked by a list source"
+                    : $"recovered {recoverable.Length} Windows connectivity probe domain{(recoverable.Length == 1 ? string.Empty : "s")}" +
+                      (rejected.Length == 0 ? string.Empty : $"; left {rejected.Length} ineligible selection{(rejected.Length == 1 ? string.Empty : "s")} unchanged"),
+        };
+        result.RecoveredDomains.AddRange(recoverable);
+        result.RejectedDomains.AddRange(rejected);
+        return Task.FromResult(result);
+    }
+
     public override Task<Ack> RestoreBlocklistCheckpoint(BlocklistRequest request, ServerCallContext context)
     {
         var name = (request.Name ?? string.Empty).Trim();
@@ -626,26 +685,29 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         ImportOutcome outcome,
         string message,
         bool ok = true,
-        string errorCode = "") => new()
+        string errorCode = "")
     {
-        Ok = ok,
-        Message = message,
-        ErrorCode = errorCode,
-        Added = outcome.Added,
-        Total = outcome.Total,
-        HostsEntries = outcome.HostsEntries,
-        Warning = outcome.Warning,
-        Duplicates = outcome.Duplicates,
-        Invalid = outcome.Invalid,
-        HijackFlagged = outcome.HijackFlagged,
-        AllowlistOverrides = outcome.AllowlistOverrides,
-        MirrorUsed = outcome.MirrorUsed,
-        Removed = outcome.Removed,
-        Preserved = outcome.Preserved,
-        Preview = outcome.Preview,
-        Guarded = outcome.Guarded,
-        Failed = outcome.Failed,
-        CheckpointId = outcome.CheckpointId,
-        ModifiersStripped = outcome.ModifiersStripped,
-    };
+        var result = new BlocklistResult
+        {
+            Ok = ok, Message = message, ErrorCode = errorCode, Added = outcome.Added,
+            Total = outcome.Total, HostsEntries = outcome.HostsEntries, Warning = outcome.Warning,
+            Duplicates = outcome.Duplicates, Invalid = outcome.Invalid, HijackFlagged = outcome.HijackFlagged,
+            AllowlistOverrides = outcome.AllowlistOverrides, MirrorUsed = outcome.MirrorUsed,
+            Removed = outcome.Removed, Preserved = outcome.Preserved, Preview = outcome.Preview,
+            Guarded = outcome.Guarded, Failed = outcome.Failed, CheckpointId = outcome.CheckpointId,
+            ModifiersStripped = outcome.ModifiersStripped,
+        };
+        foreach (var warning in outcome.ConnectivityWarnings ?? Array.Empty<Core.WindowsConnectivityWarning>())
+        {
+            result.ConnectivityWarnings.Add(new Contracts.WindowsConnectivityWarning
+            {
+                Domain = warning.Dependency.Domain,
+                ProbeKind = warning.Dependency.ProbeKind.ToString().ToLowerInvariant(),
+                Era = warning.Dependency.Era.ToString().ToLowerInvariant(),
+                Reason = warning.Reason,
+                Code = Core.WindowsConnectivityWarning.WarningCode,
+            });
+        }
+        return result;
+    }
 }
