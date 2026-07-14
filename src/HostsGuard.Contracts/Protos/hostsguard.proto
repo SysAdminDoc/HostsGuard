@@ -390,6 +390,10 @@ service ListControl {
   rpc PreviewBlocklist(BlocklistRequest) returns (BlocklistResult);
   // Fetch + parse + bulk-import one source; records a subscription for refresh.
   rpc ImportBlocklist(BlocklistRequest) returns (BlocklistResult);
+  // Parse client-supplied local content without mutating hosts/DB (offline import).
+  rpc PreviewBlocklistContent(BlocklistContentRequest) returns (BlocklistResult);
+  // Parse + bulk-import client-supplied local content as a non-refreshable source.
+  rpc ImportBlocklistContent(BlocklistContentRequest) returns (BlocklistResult);
   // Enable/disable refresh for one subscribed source (imported domains stay).
   rpc SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack);
   // Remove a source and roll back domains owned only by that source.
@@ -467,6 +471,12 @@ message BlocklistIntelStatus {
 message BlocklistRequest {
   string name = 1;
   string url = 2;
+}
+
+// Client-supplied local list content (bytes, UTF-8), bounded service-side.
+message BlocklistContentRequest {
+  string name = 1;
+  bytes content = 2;
 }
 
 message BlocklistToggleRequest {

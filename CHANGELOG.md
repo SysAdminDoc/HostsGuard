@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.102] - 2026-07-14
+
+### Added
+- Import a blocklist from a local hosts/adblock file offline: new
+  `PreviewBlocklistContent`/`ImportBlocklistContent` RPCs take client-supplied
+  UTF-8 bytes (bounded to the 25 MB list cap, never a LocalSystem path) and reuse
+  the existing parse/checkpoint/apply/allowlist machinery. Locally-imported
+  sources use a non-fetchable `local:` URL so scheduled refresh skips them, while
+  remove/rollback still target only that source. New CLI
+  `blocklists preview-file|import-file <name> <path>`.
+
 ## [0.12.101] - 2026-07-14
 
 ### Changed

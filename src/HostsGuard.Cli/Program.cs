@@ -146,6 +146,8 @@ static int Usage()
           HostsGuard.Cli blocklists [list|stats|refresh]
           HostsGuard.Cli blocklists preview <name> <https-url>
           HostsGuard.Cli blocklists import <name> <https-url>
+          HostsGuard.Cli blocklists preview-file <name> <path>
+          HostsGuard.Cli blocklists import-file <name> <path>
           HostsGuard.Cli blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
           HostsGuard.Cli ip-blocklists [list|refresh]
@@ -2746,6 +2748,39 @@ static async Task<int> BlocklistsAsync(string[] args)
                 return PrintBlocklistResult(subcommand == "preview"
                     ? await client.PreviewBlocklistAsync(request)
                     : await client.ImportBlocklistAsync(request));
+            case "preview-file":
+            case "import-file":
+                if (args.Length < 4)
+                {
+                    Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <path-to-hosts-or-adblock-file>");
+                    return 1;
+                }
+
+                byte[] content;
+                try
+                {
+                    content = await File.ReadAllBytesAsync(args[3]);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                {
+                    Console.Error.WriteLine($"could not read '{args[3]}': {ex.Message}");
+                    return 1;
+                }
+
+                if (content.Length > BlocklistCatalog.MaxBlocklistBytes)
+                {
+                    Console.Error.WriteLine($"'{args[3]}' exceeds the {BlocklistCatalog.MaxBlocklistBytes / (1024 * 1024)} MB import cap");
+                    return 1;
+                }
+
+                var contentRequest = new BlocklistContentRequest
+                {
+                    Name = args[2],
+                    Content = Google.Protobuf.ByteString.CopyFrom(content),
+                };
+                return PrintBlocklistResult(subcommand == "preview-file"
+                    ? await client.PreviewBlocklistContentAsync(contentRequest)
+                    : await client.ImportBlocklistContentAsync(contentRequest));
             case "disable":
             case "enable":
                 if (args.Length < 3)

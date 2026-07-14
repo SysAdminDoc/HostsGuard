@@ -145,6 +145,82 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         }
     }
 
+    public override async Task<BlocklistResult> PreviewBlocklistContent(BlocklistContentRequest request, ServerCallContext context)
+    {
+        if (_state.Lists is not { } lists)
+        {
+            return ListsUnavailable();
+        }
+
+        var (name, content, error) = ValidateContentRequest(request);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var outcome = await lists.PreviewBlocklistContentAsync(name, content, context.CancellationToken);
+        return ToResult(outcome, $"previewed {name}: {outcome.Added} would be new of {outcome.Total} domains from local content");
+    }
+
+    public override async Task<BlocklistResult> ImportBlocklistContent(BlocklistContentRequest request, ServerCallContext context)
+    {
+        if (_state.Lists is not { } lists)
+        {
+            return ListsUnavailable();
+        }
+
+        var (name, content, error) = ValidateContentRequest(request);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var outcome = await lists.ImportBlocklistContentAsync(name, content, context.CancellationToken);
+        return ToResult(outcome, $"imported {name}: {outcome.Added} new of {outcome.Total} domains from local content");
+    }
+
+    /// <summary>
+    /// Validate a local-content import: a non-empty name, non-empty content, and a
+    /// hard byte cap so the unelevated client can never stream an unbounded payload
+    /// into the LocalSystem service. Returns the decoded UTF-8 text or an error.
+    /// </summary>
+    private static (string Name, string Content, BlocklistResult? Error) ValidateContentRequest(BlocklistContentRequest request)
+    {
+        var name = (request.Name ?? string.Empty).Trim();
+        if (name.Length == 0)
+        {
+            return (name, string.Empty, new BlocklistResult
+            {
+                Ok = false,
+                Message = "blocklist name is required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        var bytes = request.Content;
+        if (bytes is null || bytes.Length == 0)
+        {
+            return (name, string.Empty, new BlocklistResult
+            {
+                Ok = false,
+                Message = "list content is empty",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            });
+        }
+
+        if (bytes.Length > BlocklistCatalog.MaxBlocklistBytes)
+        {
+            return (name, string.Empty, new BlocklistResult
+            {
+                Ok = false,
+                Message = $"list content exceeds the {BlocklistCatalog.MaxBlocklistBytes / (1024 * 1024)} MB import cap",
+                ErrorCode = "hostsguard.error.v1/content_too_large",
+            });
+        }
+
+        return (name, bytes.ToStringUtf8(), null);
+    }
+
     public override Task<Ack> SetBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)
     {
         var name = (request.Name ?? string.Empty).Trim();

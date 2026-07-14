@@ -49,6 +49,34 @@ public sealed class ListImporter : IDisposable
     public async Task<ImportOutcome> ImportBlocklistAsync(string name, string url, CancellationToken ct)
         => await ImportBlocklistAsync(name, url, ct, guardChurn: false, existing: null);
 
+    /// <summary>
+    /// Import a blocklist from local file/clipboard content the unelevated client
+    /// supplies as bytes — no LocalSystem file path, no network fetch. Reuses the
+    /// exact parse/checkpoint/apply/allowlist machinery; the synthetic
+    /// <c>local:</c> source URL keeps it out of scheduled refresh (nothing to
+    /// re-fetch) while remove/rollback still target only this source.
+    /// </summary>
+    public async Task<ImportOutcome> ImportBlocklistContentAsync(string name, string content, CancellationToken ct)
+    {
+        var scan = await BlocklistCatalog.ScanAsync(new StringReader(content ?? string.Empty), ct);
+        return ApplyScanned(name, LocalSourceUrl(name), scan, mirrorUsed: false, guardChurn: false, existing: _db.GetBlocklistSub(name));
+    }
+
+    /// <summary>Preview a local-content import without applying it.</summary>
+    public async Task<ImportOutcome> PreviewBlocklistContentAsync(string name, string content, CancellationToken ct)
+    {
+        var scan = await BlocklistCatalog.ScanAsync(new StringReader(content ?? string.Empty), ct);
+        return PreviewScanned(scan, mirrorUsed: false);
+    }
+
+    /// <summary>Synthetic non-fetchable source URL for a locally-imported list.</summary>
+    internal static string LocalSourceUrl(string name) => "local:" + name;
+
+    /// <summary>Whether a source URL can be re-fetched by scheduled refresh.</summary>
+    internal static bool IsRefreshableUrl(string url) =>
+        url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+        || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
     private async Task<ImportOutcome> ImportBlocklistAsync(
         string name,
         string url,
@@ -59,6 +87,17 @@ public sealed class ListImporter : IDisposable
         // Mirror fallback (NET-077): if the primary URL fails and the catalog
         // knows a mirror for this source, retry the mirror before giving up.
         var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        return ApplyScanned(name, url, scan, mirrorUsed, guardChurn, existing);
+    }
+
+    private ImportOutcome ApplyScanned(
+        string name,
+        string url,
+        BlocklistScan scan,
+        bool mirrorUsed,
+        bool guardChurn,
+        BlocklistSubRow? existing)
+    {
         var contentHash = Sha256(scan.Domains);
         var domains = scan.Domains;
         var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(domains);
@@ -144,6 +183,11 @@ public sealed class ListImporter : IDisposable
     public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
     {
         var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
+        return PreviewScanned(scan, mirrorUsed);
+    }
+
+    private ImportOutcome PreviewScanned(BlocklistScan scan, bool mirrorUsed)
+    {
         var connectivityWarnings = WindowsConnectivityChecks.FindBlocked(scan.Domains);
         var blocked = _db.GetDomains(status: "blocked").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
         var whitelisted = _db.GetDomains(status: "whitelisted").Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
@@ -209,7 +253,8 @@ public sealed class ListImporter : IDisposable
         var warning = string.Empty;
         long duplicates = 0, invalid = 0, hijack = 0, overrides = 0, guarded = 0, failed = 0, checkpointId = 0, stripped = 0;
         var connectivityWarnings = new Dictionary<string, WindowsConnectivityWarning>(StringComparer.Ordinal);
-        foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled))
+        // Locally-imported sources (local: URL) have nothing to re-fetch — skip them.
+        foreach (var sub in _db.GetBlocklistSubs().Where(s => s.Enabled && IsRefreshableUrl(s.Url)))
         {
             ImportOutcome outcome;
             try
