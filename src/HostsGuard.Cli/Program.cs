@@ -57,6 +57,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "blocklists" => await BlocklistsAsync(args),
     "ip-blocklists" => await IpBlocklistsAsync(args),
     "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
+    "secure-rules" => await SecureRulesAsync(args),
     "update" => await UpdateAsync(args),
     "safe-posture" => await SafePostureAsync(),
     "safe-posture-smoke" => await SafePostureSmokeAsync(),
@@ -156,6 +157,8 @@ static int Usage()
           HostsGuard.Cli ip-blocklists import <name> <https-url>
           HostsGuard.Cli ip-blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli mode [normal|notify|learning]
+          HostsGuard.Cli secure-rules [status|enable|disable]
+          HostsGuard.Cli secure-rules accept|rearm <HG_rule_name>
           HostsGuard.Cli update [check|stage]
           HostsGuard.Cli update stage --path <feed-matching-installer.exe> [--sha256 <hash>]
           HostsGuard.Cli update health --expected <version> [--timeout <seconds>]
@@ -174,6 +177,60 @@ static int Version()
 {
     Console.WriteLine(InformationalVersion());
     return 0;
+}
+
+static async Task<int> SecureRulesAsync(string[] args)
+{
+    var action = args.Length > 1 ? args[1].Trim().ToLowerInvariant() : "status";
+    if (action is "accept" or "rearm" && args.Length < 3)
+    {
+        Console.Error.WriteLine($"Usage: secure-rules {action} <HG_rule_name>");
+        return 1;
+    }
+
+    if (action is not ("status" or "enable" or "disable" or "accept" or "rearm"))
+    {
+        Console.Error.WriteLine("Usage: secure-rules [status|enable|disable] | secure-rules accept|rearm <HG_rule_name>");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new FirewallControl.FirewallControlClient(channel);
+        if (action is "enable" or "disable")
+        {
+            var ack = await client.SetSecureRulesAsync(new SecureRulesRequest { Enabled = action == "enable" });
+            Console.WriteLine(ack.Message);
+            if (!ack.Ok)
+            {
+                return 2;
+            }
+        }
+        else if (action is "accept" or "rearm")
+        {
+            var ack = await client.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest
+            {
+                Name = args[2],
+                Action = action,
+            });
+            Console.WriteLine(ack.Message);
+            if (!ack.Ok)
+            {
+                return 2;
+            }
+        }
+
+        var status = await client.GetSecureRulesAsync(new Empty());
+        Console.WriteLine($"Secure Rules: {(status.Enabled ? "armed" : "off")} · tracked={status.Tracked} · quarantined={status.Quarantined}");
+        foreach (var conflict in status.Conflicts.OrderBy(c => c.Name, StringComparer.Ordinal))
+        {
+            Console.WriteLine($"  {conflict.Name}: quarantined after {conflict.RestoreAttempts} restores at {conflict.DetectedAt}");
+            Console.WriteLine($"    live:    {conflict.LiveEvidence}");
+            Console.WriteLine($"    tracked: {conflict.TrackedEvidence}");
+        }
+
+        return 0;
+    });
 }
 
 static string InformationalVersion()

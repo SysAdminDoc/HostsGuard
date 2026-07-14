@@ -4412,6 +4412,33 @@
                                             <TextBlock Text="{Binding SecureRulesText}"
                                                        Style="{StaticResource Hg.SubText}"
                                                        AutomationProperties.LiveSetting="Polite" />
+                                            <ItemsControl ItemsSource="{Binding SecureRuleConflicts}" Margin="0,8,0,0"
+                                                          AutomationProperties.Name="{svc:Loc Key=SecureRules_ConflictListName}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource Hg.DangerSoft}"
+                                                                BorderBrush="{DynamicResource Hg.DangerBorder}"
+                                                                BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Hg.DimText}"
+                                                                           TextWrapping="Wrap" Margin="0,3,0,0" />
+                                                                <TextBlock Text="{Binding Evidence}" Style="{StaticResource Hg.DimText}"
+                                                                           TextWrapping="Wrap" Margin="0,5,0,7" />
+                                                                <WrapPanel>
+                                                                    <Button Content="{svc:Loc Key=SecureRules_RearmButton}"
+                                                                            Command="{Binding DataContext.RearmSecureRuleConflictCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                            CommandParameter="{Binding}" Margin="0,0,8,0" />
+                                                                    <Button Content="{svc:Loc Key=SecureRules_AcceptButton}"
+                                                                            Style="{StaticResource Hg.DangerButton}"
+                                                                            Command="{Binding DataContext.AcceptSecureRuleConflictCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                            CommandParameter="{Binding}" />
+                                                                </WrapPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                             <TextBlock Text="{Binding DefenderStatusText}"
                                                        Style="{StaticResource Hg.DimText}"
                                                        Margin="0,3,0,0"

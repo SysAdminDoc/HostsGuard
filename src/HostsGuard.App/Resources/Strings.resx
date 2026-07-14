@@ -1874,4 +1874,18 @@
   <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>process.exe or example.com</value></data>
   <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Privacy exclusions not loaded.</value></data>
   <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Enter an app process name or domain.</value></data>
+  <data name="SecureRules_OnQuarantined" xml:space="preserve"><value>Secure Rules ON — {0} protected; {1} quarantined and awaiting action</value></data>
+  <data name="SecureRules_OffQuarantined" xml:space="preserve"><value>Secure Rules OFF — {0} quarantined conflicts retained for review</value></data>
+  <data name="SecureRules_AcceptTitle" xml:space="preserve"><value>Accept foreign firewall state</value></data>
+  <data name="SecureRules_RearmTitle" xml:space="preserve"><value>Re-arm firewall rule recovery</value></data>
+  <data name="SecureRules_ConflictTarget" xml:space="preserve"><value>Quarantined rule: {0}</value></data>
+  <data name="SecureRules_AcceptConsequence" xml:space="preserve"><value>HostsGuard will stop tracking this rule and leave its current missing or disabled state unchanged.</value></data>
+  <data name="SecureRules_RearmConsequence" xml:space="preserve"><value>HostsGuard will immediately restore the tracked state and resume automatic recovery. Resolve external policy first to avoid another quarantine.</value></data>
+  <data name="SecureRules_ActionAccept" xml:space="preserve"><value>Accept Secure Rules conflict</value></data>
+  <data name="SecureRules_ActionRearm" xml:space="preserve"><value>Re-arm Secure Rules conflict</value></data>
+  <data name="SecureRules_ConflictSummary" xml:space="preserve"><value>Quarantined after {0} restores · detected {1}</value></data>
+  <data name="SecureRules_ConflictEvidence" xml:space="preserve"><value>Live: {0}{2}Tracked: {1}</value></data>
+  <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Quarantined Secure Rules conflicts</value></data>
+  <data name="SecureRules_RearmButton" xml:space="preserve"><value>Re-arm tracked state</value></data>
+  <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accept foreign state</value></data>
 </root>

@@ -762,6 +762,7 @@ service FirewallControl {
   // back. Opt-in; only ever touches HostsGuard's own rules.
   rpc GetSecureRules(Empty) returns (SecureRulesStatus);
   rpc SetSecureRules(SecureRulesRequest) returns (Ack);
+  rpc ResolveSecureRuleConflict(SecureRuleConflictRequest) returns (Ack);
   // Orphan rebind: rank identity-matched replacement binaries for a program
   // rule whose target vanished, then re-target the rule.
   rpc SuggestRebind(RuleNameRequest) returns (RebindSuggestions);
@@ -967,6 +968,21 @@ message SecureRulesRequest {
 message SecureRulesStatus {
   bool enabled = 1;
   int32 tracked = 2;   // HG_ rules under protection
+  int32 quarantined = 3;
+  repeated SecureRuleConflict conflicts = 4;
+}
+
+message SecureRuleConflictRequest {
+  string name = 1;
+  string action = 2;   // "accept" keeps foreign state; "rearm" resumes recovery
+}
+
+message SecureRuleConflict {
+  string name = 1;
+  string detected_at = 2;
+  int32 restore_attempts = 3;
+  string live_evidence = 4;
+  string tracked_evidence = 5;
 }
 
 message RebindCandidate {

@@ -556,4 +556,18 @@
   <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>processus.exe ou exemple.fr</value></data>
   <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Exclusions de confidentialité non chargées.</value></data>
   <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Saisissez un processus d’application ou un domaine.</value></data>
+  <data name="SecureRules_OnQuarantined" xml:space="preserve"><value>Règles sécurisées ACTIVÉES — {0} protégées ; {1} en quarantaine en attente d'action</value></data>
+  <data name="SecureRules_OffQuarantined" xml:space="preserve"><value>Règles sécurisées DÉSACTIVÉES — {0} conflits en quarantaine conservés pour examen</value></data>
+  <data name="SecureRules_AcceptTitle" xml:space="preserve"><value>Accepter l'état externe du pare-feu</value></data>
+  <data name="SecureRules_RearmTitle" xml:space="preserve"><value>Réarmer la récupération de la règle</value></data>
+  <data name="SecureRules_ConflictTarget" xml:space="preserve"><value>Règle en quarantaine : {0}</value></data>
+  <data name="SecureRules_AcceptConsequence" xml:space="preserve"><value>HostsGuard cessera de suivre cette règle et laissera son état actuel absent ou désactivé inchangé.</value></data>
+  <data name="SecureRules_RearmConsequence" xml:space="preserve"><value>HostsGuard restaurera immédiatement l'état suivi et reprendra la récupération automatique. Corrigez d'abord la stratégie externe pour éviter une nouvelle quarantaine.</value></data>
+  <data name="SecureRules_ActionAccept" xml:space="preserve"><value>Accepter le conflit de règles sécurisées</value></data>
+  <data name="SecureRules_ActionRearm" xml:space="preserve"><value>Réarmer le conflit de règles sécurisées</value></data>
+  <data name="SecureRules_ConflictSummary" xml:space="preserve"><value>En quarantaine après {0} restaurations · détecté {1}</value></data>
+  <data name="SecureRules_ConflictEvidence" xml:space="preserve"><value>Actuel : {0}{2}Suivi : {1}</value></data>
+  <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Conflits de règles sécurisées en quarantaine</value></data>
+  <data name="SecureRules_RearmButton" xml:space="preserve"><value>Réarmer l'état suivi</value></data>
+  <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accepter l'état externe</value></data>
 </root>

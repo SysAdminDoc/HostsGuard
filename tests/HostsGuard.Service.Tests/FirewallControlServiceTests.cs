@@ -248,6 +248,97 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Secure_rules_rpc_surfaces_evidence_and_rearms_a_quarantined_rule()
+    {
+        const string name = "HG_Block_rpc_loop";
+        _fw.CreateRule(new FwRule(name, "Out", "Block", true, "203.0.113.25", "Any", string.Empty, "hostsguard"));
+        _state.Db.UpsertFwState(name, "Out", "Block", "203.0.113.25", "Any", string.Empty);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        (await client.SetSecureRulesAsync(new SecureRulesRequest { Enabled = true })).Ok.Should().BeTrue();
+
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            _fw.Rules.Remove(name);
+            _state.SecureRules.Reconcile();
+        }
+
+        _fw.Rules.Remove(name);
+        _state.SecureRules.Reconcile();
+
+        var status = await client.GetSecureRulesAsync(new Empty());
+        status.Tracked.Should().Be(0, "a quarantined rule is not receiving automatic protection");
+        status.Quarantined.Should().Be(1);
+        var conflict = status.Conflicts.Should().ContainSingle().Subject;
+        conflict.Name.Should().Be(name);
+        conflict.LiveEvidence.Should().Be("missing");
+        conflict.TrackedEvidence.Should().Contain("203.0.113.25");
+        (await client.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest { Name = name, Action = "invalid" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_action");
+
+        (await client.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest { Name = name, Action = "rearm" }))
+            .Ok.Should().BeTrue();
+        _fw.Rules.Should().ContainKey(name);
+        (await client.GetSecureRulesAsync(new Empty())).Quarantined.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Secure_rules_rearm_requires_the_guard_to_be_armed()
+    {
+        const string name = "HG_Block_rpc_off";
+        _fw.CreateRule(new FwRule(name, "Out", "Block", true, "203.0.113.26", "Any", string.Empty, "hostsguard"));
+        _state.Db.UpsertFwState(name, "Out", "Block", "203.0.113.26", "Any", string.Empty);
+        _state.SecureRules.SetEnabled(true);
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            _fw.Rules.Remove(name);
+            _state.SecureRules.Reconcile();
+        }
+
+        _fw.Rules.Remove(name);
+        _state.SecureRules.Reconcile();
+        _state.SecureRules.SetEnabled(false);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        var ack = await client.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest
+        {
+            Name = name,
+            Action = "rearm",
+        });
+
+        ack.ErrorCode.Should().Be("hostsguard.error.v1/secure_rules_disabled");
+        _state.SecureRules.Conflicts.Should().ContainSingle();
+        _fw.Rules.Should().NotContainKey(name);
+    }
+
+    [Fact]
+    public async Task Secure_rules_accept_rpc_keeps_foreign_state_and_removes_tracking()
+    {
+        const string name = "HG_Block_rpc_accept";
+        _fw.CreateRule(new FwRule(name, "Out", "Block", true, "198.51.100.9", "Any", string.Empty, "hostsguard"));
+        _state.Db.UpsertFwState(name, "Out", "Block", "198.51.100.9", "Any", string.Empty);
+        _state.SecureRules.SetEnabled(true);
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            _fw.Rules.Remove(name);
+            _state.SecureRules.Reconcile();
+        }
+
+        _fw.Rules.Remove(name);
+        _state.SecureRules.Reconcile();
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+
+        (await client.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest { Name = name, Action = "accept" }))
+            .Ok.Should().BeTrue();
+
+        _fw.Rules.Should().NotContainKey(name);
+        _state.Db.GetFwStateNames().Should().NotContain(name);
+        (await client.GetSecureRulesAsync(new Empty())).Conflicts.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Full_firewall_drift_logs_foreign_changes_and_surfaces_vanished_rows()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

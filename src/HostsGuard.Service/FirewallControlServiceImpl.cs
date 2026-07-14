@@ -1083,11 +1083,24 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
     }
 
     public override Task<SecureRulesStatus> GetSecureRules(Empty request, ServerCallContext context)
-        => Task.FromResult(new SecureRulesStatus
+    {
+        var guardStatus = _state.SecureRules.GetStatus();
+        var status = new SecureRulesStatus
         {
             Enabled = _state.SecureRules.Enabled,
-            Tracked = _state.SecureRules.TrackedCount,
-        });
+            Tracked = guardStatus.ProtectedCount,
+            Quarantined = guardStatus.Conflicts.Count,
+        };
+        status.Conflicts.AddRange(guardStatus.Conflicts.Select(c => new HostsGuard.Contracts.SecureRuleConflict
+        {
+            Name = c.Name,
+            DetectedAt = c.DetectedAt,
+            RestoreAttempts = c.RestoreAttempts,
+            LiveEvidence = c.LiveEvidence,
+            TrackedEvidence = c.TrackedEvidence,
+        }));
+        return Task.FromResult(status);
+    }
 
     public override Task<Ack> SetSecureRules(SecureRulesRequest request, ServerCallContext context)
     {
@@ -1095,6 +1108,44 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok(request.Enabled
             ? $"Secure Rules armed — {_state.SecureRules.TrackedCount} HG_ rules protected against tampering"
             : "Secure Rules disarmed"));
+    }
+
+    public override Task<Ack> ResolveSecureRuleConflict(SecureRuleConflictRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked() is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        var name = (request.Name ?? string.Empty).Trim();
+        if (!name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
+        {
+            return Task.FromResult(Error("invalid_rule", "a HostsGuard HG_ rule name is required"));
+        }
+
+        var action = (request.Action ?? string.Empty).Trim().ToLowerInvariant();
+        if (action == "rearm" && !_state.SecureRules.Enabled)
+        {
+            return Task.FromResult(Error("secure_rules_disabled", "enable Secure Rules before re-arming a conflict"));
+        }
+
+        var resolved = action switch
+        {
+            "accept" => _state.SecureRules.AcceptForeignState(name),
+            "rearm" => _state.SecureRules.Rearm(name),
+            _ => false,
+        };
+        if (!resolved)
+        {
+            var invalidAction = action is not ("accept" or "rearm");
+            return Task.FromResult(invalidAction
+                ? Error("invalid_action", "action must be accept or rearm")
+                : Error("not_found", $"{name} is not quarantined"));
+        }
+
+        return Task.FromResult(Ok(action == "accept"
+            ? $"accepted foreign state for {name}; Secure Rules no longer tracks it"
+            : $"re-armed Secure Rules recovery for {name}"));
     }
 
     // ─── Global posture selector + per-app scope blocks (NET-076) ────────────

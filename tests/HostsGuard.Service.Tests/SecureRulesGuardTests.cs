@@ -39,6 +39,12 @@ public sealed class SecureRulesGuardTests : IDisposable
         _db.UpsertFwState(name, "Out", "Block", "203.0.113.9", "Any", string.Empty);
     }
 
+    private void DeleteAndReconcile(SecureRulesGuard guard, string name)
+    {
+        _fw.Rules.Remove(name);
+        guard.Reconcile();
+    }
+
     [Fact]
     public void Disarmed_guard_reverts_nothing()
     {
@@ -80,6 +86,110 @@ public sealed class SecureRulesGuardTests : IDisposable
 
         guard.Reconcile().Should().Be(0);
         _fw.Rules["CoreNet-Something"].Enabled.Should().BeFalse(); // untouched
+    }
+
+    [Fact]
+    public void Repeated_restores_quarantine_only_the_conflicting_rule_and_raise_one_evidenced_alert()
+    {
+        var now = new DateTimeOffset(2026, 7, 14, 12, 0, 0, TimeSpan.Zero);
+        using var guard = new SecureRulesGuard(_fw, _db, () => now, Timeout.InfiniteTimeSpan);
+        Track("HG_Block_loop");
+        Track("HG_Block_unrelated");
+        guard.SetEnabled(true);
+
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            DeleteAndReconcile(guard, "HG_Block_loop");
+            guard.Reconcile().Should().Be(0, "a healthy observation must not erase restores still inside the rolling window");
+            now = now.AddMinutes(1);
+        }
+
+        _fw.Rules.Remove("HG_Block_loop");
+        _fw.Rules.Remove("HG_Block_unrelated");
+        guard.Reconcile().Should().Be(1);
+
+        _fw.Rules.Should().NotContainKey("HG_Block_loop");
+        _fw.Rules.Should().ContainKey("HG_Block_unrelated");
+        var conflict = guard.Conflicts.Should().ContainSingle().Subject;
+        conflict.Name.Should().Be("HG_Block_loop");
+        conflict.RestoreAttempts.Should().Be(SecureRulesGuard.RestoreLimit);
+        conflict.LiveEvidence.Should().Be("missing");
+        conflict.TrackedEvidence.Should().Contain("remote=203.0.113.9");
+
+        guard.Reconcile();
+        var alert = _db.GetAlerts(new AlertFilter(Type: "secure_rules_conflict")).Rows.Should().ContainSingle().Subject;
+        alert.Severity.Should().Be("critical");
+        alert.Details.Should().Contain("Live: missing").And.Contain("tracked:").And.Contain("10 minutes");
+    }
+
+    [Fact]
+    public void Restore_counter_expires_after_the_documented_window()
+    {
+        var now = new DateTimeOffset(2026, 7, 14, 12, 0, 0, TimeSpan.Zero);
+        using var guard = new SecureRulesGuard(_fw, _db, () => now, Timeout.InfiniteTimeSpan);
+        Track("HG_Block_expiring");
+        guard.SetEnabled(true);
+
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            DeleteAndReconcile(guard, "HG_Block_expiring");
+            now = now.AddMinutes(1);
+        }
+
+        now = now.Add(SecureRulesGuard.RestoreWindow);
+        DeleteAndReconcile(guard, "HG_Block_expiring");
+
+        _fw.Rules.Should().ContainKey("HG_Block_expiring");
+        guard.Conflicts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Quarantine_survives_restart_and_accept_foreign_state_stops_tracking()
+    {
+        var now = new DateTimeOffset(2026, 7, 14, 12, 0, 0, TimeSpan.Zero);
+        Track("HG_Block_accept");
+        using (var guard = new SecureRulesGuard(_fw, _db, () => now, Timeout.InfiniteTimeSpan))
+        {
+            guard.SetEnabled(true);
+            for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+            {
+                DeleteAndReconcile(guard, "HG_Block_accept");
+            }
+
+            _fw.Rules.Remove("HG_Block_accept");
+            guard.Reconcile();
+            guard.Conflicts.Should().ContainSingle();
+        }
+
+        using var reopened = new SecureRulesGuard(_fw, _db, () => now, Timeout.InfiniteTimeSpan);
+        reopened.Conflicts.Should().ContainSingle(c => c.Name == "HG_Block_accept");
+        reopened.AcceptForeignState("HG_Block_accept").Should().BeTrue();
+        reopened.AcceptForeignState("HG_Block_accept").Should().BeFalse();
+        _db.GetFwStateNames().Should().NotContain("HG_Block_accept");
+        _fw.Rules.Should().NotContainKey("HG_Block_accept");
+        reopened.Conflicts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Rearm_clears_quarantine_and_immediately_restores_the_tracked_rule()
+    {
+        var now = new DateTimeOffset(2026, 7, 14, 12, 0, 0, TimeSpan.Zero);
+        using var guard = new SecureRulesGuard(_fw, _db, () => now, Timeout.InfiniteTimeSpan);
+        Track("HG_Block_rearm");
+        guard.SetEnabled(true);
+        for (var i = 0; i < SecureRulesGuard.RestoreLimit; i++)
+        {
+            DeleteAndReconcile(guard, "HG_Block_rearm");
+        }
+
+        _fw.Rules.Remove("HG_Block_rearm");
+        guard.Reconcile();
+        guard.Conflicts.Should().ContainSingle();
+
+        guard.Rearm("HG_Block_rearm").Should().BeTrue();
+        guard.Rearm("HG_Block_rearm").Should().BeFalse();
+        _fw.Rules.Should().ContainKey("HG_Block_rearm");
+        guard.Conflicts.Should().BeEmpty();
     }
 
     [Fact]

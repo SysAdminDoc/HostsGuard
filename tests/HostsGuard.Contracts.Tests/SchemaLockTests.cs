@@ -90,6 +90,7 @@ public class SchemaLockTests
           PauseEnforcement(EnforcementPauseRequest) returns (Ack)
           RebindRule(RebindRequest) returns (Ack)
           RefreshDomainFirewallRules(Empty) returns (Ack)
+          ResolveSecureRuleConflict(SecureRuleConflictRequest) returns (Ack)
           SetAppVpnBinding(AppVpnBindingRequest) returns (Ack)
           SetDefaultOutbound(OutboundRequest) returns (Ack)
           SetFlowTeardown(FlowTeardownRequest) returns (Ack)

@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.118] - 2026-07-14
+
+### Added
+- Secure Rules now quarantines only the conflicting `HG_` rule after three
+  successful restores in a rolling ten-minute window, persists live/tracked
+  evidence, and raises one surfaced critical alert while unrelated rules keep
+  reconciling.
+- Tools and the `secure-rules` CLI expose quarantined conflicts with confirmed
+  actions to accept foreign state or re-arm immediate tracked-state recovery.
+
+### Changed
+- Expiring per-rule restore counters are capped in memory, and quarantine state
+  survives service restarts until an operator resolves it.
+
 ## [0.12.117] - 2026-07-14
 
 ### Changed

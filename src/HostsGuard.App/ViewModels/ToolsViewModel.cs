@@ -76,6 +76,8 @@ public sealed partial class ToolsViewModel : ObservableObject
 
     public ObservableCollection<AppVpnBindingRowViewModel> AppVpnBindings { get; } = new();
 
+    public ObservableCollection<SecureRuleConflictRowViewModel> SecureRuleConflicts { get; } = new();
+
     public static IReadOnlyList<string> ResolverNames { get; } = ResolverPresets.Select(p => p.Name).ToList();
 
     [RelayCommand]
@@ -803,9 +805,19 @@ public sealed partial class ToolsViewModel : ObservableObject
         {
             var status = await _client.Firewall.GetSecureRulesAsync(new Empty());
             SecureRulesActive = status.Enabled;
+            SecureRuleConflicts.Clear();
+            foreach (var conflict in status.Conflicts.OrderBy(c => c.Name, StringComparer.Ordinal))
+            {
+                SecureRuleConflicts.Add(SecureRuleConflictRowViewModel.From(conflict));
+            }
+
             SecureRulesText = status.Enabled
-                ? I18n.T("SecureRules_On", "Secure Rules ON — {0} HostsGuard rules protected", status.Tracked)
-                : I18n.T("SecureRules_Off", "Secure Rules OFF — HostsGuard rules are not tamper-guarded");
+                ? status.Quarantined > 0
+                    ? I18n.T("SecureRules_OnQuarantined", "Secure Rules ON — {0} protected; {1} quarantined and awaiting action", status.Tracked, status.Quarantined)
+                    : I18n.T("SecureRules_On", "Secure Rules ON — {0} HostsGuard rules protected", status.Tracked)
+                : status.Quarantined > 0
+                    ? I18n.T("SecureRules_OffQuarantined", "Secure Rules OFF — {0} quarantined conflicts retained for review", status.Quarantined)
+                    : I18n.T("SecureRules_Off", "Secure Rules OFF — HostsGuard rules are not tamper-guarded");
         });
     }
 
@@ -815,6 +827,48 @@ public sealed partial class ToolsViewModel : ObservableObject
         await RunServiceActionAsync(I18n.T("SecureRules_ActionToggle", "Toggle Secure Rules"), s => SecureRulesText = s, async () =>
         {
             var ack = await _client.Firewall.SetSecureRulesAsync(new SecureRulesRequest { Enabled = !SecureRulesActive });
+            StatusText = ack.Message;
+            await LoadSecureRulesAsync();
+        });
+    }
+
+    [RelayCommand]
+    public async Task AcceptSecureRuleConflictAsync(SecureRuleConflictRowViewModel? row)
+    {
+        if (row is null || !new MutationConfirmation(
+                I18n.T("SecureRules_AcceptTitle", "Accept foreign firewall state"),
+                I18n.T("SecureRules_ConflictTarget", "Quarantined rule: {0}", row.Name),
+                I18n.T("SecureRules_AcceptConsequence", "HostsGuard will stop tracking this rule and leave its current missing or disabled state unchanged.")).Request(_confirm))
+        {
+            return;
+        }
+
+        await ResolveSecureRuleConflictAsync(row, "accept", I18n.T("SecureRules_ActionAccept", "Accept Secure Rules conflict"));
+    }
+
+    [RelayCommand]
+    public async Task RearmSecureRuleConflictAsync(SecureRuleConflictRowViewModel? row)
+    {
+        if (row is null || !new MutationConfirmation(
+                I18n.T("SecureRules_RearmTitle", "Re-arm firewall rule recovery"),
+                I18n.T("SecureRules_ConflictTarget", "Quarantined rule: {0}", row.Name),
+                I18n.T("SecureRules_RearmConsequence", "HostsGuard will immediately restore the tracked state and resume automatic recovery. Resolve external policy first to avoid another quarantine.")).Request(_confirm))
+        {
+            return;
+        }
+
+        await ResolveSecureRuleConflictAsync(row, "rearm", I18n.T("SecureRules_ActionRearm", "Re-arm Secure Rules conflict"));
+    }
+
+    private async Task ResolveSecureRuleConflictAsync(SecureRuleConflictRowViewModel row, string action, string actionLabel)
+    {
+        await RunServiceActionAsync(actionLabel, s => SecureRulesText = s, async () =>
+        {
+            var ack = await _client.Firewall.ResolveSecureRuleConflictAsync(new SecureRuleConflictRequest
+            {
+                Name = row.Name,
+                Action = action,
+            });
             StatusText = ack.Message;
             await LoadSecureRulesAsync();
         });
@@ -1024,6 +1078,41 @@ public sealed class IpBlocklistRowViewModel
                      + (source.Truncated ? $" · {I18n.T("IpBlock_TruncatedFlag", "truncated")}" : string.Empty),
         LastRefreshText = source.LastRefresh.Length != 0 ? TimeText.Compact(source.LastRefresh) : string.Empty,
         ErrorText = source.LastError,
+    };
+}
+
+public sealed class SecureRuleConflictRowViewModel
+{
+    public string Name { get; init; } = string.Empty;
+
+    public string DetectedText { get; init; } = string.Empty;
+
+    public int RestoreAttempts { get; init; }
+
+    public string LiveEvidence { get; init; } = string.Empty;
+
+    public string TrackedEvidence { get; init; } = string.Empty;
+
+    public string Summary => I18n.T(
+        "SecureRules_ConflictSummary",
+        "Quarantined after {0} restores · detected {1}",
+        RestoreAttempts,
+        DetectedText);
+
+    public string Evidence => I18n.T(
+        "SecureRules_ConflictEvidence",
+        "Live: {0}{2}Tracked: {1}",
+        LiveEvidence,
+        TrackedEvidence,
+        Environment.NewLine);
+
+    public static SecureRuleConflictRowViewModel From(HostsGuard.Contracts.SecureRuleConflict conflict) => new()
+    {
+        Name = conflict.Name,
+        DetectedText = TimeText.Compact(conflict.DetectedAt),
+        RestoreAttempts = conflict.RestoreAttempts,
+        LiveEvidence = conflict.LiveEvidence,
+        TrackedEvidence = conflict.TrackedEvidence,
     };
 }
 

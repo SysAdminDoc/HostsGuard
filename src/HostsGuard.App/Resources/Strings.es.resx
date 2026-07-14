@@ -557,4 +557,18 @@
   <data name="HistoryPrivacy_MatchHint" xml:space="preserve"><value>proceso.exe o ejemplo.com</value></data>
   <data name="HistoryPrivacy_NotLoaded" xml:space="preserve"><value>Exclusiones de privacidad no cargadas.</value></data>
   <data name="HistoryPrivacy_MatchRequired" xml:space="preserve"><value>Introduzca un proceso de aplicación o dominio.</value></data>
+  <data name="SecureRules_OnQuarantined" xml:space="preserve"><value>Reglas seguras ACTIVADAS — {0} protegidas; {1} en cuarentena y pendientes de acción</value></data>
+  <data name="SecureRules_OffQuarantined" xml:space="preserve"><value>Reglas seguras DESACTIVADAS — {0} conflictos en cuarentena conservados para revisión</value></data>
+  <data name="SecureRules_AcceptTitle" xml:space="preserve"><value>Aceptar el estado externo del firewall</value></data>
+  <data name="SecureRules_RearmTitle" xml:space="preserve"><value>Reactivar la recuperación de la regla</value></data>
+  <data name="SecureRules_ConflictTarget" xml:space="preserve"><value>Regla en cuarentena: {0}</value></data>
+  <data name="SecureRules_AcceptConsequence" xml:space="preserve"><value>HostsGuard dejará de supervisar esta regla y mantendrá sin cambios su estado actual ausente o deshabilitado.</value></data>
+  <data name="SecureRules_RearmConsequence" xml:space="preserve"><value>HostsGuard restaurará inmediatamente el estado registrado y reanudará la recuperación automática. Resuelva primero la directiva externa para evitar otra cuarentena.</value></data>
+  <data name="SecureRules_ActionAccept" xml:space="preserve"><value>Aceptar conflicto de Reglas seguras</value></data>
+  <data name="SecureRules_ActionRearm" xml:space="preserve"><value>Reactivar conflicto de Reglas seguras</value></data>
+  <data name="SecureRules_ConflictSummary" xml:space="preserve"><value>En cuarentena tras {0} restauraciones · detectado {1}</value></data>
+  <data name="SecureRules_ConflictEvidence" xml:space="preserve"><value>Actual: {0}{2}Registrado: {1}</value></data>
+  <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Conflictos de Reglas seguras en cuarentena</value></data>
+  <data name="SecureRules_RearmButton" xml:space="preserve"><value>Reactivar estado registrado</value></data>
+  <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Aceptar estado externo</value></data>
 </root>

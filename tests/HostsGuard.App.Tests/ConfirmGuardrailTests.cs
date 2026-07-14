@@ -491,4 +491,38 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
         _state.Db.ListAppVpnBindings().Should().BeEmpty();
         accept.Prompts.Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task Secure_rules_accept_requires_evidenced_confirmation_for_decline_and_accept()
+    {
+        const string name = "HG_Block_confirm_loop";
+        _fw.CreateRule(new Core.FwRule(name, "Out", "Block", true, "203.0.113.81", "Any", string.Empty, "hostsguard"));
+        _state.Db.UpsertFwState(name, "Out", "Block", "203.0.113.81", "Any", string.Empty);
+        _state.SecureRules.SetEnabled(true);
+        for (var i = 0; i < 3; i++)
+        {
+            _fw.Rules.Remove(name);
+            _state.SecureRules.Reconcile();
+        }
+
+        _fw.Rules.Remove(name);
+        _state.SecureRules.Reconcile();
+        var conflict = SecureRuleConflictRowViewModel.From((await _client.Firewall.GetSecureRulesAsync(new Empty()))
+            .Conflicts.Single());
+        var decline = new FakeConfirm(false);
+
+        await new ToolsViewModel(_client, decline).AcceptSecureRuleConflictCommand.ExecuteAsync(conflict);
+
+        _state.SecureRules.Conflicts.Should().ContainSingle();
+        _state.Db.GetFwStateNames().Should().Contain(name);
+        decline.Prompts.Should().ContainSingle()
+            .Which.Should().Contain(name).And.Contain("stop tracking").And.Contain("missing or disabled");
+
+        var accept = new FakeConfirm(true);
+        await new ToolsViewModel(_client, accept).AcceptSecureRuleConflictCommand.ExecuteAsync(conflict);
+
+        _state.SecureRules.Conflicts.Should().BeEmpty();
+        _state.Db.GetFwStateNames().Should().NotContain(name);
+        accept.Prompts.Should().ContainSingle();
+    }
 }
