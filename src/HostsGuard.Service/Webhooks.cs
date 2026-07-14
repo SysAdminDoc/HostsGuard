@@ -105,7 +105,7 @@ public sealed class WebhookDeliverer : IDisposable
         _backoffBase = backoffBase ?? TimeSpan.FromSeconds(1);
     }
 
-    /// <summary>Subscribe to the engine-event stream and deliver each event.</summary>
+    /// <summary>Subscribe to the engine-event streams and deliver each event.</summary>
     public void Start(EventBus bus)
     {
         ArgumentNullException.ThrowIfNull(bus);
@@ -117,20 +117,29 @@ public sealed class WebhookDeliverer : IDisposable
                 return;
             }
 
-            _loop = Task.Run(() => LoopAsync(bus, _cts.Token));
+            _loop = Task.Run(() => RunAsync(bus, _cts.Token));
         }
     }
 
-    private async Task LoopAsync(EventBus bus, CancellationToken ct)
+    // Forward two streams: DNS/connection activity and surfaced alerts (tamper,
+    // detectors, kill-switch). Both share the same signed-delivery/backoff path.
+    private async Task RunAsync(EventBus bus, CancellationToken ct)
     {
-        using var sub = bus.Subscribe<ActivityEvent>();
+        var activity = ConsumeAsync<ActivityEvent>(bus, BuildPayload, ct);
+        var alerts = ConsumeAsync<HostsGuard.Data.AlertNotification>(bus, BuildAlertPayload, ct);
+        await Task.WhenAll(activity, alerts);
+    }
+
+    private async Task ConsumeAsync<T>(EventBus bus, Func<T, string> buildPayload, CancellationToken ct)
+    {
+        using var sub = bus.Subscribe<T>();
         try
         {
             await foreach (var ev in sub.Reader.ReadAllAsync(ct))
             {
                 try
                 {
-                    await DeliverAsync(BuildPayload(ev), ct);
+                    await DeliverAsync(buildPayload(ev), ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
@@ -165,6 +174,24 @@ public sealed class WebhookDeliverer : IDisposable
             ["process"] = ev.Process,
             ["details"] = ev.Details,
             ["reason"] = ev.Reason,
+        }.ToJsonString();
+    }
+
+    /// <summary>The JSON body posted for one surfaced alert.</summary>
+    public static string BuildAlertPayload(HostsGuard.Data.AlertNotification alert)
+    {
+        ArgumentNullException.ThrowIfNull(alert);
+        return new JsonObject
+        {
+            ["event"] = "alert",
+            ["ts"] = alert.CreatedIso,
+            ["type"] = alert.Type,
+            ["severity"] = alert.Severity,
+            ["title"] = alert.Title,
+            ["subject"] = alert.Subject,
+            ["details"] = alert.Details,
+            ["action"] = alert.Action,
+            ["process"] = alert.Process,
         }.ToJsonString();
     }
 

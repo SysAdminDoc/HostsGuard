@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.99] - 2026-07-14
+
+### Added
+- Outbound webhooks now forward surfaced alerts (hosts tamper, firewall drift,
+  DGA/DNS-tunnel/port-scan/IDN detectors, kill-switch, etc.), not just DNS/
+  connection activity. Each new alert delivers once as a signed `event: "alert"`
+  payload; deduped repeats and log-only (unsurfaced) alert types are not sent.
+
 ## [0.12.98] - 2026-07-14
 
 ### Security

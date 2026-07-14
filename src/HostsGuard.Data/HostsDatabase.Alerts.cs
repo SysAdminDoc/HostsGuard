@@ -2,8 +2,29 @@ using Dapper;
 
 namespace HostsGuard.Data;
 
+/// <summary>
+/// A newly-inserted alert, broadcast via <see cref="HostsDatabase.AlertRaised"/>
+/// so subscribers (outbound webhooks) can forward it. Only fired for a genuine
+/// new alert, not a dedup refresh of an existing unread one, so each distinct
+/// alert forwards exactly once. <see cref="Surfaced"/> mirrors the type's opt-in
+/// surface setting so subscribers can honor log-only types.
+/// </summary>
+public sealed record AlertNotification(
+    string Type,
+    string Severity,
+    string Title,
+    string Subject,
+    string Details,
+    string Action,
+    string Process,
+    bool Surfaced,
+    string CreatedIso);
+
 public sealed partial class HostsDatabase
 {
+    /// <summary>Raised once when a new alert row is inserted (not on dedup refresh).</summary>
+    public event Action<AlertNotification>? AlertRaised;
+
     private static readonly (string Type, string Label, bool Surface)[] DefaultAlertTypes =
     {
         ("binary_identity", "Binary identity changes", true),
@@ -68,10 +89,13 @@ public sealed partial class HostsDatabase
         process = CleanText(process, string.Empty);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
 
+        long resultId;
+        bool inserted;
+        bool surfaced;
         lock (_gate)
         {
             EnsureAlertTypeNoLock(type);
-            var surfaced = AlertTypeSurfaceNoLock(type);
+            surfaced = AlertTypeSurfaceNoLock(type);
             var existing = _conn.QueryFirstOrDefault<long?>(
                 """
                 SELECT id FROM alerts
@@ -89,17 +113,31 @@ public sealed partial class HostsDatabase
                     WHERE id=@id
                     """,
                     new { id, now, severity, title, details, process, sourceEventId, surfaced = surfaced ? 1 : 0 });
-                return id;
+                resultId = id;
+                inserted = false;
             }
-
-            _conn.Execute(
-                """
-                INSERT INTO alerts(created,updated,type,severity,title,subject,details,action,process,source_event_id,is_read,surfaced)
-                VALUES(@now,@now,@type,@severity,@title,@subject,@details,@action,@process,@sourceEventId,0,@surfaced)
-                """,
-                new { now, type, severity, title, subject, details, action, process, sourceEventId, surfaced = surfaced ? 1 : 0 });
-            return _conn.ExecuteScalar<long>("SELECT last_insert_rowid()");
+            else
+            {
+                _conn.Execute(
+                    """
+                    INSERT INTO alerts(created,updated,type,severity,title,subject,details,action,process,source_event_id,is_read,surfaced)
+                    VALUES(@now,@now,@type,@severity,@title,@subject,@details,@action,@process,@sourceEventId,0,@surfaced)
+                    """,
+                    new { now, type, severity, title, subject, details, action, process, sourceEventId, surfaced = surfaced ? 1 : 0 });
+                resultId = _conn.ExecuteScalar<long>("SELECT last_insert_rowid()");
+                inserted = true;
+            }
         }
+
+        // Raise outside the lock so a handler can never re-enter the DB under the
+        // gate; only a genuinely new alert forwards, so a dedup refresh is silent.
+        if (inserted)
+        {
+            AlertRaised?.Invoke(new AlertNotification(
+                type, severity, title, subject, details, action, process, surfaced, now));
+        }
+
+        return resultId;
     }
 
     public AlertPage GetAlerts(AlertFilter filter)

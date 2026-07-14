@@ -52,6 +52,10 @@ public sealed class ServiceState : IDisposable
             typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0");
         StartedAtUtc = DateTime.UtcNow;
         Bus = new EventBus();
+        // Surface new alerts on the bus so the outbound webhook deliverer can
+        // forward tamper/detector notifications, not just DNS/connection activity.
+        // Log-only (unsurfaced) alert types are not forwarded.
+        Db.AlertRaised += OnAlertRaised;
         ActivityPersistence = new ActivityPersistenceQueue(db);
         TempAllows = new TempAllowScheduler(hosts, db, Bus);
         TempAllows.Resume();
@@ -684,8 +688,19 @@ public sealed class ServiceState : IDisposable
     public Task FlushActivityPersistenceAsync(CancellationToken cancellationToken = default) =>
         ActivityPersistence.FlushAsync(cancellationToken);
 
+    private void OnAlertRaised(AlertNotification notification)
+    {
+        // Only surfaced (opt-in-enabled) alerts are forwarded; log-only types stay
+        // local. Bus.Publish is non-blocking, so this never stalls AddAlert.
+        if (notification.Surfaced)
+        {
+            Bus.Publish(notification);
+        }
+    }
+
     public void Dispose()
     {
+        Db.AlertRaised -= OnAlertRaised;
         // Signal shutdown FIRST so fire-and-forget background work linked to
         // ShutdownToken stops before the engines it touches are disposed.
         try { _shutdown.Cancel(); } catch (AggregateException) { /* callbacks throwing on cancel are benign */ }

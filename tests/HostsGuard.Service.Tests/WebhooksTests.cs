@@ -135,6 +135,73 @@ public sealed class WebhooksTests : IDisposable
     }
 
     [Fact]
+    public void BuildAlertPayload_includes_the_alert_fields()
+    {
+        var payload = WebhookDeliverer.BuildAlertPayload(new AlertNotification(
+            "hosts_tamper", "critical", "Hosts tamper", "hosts", "the hosts file changed",
+            "hosts_tamper", "svchost.exe", Surfaced: true, "2026-07-14T00:00:00"));
+        var obj = JsonNode.Parse(payload)!.AsObject();
+        obj["event"]!.GetValue<string>().Should().Be("alert");
+        obj["type"]!.GetValue<string>().Should().Be("hosts_tamper");
+        obj["severity"]!.GetValue<string>().Should().Be("critical");
+        obj["subject"]!.GetValue<string>().Should().Be("hosts");
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public async Task Surfaced_alerts_forward_through_the_bus_but_log_only_do_not()
+    {
+        File.WriteAllText(Path.Combine(_dir, "hosts"), "# hosts\n");
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(_dir, "hosts")),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")), dataDir: _dir);
+        var cfg = new WebhookConfig { Urls = { "https://a.example/hook" }, Secret = "k" };
+        var payloads = new ConcurrentQueue<string>();
+        var delivered = new SemaphoreSlim(0);
+        WebhookSender sender = (_, body, _, _) => { payloads.Enqueue(body); delivered.Release(); return Task.FromResult(200); };
+        using var d = new WebhookDeliverer(cfg, sender, log: null, maxAttempts: 1, backoffBase: TimeSpan.Zero);
+        d.Start(state.Bus);
+        await Task.Delay(250); // let the bus subscriptions attach
+
+        // hosts_tamper surfaces by default → forwarded.
+        state.Db.AddAlert("hosts_tamper", "critical", "Hosts tamper", "hosts", "the hosts file changed");
+        (await delivered.WaitAsync(TimeSpan.FromSeconds(5))).Should().BeTrue();
+
+        // dns_bypass is opt-in (default off) → must NOT forward.
+        state.Db.AddAlert("dns_bypass", "warning", "bypass", "chrome.exe", "used DoH");
+        (await delivered.WaitAsync(TimeSpan.FromMilliseconds(500))).Should().BeFalse();
+
+        payloads.Should().HaveCount(1);
+        var obj = JsonNode.Parse(payloads.Single())!.AsObject();
+        obj["event"]!.GetValue<string>().Should().Be("alert");
+        obj["type"]!.GetValue<string>().Should().Be("hosts_tamper");
+    }
+
+    [Fact]
+    [SupportedOSPlatform("windows")]
+    public async Task A_deduped_repeat_alert_forwards_exactly_once()
+    {
+        File.WriteAllText(Path.Combine(_dir, "hosts"), "# hosts\n");
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(_dir, "hosts")),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")), dataDir: _dir);
+        var cfg = new WebhookConfig { Urls = { "https://a.example/hook" } };
+        var calls = 0;
+        WebhookSender sender = (_, _, _, _) => { Interlocked.Increment(ref calls); return Task.FromResult(200); };
+        using var d = new WebhookDeliverer(cfg, sender, log: null, maxAttempts: 1, backoffBase: TimeSpan.Zero);
+        d.Start(state.Bus);
+        await Task.Delay(250);
+
+        // Same (type, subject, action) while unread → the second is a dedup refresh,
+        // which must not re-forward.
+        state.Db.AddAlert("hosts_tamper", "critical", "t", "hosts", "first");
+        state.Db.AddAlert("hosts_tamper", "critical", "t", "hosts", "second");
+        await Task.Delay(500);
+
+        calls.Should().Be(1);
+    }
+
+    [Fact]
     [SupportedOSPlatform("windows")]
     public void Loopback_configures_webhooks_and_redacts_the_secret()
     {
