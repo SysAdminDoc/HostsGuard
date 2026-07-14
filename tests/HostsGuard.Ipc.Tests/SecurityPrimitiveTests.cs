@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using System.Runtime.Versioning;
 using System.Security.Principal;
 using FluentAssertions;
@@ -76,24 +77,104 @@ public class SecurityPrimitiveTests
         var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
         var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
         var localService = new SecurityIdentifier(WellKnownSidType.LocalServiceSid, null);
+        var networkService = new SecurityIdentifier(WellKnownSidType.NetworkServiceSid, null);
 
         // Production (LocalSystem) and dev/console (current user) owners are trusted.
         PipeServerTrust.IsTrustedOwner(system, currentUser).Should().BeTrue();
         PipeServerTrust.IsTrustedOwner(admins, currentUser).Should().BeTrue();
         PipeServerTrust.IsTrustedOwner(localService, currentUser).Should().BeTrue();
+        PipeServerTrust.IsTrustedOwner(networkService, currentUser).Should().BeTrue();
         PipeServerTrust.IsTrustedOwner(currentUser, currentUser).Should().BeTrue();
+        foreach (var owner in new[] { system, admins, localService, networkService, currentUser })
+        {
+            var act = () => PipeServerTrust.EnsureTrustedServer(PipeOwnerProbeResult.Success(owner), currentUser);
+            act.Should().NotThrow();
+        }
     }
 
     [Fact]
-    public void Pipe_owner_trust_rejects_a_different_user_but_fails_open_when_unknown()
+    public void Pipe_owner_trust_rejects_a_different_user_and_indeterminate_owner()
     {
         // A pipe owned by some OTHER interactive user is the squatter case.
         var me = new SecurityIdentifier("S-1-5-21-111-222-333-1001");
         var squatter = new SecurityIdentifier("S-1-5-21-111-222-333-1002");
         PipeServerTrust.IsTrustedOwner(squatter, me).Should().BeFalse();
+        PipeServerTrust.EvaluateOwner(squatter, me).Should().Be(PipeServerTrustDecision.Untrusted);
+        PipeServerTrust.EvaluateOwner(null, me).Should().Be(PipeServerTrustDecision.Indeterminate);
+        PipeServerTrust.EvaluateOwner(me, null).Should().Be(PipeServerTrustDecision.Indeterminate);
+        PipeServerTrust.IsTrustedOwner(null, me).Should().BeFalse();
+        var untrusted = () => PipeServerTrust.EnsureTrustedServer(PipeOwnerProbeResult.Success(squatter), me);
+        untrusted.Should().Throw<PipeServerTrustException>()
+            .Which.ErrorCode.Should().Be(PipeServerTrust.UntrustedOwnerError);
+        var unknownCurrentUser = () => PipeServerTrust.EnsureTrustedServer(PipeOwnerProbeResult.Success(me), null);
+        unknownCurrentUser.Should().Throw<PipeServerTrustException>()
+            .Which.ErrorCode.Should().Be(PipeServerTrust.IndeterminateOwnerError);
+    }
 
-        // An indeterminate owner (probe failure) must never block legitimate IPC.
-        PipeServerTrust.IsTrustedOwner(null, me).Should().BeTrue();
+    public static TheoryData<PipeOwnerProbeResult, string> FailedOwnerProbes => new()
+    {
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.InvalidHandle), PipeServerTrust.InvalidHandleError },
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.AccessDenied, 5), PipeServerTrust.AccessDeniedError },
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.MissingOwner), PipeServerTrust.IndeterminateOwnerError },
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.InvalidOwner), PipeServerTrust.IndeterminateOwnerError },
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.ApiUnavailable), PipeServerTrust.ProbeUnavailableError },
+        { PipeOwnerProbeResult.Failed(PipeOwnerProbeFailure.NativeFailure, 87), PipeServerTrust.ProbeFailedError },
+        { new PipeOwnerProbeResult(null, PipeOwnerProbeFailure.None), PipeServerTrust.IndeterminateOwnerError },
+    };
+
+    [Theory]
+    [MemberData(nameof(FailedOwnerProbes))]
+    public void Pipe_owner_probe_failures_fail_closed_with_safe_codes(
+        PipeOwnerProbeResult probe,
+        string expectedCode)
+    {
+        var currentUser = WindowsIdentity.GetCurrent().User!;
+        var token = SessionToken.Generate();
+
+        var act = () => PipeServerTrust.EnsureTrustedServer(probe, currentUser);
+
+        var error = act.Should().Throw<PipeServerTrustException>().Which;
+        error.ErrorCode.Should().Be(expectedCode);
+        error.Message.Should().StartWith(expectedCode)
+            .And.NotContain(currentUser.Value)
+            .And.NotContain(token);
+    }
+
+    [Fact]
+    public void Invalid_pipe_handle_has_a_typed_probe_failure()
+    {
+        using var invalid = new Microsoft.Win32.SafeHandles.SafePipeHandle(IntPtr.Zero, ownsHandle: false);
+
+        PipeServerTrust.ProbeOwner(invalid).Failure.Should().Be(PipeOwnerProbeFailure.InvalidHandle);
+    }
+
+    [Fact]
+    public async Task Current_user_pipe_owner_is_proven_before_use()
+    {
+        var pipeName = "HostsGuard.OwnerProbe." + Guid.NewGuid().ToString("N");
+        using var server = new NamedPipeServerStream(
+            pipeName,
+            PipeDirection.InOut,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+        using var client = new NamedPipeClientStream(
+            ".",
+            pipeName,
+            PipeDirection.InOut,
+            PipeOptions.Asynchronous,
+            TokenImpersonationLevel.Anonymous);
+
+        var accepting = server.WaitForConnectionAsync();
+        await client.ConnectAsync();
+        await accepting;
+
+        var probe = PipeServerTrust.ProbeOwner(client.SafePipeHandle);
+        var currentUser = WindowsIdentity.GetCurrent().User!;
+        probe.Succeeded.Should().BeTrue();
+        probe.Owner.Should().Be(currentUser);
+        var act = () => PipeServerTrust.EnsureTrustedServer(probe, currentUser);
+        act.Should().NotThrow();
     }
 
     [Fact]

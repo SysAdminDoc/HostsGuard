@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.121-blue)
+![Version](https://img.shields.io/badge/version-0.12.122-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -273,12 +273,13 @@ The .NET engine pins its runtime and dependency posture:
   file is written; client blocklist and webhook URLs pass an SSRF guard
   (non-HTTPS, loopback/RFC1918/link-local/CGNAT/ULA/metadata rejected) before
   the service dials them; the gRPC control pipe is ACL'd and per-session-token
-  authenticated.
-- **Portable policy boundaries:** exported policies intentionally omit AI API
-  keys and webhook signing secrets while preserving non-secret policy intent,
-  including endpoints, enabled state, learned knowledge, and override rows; an
-  import reports the omitted secrets so they can be re-entered on the target
-  machine.
+  authenticated, and clients fail closed unless the connected pipe object's
+  owner is proven to be LocalSystem, an approved built-in account, Administrators,
+  or the current user for local development.
+- **Portable policy boundaries:** exported policies intentionally omit the
+  settings-lock verifier, AI API keys, and webhook signing secrets while
+  preserving non-secret intent; imports report those omissions so credentials
+  can be configured locally on the target machine.
 
 Report vulnerabilities via a GitHub issue with the redacted support bundle
 (Tools → **Export Support Bundle**).

@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.122] - 2026-07-14
+
+### Security
+- Control-pipe reverse authentication now fails closed when the connected
+  object's owner is missing, invalid, inaccessible, untrusted, or cannot be
+  probed, instead of treating indeterminate ownership as trusted.
+- Owner probes return typed outcomes for current-user development and approved
+  Windows service identities; rejected connections use stable token-free error
+  codes and dispose the stream before it can carry a gRPC request.
+
 ## [0.12.121] - 2026-07-14
 
 ### Security

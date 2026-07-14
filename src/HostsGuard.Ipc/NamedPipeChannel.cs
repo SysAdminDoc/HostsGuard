@@ -28,13 +28,20 @@ public static class NamedPipeChannel
                     PipeDirection.InOut,
                     PipeOptions.Asynchronous | PipeOptions.WriteThrough,
                     TokenImpersonationLevel.Anonymous);
-                await pipe.ConnectAsync(ct).ConfigureAwait(false);
-                // Squatting defense: refuse a pipe presented by an untrusted owner
-                // (a different user pre-created the pipe name). Fail-open on an
-                // indeterminate owner so legitimate SYSTEM/current-user pipes always
-                // connect; the per-session token remains the auth layer on top.
-                PipeServerTrust.EnsureTrustedServer(pipe.SafePipeHandle);
-                return pipe;
+                try
+                {
+                    await pipe.ConnectAsync(ct).ConfigureAwait(false);
+                    // Squatting defense: a different user, invalid handle, or
+                    // indeterminate owner fails before this stream can carry the
+                    // bearer token or any gRPC request.
+                    PipeServerTrust.EnsureTrustedServer(pipe.SafePipeHandle);
+                    return pipe;
+                }
+                catch
+                {
+                    pipe.Dispose();
+                    throw;
+                }
             },
         };
 
