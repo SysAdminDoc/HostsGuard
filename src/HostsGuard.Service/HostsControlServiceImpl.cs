@@ -89,7 +89,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         // NET-110: whitelisting weakens blocking — gate it behind the settings lock.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -107,7 +107,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     {
         var d = Domains.ToAscii(request.Domain);
         // NET-110: removing a block weakens posture — gate behind the settings lock.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -196,7 +196,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     public override Task<BulkResult> AllowMany(BulkDomainsRequest request, ServerCallContext context)
     {
         // Whitelisting weakens posture — gate behind the settings lock (NET-110).
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(new BulkResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
         }
@@ -296,7 +296,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     public override Task<Ack> Reconcile(ReconcileRequest request, ServerCallContext context)
     {
         // NET-110: reconcile can remove blocks (weakening) — gate behind the lock.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -311,7 +311,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
     public override Task<Ack> EmergencyReset(Empty request, ServerCallContext context)
     {
         // NET-110: wiping every block is the most destructive weakening — gate it.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -337,7 +337,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         // NET-110: a temp-allow lifts a block for a window (weakening) — gate it.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -413,7 +413,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         // NET-110: a raw hosts rewrite can drop every block — gate behind the lock.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -588,6 +588,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> SetAiConfig(AiConfig request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         // A custom endpoint must be a public https URL — the API key is sent as a
         // Bearer header, so a plaintext or private/metadata endpoint would leak it.
         // Empty keeps the default.
@@ -626,6 +631,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override async Task<CategorizeResult> CategorizeDomains(CategorizeRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return new CategorizeResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
+        }
+
         if (request.HostsFile)
         {
             try
@@ -701,6 +711,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<AdoptResult> AdoptHostsEntries(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(new AdoptResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
         try
         {
             var outcome = _state.Adoption.AdoptNow("manual_trigger");
@@ -729,6 +744,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> SetHostsAdoption(HostsAdoptionRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         _state.Adoption.SetEnabled(request.Enabled);
         _state.Db.LogEvent("hosts", "adopt_toggle", details: request.Enabled ? "on" : "off");
         return Task.FromResult(Ok(request.Enabled
@@ -846,7 +866,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         // NET-110: restoring an older backup can drop current blocks — gate it.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -863,6 +883,11 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> AddDefenderExclusion(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         if (_state.Defender is not { } defender || !defender.IsAvailable())
         {
             return Task.FromResult(Error("defender_unavailable", "Windows Defender is not accessible on this system"));

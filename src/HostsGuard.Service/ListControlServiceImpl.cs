@@ -223,6 +223,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> SetBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (name.Length == 0)
         {
@@ -241,6 +243,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> RemoveBlocklistSubscription(BlocklistRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (name.Length == 0)
         {
@@ -272,6 +276,11 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override async Task<BlocklistResult> RefreshBlocklists(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate)
+        {
+            return new BlocklistResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
+        }
+
         if (_state.Lists is not { } lists)
         {
             return ListsUnavailable();
@@ -308,7 +317,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
     public override Task<WindowsConnectivityRecoveryResult> RecoverWindowsConnectivity(
         WindowsConnectivityRecoveryRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("ListControl") is { } gate)
         {
             return Task.FromResult(new WindowsConnectivityRecoveryResult
             {
@@ -366,6 +375,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> RestoreBlocklistCheckpoint(BlocklistRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (name.Length == 0)
         {
@@ -416,6 +427,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> SetAllowlists(AllowlistUrls request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         var urls = request.Urls.Select(u => u.Trim()).Where(u => u.Length != 0).ToList();
         if (urls.Any(u => !Uri.TryCreate(u, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
         {
@@ -433,6 +446,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override async Task<Ack> RefreshAllowlists(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return gate;
+
         if (_state.Lists is not { } lists)
         {
             return new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" };
@@ -607,6 +622,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> SetIpBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.IpBlocklists is not { } coordinator)
         {
             return Task.FromResult(new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" });
@@ -623,6 +640,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<Ack> RemoveIpBlocklist(BlocklistRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.IpBlocklists is not { } coordinator)
         {
             return Task.FromResult(new Ack { Ok = false, Message = "list engine unavailable", ErrorCode = "hostsguard.error.v1/lists_unavailable" });
@@ -639,6 +658,11 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override async Task<IpBlocklistResult> RefreshIpBlocklists(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate)
+        {
+            return new IpBlocklistResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
+        }
+
         if (_state.IpBlocklists is not { } coordinator)
         {
             return IpListsUnavailable();
@@ -673,6 +697,11 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
 
     public override Task<IpBlocklistResult> RollbackIpBlocklist(BlocklistRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("ListControl") is { } gate)
+        {
+            return Task.FromResult(new IpBlocklistResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
         if (_state.IpBlocklists is not { } coordinator)
         {
             return Task.FromResult(IpListsUnavailable());

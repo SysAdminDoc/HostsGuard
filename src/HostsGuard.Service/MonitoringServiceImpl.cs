@@ -314,6 +314,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> SetAlertType(AlertTypeRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         var type = Clean(request.Type);
         if (type is null)
         {
@@ -401,6 +406,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> SetHistoryPrivacyExclusion(HistoryPrivacyExclusion request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         try
         {
             _state.Db.UpsertHistoryPrivacyExclusion(request.Scope, request.Match);
@@ -414,6 +424,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> DeleteHistoryPrivacyExclusion(HistoryPrivacyExclusion request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         try
         {
             var removed = _state.Db.DeleteHistoryPrivacyExclusion(request.Scope, request.Match);
@@ -473,6 +488,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> SetUsageQuotaRule(UsageQuotaRule request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         var scope = NormalizeQuotaScope(request.Scope);
         var match = Clean(request.Match);
         if (scope.Length == 0 || match is null)
@@ -519,6 +539,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> DeleteUsageQuotaRule(UsageQuotaRule request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         // Lift any active enforcement block before the rule row disappears,
         // otherwise its HG_QuotaBlock_* rules / hosts entry would be orphaned.
         if (request.Id > 0)
@@ -586,6 +611,11 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
 
     public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Monitoring") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         if (request.RetentionDays is < 1 or > 365)
         {
             return Task.FromResult(new Ack

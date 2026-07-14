@@ -215,11 +215,26 @@ public sealed class SettingsLockTests : IDisposable
         _state.Lock.Enable("locked1");
         var consent = new ConsentServiceImpl(_state);
         var firewall = new FirewallControlServiceImpl(_state);
+        var dns = new DnsControlServiceImpl(_state);
 
         (await consent.SetMode(new FilteringMode { Mode = "notify" }, null!)).ErrorCode.Should().Contain("locked");
+        (await consent.Decide(new ConnectionDecision(), null!)).ErrorCode.Should().Contain("locked");
+        (await consent.ApplyBaseline(new Empty(), null!)).ErrorCode.Should().Contain("locked");
+        (await consent.ReviewLearned(new LearnedReviewRequest(), null!)).ErrorCode.Should().Contain("locked");
         (await firewall.SetGlobalMode(new GlobalModeRequest { Mode = "block-all" }, null!)).ErrorCode.Should().Contain("locked");
         (await firewall.PauseEnforcement(new EnforcementPauseRequest { Minutes = 5 }, null!)).ErrorCode.Should().Contain("locked");
         (await firewall.DeleteRule(new RuleNameRequest { Name = "HG_Test" }, null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.SetRuleEnabled(new RuleEnabledRequest { Name = "HG_Test", Enabled = false }, null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.SetFlowTeardown(new FlowTeardownRequest { Enabled = false }, null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.UnblockQuic(new Empty(), null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.UnblockEncryptedDns(new Empty(), null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.RebindRule(new RebindRequest(), null!)).ErrorCode.Should().Contain("locked");
+        (await firewall.SetSecureRules(new SecureRulesRequest { Enabled = false }, null!)).ErrorCode.Should().Contain("locked");
+        (await dns.SetCnameCloak(new CnameCloakRequest { Enabled = false }, null!)).ErrorCode.Should().Contain("locked");
+
+        // Protective emergency actions remain available without weakening the lock.
+        (await firewall.BlockIp(new FirewallIpRequest { Address = "203.0.113.10", Direction = "out" }, null!)).Ok.Should().BeTrue();
+        (await firewall.BlockQuic(new Empty(), null!)).Ok.Should().BeTrue();
 
         // After a timed unlock the same calls proceed (mode actually switches).
         _state.Lock.Unlock("locked1", 5, DateTime.UtcNow);

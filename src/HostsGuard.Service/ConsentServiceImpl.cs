@@ -30,7 +30,7 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
     }
 
     public override Task<Ack> Decide(ConnectionDecision request, ServerCallContext context)
-        => Task.FromResult(_state.Consent.Decide(request));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.Decide(request));
 
     public override Task<FilteringMode> GetMode(Empty request, ServerCallContext context)
         => Task.FromResult(new FilteringMode
@@ -43,10 +43,10 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
         });
 
     public override Task<Ack> SetChildInherit(ChildInheritRequest request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetChildInherit(request.Enabled));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.SetChildInherit(request.Enabled));
 
     public override Task<Ack> SetInboundConsent(InboundConsentRequest request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetInboundConsent(request.Enabled));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.SetInboundConsent(request.Enabled));
 
     public override Task<PublisherList> GetTrustedPublishers(Empty request, ServerCallContext context)
     {
@@ -56,7 +56,7 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
     }
 
     public override Task<Ack> SetTrustedPublishers(PublisherList request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetTrustedPublishers(request.Publishers));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.SetTrustedPublishers(request.Publishers));
 
     public override Task<FolderList> GetTrustedFolders(Empty request, ServerCallContext context)
     {
@@ -66,10 +66,10 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
     }
 
     public override Task<Ack> SetTrustedFolders(FolderList request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetTrustedFolders(request.Folders));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.SetTrustedFolders(request.Folders));
 
     public override Task<Ack> SetMode(FilteringMode request, ServerCallContext context)
-        => Task.FromResult(_state.GateWhenLocked() ?? _state.Consent.SetMode(request.Mode, request.LearnMinutes));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.SetMode(request.Mode, request.LearnMinutes));
 
     public override Task<DecisionHistory> GetDecisionHistory(HistoryRequest request, ServerCallContext context)
         => Task.FromResult(_state.Consent.History(request.Limit));
@@ -93,6 +93,11 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
 
     public override Task<Ack> ApplyBaseline(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Consent") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         var created = _state.Consent.ApplyBaseline();
         return Task.FromResult(new Ack { Ok = true, Message = $"applied {created} known-safe baseline allow rules" });
     }
@@ -101,5 +106,5 @@ public sealed class ConsentServiceImpl : Consent.ConsentBase
         => Task.FromResult(_state.Consent.ListLearned());
 
     public override Task<Ack> ReviewLearned(LearnedReviewRequest request, ServerCallContext context)
-        => Task.FromResult(_state.Consent.ReviewLearned(request));
+        => Task.FromResult(_state.GateWhenLocked("Consent") ?? _state.Consent.ReviewLearned(request));
 }

@@ -64,6 +64,11 @@ public sealed class RecoveryServiceImpl : Recovery.RecoveryBase
 
     public override Task<Ack> RestoreFullStateSnapshot(FullStateRestoreRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Recovery") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
         if (!request.CreatePreRestore)
         {
             return Task.FromResult(new Ack

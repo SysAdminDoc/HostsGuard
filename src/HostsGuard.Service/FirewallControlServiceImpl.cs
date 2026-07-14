@@ -28,6 +28,11 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<AdoptResult> AdoptFirewallRules(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
+        {
+            return Task.FromResult(new AdoptResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
+        }
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(new AdoptResult { Ok = false, Message = "firewall engine is not attached", ErrorCode = "hostsguard.error.v1/firewall_unavailable" });
@@ -54,6 +59,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> AssignRuleGroup(RuleGroupAssignment request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         var name = (request.RuleName ?? string.Empty).Trim();
         if (name.Length == 0)
         {
@@ -102,7 +109,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -197,7 +204,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -238,7 +245,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
     public override Task<Ack> UpdateRule(FirewallRule request, ServerCallContext context)
     {
         if (_state.Firewall is not { } fw) return Task.FromResult(Unavailable());
-        if (_state.GateWhenLocked() is { } gate) return Task.FromResult(gate);
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
         if (!TryBuildAuthoredRule(fw, request, requireExistingPrefix: true, out var rule, out var error))
             return Task.FromResult(error!);
         if (!fw.RuleExists(rule.Name)) return Task.FromResult(Error("not_found", $"{rule.Name} does not exist"));
@@ -336,7 +343,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -411,6 +418,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> SetRuleEnabled(RuleEnabledRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
@@ -540,7 +549,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(CleanupError(request.Preview, "firewall_unavailable", "firewall engine is not attached"));
         }
 
-        if (!request.Preview && _state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(CleanupError(false, "locked", gate.Message));
         }
@@ -728,7 +737,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         });
 
     public override Task<Ack> SetFlowTeardown(FlowTeardownRequest request, ServerCallContext context)
-        => Task.FromResult(_state.FlowTeardown.SetEnabled(request.Enabled));
+        => Task.FromResult(_state.GateWhenLocked("FirewallControl") ?? _state.FlowTeardown.SetEnabled(request.Enabled));
 
     public override Task<LanAttackSurfaceStatus> GetLanAttackSurface(Empty request, ServerCallContext context)
     {
@@ -750,7 +759,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> SetLanAttackSurface(LanAttackSurfaceRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -922,6 +931,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> UnblockQuic(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
@@ -935,6 +946,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> UnblockEncryptedDns(Empty request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
@@ -988,7 +1001,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1014,7 +1027,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> PauseEnforcement(EnforcementPauseRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1053,6 +1066,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> RebindRule(RebindRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
@@ -1104,6 +1119,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> SetSecureRules(SecureRulesRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         _state.SecureRules.SetEnabled(request.Enabled);
         return Task.FromResult(Ok(request.Enabled
             ? $"Secure Rules armed — {_state.SecureRules.TrackedCount} HG_ rules protected against tampering"
@@ -1112,7 +1129,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> ResolveSecureRuleConflict(SecureRuleConflictRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1157,7 +1174,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1198,11 +1215,6 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Unavailable());
         }
 
-        if (_state.GateWhenLocked() is { } gate)
-        {
-            return Task.FromResult(gate);
-        }
-
         var path = (request.ProgramPath ?? string.Empty).Trim();
         if (path.Length == 0 || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
         {
@@ -1233,6 +1245,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override Task<Ack> UnblockAppScope(AppScopeRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("FirewallControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Firewall is not { } fw)
         {
             return Task.FromResult(Unavailable());
@@ -1252,17 +1266,12 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
 
     public override async Task<Ack> CreateDomainFirewallRule(DomainFirewallRuleRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
-        {
-            return gate;
-        }
-
         return await _state.DomainFirewall.CreateOrUpdateAsync(request.Domain, request.ProgramPath, context.CancellationToken);
     }
 
     public override Task<Ack> DeleteDomainFirewallRule(RuleNameRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1327,7 +1336,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Error("killswitch_unavailable", "kill-switch monitor is not attached to this service instance"));
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -1376,7 +1385,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             return Task.FromResult(Error("app_vpn_unavailable", "app VPN binding coordinator is not attached to this service instance"));
         }
 
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("FirewallControl") is { } gate)
         {
             return Task.FromResult(gate);
         }

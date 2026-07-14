@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.120] - 2026-07-14
+
+### Fixed
+- Every published service RPC now has an explicit read-only, protective, or
+  lock-protected classification, and every lock-protected handler enforces the
+  same service-side gate before validation or mutation.
+- Settings lock now covers previously bypassable firewall, DNS, consent,
+  recovery, monitoring, list, hosts, and policy changes, including direct rule
+  toggles, encrypted-DNS/QUIC unblocks, flow teardown, and Secure Rules state.
+
+### Changed
+- Posture-strengthening emergency actions such as IP/QUIC blocks and hosts-file
+  ACL hardening remain available while locked; a contract-completeness test now
+  fails when any future RPC lacks a classification or required gate.
+
 ## [0.12.119] - 2026-07-14
 
 ### Fixed

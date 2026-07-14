@@ -87,9 +87,14 @@ public sealed class PolicyServiceTests : IDisposable
         (await _policy.SetLock(new LockRequest { Action = "sideways", Password = "s3cret" }, Ctx))
             .ErrorCode.Should().Be("hostsguard.error.v1/lock");
 
-        // A locked mutation is gated before its own logic runs.
-        (await _policy.SetHostsProtection(new HostsProtectionRequest { Enabled = false }, Ctx))
+        // A policy mutation is gated before its own logic runs.
+        (await _policy.SetSchedules(new ScheduleList(), Ctx))
             .ErrorCode.Should().Be("hostsguard.error.v1/locked");
+
+        // Protective recovery remains callable; the independent no-relaxation
+        // guard still refuses attempts to weaken the hosts-file ACL.
+        (await _policy.SetHostsProtection(new HostsProtectionRequest { Enabled = false }, Ctx))
+            .ErrorCode.Should().Be("hostsguard.error.v1/acl_relax_unsupported");
     }
 
     [Fact]

@@ -1,304 +1,304 @@
 {
-    "schemaVersion":  4,
-    "product":  "HostsGuard",
-    "version":  "0.12.119",
-    "generatedAtUtc":  "2026-07-14T21:48:54.4319125+00:00",
-    "expectedSize":  "1600x1000",
-    "app":  {
-                "path":  "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
-                "fileVersion":  "0.12.119.0",
-                "productVersion":  "0.12.119+87747efbbb62c807478e9af4bb3ac733bc517547"
-            },
-    "service":  {
-                    "path":  "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
-                    "fileVersion":  "0.12.119.0",
-                    "productVersion":  "0.12.119+87747efbbb62c807478e9af4bb3ac733bc517547"
-                },
-    "sourceSummary":  "artifacts/visual-smoke/visual-smoke-summary.json",
-    "primaryCaptures":  [
-                            {
-                                "theme":  "dark",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "037E5EE572BFB9056273147F5ED8BA7B6C80F3DB921338BDE584FD3EA553381E"
-                            },
-                            {
-                                "theme":  "dark",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "46321DDF6A1E92191511019B449B3D21E7571C2EFB69B283F1F406CD7E768A6F"
-                            },
-                            {
-                                "theme":  "dark",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "68BB7D0D7F12EDD18DDB08A006263BF1AD47C4BA31B4F0C95BA5452A23EE6F4E"
-                            },
-                            {
-                                "theme":  "dark",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "E627FCD6050E75AE26A352183A5505B934F916F364260B6ACA9354E16DDBD1A6"
-                            },
-                            {
-                                "theme":  "dark",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "902C1173F56B0708CCB9A0337072EFAE75889992E6ED4E18B6ABB252E7A285C7"
-                            },
-                            {
-                                "theme":  "dark",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "1245295BC30EC5624207D69CECF51136BE355EF3D6213D9796197FB3E778C602"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "94CE148739D566C37D1457286B8B98B042B5C1B469DBFE827AB4875CAF2F6A2D"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "5FFFD7DC20A41908654102A2CE26BF012E29EEC5B58FF4B42B01CD5DF6E881E0"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "A1D0F1F2569B2195F3E3ACF7E43649CE670B4299AD938CDFC6784C8FF3A5A3C0"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "78376E60F64CAB6B85F09AD0CDE2D347B29FC4B3763A1CFE1C7E6A334042F378"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "5B322478721C1DC99AD1CA6060B9954C0876EE7D9D55D47D71EEB3148BC6E1F5"
-                            },
-                            {
-                                "theme":  "light",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "76A9142DCAF1A5124922A14218D7221D5A691CAA5CA0C3EC25E6ABF8F7F78A7F"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "5B8017A8B902A189B8AD9900906701946EBDBE21B7F51CA0FE9BBEA017274720"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "B47FBFA81E733A45D9E5FF59630F0CF55549494230F06933BBAD8388F909F3EF"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "415D914451FEA8940A7DE821860DF8A3B5DB34EA24589A167EA671045492EDC7"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "F20B634D9E587A6492A362867AC184FCD2D138A4AB5F4F18679F179D72FBC0FB"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "F4D98ED67AF696241F12A9B40264DADAAC8DF0AF30B503A6192ACCF8EB9EEA74"
-                            },
-                            {
-                                "theme":  "contrast-aquatic",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "4E4635407A29E79CFBD983FD6C4916C7466C44896CAD56233CDCE7134609EE69"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "1C7BB947D727C3D243BDD09059DB45C527404E4252FCE65F64F73EDDA6D7EA62"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "E73BD10F41C561BACC0E65064BD0D71B9D3160B40DB3482DF0C8F05079508911"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "9DE089F01284675901213E2C1715FDB4AC5F90E70FEF49F617B2DF3625B1A1C7"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "33D854EC9960BC63EB2A2E0AD9B9698150DC51756A5E27688E17C80F089C759C"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "AFC3485C01D2ADC13367799D91066049CB92A5A8B84DF9BE8B55D9816BF73D58"
-                            },
-                            {
-                                "theme":  "contrast-desert",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "3160874F0962DF23B7FA78CFD4BF01011E117B05A4BF540EEC4600F00A14D6AB"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "2CF9EFF34AD6BD5A499DA562E775795A3660EE1D0D4E5691FB9021360F27AC18"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "BE8778A1B253F5858B9C21143965DA36DDBEB5F443CB9590D05B09F4FD116975"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "AA1F16B1F7BFD6C4CDD308CDD45CDB18EEA9AD154BB9B45B0012F23270EEECD6"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "19E04A03B4FE28520B526F1A98217A822DE4A9ACE0645143BE4080A63E9DCA90"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "37E81D24CE7E9B19A8889A3B5FB7C34DDC99EAAF3DCF44E7206D5F21655668F5"
-                            },
-                            {
-                                "theme":  "contrast-dusk",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "FB71969FAA4B4C12EF988BD9F09164F988100476ABB8B2D203ACA3067BFFD93D"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Hosts Activity",
-                                "landmark":  "ActivityGrid",
-                                "sha256":  "9929E29DFBB603FFB0C247909A09F8920C592931D95BBE5D719A8816685C25D7"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Alerts",
-                                "landmark":  "AlertsGrid",
-                                "sha256":  "F23661F3A99BA8F430C2B0D799B0655EE054CF49D908DC5D656B6065B53E15E8"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Hosts File",
-                                "landmark":  "DomainsGrid",
-                                "sha256":  "BC346982BA186B0242A55419663388C72FB28551AE836DB5070B4D51767F19B6"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Firewall Activity",
-                                "landmark":  "ConnectionsGrid",
-                                "sha256":  "B1D069B5EAEC21D7E08E3BF5A04F461BCDDF032F0C705A7C82C371C387B0B390"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Firewall Rules",
-                                "landmark":  "FwRulesGrid",
-                                "sha256":  "D5412921AB634F7D4932039B621FD5240F7C6E2C19D7781FF4A510634C6D5E44"
-                            },
-                            {
-                                "theme":  "contrast-night-sky",
-                                "tab":  "Tools",
-                                "landmark":  "ToolsSurface",
-                                "sha256":  "4A041482EC5267694965D94ACBE0230B912B1A8375696F3821E7836B0A1CDE35"
-                            }
-                        ],
-    "stateCaptures":  [
-                          {
-                              "theme":  "dark",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "7CCF491888DD4BC42C6AB2052C80D0153C1E20203ADC3F1843F9292D08308D38"
-                          },
-                          {
-                              "theme":  "light",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "0E6BE9DBB184319597DA289F13E1DBC8B27889C46432015C4016C02C67908707"
-                          },
-                          {
-                              "theme":  "contrast-aquatic",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "43D106D0BF5B920B8FC3DFE333BD8A959473F910785665E5805AD0437D45B982"
-                          },
-                          {
-                              "theme":  "contrast-desert",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "20653E4979CBD47FB28C479E69E272A6E14E04755D20F2FB634A111706A81BEB"
-                          },
-                          {
-                              "theme":  "contrast-dusk",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "7F308C60E203E330BCC356583A10D3FEE5036346E2D1DB753865FC76770C1910"
-                          },
-                          {
-                              "theme":  "contrast-night-sky",
-                              "state":  "disconnected",
-                              "landmark":  "DisconnectedOverlay",
-                              "sha256":  "7DF4D7D02E611ED1CB8BADC94F59B380FA6A21BB4570DA61A87856AB60B2ADE4"
-                          }
-                      ],
-    "readmeScreenshots":  [
-                              {
-                                  "theme":  "dark",
-                                  "tab":  "Hosts Activity",
-                                  "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "037E5EE572BFB9056273147F5ED8BA7B6C80F3DB921338BDE584FD3EA553381E",
-                                  "bytes":  148612,
-                                  "width":  1600,
-                                  "height":  1000,
-                                  "averageLuminance":  24.6,
-                                  "luminanceRange":  237.1,
-                                  "opaqueRatio":  1,
-                                  "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.7125
-                              },
-                              {
-                                  "theme":  "light",
-                                  "tab":  "Hosts Activity",
-                                  "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "94CE148739D566C37D1457286B8B98B042B5C1B469DBFE827AB4875CAF2F6A2D",
-                                  "bytes":  148349,
-                                  "width":  1600,
-                                  "height":  1000,
-                                  "averageLuminance":  241.8,
-                                  "luminanceRange":  220.6,
-                                  "opaqueRatio":  1,
-                                  "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.725
-                              }
-                          ]
+  "schemaVersion": 4,
+  "product": "HostsGuard",
+  "version": "0.12.120",
+  "generatedAtUtc": "2026-07-14T22:02:15.8154838+00:00",
+  "expectedSize": "1600x1000",
+  "app": {
+    "path": "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
+    "fileVersion": "0.12.120.0",
+    "productVersion": "0.12.120+e4696092aa492db6930bdbd2f40170398fa91fb4"
+  },
+  "service": {
+    "path": "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
+    "fileVersion": "0.12.120.0",
+    "productVersion": "0.12.120+e4696092aa492db6930bdbd2f40170398fa91fb4"
+  },
+  "sourceSummary": "artifacts/visual-smoke/visual-smoke-summary.json",
+  "primaryCaptures": [
+    {
+      "theme": "dark",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "C63B9957568A0FC870D858E9354DF4C76141FED3C333E4D43622F4257946517E"
+    },
+    {
+      "theme": "dark",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "858D199D0E75E94B36A258C4C554DE4706793E43D75FEC2C7A24828B49840E82"
+    },
+    {
+      "theme": "dark",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "D75B37428837E092449E03D57E96C7FDB291FA86CACD6E48BB8AE65CA89971F2"
+    },
+    {
+      "theme": "dark",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "F0F93944A7C0953025B1C368BBF268DD57E1697322EEFCC7FD31C6D1B552F148"
+    },
+    {
+      "theme": "dark",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "D5AD5302A3CBFD5FE4C554279CD24DA5DA2A88A3504ABFBE51B09468735F197B"
+    },
+    {
+      "theme": "dark",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "2272576CACAFA9307E109C08EDEB5CC993533C42793FB2F002DD9CC375596B23"
+    },
+    {
+      "theme": "light",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "FE3E804E8D37487A7655BC57775EE6EA9B062660F4DF4C42E16FFE9095AD463B"
+    },
+    {
+      "theme": "light",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "70F940567160017DAD21603AA0146838A93E59B2BD0646273D9257C6907280A4"
+    },
+    {
+      "theme": "light",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "AE0EDF2A41A271726FF14602A7A31B3177EA49CB78B2B4D2B57D89C1BC5EBE7B"
+    },
+    {
+      "theme": "light",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "B8F345BA0EB7DAA2B40747B9540E152A94F66419161ECDD12DB18CC2F620BDD2"
+    },
+    {
+      "theme": "light",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "FF6E1C08D3562C727E8E0511AFED6AA697AB7B0D30A2549C8338C891DB8BE33B"
+    },
+    {
+      "theme": "light",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "E7A556C285E662AC50792790D08F68D34860C86CF5AF48F6D2B60F4A166DECB6"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "4A79840C027FB4BBF8754B3B64E48961547E29C228B44E1597A5299E66428C41"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "1B21C6B7376BA38475F53DCD0DF97D64C8372BB543619F93BA049F51AFD8C183"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "D4225A849F202D9A7BE1F3C8C99D9D0F8C9CBBEE722FEDA9AA2F8C6BA243EE66"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "7F9F76FB0774429C25C35AA671D4C5B732CA331E5205416CE25ADC0B0A89D6B0"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "E2F467692918C033D85CA308BCC368251D0D817E926F604F2F6EFCA9A11BFF4B"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "D7C5EC529A208FC5289D5A694583B8AE5B3DB555B431649AFE47C9608ED7CA93"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "E09ED1E3A058D460D9F2E36148CA02DBD2B6C7868A0BC056276E2955C4C04FF4"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "4608FC57E9108560350D1BC979B8983F72D6B6E476DBECEA0BB051009916778F"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "DC9D86696936D490A9DC64EEC4C3EC632B210A7CBD6DC9091D78ACE2BB983339"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "358CDF5E7F0DC598E0D7746AB5610737CE39BA335E8894911A5D307EB7E8C492"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "CB755CC521307D69D28E5A5F943EF4FD8250D746B0963DE0504D254B5290EA27"
+    },
+    {
+      "theme": "contrast-desert",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "7265F4C5C71EA0B1DD60EED1174201E096C60A17FA138CB06D0A5F0A4557FC84"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "F7D1C1689518B88AF36D5175F37FE885247349E8F76F97FA03DB30B08C178407"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "2587E1BF627C0CF12185FD04A8DEDCE146359AE35AC26FEF56C1900CA6FCCD02"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "A08685E15092DA226FF58B8A9F9408B28F575D52120674ECC7B3AFA20818E615"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "486619B4FA3E46825632BC28ED6496ACB52E010BF3889D8ADB2774819CAC1A13"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "2AB3F0E35FCEF734317E0A7C42BC408AF4D4FB9368E7B26CE749CDD3B7E1A8C3"
+    },
+    {
+      "theme": "contrast-dusk",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "15632F38697C25F456A25C92CA7D385F435A0DD01EA0255329A2A82D54AC0CBB"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Hosts Activity",
+      "landmark": "ActivityGrid",
+      "sha256": "A42456D38245F9459375276C069637025D04455548F3E7BA936A31DF50F71C55"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Alerts",
+      "landmark": "AlertsGrid",
+      "sha256": "0B57708019E0FA9F07F30A8B9061C8E65D5104FDEA034A7CBB818526C385DA2E"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Hosts File",
+      "landmark": "DomainsGrid",
+      "sha256": "6161EEF24EF1D3EABBBC5F57CEA116BF08F009C45D56A377023E827532CA6F88"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Firewall Activity",
+      "landmark": "ConnectionsGrid",
+      "sha256": "FB2D3FF5456838FBE89A104E3CBEF64833BABDC4F92027E046C89530CD39A8AE"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Firewall Rules",
+      "landmark": "FwRulesGrid",
+      "sha256": "EF0681AC736C126EA381139A3CD37DDD8B0C312354854C51AA26B7E8E507F519"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "tab": "Tools",
+      "landmark": "ToolsSurface",
+      "sha256": "E0366E023365EA09EFF934A21B3C4E26BB9025EF0C59FE3FD90033CE1F4670C9"
+    }
+  ],
+  "stateCaptures": [
+    {
+      "theme": "dark",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "A7DA662F6BF0A656A4071678F9B8A6487783626EF00E6A928A94609AA7042A78"
+    },
+    {
+      "theme": "light",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "5A9E60A9B697747FCC5762B0AA1CDC90EDDBECB20424E55B087D88DBAF969ED2"
+    },
+    {
+      "theme": "contrast-aquatic",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "24BF3B70A3789BC2135E7CAA06FBFEDFCB0200D370F4E06A07D6E53ADCCE995A"
+    },
+    {
+      "theme": "contrast-desert",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "B1962AF72BF49DF050677B7279CE836CA9F7C63D188A3064B6778E830A03E745"
+    },
+    {
+      "theme": "contrast-dusk",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "7B081C18CD7EBC67181FB1E8AAAD158397C1F63B9988E561D5E4620B4BDEB007"
+    },
+    {
+      "theme": "contrast-night-sky",
+      "state": "disconnected",
+      "landmark": "DisconnectedOverlay",
+      "sha256": "B8DF55C023AF88F52335D2BC8C1870917108776ADA89C3F0C26EAB25F36DF77F"
+    }
+  ],
+  "readmeScreenshots": [
+    {
+      "theme": "dark",
+      "tab": "Hosts Activity",
+      "path": "docs/img/hosts-activity-dark.png",
+      "sha256": "C63B9957568A0FC870D858E9354DF4C76141FED3C333E4D43622F4257946517E",
+      "bytes": 148582,
+      "width": 1600,
+      "height": 1000,
+      "averageLuminance": 24.6,
+      "luminanceRange": 237.1,
+      "opaqueRatio": 1,
+      "bottomOpaqueRatio": 1,
+      "contentTileRatio": 0.7125
+    },
+    {
+      "theme": "light",
+      "tab": "Hosts Activity",
+      "path": "docs/img/hosts-activity-light.png",
+      "sha256": "FE3E804E8D37487A7655BC57775EE6EA9B062660F4DF4C42E16FFE9095AD463B",
+      "bytes": 148321,
+      "width": 1600,
+      "height": 1000,
+      "averageLuminance": 241.8,
+      "luminanceRange": 220.6,
+      "opaqueRatio": 1,
+      "bottomOpaqueRatio": 1,
+      "contentTileRatio": 0.725
+    }
+  ]
 }

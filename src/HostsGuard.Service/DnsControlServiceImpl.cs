@@ -32,7 +32,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
     public override Task<Ack> SetIdnHomograph(IdnHomographRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("DnsControl") is { } gate)
         {
             return Task.FromResult(gate);
         }
@@ -181,7 +181,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         ResolverHealthScheduleRequest request,
         ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } locked)
+        if (_state.GateWhenLocked("DnsControl") is { } locked)
         {
             return Task.FromResult(ToResolverHealthReport(_state.ResolverHealth.Snapshot(),
                 locked.ErrorCode, locked.Message));
@@ -206,6 +206,8 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
     public override async Task<Ack> SetResolver(ResolverRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("DnsControl") is { } gate) return gate;
+
         if (_state.Dns is not { } dns)
         {
             return Error("dns_unavailable", "DNS engine is not attached to this service instance");
@@ -567,6 +569,8 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
     public override Task<Ack> SetSniCapture(SniCaptureRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("DnsControl") is { } gate) return Task.FromResult(gate);
+
         if (_state.Sni is not { } sni)
         {
             return Task.FromResult(Error("sni_unavailable", "SNI capture is not available in this service instance"));
@@ -616,6 +620,8 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
 
     public override Task<Ack> SetCnameCloak(CnameCloakRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("DnsControl") is { } gate) return Task.FromResult(gate);
+
         _state.CnameCloak.SetEnabled(request.Enabled);
         return Task.FromResult(Ok(request.Enabled
             ? "CNAME-cloak blocking armed — first-party hosts aliasing to blocked trackers are now blocked"

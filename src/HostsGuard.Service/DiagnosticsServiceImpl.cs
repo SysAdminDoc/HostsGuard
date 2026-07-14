@@ -130,7 +130,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
 
     public override async Task<Ack> StageUpdate(StageUpdateRequest request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } locked)
+        if (_state.GateWhenLocked("Diagnostics") is { } locked)
         {
             return locked;
         }
@@ -191,7 +191,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
 
     public override Task<Ack> AcceptProxyBaseline(Empty request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } locked)
+        if (_state.GateWhenLocked("Diagnostics") is { } locked)
         {
             return Task.FromResult(locked);
         }

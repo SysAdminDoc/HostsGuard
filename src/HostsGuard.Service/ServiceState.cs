@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using Google.Protobuf.WellKnownTypes;
 using HostsGuard.Contracts;
@@ -244,6 +245,23 @@ public sealed class ServiceState : IDisposable
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Apply the centralized RPC classification before using the settings-lock
+    /// gate. Calling this from a read-only/protective RPC is a coding error.
+    /// </summary>
+    public Contracts.Ack? GateWhenLocked(
+        string service,
+        [CallerMemberName] string method = "")
+    {
+        var kind = RpcMutationPolicy.GetRequired(service, method);
+        if (kind != RpcMutationKind.LockProtectedMutation)
+        {
+            throw new InvalidOperationException($"{service}/{method} is classified {kind} and must not use the settings-lock gate");
+        }
+
+        return GateWhenLocked();
     }
 
     public TempAllowScheduler TempAllows { get; }

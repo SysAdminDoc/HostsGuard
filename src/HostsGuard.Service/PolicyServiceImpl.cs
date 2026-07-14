@@ -57,6 +57,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SetSchedules(ScheduleList request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         foreach (var s in request.Schedules)
         {
             if (string.IsNullOrWhiteSpace(s.Target))
@@ -90,6 +92,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SaveProfile(ProfileRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (name.Length == 0)
         {
@@ -103,6 +107,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SwitchProfile(ProfileRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (!_state.Db.ListProfiles().Contains(name))
         {
@@ -134,6 +140,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> DeleteProfile(ProfileRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Name ?? string.Empty).Trim();
         if (!_state.Db.ListProfiles().Contains(name))
         {
@@ -151,6 +159,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> ToggleService(ServiceToggleRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var name = (request.Service ?? string.Empty).Trim();
         var domains = BlockedServices.DomainsFor(name);
         if (domains is null)
@@ -293,12 +303,6 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SetHostsProtection(HostsProtectionRequest request, ServerCallContext context)
     {
-        // Unlock-gated like every other mutation.
-        if (_state.GateWhenLocked() is { } gate)
-        {
-            return Task.FromResult(gate);
-        }
-
         if (!request.Enabled)
         {
             return Task.FromResult(Error("acl_relax_unsupported",
@@ -374,6 +378,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SetNetworkProfile(NetworkProfileEntry request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var profile = (request.Profile ?? string.Empty).Trim();
         var label = (request.Label ?? string.Empty).Trim();
         var rule = new NetworkProfileMatchRule(
@@ -432,7 +438,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     {
         // A policy import is a broad mutation — respect the settings lock, and it
         // may also re-arm the lock from the document.
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("Policy") is { } gate)
         {
             return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
         }
@@ -471,7 +477,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<ImportPolicyResult> RestorePolicyCheckpoint(Empty request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("Policy") is { } gate)
         {
             return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
         }
@@ -518,6 +524,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> SavePolicySubscription(PolicySubscriptionRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var resolved = ResolveSubscription(request, requireExisting: false);
         if (resolved.Error is not null)
         {
@@ -541,6 +549,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override Task<Ack> DeletePolicySubscription(PolicySubscriptionRequest request, ServerCallContext context)
     {
+        if (_state.GateWhenLocked("Policy") is { } gate) return Task.FromResult(gate);
+
         var resolved = ResolveSubscription(request, requireExisting: true);
         if (resolved.Error is not null)
         {
@@ -583,7 +593,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         PolicySubscriptionRequest request,
         ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("Policy") is { } gate)
         {
             return new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
         }
@@ -593,7 +603,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
 
     public override async Task<ImportPolicyResult> RefreshPolicySubscriptions(Empty request, ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("Policy") is { } gate)
         {
             return new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode };
         }
@@ -653,7 +663,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
         PolicySubscriptionRequest request,
         ServerCallContext context)
     {
-        if (_state.GateWhenLocked() is { } gate)
+        if (_state.GateWhenLocked("Policy") is { } gate)
         {
             return Task.FromResult(new ImportPolicyResult { Ok = false, Message = gate.Message, ErrorCode = gate.ErrorCode });
         }
