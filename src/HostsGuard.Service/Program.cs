@@ -400,11 +400,20 @@ state.Consent.DisarmDetection = () => { };
 var blockedAuditOn = BlockedConnectionWatch.EnableAuditPolicy(
     message => db.LogEvent("port_scan", "audit_log", details: message));
 var blockedWatching = blockedWatch.Start();
+blockedWatch.ReportAuditPolicy(blockedAuditOn);
 if (!blockedAuditOn || !blockedWatching)
 {
     db.LogEvent("port_scan", "watch_unavailable",
         details: $"audit_policy={blockedAuditOn}; security_log_watch={blockedWatching}");
 }
+
+// Observation-integrity recovery: detect ETW buffer loss, audit-policy drift,
+// Security-log rollover, and dead watchers. Sources recover in-process and the
+// same snapshots drive RPC/UI/CLI completeness labels.
+using var observationIntegrity = new ObservationIntegrityCoordinator(
+    dnsMonitor, bandwidthMonitor, blockedWatch, db);
+state.ObservationHealth = observationIntegrity.Snapshot;
+observationIntegrity.Start();
 // Privileged bootstrap (WFCP-000c): if the persisted mode wants detection,
 // re-arm it now; failures degrade to a logged, disarmed state.
 state.Consent.ResumeFromPersistedMode();

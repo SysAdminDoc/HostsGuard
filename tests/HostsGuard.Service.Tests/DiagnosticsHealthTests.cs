@@ -35,6 +35,10 @@ public sealed class DiagnosticsHealthTests : IDisposable
     [Fact]
     public async Task GetStatus_reports_schema_health_and_drop_signals()
     {
+        var tracker = new ObservationIntegrityTracker("dns_etw");
+        tracker.Started();
+        tracker.RecordLoss(2, "synthetic loss");
+        _state.ObservationHealth = () => new[] { tracker.Snapshot() };
         var impl = new DiagnosticsServiceImpl(_state);
 
         var status = await impl.GetStatus(new Empty(), null!);
@@ -57,6 +61,11 @@ public sealed class DiagnosticsHealthTests : IDisposable
         status.GcFragmentedBytes.Should().BeGreaterThanOrEqualTo(0);
         status.SniCaptureAdapters.Should().Be(0);
         status.FirewallCachedPackages.Should().Be(0);
+        status.ObservationSources.Should().ContainSingle();
+        status.ObservationSources[0].Source.Should().Be("dns_etw");
+        status.ObservationSources[0].State.Should().Be("degraded");
+        status.ObservationSources[0].LossCount.Should().Be(2);
+        status.ObservationSources[0].IncompleteSince.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

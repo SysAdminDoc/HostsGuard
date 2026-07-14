@@ -169,5 +169,24 @@ public sealed class BlockedConnectionWatchTests
         }
 
         BlockedConnectionWatch.EnableAuditPolicy().Should().BeTrue();
+        BlockedConnectionWatch.IsAuditPolicyEnabled().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Security_log_rollover_records_gap_and_recovers_on_stable_window()
+    {
+        using var watch = new BlockedConnectionWatch(Mapper, _ => { });
+        watch.ObserveLogWindow(100).Should().Be(0);
+
+        watch.ObserveLogWindow(145).Should().Be(45);
+        var degraded = watch.Health;
+        degraded.State.Should().Be(ObservationIntegrityState.Degraded);
+        degraded.GapCount.Should().Be(45);
+        degraded.Detail.Should().Contain("rolled over");
+
+        // A log clear/reset is also an incomplete interval, even though record
+        // numbering moves backward instead of advancing.
+        watch.ObserveLogWindow(1).Should().Be(1);
+        watch.Health.GapCount.Should().Be(46);
     }
 }

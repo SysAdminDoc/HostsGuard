@@ -262,6 +262,11 @@ static async Task<int> StatusAsync()
         }
         Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
         Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
+        foreach (var source in status.ObservationSources)
+        {
+            var interval = source.IncompleteSince.Length == 0 ? "complete" : $"incomplete-since={source.IncompleteSince}";
+            Console.WriteLine($"observe {source.Source}: {source.State} lost={source.LossCount} gaps={source.GapCount} restarts={source.RestartCount} {interval} transition={source.LastTransitionAt} ({source.Detail})");
+        }
         Console.WriteLine($"health:       pending-consent={status.PendingConsent} dropped-writes={status.PersistenceDroppedWrites} kill-switch={(status.KillSwitchEngaged ? "engaged" : "off")} secure-rules={(status.SecureRulesArmed ? "armed" : "off")}");
         var schemaNote = status.SchemaVersionOnDisk == status.SchemaVersion ? "ok" : $"MISMATCH (code {status.SchemaVersion})";
         Console.WriteLine($"database ver: schema {status.SchemaVersionOnDisk} ({schemaNote})");

@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.114] - 2026-07-14
+
+### Added
+- DNS ETW, kernel-network ETW, and Security-log observation sources now expose
+  healthy/degraded/unavailable state with cumulative loss, gap, and restart
+  counters plus the current incomplete interval in service diagnostics, CLI
+  status, support bundles, and the Tools health table.
+- DNS and firewall activity feeds now retain a live evidence-incomplete warning
+  instead of presenting partial intervals as complete.
+
+### Fixed
+- Failed ETW pumps and Security-log subscriptions restart inside the running
+  service. WFP audit-policy drift is detected and repaired, while Security-log
+  rollover and audit loss create deduplicated alerts with remediation.
+
 ## [0.12.113] - 2026-07-14
 
 ### Fixed

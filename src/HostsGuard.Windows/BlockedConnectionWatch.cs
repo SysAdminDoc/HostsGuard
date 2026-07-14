@@ -58,7 +58,15 @@ public sealed class BlockedConnectionWatch : IDisposable
     private readonly DevicePathMapper _mapper;
     private readonly Action<BlockedConnection> _onBlocked;
     private readonly Action<string>? _log;
+    private readonly object _gate = new();
+    private readonly ObservationIntegrityTracker _health = new("security_log");
     private EventLogWatcher? _watcher;
+    private long? _lastOldestRecordNumber;
+    private bool _auditPolicyHealthy;
+    private int _recoveryQueued;
+    private int _recoveryGeneration;
+    private bool _recoveryEnabled;
+    private bool _disposed;
 
     public BlockedConnectionWatch(DevicePathMapper mapper, Action<BlockedConnection> onBlocked, Action<string>? log = null)
     {
@@ -68,7 +76,19 @@ public sealed class BlockedConnectionWatch : IDisposable
     }
 
     /// <summary>True while the Security-log subscription is live.</summary>
-    public bool IsActive => _watcher?.Enabled == true;
+    public bool IsActive
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _watcher?.Enabled == true;
+            }
+        }
+    }
+
+    /// <summary>Current Security-log liveness and cumulative loss/restart counters.</summary>
+    public ObservationIntegritySnapshot Health => _health.Snapshot();
 
     /// <summary>
     /// Start watching. Returns false (logged, no throw) when the Security log
@@ -76,43 +96,118 @@ public sealed class BlockedConnectionWatch : IDisposable
     /// </summary>
     public bool Start()
     {
-        if (_watcher is not null)
+        EventLogWatcher? stale = null;
+        lock (_gate)
         {
-            return true;
+            if (_disposed)
+            {
+                _health.Unavailable("monitor disposed", countGap: false);
+                return false;
+            }
+
+            if (_watcher?.Enabled == true)
+            {
+                return true;
+            }
+
+            stale = _watcher;
+            _watcher = null;
         }
+
+        DisposeWatcher(stale);
 
         try
         {
             var watcher = new EventLogWatcher(new EventLogQuery("Security", PathType.LogName, Query));
             watcher.EventRecordWritten += OnEvent;
             watcher.Enabled = true;
-            _watcher = watcher;
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    watcher.Dispose();
+                    return false;
+                }
+
+                _watcher = watcher;
+                _recoveryEnabled = true;
+                _health.Started();
+                if (!_auditPolicyHealthy)
+                {
+                    _health.Degraded("Windows Filtering Platform audit policy is disabled or unverified");
+                }
+            }
+
             return true;
         }
         catch (Exception ex) when (ex is EventLogException or UnauthorizedAccessException or InvalidOperationException)
         {
             _log?.Invoke($"blocked-connection watch unavailable: {ex.Message}");
+            _health.Unavailable($"Security-log watch unavailable: {ex.Message}");
             return false;
         }
     }
 
+    /// <summary>Restart a failed Event Log subscription without restarting the service.</summary>
+    public bool EnsureStarted() => Start();
+
     public void Stop()
     {
-        if (_watcher is { } watcher)
+        lock (_gate)
         {
-            _watcher = null;
-            watcher.Enabled = false;
-            watcher.Dispose();
+            _recoveryEnabled = false;
         }
+
+        Interlocked.Increment(ref _recoveryGeneration);
+        StopWatcher();
+    }
+
+    private void StopWatcher()
+    {
+        EventLogWatcher? watcher;
+        lock (_gate)
+        {
+            watcher = _watcher;
+            _watcher = null;
+        }
+
+        DisposeWatcher(watcher);
+    }
+
+    private static void DisposeWatcher(EventLogWatcher? watcher)
+    {
+        if (watcher is null)
+        {
+            return;
+        }
+
+        try
+        {
+            watcher.Enabled = false;
+        }
+        catch (Exception ex) when (ex is EventLogException or InvalidOperationException)
+        {
+            // A failed subscription may already be detached.
+        }
+
+        watcher.Dispose();
     }
 
     private void OnEvent(object? sender, EventRecordWrittenEventArgs e)
     {
+        if (e.EventException is { } subscriptionError)
+        {
+            _health.RecordLoss(1, $"Security-log subscription failed: {subscriptionError.Message}");
+            _log?.Invoke($"blocked-connection watch interrupted: {subscriptionError.Message}");
+            QueueRecovery();
+            return;
+        }
+
         using var record = e.EventRecord;
         if (record is null)
         {
-            // Subscription error notification (e.g. log cleared) — the watcher
-            // itself stays subscribed, nothing to parse.
+            _health.RecordLoss(1, "Security-log subscription returned no record");
+            QueueRecovery();
             return;
         }
 
@@ -125,10 +220,145 @@ public sealed class BlockedConnectionWatch : IDisposable
             {
                 _onBlocked(blocked);
             }
+
+            if (_auditPolicyHealthy)
+            {
+                _health.Healthy();
+            }
         }
         catch (Exception ex) when (ex is EventLogException or System.Xml.XmlException)
         {
             _log?.Invoke($"blocked-connection parse failed: {ex.Message}");
+        }
+    }
+
+    private void QueueRecovery()
+    {
+        lock (_gate)
+        {
+            if (!_recoveryEnabled || _disposed)
+            {
+                return;
+            }
+        }
+
+        if (Interlocked.Exchange(ref _recoveryQueued, 1) != 0)
+        {
+            return;
+        }
+
+        var generation = Volatile.Read(ref _recoveryGeneration);
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            try
+            {
+                if (generation != Volatile.Read(ref _recoveryGeneration))
+                {
+                    return;
+                }
+
+                StopWatcher();
+                bool canRecover;
+                lock (_gate)
+                {
+                    canRecover = !_disposed && _recoveryEnabled;
+                }
+
+                if (canRecover && generation == Volatile.Read(ref _recoveryGeneration))
+                {
+                    Start();
+                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _recoveryQueued, 0);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Track the readable Security-log window. An advancing oldest record is a
+    /// rollover: historical evidence before that record is no longer available.
+    /// Returns the number of records that left the readable window.
+    /// </summary>
+    public long ProbeLogWindow()
+    {
+        try
+        {
+            var info = EventLogSession.GlobalSession.GetLogInformation("Security", PathType.LogName);
+            return ObserveLogWindow(info.OldestRecordNumber);
+        }
+        catch (Exception ex) when (ex is EventLogException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _health.Unavailable($"Security-log metadata unavailable: {ex.Message}");
+            _log?.Invoke($"Security-log integrity probe failed: {ex.Message}");
+            return 0;
+        }
+    }
+
+    internal long ObserveLogWindow(long? oldestRecordNumber)
+    {
+        if (oldestRecordNumber is null or <= 0)
+        {
+            return 0;
+        }
+
+        long delta = 0;
+        lock (_gate)
+        {
+            if (_lastOldestRecordNumber is { } previous)
+            {
+                if (oldestRecordNumber.Value > previous)
+                {
+                    delta = oldestRecordNumber.Value - previous;
+                }
+                else if (oldestRecordNumber.Value < previous)
+                {
+                    // A clear/reset can restart record numbering rather than
+                    // monotonically advancing the oldest record.
+                    delta = 1;
+                }
+            }
+
+            _lastOldestRecordNumber = oldestRecordNumber.Value;
+        }
+
+        if (delta > 0)
+        {
+            _health.RecordGap(delta, $"Security log rolled over; {delta} record(s) left the readable window");
+        }
+        else if (IsActive && _auditPolicyHealthy)
+        {
+            _health.Healthy();
+        }
+
+        return delta;
+    }
+
+    /// <summary>Apply an independently queried audit-policy state to health.</summary>
+    public void ReportAuditPolicy(bool enabled)
+    {
+        bool changed;
+        lock (_gate)
+        {
+            changed = _auditPolicyHealthy != enabled;
+            _auditPolicyHealthy = enabled;
+        }
+
+        if (!enabled)
+        {
+            if (changed)
+            {
+                _health.RecordGap(1, "Windows Filtering Platform audit policy was disabled");
+            }
+            else
+            {
+                _health.Degraded("Windows Filtering Platform audit policy is disabled");
+            }
+        }
+        else if (IsActive)
+        {
+            _health.Healthy(changed ? "audit policy restored; observing" : "observing");
         }
     }
 
@@ -242,7 +472,20 @@ public sealed class BlockedConnectionWatch : IDisposable
         return null;
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        Stop();
+    }
 
     // ─── Audit policy (the events only exist when auditing is on) ────────────
 
@@ -286,6 +529,39 @@ public sealed class BlockedConnectionWatch : IDisposable
             && RunAuditPol($"/set /subcategory:\"{{{FilteringPlatformPacketDrop}}}\" /failure:enable", log);
     }
 
+    /// <summary>Query the two locale-stable WFP audit subcategories.</summary>
+    public static bool IsAuditPolicyEnabled(Action<string>? log = null)
+    {
+        IntPtr policies = IntPtr.Zero;
+        try
+        {
+            var categories = new[] { FilteringPlatformConnection, FilteringPlatformPacketDrop };
+            if (!AuditQuerySystemPolicy(categories, (uint)categories.Length, out policies) || policies == IntPtr.Zero)
+            {
+                log?.Invoke($"AuditQuerySystemPolicy failed (win32 {Marshal.GetLastWin32Error()})");
+                return false;
+            }
+
+            var size = Marshal.SizeOf<AUDIT_POLICY_INFORMATION>();
+            var connection = Marshal.PtrToStructure<AUDIT_POLICY_INFORMATION>(policies);
+            var packetDrop = Marshal.PtrToStructure<AUDIT_POLICY_INFORMATION>(IntPtr.Add(policies, size));
+            return (connection.AuditingInformation & (AuditSuccess | AuditFailure)) == (AuditSuccess | AuditFailure)
+                && (packetDrop.AuditingInformation & AuditFailure) == AuditFailure;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException)
+        {
+            log?.Invoke($"AuditQuerySystemPolicy unavailable: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            if (policies != IntPtr.Zero)
+            {
+                AuditFree(policies);
+            }
+        }
+    }
+
     private static bool RunAuditPol(string arguments, Action<string>? log)
     {
         try
@@ -327,6 +603,13 @@ public sealed class BlockedConnectionWatch : IDisposable
     [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool AuditSetSystemPolicy(
         [In] AUDIT_POLICY_INFORMATION[] pAuditPolicy, uint policyCount);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool AuditQuerySystemPolicy(
+        [In] Guid[] pSubCategoryGuids, uint policyCount, out IntPtr ppAuditPolicy);
+
+    [DllImport("advapi32.dll")]
+    private static extern void AuditFree(IntPtr buffer);
 
     private static void EnablePrivilege(string privilege)
     {

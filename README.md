@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.113-blue)
+![Version](https://img.shields.io/badge/version-0.12.114-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -72,6 +72,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Feature | Description |
 |---------|-------------|
 | Real-time DNS feed | ETW `Microsoft-Windows-DNS-Client` events surface domains as they resolve — no polling |
+| Observation integrity | DNS ETW, kernel-network ETW, and Security-log sources report healthy/degraded/unavailable state plus loss, gap, restart, transition, and incomplete-interval evidence in the UI, CLI, and support bundle; failed pumps/watchers recover in-process, audit-policy drift is repaired, and Security-log rollover raises one deduplicated remediation alert |
 | Domain blocking | Block individual domains or entire root domains via hosts file (`0.0.0.0` entries) |
 | Domain purpose | Curated offline domain→purpose annotations ("Microsoft telemetry", "Akamai CDN", "Google Analytics") inline in the feed and on prompts |
 | 24h sparkline | Per-root hourly hit rollup rendered as an inline activity sparkline |

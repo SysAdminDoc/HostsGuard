@@ -26,6 +26,9 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         var resolverHealth = _state.ResolverHealth.Snapshot();
         var memory = CaptureMemory();
         var firewallMemory = _state.Firewall?.GetMemorySnapshot() ?? default;
+        var observations = _state.ObservationHealth();
+        var dnsObservation = observations.FirstOrDefault(row => row.Source == "dns_etw");
+        var networkObservation = observations.FirstOrDefault(row => row.Source == "network_etw");
         var status = new ServiceStatus
         {
             Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0",
@@ -36,10 +39,14 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             DbBlocked = stats.Blocked,
             DbAllowed = stats.Whitelisted,
             FeedTotal = stats.FeedTotal,
-            DnsMonitorActive = _state.DnsMonitorActive,
+            DnsMonitorActive = dnsObservation is null
+                ? _state.DnsMonitorActive
+                : dnsObservation.State != ObservationIntegrityState.Unavailable,
             ConnectionMonitorActive = _state.ConnectionMonitorActive,
             SniMonitorActive = _state.Sni?.Active ?? false,
-            BandwidthMonitorActive = _state.Bandwidth?.CountersActive ?? false,
+            BandwidthMonitorActive = networkObservation is null
+                ? _state.Bandwidth?.CountersActive ?? false
+                : networkObservation.State != ObservationIntegrityState.Unavailable,
             KillSwitchEngaged = _state.KillSwitch?.IsEngaged ?? false,
             SecureRulesArmed = _state.SecureRules.Enabled,
             PersistenceDroppedWrites = _state.ActivityPersistence.DroppedWriteCount,
@@ -67,6 +74,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             SniCaptureAdapters = _state.Sni?.CaptureAdapterCount ?? 0,
             FirewallCachedPackages = firewallMemory.LightweightPackageCount,
         };
+        status.ObservationSources.AddRange(observations.Select(ToContract));
         return Task.FromResult(status);
     }
 
@@ -278,6 +286,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
     {
         var recent = _state.Db.GetLog(2000);
         var resolverHealth = _state.ResolverHealth.Snapshot();
+        var observations = _state.ObservationHealth();
         var memory = CaptureMemory();
         var firewallMemory = _state.Firewall?.GetMemorySnapshot() ?? default;
         var byCategory = recent.GroupBy(l => EventTaxonomy.Category(l.Action))
@@ -377,6 +386,17 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
                 dns_tunnel_detections = _state.DnsTunnels.DetectionCount,
                 schema_version = HostsDatabase.SchemaVersion,
                 schema_version_on_disk = _state.Db.SchemaVersionOnDisk(),
+                observation_sources = observations.Select(row => new
+                {
+                    source = row.Source,
+                    state = row.State.ToString().ToLowerInvariant(),
+                    loss_count = row.LossCount,
+                    gap_count = row.GapCount,
+                    restart_count = row.RestartCount,
+                    last_transition_at = row.LastTransitionUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                    incomplete_since = row.IncompleteSinceUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                    detail = Redaction.RedactText(row.Detail),
+                }),
             },
         }, new JsonSerializerOptions { WriteIndented = true });
     }
@@ -399,6 +419,18 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         DnsResolverTlsStatus.Valid => "valid",
         DnsResolverTlsStatus.CertificateFailure => "certificate_failure",
         _ => "unavailable",
+    };
+
+    private static ObservationSourceHealth ToContract(ObservationIntegritySnapshot row) => new()
+    {
+        Source = row.Source,
+        State = row.State.ToString().ToLowerInvariant(),
+        LossCount = row.LossCount,
+        GapCount = row.GapCount,
+        RestartCount = row.RestartCount,
+        LastTransitionAt = row.LastTransitionUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+        IncompleteSince = row.IncompleteSinceUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+        Detail = row.Detail,
     };
 
     private static RuntimeMemorySnapshot CaptureMemory()

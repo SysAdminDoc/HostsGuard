@@ -303,6 +303,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Reason = "Manual allow",
             Bytes = 2_621_440,
         });
+        Activity.IntegrityStatusText = "Evidence is incomplete — DNS ETW degraded since 14:00 (lost 3, gaps 0, restarts 1): observing after buffer loss";
 
         Alerts!.Alerts.Add(new AlertRowViewModel
         {
@@ -374,6 +375,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             FwStatus = "Monitored",
         });
         FwActivity.StatusText = "2 deterministic live connections";
+        FwActivity.IntegrityStatusText = "Evidence is incomplete — Security log degraded since 14:00 (lost 1, gaps 25, restarts 1): rollover detected";
 
         FwRules!.Rules.Add(new FwRuleViewModel
         {
@@ -407,6 +409,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Start = "09:00",
             End = "17:00",
         });
+        Tools.HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = "DNS observation (ETW)",
+            State = "Up",
+            Detail = "lost 3 · gaps 0 · restarts 1 · transition 14:01 · observing after event loss",
+            Healthy = true,
+        });
+        Tools.HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = "Network observation (ETW)",
+            State = "Up",
+            Detail = "lost 0 · gaps 0 · restarts 0 · transition 13:55 · observing",
+            Healthy = true,
+        });
+        Tools.HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = "Blocked evidence (Security log)",
+            State = "Degraded",
+            Detail = "lost 1 · gaps 25 · restarts 1 · transition 14:00 · rollover detected",
+            Healthy = false,
+        });
+        Tools.HealthStatusText = "1 health check needs attention — evidence is incomplete.";
         Tools.StatusText = "Deterministic diagnostics ready";
 
         IsConnected = true;

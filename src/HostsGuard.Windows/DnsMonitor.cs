@@ -52,8 +52,11 @@ public sealed class DnsMonitor : IDisposable
     private const int QueryCompletedEventId = 3008;
 
     private readonly string _sessionName;
+    private readonly object _gate = new();
+    private readonly ObservationIntegrityTracker _health = new("dns_etw");
     private TraceEventSession? _session;
     private Thread? _pump;
+    private bool _disposed;
 
     public DnsMonitor(string sessionName = "HostsGuardDns") => _sessionName = sessionName;
 
@@ -62,6 +65,16 @@ public sealed class DnsMonitor : IDisposable
 
     /// <summary>Fires when a resolution completes with a CNAME chain (cloak defense).</summary>
     public event EventHandler<DnsResolvedEventArgs>? DnsResolved;
+
+    /// <summary>Current ETW liveness and cumulative loss/restart counters.</summary>
+    public ObservationIntegritySnapshot Health
+    {
+        get
+        {
+            RefreshLossCounter();
+            return _health.Snapshot();
+        }
+    }
 
     public static bool IsElevated()
     {
@@ -81,22 +94,121 @@ public sealed class DnsMonitor : IDisposable
     {
         if (!IsElevated())
         {
+            _health.Unavailable("requires elevation", countGap: false);
             return DnsMonitorStatus.RequiresElevation;
         }
 
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                _health.Unavailable("monitor disposed", countGap: false);
+                return DnsMonitorStatus.Unavailable;
+            }
+
+            if (_session is not null && _pump?.IsAlive == true)
+            {
+                return DnsMonitorStatus.Started;
+            }
+        }
+
+        TraceEventSession? candidate = null;
         try
         {
-            _session = new TraceEventSession(_sessionName) { StopOnDispose = true };
-            _session.EnableProvider(DnsClientProvider);
-            _session.Source.Dynamic.All += OnEvent;
-            _pump = new Thread(() => _session.Source.Process()) { IsBackground = true, Name = "HostsGuardDnsEtw" };
-            _pump.Start();
+            var session = candidate = new TraceEventSession(_sessionName) { StopOnDispose = true };
+            session.EnableProvider(DnsClientProvider);
+            session.Source.Dynamic.All += OnEvent;
+            var pump = new Thread(() => Pump(session)) { IsBackground = true, Name = "HostsGuardDnsEtw" };
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    session.Dispose();
+                    return DnsMonitorStatus.Unavailable;
+                }
+
+                _session = session;
+                _pump = pump;
+                _health.Started();
+            }
+
+            candidate = null;
+            pump.Start();
             return DnsMonitorStatus.Started;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
-            Dispose();
+            candidate?.Dispose();
+            StopSession();
+            _health.Unavailable($"ETW start failed: {ex.Message}");
             return DnsMonitorStatus.Unavailable;
+        }
+    }
+
+    /// <summary>Restart a failed ETW pump without restarting the service.</summary>
+    public DnsMonitorStatus EnsureStarted() => Start();
+
+    private void Pump(TraceEventSession session)
+    {
+        string? failure = null;
+        try
+        {
+            session.Source.Process();
+            failure = "ETW pump stopped";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            failure = $"ETW pump failed: {ex.Message}";
+        }
+        finally
+        {
+            var unexpected = false;
+            lock (_gate)
+            {
+                if (ReferenceEquals(_session, session))
+                {
+                    _session = null;
+                    _pump = null;
+                    unexpected = !_disposed;
+                }
+            }
+
+            if (unexpected)
+            {
+                _health.Unavailable(failure ?? "ETW pump stopped");
+            }
+
+            try
+            {
+                session.Dispose();
+            }
+            catch (InvalidOperationException)
+            {
+                // Session already torn down by Dispose.
+            }
+        }
+    }
+
+    private void RefreshLossCounter()
+    {
+        TraceEventSession? session;
+        lock (_gate)
+        {
+            session = _session;
+        }
+
+        if (session is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _health.ObserveSourceLossTotal(session.EventsLost);
+        }
+        catch (InvalidOperationException)
+        {
+            // Pump teardown owns the unavailable transition.
         }
     }
 
@@ -150,15 +262,43 @@ public sealed class DnsMonitor : IDisposable
 
     public void Dispose()
     {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        StopSession();
+    }
+
+    private void StopSession()
+    {
+        TraceEventSession? session;
+        Thread? pump;
+        lock (_gate)
+        {
+            session = _session;
+            pump = _pump;
+            _session = null;
+            _pump = null;
+        }
+
         try
         {
-            _session?.Dispose();
+            session?.Dispose();
         }
         catch (InvalidOperationException)
         {
             // session already torn down
         }
 
-        _session = null;
+        if (pump is not null && pump != Thread.CurrentThread)
+        {
+            pump.Join(TimeSpan.FromSeconds(5));
+        }
     }
 }

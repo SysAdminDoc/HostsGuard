@@ -200,6 +200,21 @@ message ServiceStatus {
   int64 gc_fragmented_bytes = 35;
   int32 sni_capture_adapters = 36;
   int32 firewall_cached_packages = 37;
+  // OS observation completeness. Unlike the legacy active booleans, this
+  // retains cumulative loss/gap/restart evidence and the current incomplete
+  // interval while a source recovers in-process.
+  repeated ObservationSourceHealth observation_sources = 38;
+}
+
+message ObservationSourceHealth {
+  string source = 1;              // dns_etw | network_etw | security_log
+  string state = 2;               // healthy | degraded | unavailable
+  int64 loss_count = 3;
+  int64 gap_count = 4;
+  int64 restart_count = 5;
+  string last_transition_at = 6;  // UTC ISO-8601
+  string incomplete_since = 7;    // empty when the current interval is complete
+  string detail = 8;
 }
 
 // ─── Hosts control ───────────────────────────────────────────────────────────

@@ -186,6 +186,10 @@ public sealed class ServiceState : IDisposable
     /// <summary>Live connection-feed state (wired by the host).</summary>
     public bool ConnectionMonitorActive { get; set; }
 
+    /// <summary>ETW and Security-log completeness snapshots (wired by the host).</summary>
+    public Func<IReadOnlyList<ObservationIntegritySnapshot>> ObservationHealth { get; set; } =
+        static () => Array.Empty<ObservationIntegritySnapshot>();
+
     public EventBus Bus { get; }
 
     /// <summary>Single-reader durable writer for DNS/SNI persistence.</summary>

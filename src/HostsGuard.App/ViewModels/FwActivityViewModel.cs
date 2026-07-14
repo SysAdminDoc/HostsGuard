@@ -50,6 +50,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private string _statusText = I18n.T("FwActivity_WaitingLive", "Waiting for live connections…");
 
     [ObservableProperty]
+    private string _integrityStatusText = string.Empty;
+
+    [ObservableProperty]
     private bool _lockdown;
 
     [ObservableProperty]
@@ -433,6 +436,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         var cts = new CancellationTokenSource();
         _watchCts = cts;
+        _ = IntegrityLoopAsync(cts.Token);
         _ = WatchLoopAsync(cts);
     }
 
@@ -490,9 +494,41 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         {
             if (ReferenceEquals(_watchCts, owner))
             {
+                await owner.CancelAsync();
                 _watchCts = null;
                 owner.Dispose();
             }
+        }
+    }
+
+    private async Task IntegrityLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await RefreshIntegrityStatusAsync(ct);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    private async Task RefreshIntegrityStatusAsync(CancellationToken ct)
+    {
+        try
+        {
+            var status = await _client.Diagnostics.GetStatusAsync(new Empty(), cancellationToken: ct);
+            OnUi(() => IntegrityStatusText = ObservationIntegrityText.ForFeed(
+                status, "network_etw", "security_log"));
+        }
+        catch (Exception ex) when (WatchRetry.IsStreamFailure(ex))
+        {
+            // The stream path owns connectivity messaging; retain last-known
+            // completeness until the service can be queried again.
         }
     }
 

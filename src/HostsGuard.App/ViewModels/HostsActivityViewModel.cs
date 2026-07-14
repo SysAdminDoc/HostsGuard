@@ -57,6 +57,9 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     private string _statusText = I18n.T("Status.Ready", "Ready");
 
+    [ObservableProperty]
+    private string _integrityStatusText = string.Empty;
+
     public HostsActivityViewModel(
         HostsServiceClient client,
         AppConfigStore? config = null,
@@ -294,6 +297,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
         var cts = new CancellationTokenSource();
         _watchCts = cts;
+        _ = IntegrityLoopAsync(cts.Token);
         _ = WatchLoopAsync(cts);
     }
 
@@ -351,9 +355,40 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
         {
             if (ReferenceEquals(_watchCts, owner))
             {
+                await owner.CancelAsync();
                 _watchCts = null;
                 owner.Dispose();
             }
+        }
+    }
+
+    private async Task IntegrityLoopAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await RefreshIntegrityStatusAsync(ct);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    private async Task RefreshIntegrityStatusAsync(CancellationToken ct)
+    {
+        try
+        {
+            var status = await _client.Diagnostics.GetStatusAsync(new Empty(), cancellationToken: ct);
+            OnUi(() => IntegrityStatusText = ObservationIntegrityText.ForFeed(status, "dns_etw"));
+        }
+        catch (Exception ex) when (WatchRetry.IsStreamFailure(ex))
+        {
+            // The stream path owns connectivity messaging; keep the last known
+            // completeness interval until a later status read succeeds.
         }
     }
 

@@ -1026,10 +1026,25 @@
                             </Border>
                         </Grid>
 
-                        <TextBlock Grid.Row="2" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}"
-                                   Style="{StaticResource Hg.DimText}"
-                                   AutomationProperties.LiveSetting="Polite" />
+                        <Grid Grid.Row="2" Margin="2,6,0,0">
+                            <TextBlock Text="{Binding IntegrityStatusText}"
+                                       Foreground="{DynamicResource Hg.Yellow}"
+                                       TextWrapping="Wrap"
+                                       AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock Text="{Binding StatusText}"
+                                       AutomationProperties.LiveSetting="Polite">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IntegrityStatusText}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
                     </Grid>
                 </TabItem>
 
@@ -2587,10 +2602,25 @@
                             </Border>
                         </Expander>
 
-                        <TextBlock Grid.Row="6" Margin="2,6,0,0"
-                                   Text="{Binding StatusText}"
-                                   Style="{StaticResource Hg.DimText}"
-                                   AutomationProperties.LiveSetting="Polite" />
+                        <Grid Grid.Row="6" Margin="2,6,0,0">
+                            <TextBlock Text="{Binding IntegrityStatusText}"
+                                       Foreground="{DynamicResource Hg.Yellow}"
+                                       TextWrapping="Wrap"
+                                       AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock Text="{Binding StatusText}"
+                                       AutomationProperties.LiveSetting="Polite">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IntegrityStatusText}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
                     </Grid>
                 </TabItem>
 

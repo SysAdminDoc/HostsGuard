@@ -62,25 +62,55 @@ public sealed partial class ToolsViewModel
                     FormatUptime(status.UptimeSeconds)),
                 Healthy = status.Elevated,
             });
-            HealthRows.Add(new HealthRowViewModel
+            if (status.ObservationSources.Count != 0)
             {
-                Aspect = I18n.T("Health_DnsMonitor", "DNS monitor"),
-                State = status.DnsMonitorActive ? up : down,
-                Detail = status.DnsMonitorActive ? string.Empty : I18n.T("Health_MonitorDownDetail", "requires the elevated service"),
-                Healthy = status.DnsMonitorActive,
-            });
+                foreach (var observation in status.ObservationSources
+                             .OrderBy(row => ObservationOrder(row.Source)))
+                {
+                    var healthy = observation.State == "healthy";
+                    HealthRows.Add(new HealthRowViewModel
+                    {
+                        Aspect = ObservationName(observation.Source),
+                        State = observation.State switch
+                        {
+                            "healthy" => up,
+                            "degraded" => I18n.T("Health_Degraded", "Degraded"),
+                            _ => down,
+                        },
+                        Detail = I18n.T(
+                            "Health_ObservationDetail",
+                            "lost {0} · gaps {1} · restarts {2} · transition {3} · {4}",
+                            observation.LossCount,
+                            observation.GapCount,
+                            observation.RestartCount,
+                            TimeText.Compact(observation.LastTransitionAt),
+                            observation.Detail),
+                        Healthy = healthy,
+                    });
+                }
+            }
+            else
+            {
+                HealthRows.Add(new HealthRowViewModel
+                {
+                    Aspect = I18n.T("Health_DnsMonitor", "DNS monitor"),
+                    State = status.DnsMonitorActive ? up : down,
+                    Detail = status.DnsMonitorActive ? string.Empty : I18n.T("Health_MonitorDownDetail", "requires the elevated service"),
+                    Healthy = status.DnsMonitorActive,
+                });
+                HealthRows.Add(new HealthRowViewModel
+                {
+                    Aspect = I18n.T("Health_BandwidthMonitor", "Bandwidth monitor"),
+                    State = status.BandwidthMonitorActive ? up : down,
+                    Detail = status.BandwidthMonitorActive ? string.Empty : I18n.T("Health_OptMonitorDetail", "elevation-gated; usage budgets need it"),
+                    Healthy = status.BandwidthMonitorActive,
+                });
+            }
             HealthRows.Add(new HealthRowViewModel
             {
                 Aspect = I18n.T("Health_ConnMonitor", "Connection monitor"),
                 State = status.ConnectionMonitorActive ? up : down,
                 Healthy = status.ConnectionMonitorActive,
-            });
-            HealthRows.Add(new HealthRowViewModel
-            {
-                Aspect = I18n.T("Health_BandwidthMonitor", "Bandwidth monitor"),
-                State = status.BandwidthMonitorActive ? up : down,
-                Detail = status.BandwidthMonitorActive ? string.Empty : I18n.T("Health_OptMonitorDetail", "elevation-gated; usage budgets need it"),
-                Healthy = status.BandwidthMonitorActive,
             });
             HealthRows.Add(new HealthRowViewModel
             {
@@ -158,6 +188,22 @@ public sealed partial class ToolsViewModel
                 : I18n.T("Health_SomeBad", "{0} health check(s) need attention.", unhealthy);
         });
     }
+
+    private static int ObservationOrder(string source) => source switch
+    {
+        "dns_etw" => 0,
+        "network_etw" => 1,
+        "security_log" => 2,
+        _ => 3,
+    };
+
+    private static string ObservationName(string source) => source switch
+    {
+        "dns_etw" => I18n.T("Health_DnsObservation", "DNS observation (ETW)"),
+        "network_etw" => I18n.T("Health_NetworkObservation", "Network observation (ETW)"),
+        "security_log" => I18n.T("Health_SecurityObservation", "Blocked evidence (Security log)"),
+        _ => source,
+    };
 
     // ─── SHA-256-verified self-update (NET-187) ──────────────────────────────
 

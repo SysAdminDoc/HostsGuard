@@ -53,8 +53,11 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
     private readonly string _sessionName;
     private readonly Action<ConnectionInfo>? _endpointObserver;
     private readonly Action<Exception>? _endpointObserverError;
+    private readonly object _sessionGate = new();
+    private readonly ObservationIntegrityTracker _health = new("network_etw");
     private TraceEventSession? _session;
     private Thread? _pump;
+    private bool _disposed;
     private ConcurrentDictionary<int, Counter> _counters = new();
     private ConcurrentDictionary<(int, string), Counter> _endpoints = new();
     private readonly ConcurrentDictionary<IPAddress, AddressTextCacheEntry> _addressTextCache = new();
@@ -70,21 +73,56 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
         _endpointObserverError = endpointObserverError;
     }
 
-    public bool Active => _session is not null;
+    public bool Active
+    {
+        get
+        {
+            lock (_sessionGate)
+            {
+                return _session is not null && _pump?.IsAlive == true;
+            }
+        }
+    }
+
+    /// <summary>Current ETW liveness and cumulative loss/restart counters.</summary>
+    public ObservationIntegritySnapshot Health
+    {
+        get
+        {
+            RefreshLossCounter();
+            return _health.Snapshot();
+        }
+    }
 
     /// <summary>Attempt to start the kernel ETW session. Non-throwing; returns a status.</summary>
     public DnsMonitorStatus Start()
     {
         if (!DnsMonitor.IsElevated())
         {
+            _health.Unavailable("requires elevation", countGap: false);
             return DnsMonitorStatus.RequiresElevation;
         }
 
+        lock (_sessionGate)
+        {
+            if (_disposed)
+            {
+                _health.Unavailable("monitor disposed", countGap: false);
+                return DnsMonitorStatus.Unavailable;
+            }
+
+            if (_session is not null && _pump?.IsAlive == true)
+            {
+                return DnsMonitorStatus.Started;
+            }
+        }
+
+        TraceEventSession? candidate = null;
         try
         {
-            _session = new TraceEventSession(_sessionName) { StopOnDispose = true };
-            _session.EnableKernelProvider(KernelTraceEventParser.Keywords.NetworkTCPIP);
-            var kernel = _session.Source.Kernel;
+            var session = candidate = new TraceEventSession(_sessionName) { StopOnDispose = true };
+            session.EnableKernelProvider(KernelTraceEventParser.Keywords.NetworkTCPIP);
+            var kernel = session.Source.Kernel;
             // On send the remote is the destination (daddr); on recv it's the
             // source (saddr). Track both a per-PID total and a per-(PID, remote-IP)
             // tally so bytes can be attributed to a resolved domain (NET-108).
@@ -108,14 +146,97 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
                 d.saddr, d.sport, d.daddr, d.dport, d.size);
             kernel.UdpIpRecvIPV6 += d => ObserveUdpPacket(false, d.ProcessID, d.ProcessName,
                 d.saddr, d.sport, d.daddr, d.dport, d.size);
-            _pump = new Thread(() => _session.Source.Process()) { IsBackground = true, Name = "HostsGuardBwEtw" };
-            _pump.Start();
+            var pump = new Thread(() => Pump(session)) { IsBackground = true, Name = "HostsGuardBwEtw" };
+            lock (_sessionGate)
+            {
+                if (_disposed)
+                {
+                    session.Dispose();
+                    return DnsMonitorStatus.Unavailable;
+                }
+
+                _session = session;
+                _pump = pump;
+                _health.Started();
+            }
+
+            candidate = null;
+            pump.Start();
             return DnsMonitorStatus.Started;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException)
         {
-            Dispose();
+            candidate?.Dispose();
+            StopSession();
+            _health.Unavailable($"ETW start failed: {ex.Message}");
             return DnsMonitorStatus.Unavailable;
+        }
+    }
+
+    /// <summary>Restart a failed ETW pump without restarting the service.</summary>
+    public DnsMonitorStatus EnsureStarted() => Start();
+
+    private void Pump(TraceEventSession session)
+    {
+        string? failure = null;
+        try
+        {
+            session.Source.Process();
+            failure = "ETW pump stopped";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            failure = $"ETW pump failed: {ex.Message}";
+        }
+        finally
+        {
+            var unexpected = false;
+            lock (_sessionGate)
+            {
+                if (ReferenceEquals(_session, session))
+                {
+                    _session = null;
+                    _pump = null;
+                    unexpected = !_disposed;
+                }
+            }
+
+            if (unexpected)
+            {
+                _health.Unavailable(failure ?? "ETW pump stopped");
+            }
+
+            try
+            {
+                session.Dispose();
+            }
+            catch (InvalidOperationException)
+            {
+                // Session already torn down by Dispose.
+            }
+        }
+    }
+
+    private void RefreshLossCounter()
+    {
+        TraceEventSession? session;
+        lock (_sessionGate)
+        {
+            session = _session;
+        }
+
+        if (session is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _health.ObserveSourceLossTotal(session.EventsLost);
+        }
+        catch (InvalidOperationException)
+        {
+            // Pump teardown owns the unavailable transition.
         }
     }
 
@@ -312,8 +433,31 @@ public sealed class BandwidthMonitor : IBandwidthSource, IDisposable
 
     public void Dispose()
     {
-        var session = Interlocked.Exchange(ref _session, null);
-        var pump = Interlocked.Exchange(ref _pump, null);
+        lock (_sessionGate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        StopSession();
+    }
+
+    private void StopSession()
+    {
+        TraceEventSession? session;
+        Thread? pump;
+        lock (_sessionGate)
+        {
+            session = _session;
+            pump = _pump;
+            _session = null;
+            _pump = null;
+        }
+
         try
         {
             session?.Dispose();
