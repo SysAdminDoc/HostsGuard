@@ -472,7 +472,14 @@ public sealed class HostsEngine
             Directory.CreateDirectory(backupDir);
             var ts = DateTime.Now.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture);
             var dst = Path.Combine(backupDir, $"hosts_{ts}.bak");
-            File.Copy(_hostsPath, dst, overwrite: true);
+            // Serialize with AtomicWrite's File.Move so a backup can't copy a torn
+            // in-flight rename state or hit a sharing violation that would silently
+            // lose the pre-import safety snapshot.
+            lock (_gate)
+            {
+                File.Copy(_hostsPath, dst, overwrite: true);
+            }
+
             return dst;
         }
         catch (IOException)
@@ -523,12 +530,18 @@ public sealed class HostsEngine
             var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
             File.WriteAllBytes(tmp, bytes);
 
+            // Register the hash BEFORE the move: the FileSystemWatcher fires
+            // asynchronously on the rename and can run IsSelfChange in the window
+            // between File.Move and a post-move RecordSelf, raising a spurious
+            // critical hosts_tamper alert (or an adopt/organize rewrite) for our
+            // own write. Recording early is safe — an unmatched self-hash is inert.
+            RecordSelf(bytes);
+
             for (var attempt = 0; ; attempt++)
             {
                 try
                 {
                     File.Move(tmp, _hostsPath, overwrite: true);
-                    RecordSelf(bytes);
                     return;
                 }
                 catch (Exception ex) when (attempt < 7 && ex is IOException or UnauthorizedAccessException)

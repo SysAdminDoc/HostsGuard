@@ -121,6 +121,20 @@ public sealed class IpBlocklistCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task Partial_firewall_failure_is_surfaced_not_reported_as_success()
+    {
+        _fetcher.Responses[Url] = Addresses(300); // 3 chunks of 128/128/44
+        // Force the second rule chunk to fail at the firewall.
+        _firewall.CreateFailures.Add(IpBlocklistCoordinator.RuleName("partial", 1));
+
+        var outcome = await _coordinator.ImportAsync("partial", Url, CancellationToken.None);
+
+        outcome.Warning.Should().Contain("2 of 3");
+        IpBlockRules().Should().HaveCount(2); // only the two that applied exist
+        _db.GetIpBlocklistSource("partial")!.HealthStatus.Should().Be("degraded");
+    }
+
+    [Fact]
     public async Task Rollback_restores_the_previous_payload()
     {
         _fetcher.Responses[Url] = "1.2.3.4\n5.6.7.8\n";

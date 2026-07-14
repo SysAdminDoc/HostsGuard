@@ -39,20 +39,29 @@ public sealed class TempBlockScheduler : IDisposable
         var d = domain.ToLowerInvariant().Trim();
         var expires = DateTime.UtcNow.AddMinutes(Math.Clamp(minutes, 1, MaxMinutes));
 
-        // Remember what to restore: an already-whitelisted or already-blocked
-        // domain must return to that state, an unmanaged one back to unmanaged.
-        var prior = _db.GetDomainStatus(d) ?? string.Empty;
-
-        _hosts.Block(d);
-        _db.AddDomain(d, "blocked", source);
-        _db.SetTempBlock(d, expires, prior);
-        _db.LogEvent(d, "temp_blocked", details: $"{minutes} min", reason: source);
+        // The whole read-block-persist sequence runs under _gate so a concurrent
+        // Sweep() or Add() cannot interleave it. Without the gate, two racing calls
+        // could capture a transient "blocked" prior state and, on revert, leave the
+        // domain permanently blocked.
         lock (_gate)
         {
-            if (!_disposed)
+            if (_disposed)
             {
-                Rearm();
+                return;
             }
+
+            // Remember what to restore: an already-whitelisted or already-blocked
+            // domain returns to that state, an unmanaged one to unmanaged. If a
+            // window already exists, keep its ORIGINAL prior — extending a block
+            // must not record the now-"blocked" state as the thing to restore.
+            var existing = _db.GetTempBlocks().FirstOrDefault(b => b.Domain == d);
+            var prior = existing.Domain == d ? existing.PriorStatus : (_db.GetDomainStatus(d) ?? string.Empty);
+
+            _hosts.Block(d);
+            _db.AddDomain(d, "blocked", source);
+            _db.SetTempBlock(d, expires, prior);
+            _db.LogEvent(d, "temp_blocked", details: $"{minutes} min", reason: source);
+            Rearm();
         }
     }
 

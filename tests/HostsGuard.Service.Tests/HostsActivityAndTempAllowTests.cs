@@ -369,6 +369,18 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Extending_a_temp_block_preserves_the_original_prior_state()
+    {
+        _state.Db.AddDomain("keep.example.com", "whitelisted", "manual");
+
+        _state.TempBlocks.Add("keep.example.com", 30);   // original prior = whitelisted
+        _state.TempBlocks.Add("keep.example.com", 120);  // extend — must keep the original prior
+
+        _state.Db.GetTempBlocks().Single(b => b.Domain == "keep.example.com")
+            .PriorStatus.Should().Be("whitelisted"); // not the transient "blocked"
+    }
+
+    [Fact]
     public async Task TempBlock_rejects_invalid_duration()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

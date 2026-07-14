@@ -38,16 +38,20 @@ public sealed class TempAllowScheduler : IDisposable
     {
         var d = domain.ToLowerInvariant().Trim();
         var expires = DateTime.UtcNow.AddMinutes(Math.Clamp(minutes, 1, MaxMinutes));
-        _hosts.Unblock(d);
-        _db.AddDomain(d, "whitelisted", "temp_allow");
-        _db.SetTempAllow(d, expires);
-        _db.LogEvent(d, "temp_allowed", details: $"{minutes} min", reason: source);
+        // Whole sequence under _gate so a concurrent Sweep()/Add() can't interleave
+        // the unblock-persist-arm steps and leave the domain/window inconsistent.
         lock (_gate)
         {
-            if (!_disposed)
+            if (_disposed)
             {
-                Rearm();
+                return;
             }
+
+            _hosts.Unblock(d);
+            _db.AddDomain(d, "whitelisted", "temp_allow");
+            _db.SetTempAllow(d, expires);
+            _db.LogEvent(d, "temp_allowed", details: $"{minutes} min", reason: source);
+            Rearm();
         }
     }
 

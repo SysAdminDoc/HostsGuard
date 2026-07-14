@@ -118,15 +118,9 @@ public static partial class Domains
         }
 
         var t2 = string.Join('.', parts[^2..]);
-        var t3 = parts.Length >= 3 ? string.Join('.', parts[^3..]) : null;
         if (MultiTlds.Contains(t2) && parts.Length >= 3)
         {
             return string.Join('.', parts[^3..]);
-        }
-
-        if (t3 is not null && MultiTlds.Contains(t3) && parts.Length >= 4)
-        {
-            return string.Join('.', parts[^4..]);
         }
 
         return t2;

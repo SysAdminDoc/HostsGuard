@@ -40,9 +40,11 @@ internal sealed class FakeFirewallEngine : IFirewallEngine
 
     public FirewallLocalPolicyModifyState GetLocalPolicyModifyState() => LocalPolicyModifyState;
 
+    public HashSet<string> CreateFailures { get; } = new(StringComparer.Ordinal);
+
     public bool CreateRule(FwRule rule)
     {
-        if (Rules.ContainsKey(rule.Name))
+        if (CreateFailures.Contains(rule.Name) || Rules.ContainsKey(rule.Name))
         {
             return false;
         }

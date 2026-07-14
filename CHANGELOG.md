@@ -2,6 +2,29 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.106] - 2026-07-14
+
+### Fixed
+- The hosts-file writer now registers its own-write hash before the atomic rename,
+  closing a race where the tamper watcher could fire a spurious critical
+  `hosts_tamper` alert (or an unnecessary adopt/organize rewrite) for the service's
+  own block/import writes.
+- IP-blocklist import no longer reports full enforcement when some firewall rule
+  chunks fail to apply: it counts what actually applied, surfaces a warning, marks
+  the source health `degraded`, and logs it as `ip_blocklist_partial`.
+- Extending a temp-block window now preserves the original prior state instead of
+  capturing the transient "blocked" state (which could leave a domain permanently
+  blocked after revert). Both temp-block and temp-allow now perform their whole
+  read-mutate-persist sequence under the scheduler gate, fixing a race with the
+  revert sweep.
+- `HostsEngine.Backup` copies under the write gate so a backup can't capture a
+  torn in-flight rename or silently fail on a sharing violation.
+
+### Changed
+- `ServiceState.ShutdownToken` is captured at construction, so background work that
+  reads it after disposal gets the already-cancelled token instead of an
+  `ObjectDisposedException`. Removed a dead public-suffix branch in `Domains.GetRoot`.
+
 ## [0.12.105] - 2026-07-14
 
 ### Security

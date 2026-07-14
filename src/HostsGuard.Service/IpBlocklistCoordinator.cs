@@ -103,7 +103,7 @@ public sealed class IpBlocklistCoordinator : IDisposable
         lock (_gate)
         {
             var previousAddresses = existing is null ? Array.Empty<string>() : _db.GetIpBlocklistAddresses(name);
-            var ruleCount = ApplyRules(name, entries, enabled: existing?.Enabled ?? true,
+            var (ruleCount, applied) = ApplyRules(name, entries, enabled: existing?.Enabled ?? true,
                 previousRuleCount: (int)(existing?.RuleCount ?? 0));
             _db.UpsertIpBlocklistSource(
                 name, url, entries, contentHash,
@@ -115,9 +115,16 @@ public sealed class IpBlocklistCoordinator : IDisposable
 
             var warning = truncated
                 ? $"list exceeds the {_maxRules * _maxAddressesPerRule:N0}-address rule cap; {scan.Entries.Count - entries.Count:N0} entries were not enforced"
-                : string.Empty;
-            _db.LogEvent($"iplist:{name}", "ip_blocklist_applied",
-                details: $"{entries.Count:N0} addresses across {ruleCount} rules " +
+                : applied < ruleCount
+                    ? $"only {applied} of {ruleCount} firewall rule chunks applied — {ruleCount - applied} address group(s) are not being enforced"
+                    : string.Empty;
+            if (applied < ruleCount)
+            {
+                _db.RecordIpBlocklistFailure(name, url, warning, healthStatus: "degraded");
+            }
+
+            _db.LogEvent($"iplist:{name}", applied < ruleCount ? "ip_blocklist_partial" : "ip_blocklist_applied",
+                details: $"{entries.Count:N0} addresses across {applied}/{ruleCount} rules " +
                          $"({scan.Invalid} invalid, {scan.Duplicates} dup, {scan.Unsafe} unsafe refused" +
                          (truncated ? ", truncated" : string.Empty) + ")",
                 reason: "ip_blocklist");
@@ -221,7 +228,7 @@ public sealed class IpBlocklistCoordinator : IDisposable
             var source = _db.GetIpBlocklistSource(name)
                 ?? throw new InvalidOperationException($"{name} is not a subscribed IP blocklist");
             var restored = _db.RollbackIpBlocklistSource(name);
-            var ruleCount = ApplyRules(name, restored, source.Enabled, previousRuleCount: (int)source.RuleCount);
+            var (ruleCount, _) = ApplyRules(name, restored, source.Enabled, previousRuleCount: (int)source.RuleCount);
             _db.SetIpBlocklistRuleCount(name, ruleCount);
             _db.LogEvent($"iplist:{name}", "ip_blocklist_rolled_back",
                 details: $"restored {restored.Count:N0} addresses across {ruleCount} rules", reason: "ip_blocklist");
@@ -235,33 +242,43 @@ public sealed class IpBlocklistCoordinator : IDisposable
         return entries.Count <= cap ? (entries, false) : (entries.Take(cap).ToList(), true);
     }
 
-    private int ApplyRules(string name, IReadOnlyList<string> entries, bool enabled, int previousRuleCount)
+    /// <summary>
+    /// Apply one source's address chunks as HG_IPBlock_* rules. Returns the number
+    /// of rule slots (for later cleanup iteration) and how many actually applied to
+    /// Windows Firewall, so a partial failure is surfaced instead of being reported
+    /// as full enforcement.
+    /// </summary>
+    private (int Slots, int Applied) ApplyRules(string name, IReadOnlyList<string> entries, bool enabled, int previousRuleCount)
     {
         var chunks = entries.Chunk(_maxAddressesPerRule).ToList();
-        if (_firewall is { } fw)
+        if (_firewall is not { } fw)
         {
-            for (var i = 0; i < chunks.Count; i++)
-            {
-                var ruleName = RuleName(name, i);
-                var remote = string.Join(',', chunks[i]);
-                var applied = fw.RuleExists(ruleName)
-                    ? fw.SetRuleRemoteAddresses(ruleName, remote) && fw.SetRuleEnabled(ruleName, enabled)
-                    : fw.CreateRule(new FwRule(ruleName, "Out", "Block", enabled, remote, "Any", string.Empty, "hostsguard"));
-                if (applied)
-                {
-                    _db.UpsertFwState(ruleName, "Out", "Block", remote, "Any", string.Empty);
-                }
-            }
+            return (chunks.Count, chunks.Count);
+        }
 
-            for (var i = chunks.Count; i < previousRuleCount; i++)
+        var applied = 0;
+        for (var i = 0; i < chunks.Count; i++)
+        {
+            var ruleName = RuleName(name, i);
+            var remote = string.Join(',', chunks[i]);
+            var ok = fw.RuleExists(ruleName)
+                ? fw.SetRuleRemoteAddresses(ruleName, remote) && fw.SetRuleEnabled(ruleName, enabled)
+                : fw.CreateRule(new FwRule(ruleName, "Out", "Block", enabled, remote, "Any", string.Empty, "hostsguard"));
+            if (ok)
             {
-                var ruleName = RuleName(name, i);
-                fw.DeleteRule(ruleName);
-                _db.RemoveFwState(ruleName);
+                _db.UpsertFwState(ruleName, "Out", "Block", remote, "Any", string.Empty);
+                applied++;
             }
         }
 
-        return chunks.Count;
+        for (var i = chunks.Count; i < previousRuleCount; i++)
+        {
+            var ruleName = RuleName(name, i);
+            fw.DeleteRule(ruleName);
+            _db.RemoveFwState(ruleName);
+        }
+
+        return (chunks.Count, applied);
     }
 
     private async Task SafeScheduledRefreshAsync()

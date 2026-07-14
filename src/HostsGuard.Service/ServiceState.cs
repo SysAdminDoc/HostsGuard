@@ -36,6 +36,7 @@ public sealed class ServiceState : IDisposable
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
+        ShutdownToken = _shutdown.Token;
         IdnHomographs = new IdnHomographMonitor(db);
         DnsTunnels = new DnsTunnelDetector();
         Firewall = firewall;
@@ -302,8 +303,10 @@ public sealed class ServiceState : IDisposable
     /// Cancelled when the service state is disposed (shutdown). Fire-and-forget
     /// background work (e.g. AI categorization) links to this so it stops with
     /// the service instead of running past teardown on <c>CancellationToken.None</c>.
+    /// Captured from the source at construction so a task reading it after Dispose
+    /// gets the (already-cancelled) token instead of an <see cref="ObjectDisposedException"/>.
     /// </summary>
-    public CancellationToken ShutdownToken => _shutdown.Token;
+    public CancellationToken ShutdownToken { get; }
 
     /// <summary>
     /// Record a DNS sighting: persist to the activity feed and publish to live
