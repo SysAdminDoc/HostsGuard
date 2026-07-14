@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.122-blue)
+![Version](https://img.shields.io/badge/version-0.12.123-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -41,7 +41,7 @@ The elevated logic lives in a LocalSystem service that starts with the OS, so th
 2. Run it (the installer elevates once to register the `HostsGuardSvc` service; the app itself runs unelevated).
 3. Launch **HostsGuard** from the Start menu or tray.
 
-**Requirements:** Windows 10/11, x64 or ARM64. The service depends on the Windows Firewall service (MpsSvc). Uninstall stops the service, restores your default firewall posture, and removes all `HG_` rules.
+**Requirements:** Windows 10/11, x64 or ARM64. The service depends on the Windows Firewall service (MpsSvc). Uninstall stops the service, restores your default firewall posture, and removes all `HG_` rules. The uninstall prompt defaults to retaining `%ProgramData%\HostsGuard` and `%APPDATA%\HostsGuard` for reinstall; choose **Purge all HostsGuard local data** to remove both. For automation, silent uninstall also retains by default: pass `/RETAINLOCALDATA` explicitly or use `/PURGELOCALDATA` to purge. Locked purge entries are scheduled for deletion at the next Windows restart and reported by the uninstaller.
 
 ### Migrating from the Python build (v3.x)
 

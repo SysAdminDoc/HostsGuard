@@ -16,6 +16,45 @@ public static partial class AppPaths
     [GeneratedRegex(@"^(?:v|app-|update-|current-)?\d+(?:[._]\d+)+$", RegexOptions.IgnoreCase)]
     private static partial Regex VersionSegment();
 
+    /// <summary>Canonical machine-wide HostsGuard state directory.</summary>
+    public static string ProgramDataDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+        "HostsGuard");
+
+    /// <summary>Canonical per-user HostsGuard settings and log directory.</summary>
+    public static string RoamingAppDataDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "HostsGuard");
+
+    /// <summary>The only mutable-data roots an uninstall purge may remove.</summary>
+    public static IReadOnlyList<string> LocalDataDirectories =>
+        [ProgramDataDirectory, RoamingAppDataDirectory];
+
+    /// <summary>
+    /// True only when <paramref name="path"/> resolves to one of the two exact
+    /// canonical mutable-data roots. Children, siblings, and relative paths are
+    /// deliberately rejected so an elevated cleanup command cannot widen scope.
+    /// </summary>
+    public static bool IsCanonicalLocalDataDirectory(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            return LocalDataDirectories.Any(root => candidate.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)),
+                StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>
     /// Replace version-like directory segments with <c>*</c> so
     /// <c>…\App\1.2.3\app.exe</c> and <c>…\App\1.2.4\app.exe</c> share a key.

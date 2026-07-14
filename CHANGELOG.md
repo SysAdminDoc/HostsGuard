@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.123] - 2026-07-14
+
+### Added
+- Uninstall now defaults to retaining local state for reinstall and offers an
+  explicit purge of both `%ProgramData%\HostsGuard` and `%APPDATA%\HostsGuard`;
+  silent runs use deterministic `/RETAINLOCALDATA` and `/PURGELOCALDATA`
+  switches.
+
+### Security
+- Purge accepts no caller-selected paths, validates the exact canonical data
+  roots, and removes directory reparse points without traversing their targets.
+- Locked files are scheduled for deletion at the next Windows restart, with a
+  distinct CLI result, uninstall-log entry, and restart notification.
+
 ## [0.12.122] - 2026-07-14
 
 ### Security

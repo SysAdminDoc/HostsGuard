@@ -63,6 +63,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "safe-posture-smoke" => await SafePostureSmokeAsync(),
     "release-smoke" => await ReleaseSmokeAsync(),
     "uninstall-cleanup" => UninstallCleanup(),
+    "purge-local-data" => PurgeLocalData(),
     "--version" or "version" => Version(),
     "help" or "--help" or "-h" or "-?" or "/?" => UsageOk(),
     _ => Usage(),
@@ -166,6 +167,7 @@ static int Usage()
           HostsGuard.Cli safe-posture-smoke
           HostsGuard.Cli release-smoke
           HostsGuard.Cli uninstall-cleanup
+          HostsGuard.Cli purge-local-data
 
         The CLI talks to HostsGuardSvc over the local authenticated pipe.
         If the service is unavailable, start HostsGuard or restart HostsGuardSvc.
@@ -3514,8 +3516,7 @@ static async Task<int> ReleaseSmokeAsync()
 // Runs elevated (the uninstaller context); direct COM, no service required.
 static int UninstallCleanup()
 {
-    var dataDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
+    var dataDir = AppPaths.ProgramDataDirectory;
     try
     {
         var engine = new FirewallEngine();
@@ -3560,6 +3561,42 @@ static int UninstallCleanup()
     catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or IOException or JsonException)
     {
         Console.Error.WriteLine($"cleanup incomplete: {ex.Message}");
+        return 2;
+    }
+}
+
+// Explicit uninstaller-only data choice. The elevated command accepts no path
+// arguments: LocalDataPurger validates and removes only the canonical machine
+// and current-user roots declared by AppPaths.
+static int PurgeLocalData()
+{
+    try
+    {
+        var result = LocalDataPurger.PurgeCanonical();
+        Console.WriteLine(
+            $"local data purge: {result.DeletedFiles} files, {result.DeletedDirectories} directories removed");
+
+        if (result.Errors.Count != 0)
+        {
+            foreach (var error in result.Errors)
+            {
+                Console.Error.WriteLine(error);
+            }
+
+            return 2;
+        }
+
+        if (result.DeferredEntries != 0)
+        {
+            Console.WriteLine($"{result.DeferredEntries} locked entries deferred until restart");
+            return 3;
+        }
+
+        return 0;
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"local data purge failed: {ex.Message}");
         return 2;
     }
 }

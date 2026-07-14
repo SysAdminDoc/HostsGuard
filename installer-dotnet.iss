@@ -19,8 +19,8 @@
 #endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.122"
-#define MyAppVersionInfo "0.12.122.0"
+#define MyAppVersion "0.12.123"
+#define MyAppVersionInfo "0.12.123.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
@@ -74,12 +74,6 @@ Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "
 [Run]
 Filename: "{app}\HostsGuard.App.exe"; Description: "Launch HostsGuard"; Flags: nowait postinstall skipifsilent; Check: CanLaunchApp
 
-[UninstallRun]
-Filename: "{sys}\sc.exe"; Parameters: "stop {#MyServiceName}"; Flags: runhidden; RunOnceId: "StopSvc"
-; Restore default-outbound posture, delete HG_ firewall rules, drop the handshake.
-Filename: "{app}\cli\HostsGuard.Cli.exe"; Parameters: "uninstall-cleanup"; Flags: runhidden; RunOnceId: "Cleanup"
-Filename: "{sys}\sc.exe"; Parameters: "delete {#MyServiceName}"; Flags: runhidden; RunOnceId: "DeleteSvc"
-
 [UninstallDelete]
 Type: dirifempty; Name: "{app}"
 
@@ -89,6 +83,9 @@ var
   UpdatePrepared: Boolean;
   UpdateFailed: Boolean;
   UpdateFailure: String;
+  PurgeLocalData: Boolean;
+  PurgeNeedsRestart: Boolean;
+  UninstallActionsStarted: Boolean;
 
 function RunAndCheck(const Filename, Parameters: String; var ResultCode: Integer): Boolean;
 begin
@@ -276,4 +273,142 @@ begin
     Result := 10
   else
     Result := 0;
+end;
+
+function HasUninstallSwitch(const SwitchName: String): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(I), SwitchName) = 0 then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+end;
+
+function InitializeUninstall(): Boolean;
+var
+  PurgeRequested, RetainRequested: Boolean;
+  Choice: Integer;
+  ProgramDataPath, AppDataPath: String;
+begin
+  Result := False;
+  PurgeLocalData := False;
+  PurgeNeedsRestart := False;
+  UninstallActionsStarted := False;
+  PurgeRequested := HasUninstallSwitch('/PURGELOCALDATA');
+  RetainRequested := HasUninstallSwitch('/RETAINLOCALDATA');
+
+  if PurgeRequested and RetainRequested then
+  begin
+    Log('Uninstall stopped: /PURGELOCALDATA and /RETAINLOCALDATA are mutually exclusive.');
+    if not UninstallSilent then
+      MsgBox('Choose only one data option: /PURGELOCALDATA or /RETAINLOCALDATA.',
+        mbError, MB_OK);
+    exit;
+  end;
+
+  if PurgeRequested then
+  begin
+    PurgeLocalData := True;
+    Result := True;
+    exit;
+  end;
+
+  // Silent uninstall defaults to retention unless the purge switch is explicit.
+  if RetainRequested or UninstallSilent then
+  begin
+    Result := True;
+    exit;
+  end;
+
+  ProgramDataPath := ExpandConstant('{commonappdata}\HostsGuard');
+  AppDataPath := ExpandConstant('{userappdata}\HostsGuard');
+  Choice := MsgBox(
+    'Choose what to do with HostsGuard local data:' + #13#10 + #13#10 +
+    'Yes - Retain for reinstall (default)' + #13#10 +
+    'Keep ProgramData: ' + ProgramDataPath + #13#10 +
+    'Keep AppData: ' + AppDataPath + #13#10 + #13#10 +
+    'No - Purge all HostsGuard local data' + #13#10 +
+    'Delete both ProgramData and AppData paths above.' + #13#10 + #13#10 +
+    'Cancel - Keep HostsGuard installed.',
+    mbConfirmation, MB_YESNOCANCEL or MB_DEFBUTTON1);
+
+  if Choice = IDCANCEL then
+    exit;
+
+  PurgeLocalData := Choice = IDNO;
+  Result := True;
+end;
+
+procedure ReportPurgeResult(ResultCode: Integer);
+var
+  MessageText: String;
+begin
+  if ResultCode = 0 then
+  begin
+    Log('HostsGuard ProgramData and AppData purge completed.');
+    exit;
+  end;
+
+  if ResultCode = 3 then
+  begin
+    PurgeNeedsRestart := True;
+    MessageText := 'HostsGuard local data purge is incomplete because one or more files were locked. ' +
+      'Those entries are scheduled for deletion at the next Windows restart.';
+  end
+  else
+    MessageText := 'HostsGuard could not purge all local data. Review the uninstall log; ' +
+      'remaining ProgramData or AppData files can be removed after Windows restarts.';
+
+  Log(MessageText + ' CLI exit ' + IntToStr(ResultCode) + '.');
+  if not UninstallSilent then
+    MsgBox(MessageText, mbInformation, MB_OK);
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+  CliPath: String;
+begin
+  if (CurUninstallStep <> usUninstall) or UninstallActionsStarted then
+    exit;
+
+  UninstallActionsStarted := True;
+  CliPath := ExpandConstant('{app}\cli\HostsGuard.Cli.exe');
+
+  // Preserve the established cleanup order before any data directory is removed.
+  if not Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#MyServiceName}', '',
+      SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Log('Could not launch service stop command.');
+
+  if not Exec(CliPath, 'uninstall-cleanup', '', SW_HIDE,
+      ewWaitUntilTerminated, ResultCode) then
+    Log('Could not launch firewall/posture cleanup command.')
+  else if ResultCode <> 0 then
+    Log('Firewall/posture cleanup reported exit ' + IntToStr(ResultCode) + '.');
+
+  if PurgeLocalData then
+  begin
+    if not Exec(CliPath, 'purge-local-data', '', SW_HIDE,
+        ewWaitUntilTerminated, ResultCode) then
+      ReportPurgeResult(-1)
+    else
+      ReportPurgeResult(ResultCode);
+  end
+  else
+    Log('Retaining HostsGuard ProgramData and AppData for reinstall.');
+
+  if not Exec(ExpandConstant('{sys}\sc.exe'), 'delete {#MyServiceName}', '',
+      SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Log('Could not launch service delete command.');
+end;
+
+function UninstallNeedRestart(): Boolean;
+begin
+  Result := PurgeNeedsRestart;
 end;

@@ -30,4 +30,18 @@ public sealed class AppPathsTests
         // No version segment on either side → not a versioned-app match.
         AppPaths.SameVersionedApp(@"C:\App\app.exe", @"C:\App\app.exe").Should().BeFalse();
     }
+
+    [Fact]
+    public void Uninstall_data_roots_are_exact_and_canonical()
+    {
+        AppPaths.IsCanonicalLocalDataDirectory(AppPaths.ProgramDataDirectory).Should().BeTrue();
+        AppPaths.IsCanonicalLocalDataDirectory(AppPaths.RoamingAppDataDirectory + Path.DirectorySeparatorChar)
+            .Should().BeTrue();
+
+        AppPaths.IsCanonicalLocalDataDirectory(
+            Path.Combine(AppPaths.ProgramDataDirectory, "backups")).Should().BeFalse();
+        AppPaths.IsCanonicalLocalDataDirectory(
+            AppPaths.ProgramDataDirectory + "-other").Should().BeFalse();
+        AppPaths.IsCanonicalLocalDataDirectory("HostsGuard").Should().BeFalse();
+    }
 }
