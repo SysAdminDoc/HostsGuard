@@ -373,6 +373,9 @@ public sealed class WpfSmokeTests
                 confirm.UpdateLayout();
                 System.Windows.Automation.AutomationProperties.GetName(confirm)
                     .Should().Be("HostsGuard confirmation");
+                ((Button)confirm.FindName("CancelButton")).IsCancel.Should().BeTrue();
+                ((Button)confirm.FindName("ConfirmButton")).IsDefault.Should().BeFalse(
+                    "destructive mutation prompts must default to cancel");
 
                 _stage = $"{theme}: constructing InputDialog";
                 var input = new InputDialog("Assign to rule group",

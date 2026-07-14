@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.117] - 2026-07-14
+
+### Changed
+- Blocklist and IP-list removal/rollback, full-state restore staging, and app
+  VPN unbind now share one themed confirmation contract that names the exact
+  target and consequence and defaults to cancel.
+- Full-state restore confirmation retains the verified preview/hash,
+  pre-restore recovery point, and automatic validation rollback safeguards.
+
+### Added
+- Decline/accept integration coverage proves that every newly guarded mutation
+  performs no RPC when cancelled and proceeds only after confirmation.
+
 ## [0.12.116] - 2026-07-14
 
 ### Changed

@@ -138,6 +138,16 @@ public sealed partial class ToolsViewModel
             return;
         }
 
+        if (!new MutationConfirmation(
+                I18n.T("Vpn_RemoveBindingConfirmTitle", "Remove app VPN binding"),
+                I18n.T("Vpn_BindingTarget", "{0} bound to {1}", binding.ProgramPath, binding.Adapter),
+                I18n.T("Vpn_RemoveBindingConsequence",
+                    "Remove this binding and its managed firewall rule. The app may then use any active network interface."))
+            .Request(_confirm))
+        {
+            return;
+        }
+
         await RunServiceActionAsync(I18n.T("Vpn_ActionRemoveBinding", "Remove app VPN binding"), s => AppVpnStatusText = s, async () =>
         {
             var ack = await _client.Firewall.SetAppVpnBindingAsync(new AppVpnBindingRequest

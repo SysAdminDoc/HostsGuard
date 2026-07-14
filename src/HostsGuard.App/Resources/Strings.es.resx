@@ -328,6 +328,9 @@
   <data name="Recovery_PreviewDetails" xml:space="preserve"><value>SHA-256 verificado: {0}{3}Destino: HostsGuard {1}, esquema {2}{3}{4}</value></data>
   <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Vuelva a previsualizar esta instantánea antes de restaurar.</value></data>
   <data name="Recovery_ActionRestore" xml:space="preserve"><value>Restaurar instantánea de estado completo</value></data>
+  <data name="Recovery_RestoreConfirmTitle" xml:space="preserve"><value>Preparar restauración de estado completo</value></data>
+  <data name="Recovery_RestoreTarget" xml:space="preserve"><value>Instantánea {0} ({1}, SHA-256 {2})</value></data>
+  <data name="Recovery_RestoreConsequence" xml:space="preserve"><value>Prepare esta instantánea verificada de la base de datos, hosts y ajustes no secretos para el siguiente reinicio del servicio. El punto de recuperación previo y la reversión automática de validación permanecen habilitados.</value></data>
   <data name="Ai_Checking" xml:space="preserve"><value>Comprobando la configuración de IA…</value></data>
   <data name="Ai_ActionLoad" xml:space="preserve"><value>Cargar estado de IA</value></data>
   <data name="Ai_NotConfigured" xml:space="preserve"><value>No hay una clave API de DeepSeek guardada; añada una para categorizar dominios con IA.</value></data>

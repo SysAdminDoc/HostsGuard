@@ -876,7 +876,12 @@
   <data name="IpBlock_ActionRefresh" xml:space="preserve"><value>Refresh IP blocklists</value></data>
   <data name="IpBlock_ActionToggle" xml:space="preserve"><value>Toggle IP blocklist</value></data>
   <data name="IpBlock_ActionRemove" xml:space="preserve"><value>Remove IP blocklist</value></data>
+  <data name="IpBlock_RemoveConfirmTitle" xml:space="preserve"><value>Remove IP blocklist</value></data>
+  <data name="IpBlock_SourceTarget" xml:space="preserve"><value>{0} ({1:N0} addresses, {2:N0} firewall rules)</value></data>
+  <data name="IpBlock_RemoveConsequence" xml:space="preserve"><value>Remove this subscription, its retained refresh state, and all managed outbound firewall rules created for it.</value></data>
   <data name="IpBlock_ActionRollback" xml:space="preserve"><value>Roll back IP blocklist</value></data>
+  <data name="IpBlock_RollbackConfirmTitle" xml:space="preserve"><value>Roll back IP blocklist</value></data>
+  <data name="IpBlock_RollbackConsequence" xml:space="preserve"><value>Replace the current address set and managed firewall rules with the retained previous refresh.</value></data>
   <data name="IpBlock_TruncatedFlag" xml:space="preserve"><value>truncated</value></data>
   <data name="Common_Enabled" xml:space="preserve"><value>Enabled</value></data>
   <data name="Common_Disabled" xml:space="preserve"><value>Disabled</value></data>
@@ -1144,6 +1149,9 @@
   <data name="Vpn_BindingCount" xml:space="preserve"><value>{0} app VPN binding(s)</value></data>
   <data name="Vpn_ActionSaveBinding" xml:space="preserve"><value>Save app VPN binding</value></data>
   <data name="Vpn_ActionRemoveBinding" xml:space="preserve"><value>Remove app VPN binding</value></data>
+  <data name="Vpn_RemoveBindingConfirmTitle" xml:space="preserve"><value>Remove app VPN binding</value></data>
+  <data name="Vpn_BindingTarget" xml:space="preserve"><value>{0} bound to {1}</value></data>
+  <data name="Vpn_RemoveBindingConsequence" xml:space="preserve"><value>Remove this binding and its managed firewall rule. The app may then use any active network interface.</value></data>
   <data name="Vpn_AdapterLabel" xml:space="preserve"><value>{0} — {1} ({2}{3})</value></data>
   <data name="Vpn_LabelSuffix" xml:space="preserve"><value>, VPN</value></data>
   <data name="Intel_Checking" xml:space="preserve"><value>Checking blocklist intelligence…</value></data>
@@ -1271,8 +1279,14 @@
   <data name="Blocklists_ResultCheckpoint" xml:space="preserve"><value>checkpoint {0}</value></data>
   <data name="Blocklists_PreviewPrefix" xml:space="preserve"><value>Preview: </value></data>
   <data name="Blocklists_ActionRemove" xml:space="preserve"><value>Remove {0}</value></data>
+  <data name="Blocklists_RemoveConfirmTitle" xml:space="preserve"><value>Remove blocklist subscription</value></data>
+  <data name="Blocklists_SourceTarget" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Blocklists_RemoveConsequence" xml:space="preserve"><value>Unsubscribe this source and remove its {0:N0} source-owned domains. Shared, manual, and allowlisted domains are preserved.</value></data>
   <data name="Blocklists_NoCheckpoint" xml:space="preserve"><value>{0} has no refresh checkpoint to restore</value></data>
   <data name="Blocklists_ActionRestore" xml:space="preserve"><value>Restore {0} checkpoint</value></data>
+  <data name="Blocklists_RollbackConfirmTitle" xml:space="preserve"><value>Restore blocklist checkpoint</value></data>
+  <data name="Blocklists_CheckpointTarget" xml:space="preserve"><value>{0}, checkpoint {1}</value></data>
+  <data name="Blocklists_RollbackConsequence" xml:space="preserve"><value>Replace the current source-owned domain set with the previous verified refresh. Manual and allowlisted decisions remain unchanged.</value></data>
   <data name="Blocklists_ActionToggle" xml:space="preserve"><value>{0} {1}</value></data>
   <data name="Blocklists_ActionRefreshSubscriptions" xml:space="preserve"><value>Refresh subscriptions</value></data>
   <data name="Blocklists_RefreshingSubscriptions" xml:space="preserve"><value>Refreshing all subscriptions...</value></data>
@@ -1407,6 +1421,10 @@
   <data name="Recovery_PreviewDetails" xml:space="preserve"><value>Verified SHA-256: {0}{3}Target: HostsGuard {1}, schema {2}{3}{4}</value></data>
   <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Preview this snapshot again before restoring.</value></data>
   <data name="Recovery_ActionRestore" xml:space="preserve"><value>Restore full-state snapshot</value></data>
+  <data name="Recovery_RestoreConfirmTitle" xml:space="preserve"><value>Stage full-state restore</value></data>
+  <data name="Recovery_RestoreTarget" xml:space="preserve"><value>Snapshot {0} ({1}, SHA-256 {2})</value></data>
+  <data name="Recovery_RestoreConsequence" xml:space="preserve"><value>Stage this verified database, hosts, and non-secret settings snapshot for the next service restart. A pre-restore recovery point and automatic validation rollback remain enabled.</value></data>
+  <data name="Mutation_ConfirmMessage" xml:space="preserve"><value>Target: {0}{2}{2}{1}{2}{2}Continue?</value></data>
   <data name="Ai_Checking" xml:space="preserve"><value>Checking AI configuration…</value></data>
   <data name="Ai_ActionLoad" xml:space="preserve"><value>Load AI status</value></data>
   <data name="Ai_NotConfigured" xml:space="preserve"><value>No DeepSeek API key stored — add one to categorize domains with AI.</value></data>

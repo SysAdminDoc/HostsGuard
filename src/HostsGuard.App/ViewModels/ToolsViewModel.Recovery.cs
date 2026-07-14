@@ -116,6 +116,16 @@ public sealed partial class ToolsViewModel
             return;
         }
 
+        if (!new MutationConfirmation(
+                I18n.T("Recovery_RestoreConfirmTitle", "Stage full-state restore"),
+                I18n.T("Recovery_RestoreTarget", "Snapshot {0} ({1}, SHA-256 {2})", selected.SnapshotId, selected.Created, selected.Sha256),
+                I18n.T("Recovery_RestoreConsequence",
+                    "Stage this verified database, hosts, and non-secret settings snapshot for the next service restart. A pre-restore recovery point and automatic validation rollback remain enabled."))
+            .Request(_confirm))
+        {
+            return;
+        }
+
         await RunServiceActionAsync(I18n.T("Recovery_ActionRestore", "Restore full-state snapshot"), s => FullStateRestorePreview = s, async () =>
         {
             var ack = await _client.Recovery.RestoreFullStateSnapshotAsync(new FullStateRestoreRequest

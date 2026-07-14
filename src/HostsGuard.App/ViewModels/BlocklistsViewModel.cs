@@ -293,6 +293,16 @@ public sealed partial class BlocklistsViewModel : ObservableObject
             return;
         }
 
+        if (!new MutationConfirmation(
+                I18n.T("Blocklists_RemoveConfirmTitle", "Remove blocklist subscription"),
+                I18n.T("Blocklists_SourceTarget", "{0} ({1})", source.Name, source.Url),
+                I18n.T("Blocklists_RemoveConsequence",
+                    "Unsubscribe this source and remove its {0:N0} source-owned domains. Shared, manual, and allowlisted domains are preserved.",
+                    source.OwnedDomainCount)).Request(_confirm))
+        {
+            return;
+        }
+
         await RunServiceActionAsync(I18n.T("Blocklists_ActionRemove", "Remove {0}", source.Name), async () =>
         {
             var ack = await _client.Lists.RemoveBlocklistSubscriptionAsync(new BlocklistRequest { Name = source.Name });
@@ -313,6 +323,16 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         if (!source.CanRollback)
         {
             StatusText = I18n.T("Blocklists_NoCheckpoint", "{0} has no refresh checkpoint to restore", source.Name);
+            return;
+        }
+
+        if (!new MutationConfirmation(
+                I18n.T("Blocklists_RollbackConfirmTitle", "Restore blocklist checkpoint"),
+                I18n.T("Blocklists_CheckpointTarget", "{0}, checkpoint {1}", source.Name, source.RollbackCheckpointId),
+                I18n.T("Blocklists_RollbackConsequence",
+                    "Replace the current source-owned domain set with the previous verified refresh. Manual and allowlisted decisions remain unchanged."))
+            .Request(_confirm))
+        {
             return;
         }
 

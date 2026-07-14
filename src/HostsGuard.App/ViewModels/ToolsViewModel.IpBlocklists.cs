@@ -151,6 +151,16 @@ public sealed partial class ToolsViewModel
             return;
         }
 
+        if (!new MutationConfirmation(
+                I18n.T("IpBlock_RemoveConfirmTitle", "Remove IP blocklist"),
+                I18n.T("IpBlock_SourceTarget", "{0} ({1:N0} addresses, {2:N0} firewall rules)", row.Name, row.AddressCount, row.RuleCount),
+                I18n.T("IpBlock_RemoveConsequence",
+                    "Remove this subscription, its retained refresh state, and all managed outbound firewall rules created for it."))
+            .Request(_confirm))
+        {
+            return;
+        }
+
         await RunServiceActionAsync(I18n.T("IpBlock_ActionRemove", "Remove IP blocklist"), s => IpBlocklistStatusText = s, async () =>
         {
             var ack = await _client.Lists.RemoveIpBlocklistAsync(new BlocklistRequest { Name = row.Name });
@@ -164,6 +174,16 @@ public sealed partial class ToolsViewModel
     public async Task RollbackIpBlocklistAsync()
     {
         if (SelectedIpBlocklist is not { } row)
+        {
+            return;
+        }
+
+        if (!new MutationConfirmation(
+                I18n.T("IpBlock_RollbackConfirmTitle", "Roll back IP blocklist"),
+                I18n.T("IpBlock_SourceTarget", "{0} ({1:N0} addresses, {2:N0} firewall rules)", row.Name, row.AddressCount, row.RuleCount),
+                I18n.T("IpBlock_RollbackConsequence",
+                    "Replace the current address set and managed firewall rules with the retained previous refresh."))
+            .Request(_confirm))
         {
             return;
         }

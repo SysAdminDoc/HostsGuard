@@ -326,6 +326,9 @@
   <data name="Recovery_PreviewDetails" xml:space="preserve"><value>Verifizierter SHA-256: {0}{3}Ziel: HostsGuard {1}, Schema {2}{3}{4}</value></data>
   <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Prüfen Sie diesen Snapshot vor der Wiederherstellung erneut.</value></data>
   <data name="Recovery_ActionRestore" xml:space="preserve"><value>Vollständigen Status-Snapshot wiederherstellen</value></data>
+  <data name="Recovery_RestoreConfirmTitle" xml:space="preserve"><value>Vollständige Statuswiederherstellung vormerken</value></data>
+  <data name="Recovery_RestoreTarget" xml:space="preserve"><value>Snapshot {0} ({1}, SHA-256 {2})</value></data>
+  <data name="Recovery_RestoreConsequence" xml:space="preserve"><value>Diesen verifizierten Snapshot von Datenbank, Hosts und nicht geheimen Einstellungen für den nächsten Dienstneustart vormerken. Vorheriger Wiederherstellungspunkt und automatische Validierungsrücksetzung bleiben aktiviert.</value></data>
   <data name="Ai_Checking" xml:space="preserve"><value>KI-Konfiguration wird geprüft…</value></data>
   <data name="Ai_ActionLoad" xml:space="preserve"><value>KI-Status laden</value></data>
   <data name="Ai_NotConfigured" xml:space="preserve"><value>Kein DeepSeek-API-Schlüssel gespeichert; fügen Sie einen zur KI-Kategorisierung hinzu.</value></data>

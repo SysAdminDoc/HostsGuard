@@ -326,6 +326,9 @@
   <data name="Recovery_PreviewDetails" xml:space="preserve"><value>SHA-256 vérifié : {0}{3}Cible : HostsGuard {1}, schéma {2}{3}{4}</value></data>
   <data name="Recovery_PreviewAgain" xml:space="preserve"><value>Prévisualisez à nouveau cet instantané avant la restauration.</value></data>
   <data name="Recovery_ActionRestore" xml:space="preserve"><value>Restaurer l’instantané d’état complet</value></data>
+  <data name="Recovery_RestoreConfirmTitle" xml:space="preserve"><value>Préparer la restauration de l’état complet</value></data>
+  <data name="Recovery_RestoreTarget" xml:space="preserve"><value>Instantané {0} ({1}, SHA-256 {2})</value></data>
+  <data name="Recovery_RestoreConsequence" xml:space="preserve"><value>Préparer cet instantané vérifié de la base de données, du fichier hosts et des paramètres non secrets pour le prochain redémarrage du service. Le point de récupération préalable et le retour automatique après échec de validation restent activés.</value></data>
   <data name="Ai_Checking" xml:space="preserve"><value>Vérification de la configuration IA…</value></data>
   <data name="Ai_ActionLoad" xml:space="preserve"><value>Charger l’état de l’IA</value></data>
   <data name="Ai_NotConfigured" xml:space="preserve"><value>Aucune clé API DeepSeek enregistrée ; ajoutez-en une pour catégoriser les domaines par IA.</value></data>
