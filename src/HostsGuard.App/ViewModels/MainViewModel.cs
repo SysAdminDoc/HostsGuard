@@ -589,11 +589,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (mode is "notify" or "learning" && FilteringMode == "normal" &&
-            !_confirm.Confirm(I18n.T("Shell_EnableFilteringTitle", "Enable connection filtering"),
-                I18n.T("Shell_EnableFilteringMessage", "Switch to {0} mode? HostsGuard will set every firewall profile to default-deny until you return to Normal mode, then restore the prior posture.", mode)))
+        if (mode is "notify" or "learning" && FilteringMode == "normal")
         {
-            return;
+            var warning = await RemoteSessionWarning.DescribeAsync(_client);
+            var message = RemoteSessionWarning.AppendTo(
+                I18n.T("Shell_EnableFilteringMessage", "Switch to {0} mode? HostsGuard will set every firewall profile to default-deny until you return to Normal mode, then restore the prior posture.", mode),
+                warning);
+            if (!_confirm.Confirm(I18n.T("Shell_EnableFilteringTitle", "Enable connection filtering"), message))
+            {
+                return;
+            }
         }
 
         await RunServiceActionAsync(I18n.T("Shell_ActionSetFiltering", "Set filtering mode"), async () =>
@@ -617,11 +622,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (mode == "block-all" &&
-            !_confirm.Confirm(I18n.T("Shell_BlockAllTitle", "Block all outbound"),
-                I18n.T("Shell_BlockAllMessage", "Block new outbound traffic on every firewall profile unless an allow rule already covers it?")))
+        if (mode == "block-all")
         {
-            return;
+            var warning = await RemoteSessionWarning.DescribeAsync(_client);
+            var message = RemoteSessionWarning.AppendTo(
+                I18n.T("Shell_BlockAllMessage", "Block new outbound traffic on every firewall profile unless an allow rule already covers it?"),
+                warning);
+            if (!_confirm.Confirm(I18n.T("Shell_BlockAllTitle", "Block all outbound"), message))
+            {
+                return;
+            }
         }
 
         await RunServiceActionAsync(I18n.T("Shell_ActionGlobalMode", "Set global outbound mode"), async () =>

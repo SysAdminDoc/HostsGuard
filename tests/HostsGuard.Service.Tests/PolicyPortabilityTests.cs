@@ -576,7 +576,6 @@ public sealed class PolicyPortabilityTests : IDisposable
             state.Dispose();
         }
 
-        SqliteConnection.ClearAllPools();
         foreach (var dir in _dirs)
         {
             try { Directory.Delete(dir, true); } catch (IOException) { /* best effort */ }

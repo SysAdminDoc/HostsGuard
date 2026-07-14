@@ -282,7 +282,6 @@ public sealed class ProxyBaselineMonitorTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
     }
 

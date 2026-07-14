@@ -572,4 +572,11 @@
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accepter l'état externe</value></data>
   <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Récupération requise — l'état du verrou est illisible. Arrêtez HostsGuardSvc en tant qu'administrateur, supprimez lock_state.json du répertoire ProgramData de HostsGuard, puis redémarrez le service.</value></data>
   <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Verrouillé — tentatives de mot de passe suspendues pendant {0} secondes après {1} échecs</value></data>
+  <data name="RemoteSession_UnavailableWarning" xml:space="preserve"><value>L’état de la session Bureau à distance est indisponible ({0}) ; cette modification peut déconnecter un opérateur distant.</value></data>
+  <data name="RemoteSession_SourceUnknown" xml:space="preserve"><value>source indisponible</value></data>
+  <data name="RemoteSession_Evidence" xml:space="preserve"><value>session {0} depuis {1}</value></data>
+  <data name="RemoteSession_MoreEvidence" xml:space="preserve"><value> et {0} autre(s)</value></data>
+  <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>Une session Bureau à distance active peut être déconnectée : {0}. Continuez uniquement si vous pouvez vous reconnecter localement.</value></data>
+  <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Changer de profil réseau pendant une session Bureau à distance</value></data>
+  <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Passer au profil réseau « {0} » ? Sa stratégie enregistrée peut modifier l’application du pare-feu ou du fichier hosts.</value></data>
 </root>

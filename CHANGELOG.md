@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.125] - 2026-07-14
+
+### Added
+- Read-only Windows Terminal Services inventory now exposes active and
+  24-hour recently disconnected Remote Desktop sessions, sanitized client/IP
+  evidence, observation health, and timestamps through service and CLI status.
+- Newly observed active RDP sessions create one coalesced local alert; quick
+  reconnects do not produce duplicate inbox noise and no posture changes occur.
+
+### Changed
+- Connection-filtering, block-all, VPN kill-switch, and saved-profile changes
+  now include an explicit RDP lockout warning while a remote session is active.
+  Operators can still confirm the change; unavailable WTS observation is shown
+  as unknown instead of being misreported as no remote session.
+
+### Fixed
+- Parallel test teardown no longer clears every process-wide SQLite pool after
+  disposing a non-pooled fixture connection, eliminating an intermittent
+  cross-fixture `SqliteConnection.Dispose` null-reference race.
+
 ## [0.12.124] - 2026-07-14
 
 ### Changed

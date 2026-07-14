@@ -97,7 +97,6 @@ public sealed class SqliteRecoveryTests : IDisposable
             source.BackupDatabase(backup);
         }
 
-        SqliteConnection.ClearAllPools();
         using var restored = new HostsDatabase(backupPath);
         restored.GetMeta("backup_probe").Should().Be("preserved");
         restored.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
@@ -108,7 +107,6 @@ public sealed class SqliteRecoveryTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

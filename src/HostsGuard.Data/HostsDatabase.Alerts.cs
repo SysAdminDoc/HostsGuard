@@ -36,6 +36,7 @@ public sealed partial class HostsDatabase
         ("settings_lock_security", "Settings lock security", true),
         ("wfp_external_filter", "External WFP blocks", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
+        ("remote_session", "Remote Desktop sessions", true),
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),
         // Opt-in (off by default): the DGA heuristic is alert-only and tuned

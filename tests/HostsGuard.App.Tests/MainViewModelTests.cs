@@ -67,7 +67,6 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await _app.DisposeAsync();
         _killSwitch.Dispose();
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -125,6 +124,34 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
         vm.PauseEnforcementCommand.CanExecute("5").Should().BeTrue();
         vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Active_remote_session_warning_can_cancel_global_lockdown()
+    {
+        var checkedAt = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        _state.RemoteSessions = new FixedRemoteSessions(new RemoteSessionSnapshot(
+            true,
+            string.Empty,
+            checkedAt,
+            [new RemoteDesktopSession(
+                8,
+                "active",
+                true,
+                "OPS-LAPTOP",
+                "203.0.113.18",
+                checkedAt.AddMinutes(-20),
+                null)]));
+        var confirm = new FakeConfirm(false);
+        using var vm = new MainViewModel(CreateClient, _config, new ThemeManager(), confirm);
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await vm.SetGlobalModeAsync("block-all");
+
+        _fw.OutboundBlock.Should().BeFalse();
+        confirm.Prompts.Should().ContainSingle().Which.Should()
+            .Contain("Remote Desktop")
+            .And.Contain("session 8 from 203.0.113.18");
     }
 
     [Fact]
@@ -296,6 +323,11 @@ public sealed class MainViewModelTests : IAsyncLifetime
             InstalledVersion = installedVersion;
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class FixedRemoteSessions(RemoteSessionSnapshot snapshot) : IRemoteSessionSource
+    {
+        public RemoteSessionSnapshot Snapshot() => snapshot;
     }
 
     private async Task RotateServiceTokenAsync()

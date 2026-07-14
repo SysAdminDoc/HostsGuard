@@ -204,6 +204,22 @@ message ServiceStatus {
   // retains cumulative loss/gap/restart evidence and the current incomplete
   // interval while a source recovers in-process.
   repeated ObservationSourceHealth observation_sources = 38;
+  // Read-only Terminal Services evidence. Missing WTS APIs are explicit so a
+  // client never assumes "no RDP" when observation actually failed.
+  bool remote_session_observation_available = 39;
+  string remote_session_observation_error = 40;
+  string remote_session_checked_at = 41;
+  repeated RemoteSessionInfo remote_sessions = 42;
+}
+
+message RemoteSessionInfo {
+  int32 session_id = 1;
+  string state = 2;             // active | disconnected | other WTS state
+  bool active = 3;
+  string client_name = 4;       // bounded/control-free WTS client label
+  string source_address = 5;    // canonical IP when WTS exposes one
+  string connected_at = 6;      // UTC ISO-8601, empty when WTS omits it
+  string disconnected_at = 7;   // UTC ISO-8601 for retained recent sessions
 }
 
 message ObservationSourceHealth {

@@ -26,7 +26,6 @@ public sealed class ConnectionHistoryTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);
@@ -248,7 +247,7 @@ public sealed class ConnectionHistoryTests : IDisposable
         var fresh = now.AddDays(-1);
         _db.HistoryRetentionDays = 7;
 
-        using (var conn = new SqliteConnection($"Data Source={_path}"))
+        using (var conn = new SqliteConnection($"Data Source={_path};Pooling=False"))
         {
             conn.Open();
             conn.Execute(
@@ -309,7 +308,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             MaintenanceRan = false,
         });
 
-        using var verify = new SqliteConnection($"Data Source={_path}");
+        using var verify = new SqliteConnection($"Data Source={_path};Pooling=False");
         verify.Open();
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM log").Should().Be(1);
         verify.ExecuteScalar<long>("SELECT COUNT(*) FROM resolved_hosts").Should().Be(1);
@@ -327,7 +326,7 @@ public sealed class ConnectionHistoryTests : IDisposable
     public void Existing_database_enables_incremental_auto_vacuum_without_data_loss()
     {
         var path = Path.Combine(_dir, "existing-vacuum.db");
-        using (var conn = new SqliteConnection($"Data Source={path}"))
+        using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             conn.Open();
             conn.Execute("CREATE TABLE legacy(id INTEGER PRIMARY KEY, value TEXT)");
@@ -340,8 +339,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
         }
 
-        SqliteConnection.ClearAllPools();
-        using var verify = new SqliteConnection($"Data Source={path}");
+        using var verify = new SqliteConnection($"Data Source={path};Pooling=False");
         verify.Open();
         verify.ExecuteScalar<long>("PRAGMA auto_vacuum").Should().Be(2);
         verify.ExecuteScalar<string>("SELECT value FROM legacy").Should().Be("keep");
@@ -351,7 +349,7 @@ public sealed class ConnectionHistoryTests : IDisposable
     public void Existing_connection_history_table_gains_host_column()
     {
         var path = Path.Combine(_dir, "existing-conn-history.db");
-        using (var conn = new SqliteConnection($"Data Source={path}"))
+        using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             conn.Open();
             conn.Execute(
@@ -372,8 +370,7 @@ public sealed class ConnectionHistoryTests : IDisposable
             db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
         }
 
-        SqliteConnection.ClearAllPools();
-        using var verify = new SqliteConnection($"Data Source={path}");
+        using var verify = new SqliteConnection($"Data Source={path};Pooling=False");
         verify.Open();
         verify.Query<string>("SELECT name FROM pragma_table_info('conn_history')")
             .Should().Contain("host");

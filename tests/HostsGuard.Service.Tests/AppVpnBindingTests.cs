@@ -26,7 +26,6 @@ public sealed class AppVpnBindingTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 

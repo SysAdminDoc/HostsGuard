@@ -34,7 +34,6 @@ public sealed class FirewallRuleScheduleTests : IDisposable
     {
         _enforcer.Dispose();
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

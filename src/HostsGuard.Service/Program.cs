@@ -338,6 +338,13 @@ state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
 state.Consent.LookupParent = ProcessTree.GetParent;
 state.Consent.LookupCommandLine = ProcessCommandLine.Read;
 
+// Read-only WTS inventory protects remote operators from accidental lockout.
+// Missing APIs remain explicit in Diagnostics; alerts never change posture.
+var remoteSessions = new WindowsRemoteSessionSource();
+state.RemoteSessions = remoteSessions;
+using var remoteSessionMonitor = new RemoteSessionMonitor(remoteSessions, db);
+remoteSessionMonitor.Start();
+
 // Automatic network-profile switching (NET-083): fingerprint the joined
 // network and apply its mapped profile on change.
 var networkIdentity = new NetworkIdentity();

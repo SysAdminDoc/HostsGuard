@@ -263,7 +263,6 @@ public sealed class IpBlocklistCoordinatorTests : IDisposable
     {
         _coordinator.Dispose();
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, recursive: true);

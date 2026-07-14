@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.124-blue)
+![Version](https://img.shields.io/badge/version-0.12.125-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -151,6 +151,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; an armed password cannot be replaced without first proving it to disarm; 600,000-iteration PBKDF2-SHA256 verification uses a bounded, non-blocking retry throttle with one deduplicated security alert; unreadable state fails closed with an explicit administrator recovery path |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector plus timed 5/15/60 minute enforcement pause with auto-resume (no restart) |
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
+| Remote Desktop safety | Read-only WTS inventory surfaces active and recently disconnected RDP sessions in status/alerts, and adds explicit lockout warnings before connection filtering, block-all, kill-switch, or profile changes; unavailable session observation is shown honestly and never changes posture |
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
@@ -158,7 +159,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
-| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, settings-lock failures, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
+| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, settings-lock failures, kill-switch, Remote Desktop sessions, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
 | Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,755-key surface currently has 505 Spanish, 502 German, and 499 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 

@@ -76,7 +76,6 @@ public sealed class ResolverHealthCoordinatorTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { }
     }
 }

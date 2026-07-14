@@ -130,7 +130,6 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
         await _app.DisposeAsync();
         _appVpnBindings.Dispose();
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -524,5 +523,46 @@ public sealed class ConfirmGuardrailTests : IAsyncLifetime
         _state.SecureRules.Conflicts.Should().BeEmpty();
         _state.Db.GetFwStateNames().Should().NotContain(name);
         accept.Prompts.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Remote_session_warning_can_cancel_kill_switch_and_profile_changes()
+    {
+        var checkedAt = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        _state.RemoteSessions = new FixedRemoteSessions(new RemoteSessionSnapshot(
+            true,
+            string.Empty,
+            checkedAt,
+            [new RemoteDesktopSession(
+                9,
+                "active",
+                true,
+                "OPS-LAPTOP",
+                "198.51.100.90",
+                checkedAt.AddMinutes(-10),
+                null)]));
+
+        var killConfirm = new FakeConfirm(false);
+        var killVm = new ToolsViewModel(_client, killConfirm)
+        {
+            SelectedAdapter = new AdapterRowViewModel { Match = "Test VPN", Label = "Test VPN" },
+        };
+        await killVm.ToggleKillSwitchAsync();
+
+        killVm.KillSwitchEnabled.Should().BeFalse();
+        killConfirm.Prompts.Should().ContainSingle().Which.Should()
+            .Contain("Remote Desktop").And.Contain("session 9 from 198.51.100.90");
+
+        var profileConfirm = new FakeConfirm(false);
+        var profileVm = new ToolsViewModel(_client, profileConfirm) { SelectedProfile = "Work" };
+        await profileVm.SwitchProfileAsync();
+
+        profileConfirm.Prompts.Should().ContainSingle().Which.Should()
+            .Contain("Remote Desktop").And.Contain("network profile 'Work'");
+    }
+
+    private sealed class FixedRemoteSessions(RemoteSessionSnapshot snapshot) : IRemoteSessionSource
+    {
+        public RemoteSessionSnapshot Snapshot() => snapshot;
     }
 }

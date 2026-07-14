@@ -32,7 +32,6 @@ public sealed class SettingsLockTests : IDisposable
     public void Dispose()
     {
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

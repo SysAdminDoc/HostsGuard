@@ -572,4 +572,11 @@
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Externen Zustand akzeptieren</value></data>
   <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Wiederherstellung erforderlich — der Sperrstatus ist nicht lesbar. Stoppen Sie HostsGuardSvc als Administrator, entfernen Sie lock_state.json aus dem HostsGuard-ProgramData-Verzeichnis und starten Sie den Dienst neu.</value></data>
   <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Gesperrt — Passwortversuche nach {1} Fehlern für {0} Sekunden pausiert</value></data>
+  <data name="RemoteSession_UnavailableWarning" xml:space="preserve"><value>Der Remotedesktop-Sitzungsstatus ist nicht verfügbar ({0}); diese Änderung kann einen entfernten Bediener trennen.</value></data>
+  <data name="RemoteSession_SourceUnknown" xml:space="preserve"><value>Quelle nicht verfügbar</value></data>
+  <data name="RemoteSession_Evidence" xml:space="preserve"><value>Sitzung {0} von {1}</value></data>
+  <data name="RemoteSession_MoreEvidence" xml:space="preserve"><value> und {0} weitere</value></data>
+  <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>Eine aktive Remotedesktop-Sitzung kann getrennt werden: {0}. Fahren Sie nur fort, wenn Sie lokal erneut verbinden können.</value></data>
+  <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Netzwerkprofil während Remotedesktop-Nutzung wechseln</value></data>
+  <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Zum Netzwerkprofil „{0}“ wechseln? Die gespeicherte Richtlinie kann Firewall- oder Hosts-Durchsetzung ändern.</value></data>
 </root>

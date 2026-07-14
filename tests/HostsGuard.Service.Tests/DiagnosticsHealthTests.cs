@@ -28,7 +28,6 @@ public sealed class DiagnosticsHealthTests : IDisposable
     public void Dispose()
     {
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -80,5 +79,37 @@ public sealed class DiagnosticsHealthTests : IDisposable
 
         var status = await new DiagnosticsServiceImpl(_state).GetStatus(new Empty(), null!);
         status.PersistenceDroppedWrites.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GetStatus_surfaces_active_and_recent_remote_sessions()
+    {
+        var checkedAt = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        _state.RemoteSessions = new FixedRemoteSessions(new RemoteSessionSnapshot(
+            true,
+            string.Empty,
+            checkedAt,
+            [new RemoteDesktopSession(
+                4,
+                "active",
+                true,
+                "OPS-LAPTOP",
+                "198.51.100.9",
+                checkedAt.AddHours(-2),
+                null)]));
+
+        var status = await new DiagnosticsServiceImpl(_state).GetStatus(new Empty(), null!);
+
+        status.RemoteSessionObservationAvailable.Should().BeTrue();
+        status.RemoteSessionObservationError.Should().BeEmpty();
+        status.RemoteSessionCheckedAt.Should().Be(checkedAt.ToString("o"));
+        status.RemoteSessions.Should().ContainSingle().Which.Should().Match<RemoteSessionInfo>(session =>
+            session.SessionId == 4 && session.Active &&
+            session.SourceAddress == "198.51.100.9" && session.ClientName == "OPS-LAPTOP");
+    }
+
+    private sealed class FixedRemoteSessions(RemoteSessionSnapshot snapshot) : IRemoteSessionSource
+    {
+        public RemoteSessionSnapshot Snapshot() => snapshot;
     }
 }

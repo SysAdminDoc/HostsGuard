@@ -34,7 +34,6 @@ public sealed class LoopbackApiTests : IDisposable
     {
         _api.Dispose();
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

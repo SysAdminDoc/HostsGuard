@@ -19,7 +19,6 @@ public sealed class HostsDatabaseTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -69,7 +68,7 @@ public sealed class HostsDatabaseTests : IDisposable
         db.RecordHourly("example.com", now);
         db.RunRetentionSweep(now);                         // triggers prune
 
-        using var conn = new SqliteConnection($"Data Source={DbPath("prune.db")}");
+        using var conn = new SqliteConnection($"Data Source={DbPath("prune.db")};Pooling=False");
         conn.Open();
         conn.ExecuteScalar<long>("SELECT COUNT(*) FROM feed_hourly").Should().Be(1);
     }
@@ -237,7 +236,7 @@ public sealed class HostsDatabaseTests : IDisposable
         var path = DbPath("upsert.db");
         using var db = new HostsDatabase(path);
         // Seed a row with notes/hits directly to simulate history.
-        using (var conn = new SqliteConnection($"Data Source={path}"))
+        using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             conn.Open();
             conn.Execute("INSERT INTO domains(domain,status,category,source,added,modified,hits,notes) VALUES('x.com','blocked','Ads','manual','2020','2020',7,'keep')");
@@ -263,7 +262,7 @@ public sealed class HostsDatabaseTests : IDisposable
     {
         var path = DbPath("legacy.db");
         // Build a pre-versioning DB shape: old column names, no reason columns.
-        using (var conn = new SqliteConnection($"Data Source={path}"))
+        using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             conn.Open();
             conn.Execute("CREATE TABLE domains(domain TEXT PRIMARY KEY,status TEXT,category TEXT,source TEXT,date_added TEXT,date_modified TEXT,hit_count INTEGER,notes TEXT)");
@@ -271,7 +270,6 @@ public sealed class HostsDatabaseTests : IDisposable
             conn.Execute("CREATE TABLE log(id INTEGER PRIMARY KEY,timestamp TEXT,domain TEXT,action TEXT,process_name TEXT,details TEXT)");
             conn.Execute("INSERT INTO log(timestamp,domain,action,process_name,details) VALUES('2020','legacy.com','blocked','x.exe','d')");
         }
-        SqliteConnection.ClearAllPools();
 
         using var db = new HostsDatabase(path);
         var rows = db.GetDomains();
@@ -496,7 +494,6 @@ public sealed class HostsDatabaseTests : IDisposable
     {
         var path = DbPath("idem.db");
         using (var db1 = new HostsDatabase(path)) { db1.AddDomain("a.com"); }
-        SqliteConnection.ClearAllPools();
         using var db2 = new HostsDatabase(path); // re-open: must not throw or lose data
         db2.GetDomains().Should().Contain(r => r.Domain == "a.com");
     }
@@ -555,7 +552,7 @@ public sealed class HostsDatabaseTests : IDisposable
     {
         using var db = new HostsDatabase(DbPath("temp-malformed.db"));
         var future = DateTime.UtcNow.AddHours(1).ToString("o", System.Globalization.CultureInfo.InvariantCulture);
-        using var conn = new SqliteConnection($"Data Source={DbPath("temp-malformed.db")}");
+        using var conn = new SqliteConnection($"Data Source={DbPath("temp-malformed.db")};Pooling=False");
         conn.Open();
         conn.Execute("INSERT INTO temp_allows(domain, expires) VALUES('good.com', @f)", new { f = future });
         conn.Execute("INSERT INTO temp_allows(domain, expires) VALUES('bad.com', 'not-a-date')");

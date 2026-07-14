@@ -111,7 +111,6 @@ public sealed class InboundConsentTests : IDisposable
 
         broker.Dispose();
         db.Dispose();
-        SqliteConnection.ClearAllPools();
         Directory.Delete(dir, true);
         var staleSweep = () => broker.Sweep(DateTime.UtcNow.AddHours(1));
 
@@ -121,7 +120,6 @@ public sealed class InboundConsentTests : IDisposable
     public void Dispose()
     {
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 }

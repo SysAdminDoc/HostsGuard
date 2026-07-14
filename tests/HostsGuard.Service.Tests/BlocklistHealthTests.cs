@@ -33,7 +33,6 @@ public sealed class BlocklistHealthTests : IDisposable
     {
         _importer.Dispose();
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

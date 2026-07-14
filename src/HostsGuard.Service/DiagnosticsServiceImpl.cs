@@ -27,6 +27,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         var memory = CaptureMemory();
         var firewallMemory = _state.Firewall?.GetMemorySnapshot() ?? default;
         var observations = _state.ObservationHealth();
+        var remoteSessions = CaptureRemoteSessions();
         var dnsObservation = observations.FirstOrDefault(row => row.Source == "dns_etw");
         var networkObservation = observations.FirstOrDefault(row => row.Source == "network_etw");
         var status = new ServiceStatus
@@ -73,9 +74,34 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             GcFragmentedBytes = memory.GcFragmentedBytes,
             SniCaptureAdapters = _state.Sni?.CaptureAdapterCount ?? 0,
             FirewallCachedPackages = firewallMemory.LightweightPackageCount,
+            RemoteSessionObservationAvailable = remoteSessions.Available,
+            RemoteSessionObservationError = remoteSessions.ErrorCode,
+            RemoteSessionCheckedAt = remoteSessions.CheckedAtUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
         };
         status.ObservationSources.AddRange(observations.Select(ToContract));
+        status.RemoteSessions.AddRange(remoteSessions.Sessions.Select(session => new RemoteSessionInfo
+        {
+            SessionId = session.SessionId,
+            State = session.State,
+            Active = session.Active,
+            ClientName = session.ClientName,
+            SourceAddress = session.SourceAddress,
+            ConnectedAt = session.ConnectedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            DisconnectedAt = session.DisconnectedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+        }));
         return Task.FromResult(status);
+    }
+
+    private RemoteSessionSnapshot CaptureRemoteSessions()
+    {
+        try
+        {
+            return _state.RemoteSessions.Snapshot();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return new RemoteSessionSnapshot(false, "wts_snapshot_failed", DateTime.UtcNow, []);
+        }
     }
 
     public override async Task<CaptivePortalStatus> CheckCaptivePortal(Empty request, ServerCallContext context)

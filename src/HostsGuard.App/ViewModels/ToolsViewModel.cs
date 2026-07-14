@@ -537,6 +537,16 @@ public sealed partial class ToolsViewModel : ObservableObject
             return;
         }
 
+        var warning = await RemoteSessionWarning.DescribeAsync(_client);
+        if (warning.Length != 0 && !_confirm.Confirm(
+                I18n.T("Profile_RemoteSwitchTitle", "Switch network profile during Remote Desktop use"),
+                RemoteSessionWarning.AppendTo(
+                    I18n.T("Profile_RemoteSwitchMessage", "Switch to network profile '{0}'? Its saved policy may change firewall or hosts enforcement.", SelectedProfile),
+                    warning)))
+        {
+            return;
+        }
+
         await RunServiceActionAsync(I18n.T("Profile_ActionSwitch", "Switch network profile"), async () =>
         {
             var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });

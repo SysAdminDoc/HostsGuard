@@ -294,6 +294,10 @@ public sealed class ServiceState : IDisposable
     /// <summary>Current-network identity source (NET-083); wired by the host.</summary>
     public Windows.INetworkIdentity? NetworkIdentity { get; set; }
 
+    /// <summary>Read-only active/recent Remote Desktop session inventory.</summary>
+    public Windows.IRemoteSessionSource RemoteSessions { get; set; } =
+        new Windows.UnavailableRemoteSessionSource("not_configured");
+
     /// <summary>Driver-free TLS SNI capture (NET-109); wired by the host, opt-in.</summary>
     public Windows.SniSniffer? Sni { get; set; }
 

@@ -21,7 +21,6 @@ public sealed class ResolvedHostsTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -63,7 +62,6 @@ public sealed class ResolvedHostsTests : IDisposable
             db.UpsertResolvedHost("203.0.113.9", "remembered.example.com", "ptr");
         }
 
-        SqliteConnection.ClearAllPools();
         using var reopened = new HostsDatabase(path);
         reopened.GetResolvedHost("203.0.113.9").Should().Be("remembered.example.com");
     }

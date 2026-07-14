@@ -332,6 +332,25 @@ static async Task<int> StatusAsync()
         Console.WriteLine($"runtime:      .NET {status.RuntimeVersion}, SQLite {status.SqliteVersion}");
         Console.WriteLine($"memory:       working={FormatBytes(status.ProcessWorkingSetBytes)} private={FormatBytes(status.ProcessPrivateBytes)} managed={FormatBytes(status.GcHeapBytes)} gc-committed={FormatBytes(status.GcCommittedBytes)} fragmented={FormatBytes(status.GcFragmentedBytes)}");
         Console.WriteLine($"memory inputs: sni-adapters={status.SniCaptureAdapters} cached-firewall-packages={status.FirewallCachedPackages}");
+        if (!status.RemoteSessionObservationAvailable)
+        {
+            var error = status.RemoteSessionObservationError.Length == 0
+                ? "not reported"
+                : status.RemoteSessionObservationError;
+            Console.WriteLine($"rdp sessions: unavailable ({error})");
+        }
+        else
+        {
+            Console.WriteLine($"rdp sessions: {status.RemoteSessions.Count(session => session.Active)} active, {status.RemoteSessions.Count(session => !session.Active)} recent disconnected (checked {status.RemoteSessionCheckedAt})");
+            foreach (var session in status.RemoteSessions)
+            {
+                var source = session.SourceAddress.Length != 0
+                    ? session.SourceAddress
+                    : session.ClientName.Length != 0 ? session.ClientName : "source unavailable";
+                var observedAt = session.Active ? session.ConnectedAt : session.DisconnectedAt;
+                Console.WriteLine($"  session {session.SessionId}: {session.State} from {source}{(observedAt.Length == 0 ? string.Empty : $" at {observedAt}")}");
+            }
+        }
         var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());
         Console.WriteLine($"filtering:    {mode.Mode}{(mode.DetectionArmed ? " (detection armed)" : string.Empty)}");
         return 0;

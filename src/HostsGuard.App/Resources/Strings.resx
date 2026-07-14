@@ -1890,4 +1890,11 @@
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accept foreign state</value></data>
   <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Recovery required — lock state is unreadable. Stop HostsGuardSvc as an administrator, remove lock_state.json from the HostsGuard ProgramData directory, and restart the service.</value></data>
   <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Locked — password attempts paused for {0} seconds after {1} failures</value></data>
+  <data name="RemoteSession_UnavailableWarning" xml:space="preserve"><value>Remote Desktop session state is unavailable ({0}); this change may disconnect a remote operator.</value></data>
+  <data name="RemoteSession_SourceUnknown" xml:space="preserve"><value>source unavailable</value></data>
+  <data name="RemoteSession_Evidence" xml:space="preserve"><value>session {0} from {1}</value></data>
+  <data name="RemoteSession_MoreEvidence" xml:space="preserve"><value> and {0} more</value></data>
+  <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>An active Remote Desktop session may be disconnected: {0}. Continue only if you can reconnect locally.</value></data>
+  <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Switch network profile during Remote Desktop use</value></data>
+  <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Switch to network profile '{0}'? Its saved policy may change firewall or hosts enforcement.</value></data>
 </root>

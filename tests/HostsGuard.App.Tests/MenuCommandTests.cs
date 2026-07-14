@@ -55,7 +55,6 @@ public sealed class MenuCommandTests : IAsyncLifetime
         _client.Dispose();
         await _app.DisposeAsync();
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 

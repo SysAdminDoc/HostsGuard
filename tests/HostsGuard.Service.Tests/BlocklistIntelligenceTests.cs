@@ -37,7 +37,6 @@ public sealed class BlocklistIntelligenceTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 

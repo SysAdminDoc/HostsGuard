@@ -101,7 +101,6 @@ public sealed class IdnHomographServiceTests : IDisposable
     public void Dispose()
     {
         _state.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { }
     }
 }

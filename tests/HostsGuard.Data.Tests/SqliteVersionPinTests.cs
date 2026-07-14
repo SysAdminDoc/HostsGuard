@@ -14,7 +14,7 @@ public class SqliteVersionPinTests
     [Fact]
     public void Native_sqlite_is_at_or_above_the_fixed_floor()
     {
-        using var conn = new SqliteConnection("Data Source=:memory:");
+        using var conn = new SqliteConnection("Data Source=:memory:;Pooling=False");
         conn.Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT sqlite_version()";
@@ -42,9 +42,29 @@ public class SqliteVersionPinTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
             try { System.IO.File.Delete(path); } catch (System.IO.IOException) { }
         }
+    }
+
+    [Fact]
+    public void Parallel_test_teardown_never_clears_process_wide_pools()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "HostsGuard.sln")))
+        {
+            root = root.Parent;
+        }
+
+        root.Should().NotBeNull();
+        var forbidden = "SqliteConnection.Clear" + "AllPools()";
+        var offenders = Directory.EnumerateFiles(
+                Path.Combine(root!.FullName, "tests"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains(forbidden, StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(root.FullName, path))
+            .ToArray();
+
+        offenders.Should().BeEmpty(
+            "HostsDatabase disables pooling, and a process-wide clear in parallel teardown can invalidate another fixture's live connection");
     }
 
     [Theory]

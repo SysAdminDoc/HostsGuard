@@ -27,7 +27,6 @@ public sealed class PythonMigrationTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_root, true); } catch (IOException) { /* best effort */ }
     }
 
@@ -35,7 +34,7 @@ public sealed class PythonMigrationTests : IDisposable
     private void WritePythonDb()
     {
         var path = Path.Combine(Source, "hostsguard.db");
-        using var conn = new SqliteConnection($"Data Source={path}");
+        using var conn = new SqliteConnection($"Data Source={path};Pooling=False");
         conn.Open();
         conn.Execute(
             """
@@ -48,7 +47,6 @@ public sealed class PythonMigrationTests : IDisposable
                 VALUES('keep.legacy.com','whitelisted','manual','2025-01-01','2025-01-01',0);
             CREATE TABLE log(id INTEGER PRIMARY KEY, timestamp TEXT, domain TEXT, action TEXT, process_name TEXT, details TEXT);
             """);
-        SqliteConnection.ClearAllPools();
     }
 
     private void WritePythonConfig()

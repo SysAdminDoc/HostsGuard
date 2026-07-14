@@ -362,7 +362,6 @@ public sealed class SelfUpdaterTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, recursive: true);

@@ -64,8 +64,11 @@ public sealed partial class ToolsViewModel
                 return;
             }
 
-            if (!_confirm.Confirm(I18n.T("Vpn_ConfirmEnableTitle", "Enable VPN kill-switch"),
-                I18n.T("Vpn_ConfirmEnableMessage", "Block ALL outbound traffic whenever '{0}' is down? Existing allow rules still apply — keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time.", adapter)))
+            var warning = await RemoteSessionWarning.DescribeAsync(_client);
+            var message = RemoteSessionWarning.AppendTo(
+                I18n.T("Vpn_ConfirmEnableMessage", "Block ALL outbound traffic whenever '{0}' is down? Existing allow rules still apply — keep one for your VPN client so the tunnel can reconnect. You can turn this off here at any time.", adapter),
+                warning);
+            if (!_confirm.Confirm(I18n.T("Vpn_ConfirmEnableTitle", "Enable VPN kill-switch"), message))
             {
                 return;
             }

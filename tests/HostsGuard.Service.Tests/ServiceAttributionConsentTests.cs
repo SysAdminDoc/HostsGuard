@@ -38,7 +38,6 @@ public sealed class ServiceAttributionConsentTests : IDisposable
     {
         _broker.Dispose();
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

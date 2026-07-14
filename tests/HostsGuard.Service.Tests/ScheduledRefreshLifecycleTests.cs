@@ -111,7 +111,6 @@ public sealed class ScheduledRefreshLifecycleTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, true);

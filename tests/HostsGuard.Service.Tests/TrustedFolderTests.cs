@@ -71,7 +71,6 @@ public sealed class TrustedFolderTests : IDisposable
     public void Dispose()
     {
         _state.Dispose();
-        SqliteConnection.ClearAllPools();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
 }

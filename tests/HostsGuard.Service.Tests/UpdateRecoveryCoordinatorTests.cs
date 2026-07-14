@@ -134,7 +134,6 @@ public sealed class UpdateRecoveryCoordinatorTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_root, recursive: true);

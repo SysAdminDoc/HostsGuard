@@ -219,7 +219,6 @@ public sealed class StateSnapshotCoordinatorTests : IDisposable
 
     public void Dispose()
     {
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         try
         {
             Directory.Delete(_dir, recursive: true);
