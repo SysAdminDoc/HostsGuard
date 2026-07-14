@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.101] - 2026-07-14
+
+### Changed
+- Added direct in-proc RPC test coverage for `PolicyServiceImpl` and
+  `ListControlServiceImpl` — schedule/profile/lock/network/portable-policy and
+  blocklist/allowlist/IP-blocklist request validation, error-code mapping, and
+  lock-gating — the handler layer that the coordinator-level tests did not reach.
+
 ## [0.12.100] - 2026-07-14
 
 ### Security
