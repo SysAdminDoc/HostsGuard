@@ -9,7 +9,7 @@ using Xunit;
 namespace HostsGuard.App.Tests;
 
 /// <summary>
-/// Headless guards for the theme system: Dark/Light token dictionaries stay in
+/// Headless guards for the theme system: Dark/Light/Contrast token dictionaries stay in
 /// key parity, and every Hg.* token referenced by the styles/views resolves in
 /// BOTH themes (a missing DynamicResource fails silently at runtime — this is
 /// the test that catches it).
@@ -57,13 +57,15 @@ public sealed class ThemeTokenTests
         => dict.Keys.Cast<object>().Select(k => k.ToString()!).ToHashSet(StringComparer.Ordinal);
 
     [Fact]
-    public void Dark_and_light_define_identical_token_sets()
+    public void All_production_themes_define_identical_token_sets()
     {
         var dark = Keys(LoadDictionary(Path.Combine("Themes", "Dark.xaml")));
         var light = Keys(LoadDictionary(Path.Combine("Themes", "Light.xaml")));
+        var contrast = Keys(LoadDictionary(Path.Combine("Themes", "Contrast.xaml")));
 
         dark.Should().NotBeEmpty();
         dark.Should().BeEquivalentTo(light);
+        dark.Should().BeEquivalentTo(contrast);
         dark.Should().OnlyContain(k => k.StartsWith("Hg.", StringComparison.Ordinal));
     }
 
@@ -72,12 +74,14 @@ public sealed class ThemeTokenTests
     {
         var dark = Keys(LoadDictionary(Path.Combine("Themes", "Dark.xaml")));
         var light = Keys(LoadDictionary(Path.Combine("Themes", "Light.xaml")));
+        var contrast = Keys(LoadDictionary(Path.Combine("Themes", "Contrast.xaml")));
 
         var referenced = new HashSet<string>(StringComparer.Ordinal);
         foreach (var file in Directory.EnumerateFiles(AppDir, "*.xaml", SearchOption.AllDirectories))
         {
             if (file.Contains(Path.Combine("Themes", "Dark"), StringComparison.Ordinal) ||
                 file.Contains(Path.Combine("Themes", "Light"), StringComparison.Ordinal) ||
+                file.Contains(Path.Combine("Themes", "Contrast"), StringComparison.Ordinal) ||
                 file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
             {
                 continue;
@@ -92,6 +96,7 @@ public sealed class ThemeTokenTests
         referenced.Should().NotBeEmpty();
         referenced.Should().BeSubsetOf(dark);
         referenced.Should().BeSubsetOf(light);
+        referenced.Should().BeSubsetOf(contrast);
     }
 
     [Fact]
@@ -99,6 +104,19 @@ public sealed class ThemeTokenTests
     {
         var styles = LoadDictionary(Path.Combine("Themes", "Styles.xaml"));
         styles.Keys.Cast<object>().Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Contrast_tokens_are_live_system_color_references()
+    {
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var document = XDocument.Load(Path.Combine(AppDir, "Themes", "Contrast.xaml"));
+        var brushes = document.Descendants(presentation + "SolidColorBrush").ToArray();
+
+        brushes.Should().NotBeEmpty();
+        brushes.Select(brush => (string?)brush.Attribute("Color")).Should().OnlyContain(value =>
+            value != null && value.Contains("DynamicResource {x:Static SystemColors.", StringComparison.Ordinal),
+            "contrast colors must follow the active Windows palette without an app restart");
     }
 
     [Fact]

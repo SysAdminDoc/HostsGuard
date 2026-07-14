@@ -15,6 +15,7 @@
     <Window.Resources>
         <svc:PointsTextConverter x:Key="PointsConverter" />
         <svc:SeriesBrushConverter x:Key="SeriesBrush" />
+        <svc:SeriesDashConverter x:Key="SeriesDash" />
         <svc:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
         <svc:EmptyStateVisibilityConverter x:Key="EmptyStateVis" />
         <svc:ObjectPresentBooleanConverter x:Key="ObjectPresentBool" />
@@ -60,7 +61,7 @@
                                 <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45" />
+                                <Setter Property="Foreground" Value="{DynamicResource Hg.Disabled}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -702,13 +703,18 @@
                                             <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
                                         </DataTrigger>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
+                                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
                                         </Trigger>
                                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                                            <Setter Property="FontWeight" Value="SemiBold" />
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -1109,9 +1115,10 @@
                                     <Style TargetType="DataGridRow">
                                         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
                                         <Setter Property="MinHeight" Value="32" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRead}" Value="True">
-                                                <Setter Property="Opacity" Value="0.62" />
+                                                <Setter Property="FontWeight" Value="Normal" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding Severity}" Value="critical">
                                                 <Setter Property="Background" Value="{DynamicResource Hg.DangerRow}" />
@@ -1120,10 +1127,13 @@
                                                 <Setter Property="Background" Value="{DynamicResource Hg.WarnRow}" />
                                             </DataTrigger>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource Hg.RowHover}" />
+                                                <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter Property="Background" Value="{DynamicResource Hg.Sel}" />
+                                                <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
                                             </Trigger>
                                         </Style.Triggers>
                                     </Style>
@@ -2028,6 +2038,7 @@
                                                     <Canvas Width="600" Height="100">
                                                         <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
                                                                   Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                                  StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
                                                                   StrokeThickness="1.6" StrokeLineJoin="Round" />
                                                     </Canvas>
                                                 </Viewbox>
@@ -2044,8 +2055,10 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
-                                                <Rectangle Width="10" Height="3" VerticalAlignment="Center" Margin="0,0,5,0"
-                                                           Fill="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}" />
+                                                <Line X1="0" X2="12" Y1="2" Y2="2" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                      Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                      StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
+                                                      StrokeThickness="3" />
                                                 <TextBlock Text="{Binding Name}"
                                                            ToolTip="{Binding Name}"
                                                            Style="{StaticResource Hg.DimText}"
@@ -2574,6 +2587,7 @@
                                                         <Canvas Width="600" Height="100">
                                                             <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
                                                                       Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                                      StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
                                                                       StrokeThickness="1.6" StrokeLineJoin="Round" />
                                                         </Canvas>
                                                     </Viewbox>
@@ -2590,8 +2604,10 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
-                                                    <Rectangle Width="10" Height="3" VerticalAlignment="Center" Margin="0,0,5,0"
-                                                               Fill="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}" />
+                                                    <Line X1="0" X2="12" Y1="2" Y2="2" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                          Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                          StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
+                                                          StrokeThickness="3" />
                                                     <TextBlock Text="{Binding Name}" Style="{StaticResource Hg.DimText}" />
                                                     <TextBlock Text="{Binding LegendText}" Style="{StaticResource Hg.DimText}" Margin="5,0,0,0" />
                                                 </StackPanel>

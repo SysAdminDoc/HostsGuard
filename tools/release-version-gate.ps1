@@ -75,8 +75,8 @@ function Test-ScreenshotManifest([string]$Version) {
     }
 
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    if ($manifest.schemaVersion -ne 3) {
-        Add-Error "visual smoke manifest schemaVersion must be 3"
+    if ($manifest.schemaVersion -ne 4) {
+        Add-Error "visual smoke manifest schemaVersion must be 4"
     }
 
     if ($manifest.version -ne $Version) {
@@ -104,7 +104,7 @@ function Test-ScreenshotManifest([string]$Version) {
         'Firewall Rules' = 'FwRulesGrid'
         'Tools' = 'ToolsSurface'
     }
-    foreach ($theme in @('dark', 'light')) {
+    foreach ($theme in @('dark', 'light', 'contrast-aquatic', 'contrast-desert', 'contrast-dusk', 'contrast-night-sky')) {
         $primary = @($manifest.primaryCaptures | Where-Object { $_.theme -eq $theme })
         if ($primary.Count -ne $expectedTabs.Count) {
             Add-Error "visual smoke manifest has $($primary.Count) $theme primary captures; expected $($expectedTabs.Count)"

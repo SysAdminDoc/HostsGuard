@@ -2,6 +2,28 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.115] - 2026-07-14
+
+### Added
+- The running WPF app now follows Windows contrast mode and live palette
+  changes through system-color resources, including native title-bar behavior.
+- Charts use stable dash patterns in addition to color, and validation errors
+  retain a visible border plus glyph.
+
+### Changed
+- Disabled controls use the system disabled-text color instead of reduced
+  opacity. Data-grid selection remains distinguishable by weight and focus
+  borders without obscuring semantic status text.
+- The release visual gate now renders every primary page in deterministic
+  Aquatic, Desert, Dusk, and Night Sky fixtures as well as dark and light.
+
+### Fixed
+- Hovered menus, buttons, combo boxes, check boxes, tab content, and selected
+  data-grid text no longer lose contrast when system colors collapse semantic
+  accent colors.
+- The singleton state database no longer joins SQLite's process-wide connection
+  pool, preventing unrelated pool cleanup from racing its shutdown.
+
 ## [0.12.114] - 2026-07-14
 
 ### Added

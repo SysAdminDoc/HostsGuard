@@ -34,6 +34,7 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         viewModel.DecisionRequested += OnDecisionRequested;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
 
         // WPF DataGrids don't select a row on right-click, so every context menu
         // bound to SelectedItem/SelectedItems would act on the previously
@@ -67,6 +68,9 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSystemParametersChanged(object? sender, PropertyChangedEventArgs e) =>
+        Dispatcher.BeginInvoke(ApplyNativeTitleBarTheme);
+
     private void ApplyNativeTitleBarTheme()
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
@@ -80,7 +84,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dark = DataContext is MainViewModel { Theme: "dark" };
+        // Let Windows own caption colors in contrast mode; forcing immersive
+        // dark chrome would override the user's system contrast palette.
+        var dark = !SystemParameters.HighContrast && DataContext is MainViewModel { Theme: "dark" };
         var value = dark ? 1 : 0;
         _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkMode, ref value, sizeof(int));
         _ = DwmSetWindowAttribute(hwnd, DwmwaUseImmersiveDarkModeBefore20H1, ref value, sizeof(int));
@@ -227,6 +233,7 @@ public partial class MainWindow : Window
         }
 
         Tray.Dispose();
+        SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
         if (DataContext is MainViewModel vm)
         {
             vm.PropertyChanged -= OnViewModelPropertyChanged;

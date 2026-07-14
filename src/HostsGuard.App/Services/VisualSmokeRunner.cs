@@ -565,7 +565,7 @@ internal static class VisualSmokeRunner
                          $"(range {metrics.LuminanceRange:F1}, detailed tiles {metrics.ContentTileRatio:P1}).");
         }
 
-        var dark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        var dark = IsDarkPalette(theme);
         var invalidAverage = dark
             ? metrics.AverageLuminance is < 5 or > 100
             : metrics.AverageLuminance is < 100 or > 250;
@@ -574,6 +574,12 @@ internal static class VisualSmokeRunner
             failures.Add($"{tab} {theme} average luminance {metrics.AverageLuminance:F1} is outside the theme bounds.");
         }
     }
+
+    private static bool IsDarkPalette(string theme) =>
+        string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(theme, "contrast-aquatic", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(theme, "contrast-dusk", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(theme, "contrast-night-sky", StringComparison.OrdinalIgnoreCase);
 
     private static void ValidateChromeLuminance(string theme, double luma, IList<string> failures)
     {

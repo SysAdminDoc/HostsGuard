@@ -379,6 +379,9 @@ public sealed partial class HostsDatabase : IDisposable
             DataSource = path,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared,
+            // HostsGuard owns one long-lived connection. Pooling adds no reuse
+            // benefit and lets process-wide ClearAllPools calls race this owner.
+            Pooling = false,
         }.ToString());
         try
         {
@@ -394,7 +397,6 @@ public sealed partial class HostsDatabase : IDisposable
             // Release the file handle so a caller (OpenWithRecovery) can quarantine
             // a corrupt file instead of failing to move a still-locked one.
             _conn.Dispose();
-            SqliteConnection.ClearPool(_conn);
             throw;
         }
     }
@@ -916,9 +918,8 @@ public sealed partial class HostsDatabase : IDisposable
                 return;
             }
 
-            _conn.Dispose();
-            SqliteConnection.ClearPool(_conn);
             _disposed = true;
+            _conn.Dispose();
         }
     }
 }

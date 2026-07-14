@@ -134,7 +134,7 @@ function Find-ServicePath([string]$ResolvedAppPath) {
 
 function Invoke-SmokeTheme {
     param(
-        [ValidateSet("dark", "light")] [string]$Theme,
+        [ValidateSet("dark", "light", "contrast-aquatic", "contrast-desert", "contrast-dusk", "contrast-night-sky")] [string]$Theme,
         [string]$Locale = "",
         [string]$RunName = ""
     )
@@ -208,7 +208,8 @@ $summary = [ordered]@{
     runs = @()
 }
 
-foreach ($theme in @("dark", "light")) {
+$renderThemes = @("dark", "light", "contrast-aquatic", "contrast-desert", "contrast-dusk", "contrast-night-sky")
+foreach ($theme in $renderThemes) {
     $summary.runs += Invoke-SmokeTheme -Theme $theme
 }
 $summary.runs += Invoke-SmokeTheme -Theme "dark" -Locale "qps-ploc" -RunName "pseudo"
@@ -226,7 +227,7 @@ New-Item -ItemType Directory -Force -Path $ReadmeImageDir | Out-Null
 $readmeScreenshots = @()
 $primaryCaptures = @()
 $stateCaptures = @()
-foreach ($theme in @("dark", "light")) {
+foreach ($theme in $renderThemes) {
     $run = $summary.runs | Where-Object { $_.theme -eq $theme -and $_.locale -ne "qps-ploc" } | Select-Object -First 1
     foreach ($primary in @($run.captures)) {
         $primaryCaptures += [ordered]@{
@@ -244,6 +245,10 @@ foreach ($theme in @("dark", "light")) {
             sha256 = $state.sha256
         }
     }
+    if ($theme -notin @("dark", "light")) {
+        continue
+    }
+
     $capture = @($run.captures | Where-Object { $_.tab -eq "Hosts Activity" }) | Select-Object -First 1
     if ($null -eq $capture) {
         throw "Visual smoke did not capture the Hosts Activity README screenshot for $theme theme."
@@ -270,7 +275,7 @@ foreach ($theme in @("dark", "light")) {
 }
 
 $manifest = [ordered]@{
-    schemaVersion = 3
+    schemaVersion = 4
     product = "HostsGuard"
     version = $productVersion
     generatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")

@@ -530,19 +530,70 @@ public sealed class WpfSmokeTests
     }
 
     [Fact]
+    public void Theme_manager_switches_the_live_application_into_and_out_of_contrast()
+    {
+        RunSta(() =>
+        {
+            var app = Application.Current!;
+            app.Resources.Clear();
+            app.Resources.MergedDictionaries.Add(Load("Dark"));
+            app.Resources.MergedDictionaries.Add(Load("Styles"));
+            using var manager = new ThemeManager();
+            manager.Apply("light");
+            manager.RefreshSystemContrast(false);
+
+            var surface = new Border();
+            surface.SetResourceReference(Control.BackgroundProperty, "Hg.Base");
+            var sameSurface = surface;
+            app.Resources.MergedDictionaries[0].Source!.OriginalString.Should().EndWith("Light.xaml");
+
+            manager.RefreshSystemContrast(true);
+            manager.Effective.Should().Be("contrast");
+            manager.IsHighContrast.Should().BeTrue();
+            app.Resources.MergedDictionaries[0].Source!.OriginalString.Should().EndWith("Contrast.xaml");
+            surface.Should().BeSameAs(sameSurface, "contrast changes must not recreate the visual tree");
+            surface.Background.Should().NotBeNull("the live DynamicResource must resolve through the contrast dictionary");
+
+            manager.RefreshSystemContrast(false);
+            manager.Effective.Should().Be("light");
+            app.Resources.MergedDictionaries[0].Source!.OriginalString.Should().EndWith("Light.xaml");
+        });
+    }
+
+    [Fact]
+    public void Chart_series_have_distinct_non_color_line_patterns()
+    {
+        RunSta(() =>
+        {
+            var converter = new SeriesDashConverter();
+            var patterns = Enumerable.Range(0, 5)
+                .Select(index => (DoubleCollection)converter.Convert(
+                    index, typeof(DoubleCollection), null, System.Globalization.CultureInfo.InvariantCulture))
+                .Select(pattern => string.Join(",", pattern))
+                .ToArray();
+
+            patterns.Should().OnlyHaveUniqueItems();
+            patterns[0].Should().BeEmpty("the first series is the solid baseline");
+            patterns.Skip(1).Should().OnlyContain(pattern => !string.IsNullOrWhiteSpace(pattern));
+        });
+    }
+
+    [Fact]
     public void Rendered_pairwise_matrix_covers_states_themes_scales_sizes_and_accessibility()
     {
         var cases = new[]
         {
-            (State: "empty", Theme: "Dark", Scale: 90, Width: 1280, Height: 800),
-            (State: "populated", Theme: "Light", Scale: 100, Width: 1600, Height: 1000),
-            (State: "loading", Theme: "HighContrast", Scale: 125, Width: 1280, Height: 800),
-            (State: "disconnected", Theme: "Dark", Scale: 150, Width: 1600, Height: 1000),
-            (State: "error", Theme: "Light", Scale: 90, Width: 1280, Height: 800),
+            (State: "empty", Theme: "dark", Scale: 90, Width: 1280, Height: 800),
+            (State: "populated", Theme: "light", Scale: 100, Width: 1600, Height: 1000),
+            (State: "loading", Theme: "contrast-aquatic", Scale: 125, Width: 1280, Height: 800),
+            (State: "disconnected", Theme: "contrast-desert", Scale: 150, Width: 1600, Height: 1000),
+            (State: "error", Theme: "contrast-dusk", Scale: 90, Width: 1280, Height: 800),
+            (State: "populated", Theme: "contrast-night-sky", Scale: 100, Width: 1600, Height: 1000),
         };
 
-        cases.Select(item => item.State).Should().BeEquivalentTo("empty", "populated", "loading", "disconnected", "error");
-        cases.Select(item => item.Theme).Distinct().Should().BeEquivalentTo("Dark", "Light", "HighContrast");
+        cases.Select(item => item.State).Distinct().Should().BeEquivalentTo("empty", "populated", "loading", "disconnected", "error");
+        cases.Select(item => item.Theme).Distinct().Should().BeEquivalentTo(
+            "dark", "light", "contrast-aquatic", "contrast-desert", "contrast-dusk", "contrast-night-sky");
         cases.Select(item => item.Scale).Distinct().Should().Contain(new[] { 90, 100, 125, 150 });
         var sizes = cases.Select(item => (item.Width, item.Height)).Distinct().ToArray();
         sizes.Should().HaveCount(2);
@@ -561,42 +612,10 @@ public sealed class WpfSmokeTests
                 foreach (var item in cases)
                 {
                     app.Resources.Clear();
-                    app.Resources.MergedDictionaries.Add(Load(item.Theme == "Light" ? "Light" : "Dark"));
+                    app.Resources.MergedDictionaries.Add(Load("Dark"));
                     app.Resources.MergedDictionaries.Add(Load("Styles"));
-                    if (item.Theme == "HighContrast")
-                    {
-                        app.Resources["Hg.Bg"] = Brushes.Black;
-                        app.Resources["Hg.Base"] = Brushes.Black;
-                        app.Resources["Hg.Panel"] = Brushes.Black;
-                        app.Resources["Hg.PanelAlt"] = Brushes.Black;
-                        app.Resources["Hg.Command"] = Brushes.Black;
-                        app.Resources["Hg.Mantle"] = Brushes.Black;
-                        app.Resources["Hg.Crust"] = Brushes.Black;
-                        app.Resources["Hg.RowHover"] = Brushes.Black;
-                        app.Resources["Hg.SafeSoft"] = Brushes.Black;
-                        app.Resources["Hg.SuccessSoft"] = Brushes.Black;
-                        app.Resources["Hg.SuccessHover"] = Brushes.Black;
-                        app.Resources["Hg.DangerSoft"] = Brushes.Black;
-                        app.Resources["Hg.DangerSoftHover"] = Brushes.Black;
-                        app.Resources["Hg.WarnSoft"] = Brushes.Black;
-                        app.Resources["Hg.WarnRow"] = Brushes.Black;
-                        app.Resources["Hg.DangerRow"] = Brushes.Black;
-                        app.Resources["Hg.Text"] = Brushes.White;
-                        app.Resources["Hg.Sub"] = Brushes.White;
-                        app.Resources["Hg.Dim"] = Brushes.White;
-                        app.Resources["Hg.S0"] = Brushes.Black;
-                        app.Resources["Hg.S1"] = Brushes.White;
-                        app.Resources["Hg.S2"] = Brushes.Yellow;
-                        app.Resources["Hg.Focus"] = Brushes.Yellow;
-                        app.Resources["Hg.Teal"] = Brushes.Cyan;
-                        app.Resources["Hg.Sky"] = Brushes.Cyan;
-                        app.Resources["Hg.Green"] = Brushes.Lime;
-                        app.Resources["Hg.Blue"] = Brushes.Cyan;
-                        app.Resources["Hg.Danger2"] = Brushes.White;
-                        app.Resources["Hg.OnDanger"] = Brushes.Black;
-                        app.Resources["Hg.OnSel"] = Brushes.Black;
-                        app.Resources["Hg.Sel"] = Brushes.Cyan;
-                    }
+                    using var previewTheme = new ThemeManager();
+                    previewTheme.Apply(item.Theme);
 
                     using var client = new HostsServiceClient(NamedPipeChannel.Create(
                         SessionToken.Generate(), $"hg-matrix-{item.State}"));
@@ -626,7 +645,7 @@ public sealed class WpfSmokeTests
                         AssertTabAccessible(window, tab, label);
                         AssertLiveStatusReadouts(window, tab, label);
                         AssertLogicalFocus(window, tab, label);
-                        if (item.Theme == "HighContrast")
+                        if (item.Theme.StartsWith("contrast-", StringComparison.Ordinal))
                         {
                             AssertVisibleControlContrast(window, tab, label);
                         }
@@ -661,7 +680,7 @@ public sealed class WpfSmokeTests
                         {
                             cards[cardIndex].BringIntoView();
                             window.UpdateLayout();
-                            var toolsId = $"tools-card-{cardIndex}";
+                            var toolsId = $"{item.Theme}-tools-card-{cardIndex}";
                             nestedCaptureIds.Add(toolsId).Should().BeTrue();
                             AssertRenderedPixels((FrameworkElement)window.Content, item, toolsId);
                         }
@@ -670,7 +689,7 @@ public sealed class WpfSmokeTests
                     var baseBrush = ((SolidColorBrush)app.Resources["Hg.Base"]).Color;
                     var textBrush = ((SolidColorBrush)app.Resources["Hg.Text"]).Color;
                     ContrastRatio(baseBrush, textBrush).Should().BeGreaterThanOrEqualTo(
-                        item.Theme == "HighContrast" ? 7 : 4.5,
+                        item.Theme.StartsWith("contrast-", StringComparison.Ordinal) ? 7 : 4.5,
                         $"{item.Theme} primary text must remain readable");
                     window.CloseForSmoke();
                 }
@@ -752,20 +771,30 @@ public sealed class WpfSmokeTests
     private static void AssertVisibleControlContrast(Window window, int tabIndex, string label)
     {
         var failures = new List<string>();
-        foreach (var control in Descendants<Control>(window).Where(control =>
-                     control.IsVisible && control.IsEnabled && control is Button or TextBox or ComboBox))
+        foreach (var element in Descendants<FrameworkElement>(window).Where(element =>
+                     element.IsVisible && element.IsEnabled &&
+                     (element is Button or TextBox or ComboBox || element is TextBlock { Text.Length: > 0 })))
         {
-            if (control.Foreground is not SolidColorBrush foreground ||
-                ResolveVisibleBackground(control) is not SolidColorBrush background)
+            var foregroundBrush = element switch
             {
-                failures.Add($"{control.GetType().Name}: unresolved solid foreground/background");
+                Control control => control.Foreground,
+                TextBlock text => text.Foreground,
+                _ => null,
+            };
+            if (foregroundBrush is not SolidColorBrush foreground ||
+                ResolveVisibleBackground(element) is not SolidColorBrush background)
+            {
+                failures.Add($"{element.GetType().Name}: unresolved solid foreground/background");
                 continue;
             }
 
             var ratio = ContrastRatio(foreground.Color, background.Color);
             if (ratio < 4.5)
             {
-                failures.Add($"{control.GetType().Name}: {ratio:F2}:1 ({foreground.Color} on {background.Color})");
+                var identity = element is ContentControl content
+                    ? content.Content?.ToString()
+                    : element is TextBlock text ? text.Text : System.Windows.Automation.AutomationProperties.GetName(element);
+                failures.Add($"{element.GetType().Name} '{identity}': {ratio:F2}:1 ({foreground.Color} on {background.Color}; backgrounds {DescribeBackgroundPath(element)}; foregrounds {DescribeForegroundPath(element)})");
             }
         }
 
@@ -789,6 +818,45 @@ public sealed class WpfSmokeTests
             }
         }
         return null;
+    }
+
+    private static string DescribeBackgroundPath(DependencyObject element)
+    {
+        var owners = new List<string>();
+        for (var current = element; current is not null && owners.Count < 4; current = VisualTreeHelper.GetParent(current))
+        {
+            var brush = current switch
+            {
+                Control control => control.Background,
+                Panel panel => panel.Background,
+                Border border => border.Background,
+                _ => null,
+            };
+            if (brush is SolidColorBrush { Color.A: > 0 } solid)
+            {
+                owners.Add($"{current.GetType().Name}={solid.Color}");
+            }
+        }
+        return string.Join(" <- ", owners);
+    }
+
+    private static string DescribeForegroundPath(DependencyObject element)
+    {
+        var owners = new List<string>();
+        for (var current = element; current is not null && owners.Count < 5; current = VisualTreeHelper.GetParent(current))
+        {
+            var brush = current switch
+            {
+                TextBlock text => text.Foreground,
+                Control control => control.Foreground,
+                _ => null,
+            };
+            if (brush is SolidColorBrush solid)
+            {
+                owners.Add($"{current.GetType().Name}={solid.Color}");
+            }
+        }
+        return string.Join(" <- ", owners);
     }
 
     private static double ContrastRatio(Color first, Color second)

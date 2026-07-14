@@ -20,6 +20,7 @@
     <SolidColorBrush x:Key="Hg.Text" Color="#F3F7FA" />
     <SolidColorBrush x:Key="Hg.Sub" Color="#C1CBD5" />
     <SolidColorBrush x:Key="Hg.Dim" Color="#8797A7" />
+    <SolidColorBrush x:Key="Hg.Disabled" Color="#8797A7" />
     <SolidColorBrush x:Key="Hg.Blue" Color="#72B7FF" />
     <SolidColorBrush x:Key="Hg.AccentHover" Color="#95C9FF" />
     <SolidColorBrush x:Key="Hg.Green" Color="#8BDD8D" />
@@ -45,6 +46,8 @@
     <!-- sel = rgba(119,167,255,0.16) -->
     <SolidColorBrush x:Key="Hg.Sel" Color="#367FB4FF" />
     <SolidColorBrush x:Key="Hg.OnSel" Color="#071019" />
+    <SolidColorBrush x:Key="Hg.RowSelected" Color="#367FB4FF" />
+    <SolidColorBrush x:Key="Hg.OnRowSelected" Color="#071019" />
 
     <!-- chart series accents (timeline / sparklines) -->
     <SolidColorBrush x:Key="Hg.Series0" Color="#72B7FF" />

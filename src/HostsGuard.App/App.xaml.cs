@@ -46,7 +46,9 @@ public partial class App : Application
         // resolves at load time, so a language change applies on next launch (NET-098).
         ApplyCulture(uiSmoke.LocaleOverride ?? config.Language);
         var theme = uiSmoke.ThemeOverride ?? config.Theme;
-        _provider.GetRequiredService<ThemeManager>().Apply(theme);
+        var themeManager = _provider.GetRequiredService<ThemeManager>();
+        themeManager.Apply(theme);
+        themeManager.StartWatching();
 
         var main = _provider.GetRequiredService<MainViewModel>();
         if (uiSmoke.ThemeOverride is not null)
@@ -128,8 +130,10 @@ public partial class App : Application
 
                 if (arg.StartsWith("--theme=", StringComparison.OrdinalIgnoreCase))
                 {
-                    var value = arg["--theme=".Length..].Trim();
-                    theme = string.Equals(value, "light", StringComparison.OrdinalIgnoreCase) ? "light" : "dark";
+                    var value = arg["--theme=".Length..].Trim().ToLowerInvariant();
+                    theme = value is "light" or "contrast-aquatic" or "contrast-desert" or "contrast-dusk" or "contrast-night-sky"
+                        ? value
+                        : "dark";
                     continue;
                 }
 
