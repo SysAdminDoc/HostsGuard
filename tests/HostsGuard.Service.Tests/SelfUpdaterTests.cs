@@ -18,6 +18,7 @@ namespace HostsGuard.Service.Tests;
 public sealed class SelfUpdaterTests : IDisposable
 {
     private const string FeedUrl = "https://api.github.com/repos/SysAdminDoc/HostsGuard/releases/latest";
+    private const string AssetName = "HostsGuard-v9.9.9-win-x64-dotnet-Setup.exe";
     private const string AssetUrl = "https://github.com/SysAdminDoc/HostsGuard/releases/download/v9.9.9/HostsGuard-v9.9.9-win-x64-dotnet-Setup.exe";
 
     private static readonly byte[] Installer = Encoding.UTF8.GetBytes("fake installer payload");
@@ -51,6 +52,13 @@ public sealed class SelfUpdaterTests : IDisposable
             }
             """;
         _fetcher.BinaryResponses[AssetUrl] = Installer;
+    }
+
+    private string WriteLocalInstaller(byte[]? bytes = null, string fileName = AssetName)
+    {
+        var local = Path.Combine(_dir, fileName);
+        File.WriteAllBytes(local, bytes ?? Installer);
+        return local;
     }
 
     [Fact]
@@ -183,37 +191,109 @@ public sealed class SelfUpdaterTests : IDisposable
         => SelfUpdater.IsSafeAssetName(name).Should().Be(expected);
 
     [Fact]
-    public void Local_staging_rejects_an_expected_hash_mismatch()
+    public async Task Local_staging_rejects_a_caller_hash_that_differs_from_the_feed()
     {
-        var local = Path.Combine(_dir, "local-setup.exe");
-        File.WriteAllBytes(local, Installer);
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = WriteLocalInstaller();
 
-        var outcome = _updater.StageLocal(local, new string('b', 64));
+        var outcome = await _updater.StageLocalAsync(local, new string('b', 64));
 
         outcome.Ok.Should().BeFalse();
         outcome.Message.Should().Contain("REJECTED");
+        outcome.Message.Should().Contain("release metadata");
         _updater.Staged.Should().BeNull();
     }
 
     [Fact]
-    public void Local_staging_records_the_computed_hash()
+    public async Task Local_staging_records_the_feed_version_and_verified_hash()
     {
-        var local = Path.Combine(_dir, "local-setup.exe");
-        File.WriteAllBytes(local, Installer);
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = WriteLocalInstaller();
 
-        var outcome = _updater.StageLocal(local, InstallerHash);
+        var outcome = await _updater.StageLocalAsync(local, InstallerHash);
 
         outcome.Ok.Should().BeTrue();
         _updater.Staged!.Sha256.Should().Be(InstallerHash);
-        _updater.Staged.Version.Should().Be("(local)");
+        _updater.Staged.Version.Should().Be("v9.9.9");
+        _updater.Staged.InstallerPath.Should().EndWith(AssetName);
+        File.ReadAllBytes(_updater.Staged.InstallerPath).Should().Equal(Installer);
     }
 
     [Fact]
-    public void Apply_on_start_launches_a_newer_staged_installer_once()
+    public async Task Local_staging_fails_closed_without_release_metadata()
     {
-        var local = Path.Combine(_dir, "HostsGuard-v9.9.9-Setup.exe");
-        File.WriteAllBytes(local, Installer);
-        _updater.StageLocal(local).Ok.Should().BeTrue();
+        var local = WriteLocalInstaller();
+
+        var outcome = await _updater.StageLocalAsync(local);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("no fake response");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Local_staging_rejects_a_different_file_name()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = WriteLocalInstaller(fileName: "renamed-setup.exe");
+
+        var outcome = await _updater.StageLocalAsync(local);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain($"must be named {AssetName}");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Local_staging_rejects_bytes_that_do_not_match_the_feed()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = WriteLocalInstaller(Encoding.UTF8.GetBytes("different installer"));
+
+        var outcome = await _updater.StageLocalAsync(local);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("release metadata pins");
+        _updater.Staged.Should().BeNull();
+        Directory.GetFiles(Path.Combine(_dir, "updates"), "*.tmp").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Local_staging_rejects_an_oversized_file_before_copying()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = Path.Combine(_dir, AssetName);
+        using (var stream = new FileStream(local, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            stream.SetLength((long)SelfUpdater.MaxInstallerBytes + 1);
+        }
+
+        var outcome = await _updater.StageLocalAsync(local);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("limit is");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Local_staging_rejects_a_stale_release()
+    {
+        ServeFeed("v0.9.0", InstallerHash);
+        var local = WriteLocalInstaller(fileName: "HostsGuard-v0.9.0-win-x64-dotnet-Setup.exe");
+
+        var outcome = await _updater.StageLocalAsync(local);
+
+        outcome.Ok.Should().BeFalse();
+        outcome.Message.Should().Contain("is not older");
+        _updater.Staged.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Apply_on_start_launches_a_feed_verified_local_copy_once()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        var local = WriteLocalInstaller();
+        (await _updater.StageLocalAsync(local)).Ok.Should().BeTrue();
 
         var launched = new List<string>();
         var first = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, p => { launched.Add(p); return true; });

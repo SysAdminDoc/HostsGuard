@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.108] - 2026-07-14
+
+### Security
+- Local update staging now fails closed unless the caller-supplied installer's
+  exact release name, architecture, newer version, and streamed SHA-256 match the
+  GitHub release feed. An optional caller hash is only an additional assertion;
+  it can no longer act as the trust anchor for an arbitrary executable later
+  launched by the LocalSystem service. Oversized, stale, renamed, mismatched, and
+  feed-unavailable inputs leave no new pending update.
+
 ## [0.12.107] - 2026-07-14
 
 ### Fixed

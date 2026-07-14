@@ -157,7 +157,7 @@ static int Usage()
           HostsGuard.Cli ip-blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli update [check|stage]
-          HostsGuard.Cli update stage --path <installer.exe> [--sha256 <hash>]
+          HostsGuard.Cli update stage --path <feed-matching-installer.exe> [--sha256 <hash>]
           HostsGuard.Cli safe-posture
           HostsGuard.Cli safe-posture-smoke
           HostsGuard.Cli release-smoke

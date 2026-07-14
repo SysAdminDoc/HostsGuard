@@ -26,7 +26,7 @@ public sealed class SelfUpdater
     public const string DefaultFeedUrl = "https://api.github.com/repos/SysAdminDoc/HostsGuard/releases/latest";
 
     /// <summary>Installer download ceiling; the win-x64 setup is ~80 MB today.</summary>
-    private const int MaxInstallerBytes = 300_000_000;
+    internal const int MaxInstallerBytes = 300_000_000;
 
     // AllowDuplicateProperties=false hardens parsing of the (remote, untrusted)
     // release feed and the on-disk manifest against duplicate-key smuggling.
@@ -120,21 +120,10 @@ public sealed class SelfUpdater
                 return new UpdateOutcome(true, $"already up to date ({_installedVersion}); nothing staged", version);
             }
 
-            var wanted = $"win-{_assetArch}-dotnet-Setup.exe";
-            var asset = assets.FirstOrDefault(a => a.Name.EndsWith(wanted, StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException($"release {version} has no *{wanted} asset");
+            var asset = SelectInstallerAsset(version, assets);
             if (asset.Url.Length == 0)
             {
                 throw new InvalidOperationException($"asset {asset.Name} has no download URL");
-            }
-
-            // Defense-in-depth: asset.Name comes from the release-feed JSON and is
-            // used to build a path this service later executes as LocalSystem. The
-            // SHA-256 pin constrains content, not write location — so refuse any
-            // name that isn't a plain file name (path separators / "..").
-            if (!IsSafeAssetName(asset.Name))
-            {
-                throw new InvalidOperationException($"refusing asset with an unsafe name: {asset.Name}");
             }
 
             var pinned = NormalizeSha256(asset.Digest)
@@ -170,39 +159,99 @@ public sealed class SelfUpdater
     }
 
     /// <summary>
-    /// Offline path: stage a local installer file. When <paramref name="expectedSha256"/>
-    /// is provided the file must match it; either way the staged hash is recorded.
+    /// Stage a caller-supplied local copy of the release installer. The GitHub
+    /// release feed remains the authority: name, architecture, newer version,
+    /// and SHA-256 must all match its selected asset. <paramref name="expectedSha256"/>
+    /// is only an optional additional assertion; it never authorizes content.
     /// </summary>
-    public UpdateOutcome StageLocal(string localPath, string? expectedSha256 = null)
+    public async Task<UpdateOutcome> StageLocalAsync(
+        string localPath,
+        string? expectedSha256 = null,
+        CancellationToken ct = default)
     {
+        string? temporaryPath = null;
         try
         {
+            var (version, assets) = await FetchFeedAsync(ct);
+            if (CompareVersions(_installedVersion, version) >= 0)
+            {
+                return new UpdateOutcome(false,
+                    $"refusing local installer for {version}: installed {_installedVersion} is not older");
+            }
+
+            var asset = SelectInstallerAsset(version, assets);
+            var pinned = NormalizeSha256(asset.Digest)
+                ?? throw new InvalidOperationException(
+                    $"the release feed pins no sha256 digest for {asset.Name} — refusing to stage an unverifiable installer");
+
+            var supplied = (expectedSha256 ?? string.Empty).Trim();
+            if (supplied.Length != 0)
+            {
+                var normalizedSupplied = NormalizeSha256(supplied);
+                if (normalizedSupplied is null)
+                {
+                    return new UpdateOutcome(false, "REJECTED: --sha256 must be a 64-digit SHA-256 value");
+                }
+
+                if (!string.Equals(normalizedSupplied, pinned, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new UpdateOutcome(false,
+                        $"REJECTED: caller hash {normalizedSupplied} does not match release metadata {pinned}");
+                }
+            }
+
+            if (!string.Equals(Path.GetFileName(localPath), asset.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return new UpdateOutcome(false,
+                    $"REJECTED: local file must be named {asset.Name} for release {version}");
+            }
+
             if (!File.Exists(localPath))
             {
                 return new UpdateOutcome(false, $"installer not found: {localPath}");
             }
 
-            var bytes = File.ReadAllBytes(localPath);
-            var actual = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-            var expected = NormalizeSha256(expectedSha256);
-            if (expected is not null && !string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            var length = new FileInfo(localPath).Length;
+            if (length > MaxInstallerBytes)
             {
-                return new UpdateOutcome(false, $"REJECTED: {Path.GetFileName(localPath)} hashes {actual} but you pinned {expected}");
+                return new UpdateOutcome(false,
+                    $"REJECTED: local installer is {length:N0} bytes; limit is {MaxInstallerBytes:N0}");
             }
 
             Directory.CreateDirectory(_updatesDir);
-            var installerPath = Path.Combine(_updatesDir, Path.GetFileName(localPath));
-            File.Copy(localPath, installerPath, overwrite: true);
-            WriteManifest(new PendingUpdate("(local)", actual, installerPath,
+            temporaryPath = Path.Combine(_updatesDir, $".{Guid.NewGuid():N}.tmp");
+            var actual = await CopyAndHashBoundedAsync(localPath, temporaryPath, ct);
+            if (!string.Equals(actual, pinned, StringComparison.OrdinalIgnoreCase))
+            {
+                _db.LogEvent("self_update", "update_hash_mismatch",
+                    details: $"local {asset.Name}: release pinned {pinned}, selected file {actual}", reason: "self_update");
+                return new UpdateOutcome(false,
+                    $"REJECTED: {asset.Name} hashes {actual} but release metadata pins {pinned}");
+            }
+
+            var installerPath = Path.Combine(_updatesDir, asset.Name);
+            File.Move(temporaryPath, installerPath, overwrite: true);
+            temporaryPath = null;
+            WriteManifest(new PendingUpdate(version, actual, installerPath,
                 DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
             _db.LogEvent("self_update", "update_staged",
-                details: $"local {Path.GetFileName(localPath)} (sha256 {actual}) — applies on next service restart",
+                details: $"local copy of {asset.Name} ({length:N0} bytes, feed-verified sha256 {actual}) — applies on next service restart",
                 reason: "self_update");
-            return new UpdateOutcome(true, $"staged local installer (sha256 {actual}) — applies on the next service restart");
+            return new UpdateOutcome(true,
+                $"staged local copy of {version} (feed-verified sha256 {actual}) — applies on the next service restart",
+                version, true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or InvalidOperationException or
+            OperationCanceledException or IOException or JsonException or UnauthorizedAccessException)
         {
             return new UpdateOutcome(false, $"stage failed: {ex.Message}");
+        }
+        finally
+        {
+            if (temporaryPath is not null)
+            {
+                TryDelete(temporaryPath);
+            }
         }
     }
 
@@ -300,6 +349,63 @@ public sealed class SelfUpdater
             .Select(a => new FeedAsset(a.Name!.Trim(), (a.Digest ?? string.Empty).Trim(), (a.BrowserDownloadUrl ?? string.Empty).Trim()))
             .ToList();
         return (version, assets);
+    }
+
+    private FeedAsset SelectInstallerAsset(string version, IReadOnlyList<FeedAsset> assets)
+    {
+        var wanted = $"win-{_assetArch}-dotnet-Setup.exe";
+        var asset = assets.FirstOrDefault(a => a.Name.EndsWith(wanted, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"release {version} has no *{wanted} asset");
+
+        // The selected feed name becomes a LocalSystem-executed path. The digest
+        // constrains content, not location, so accept a plain file name only.
+        if (!IsSafeAssetName(asset.Name))
+        {
+            throw new InvalidOperationException($"refusing asset with an unsafe name: {asset.Name}");
+        }
+
+        return asset;
+    }
+
+    private static async Task<string> CopyAndHashBoundedAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken ct)
+    {
+        const int BufferBytes = 128 * 1024;
+        var buffer = new byte[BufferBytes];
+        long total = 0;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        await using (var source = new FileStream(
+            sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferBytes,
+            FileOptions.Asynchronous | FileOptions.SequentialScan))
+        await using (var destination = new FileStream(
+            destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, BufferBytes,
+            FileOptions.Asynchronous | FileOptions.SequentialScan))
+        {
+            while (true)
+            {
+                var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), ct);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                total += read;
+                if (total > MaxInstallerBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"local installer exceeds the {MaxInstallerBytes:N0}-byte limit");
+                }
+
+                hash.AppendData(buffer, 0, read);
+                await destination.WriteAsync(buffer.AsMemory(0, read), ct);
+            }
+
+            await destination.FlushAsync(ct);
+        }
+
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     /// <summary>Accepts "sha256:HEX" (GitHub digest form) or bare hex; null when absent/invalid.</summary>

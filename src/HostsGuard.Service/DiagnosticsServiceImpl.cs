@@ -134,7 +134,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
 
         var localPath = (request.LocalPath ?? string.Empty).Trim();
         var outcome = localPath.Length != 0
-            ? updater.StageLocal(localPath, request.Sha256)
+            ? await updater.StageLocalAsync(localPath, request.Sha256, context.CancellationToken)
             : await updater.StageAsync(context.CancellationToken);
         return new Ack
         {

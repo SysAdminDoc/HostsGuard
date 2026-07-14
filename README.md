@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.107-blue)
+![Version](https://img.shields.io/badge/version-0.12.108-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -204,12 +204,15 @@ HostsGuard.Cli dns-cache [--limit N] [--search text]
 HostsGuard.Cli dns-flush-entry <cached-name>
 HostsGuard.Cli blocklists [list|stats|refresh|preview|import|disable|enable|remove|rollback]
 HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
+HostsGuard.Cli update check
+HostsGuard.Cli update stage
+HostsGuard.Cli update stage --path <feed-matching-installer.exe> [--sha256 <hash>]
 HostsGuard.Cli safe-posture
 HostsGuard.Cli safe-posture-smoke
 HostsGuard.Cli release-smoke
 ```
 
-The CLI talks to the service over the same authenticated pipe contract as the app, so it works unelevated too.
+The CLI talks to the service over the same authenticated pipe contract as the app, so it works unelevated too. Local update staging is an online-assisted path: the supplied file name, architecture, newer version, and streamed SHA-256 must match the current GitHub release metadata; `--sha256` is only an additional assertion and cannot authorize another executable.
 
 ## Data locations
 
