@@ -1,6 +1,9 @@
 using System.Runtime.Versioning;
+using System.Security.Cryptography;
+using System.Text.Json;
 using FluentAssertions;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
 using Microsoft.Data.Sqlite;
@@ -79,6 +82,47 @@ public sealed class SettingsLockTests : IDisposable
         reloaded.Enabled.Should().BeTrue();
         reloaded.IsLocked(DateTime.UtcNow).Should().BeTrue();  // timed-unlock is not persisted
         reloaded.Unlock("persist1", 1, DateTime.UtcNow).Ok.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Successful_unlock_upgrades_a_legacy_hash_on_disk()
+    {
+        const string password = "legacy-password";
+        var salt = Enumerable.Range(0, 16).Select(i => (byte)i).ToArray();
+        var hash = Rfc2898DeriveBytes.Pbkdf2(
+            password,
+            salt,
+            PasswordHash.MinimumAcceptedIterations,
+            HashAlgorithmName.SHA256,
+            32);
+        var legacy = $"pbkdf2_sha256${PasswordHash.MinimumAcceptedIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+        File.WriteAllText(
+            Path.Combine(_dir, "lock_state.json"),
+            JsonSerializer.Serialize(new { Enabled = true, Hash = legacy }));
+        var loaded = new SettingsLock(_dir);
+
+        loaded.Unlock(password, 5, DateTime.UtcNow).Ok.Should().BeTrue();
+
+        using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(_dir, "lock_state.json")));
+        var upgraded = document.RootElement.GetProperty("Hash").GetString();
+        upgraded.Should().StartWith($"pbkdf2_sha256${PasswordHash.Iterations}$");
+        upgraded.Should().NotBe(legacy);
+        PasswordHash.Verify(password, upgraded, out var needsRehash).Should().BeTrue();
+        needsRehash.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Wrong_password_does_not_upgrade_a_legacy_hash()
+    {
+        const string legacy = "pbkdf2_sha256$210000$AAECAwQFBgcICQoLDA0ODw==$dwuexifK4Fe/1NquYoJuiWZKOFaR+Cy7JI8GAbc+U/4=";
+        var path = Path.Combine(_dir, "lock_state.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(new { Enabled = true, Hash = legacy }));
+        var loaded = new SettingsLock(_dir);
+
+        loaded.Unlock("wrong-password", 5, DateTime.UtcNow).Ok.Should().BeFalse();
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        document.RootElement.GetProperty("Hash").GetString().Should().Be(legacy);
     }
 
     [Fact]

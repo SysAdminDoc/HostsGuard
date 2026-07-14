@@ -98,9 +98,15 @@ public sealed class SettingsLock
                 return (true, "settings lock is not armed");
             }
 
-            if (!PasswordHash.Verify(password, _state.Hash))
+            if (!PasswordHash.Verify(password, _state.Hash, out var needsRehash))
             {
                 return (false, "incorrect password");
+            }
+
+            if (needsRehash)
+            {
+                _state.Hash = PasswordHash.Hash(password);
+                Save();
             }
 
             var window = TimeSpan.FromMinutes(Math.Clamp(minutes <= 0 ? 1 : minutes, 1, 240));
@@ -125,9 +131,15 @@ public sealed class SettingsLock
     /// </summary>
     public void ImportState(bool enabled, string hash)
     {
+        hash ??= string.Empty;
+        if ((enabled || hash.Length != 0) && !PasswordHash.IsValidEncoding(hash))
+        {
+            throw new ArgumentException("settings-lock hash encoding is not supported", nameof(hash));
+        }
+
         lock (_gate)
         {
-            _state = new State { Enabled = enabled, Hash = hash ?? string.Empty };
+            _state = new State { Enabled = enabled, Hash = hash };
             _unlockedUntilUtc = DateTime.MinValue;
             Save();
         }
@@ -146,7 +158,14 @@ public sealed class SettingsLock
         {
             if (File.Exists(_statePath))
             {
-                return JsonSerializer.Deserialize<State>(File.ReadAllText(_statePath)) ?? new State();
+                var state = JsonSerializer.Deserialize<State>(File.ReadAllText(_statePath)) ?? new State();
+                state.Hash ??= string.Empty;
+                if ((state.Enabled || state.Hash.Length != 0) && !PasswordHash.IsValidEncoding(state.Hash))
+                {
+                    return new State();
+                }
+
+                return state;
             }
         }
         catch (Exception ex) when (ex is IOException or JsonException)

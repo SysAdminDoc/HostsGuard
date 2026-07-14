@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.112] - 2026-07-14
+
+### Security
+- New settings-lock passwords now use 600,000 PBKDF2-HMAC-SHA256 iterations.
+  A successful unlock transparently replaces legacy 210,000-iteration hashes.
+- Persisted and portable-policy lock hashes now require the known encoding,
+  210,000–600,000 iterations, a 16-byte salt, and a 32-byte output. Oversized
+  or attacker-selected work/output parameters are rejected before policy
+  checkpoints or machine-state mutation.
+
 ## [0.12.111] - 2026-07-14
 
 ### Fixed

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.111-blue)
+![Version](https://img.shields.io/badge/version-0.12.112-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -147,7 +147,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets and auto-activate them with conjunctive gateway MAC, Wi-Fi SSID, interface, DNS suffix, VPN-presence, or legacy fingerprint rules; deterministic specificity precedence and portable-policy round trips preserve existing mappings |
 | Captive portal recovery | Run a bounded read-only Windows NCSI check with redirects disabled and sanitized evidence; a suspected portal explicitly enables the existing 5/15/60-minute enforcement pause, which auto-resumes and is never activated by detection alone |
-| Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; one-click hosts-file write protection |
+| Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; 600,000-iteration PBKDF2-SHA256 hashes with automatic legacy-hash upgrade; one-click hosts-file write protection |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector plus timed 5/15/60 minute enforcement pause with auto-resume (no restart) |
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
@@ -227,7 +227,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1601 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1610 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

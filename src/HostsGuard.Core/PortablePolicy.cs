@@ -103,6 +103,15 @@ public sealed class PortablePolicy
         policy.Schedules ??= new();
         policy.Profiles ??= new();
         policy.Lock ??= new();
+        policy.Lock.Hash ??= string.Empty;
+        if ((policy.Lock.Enabled || policy.Lock.Hash.Length != 0) &&
+            !PasswordHash.IsValidEncoding(policy.Lock.Hash))
+        {
+            throw new ArgumentException(
+                "settings-lock hash must use the supported PBKDF2-SHA256 format and work-factor bounds",
+                nameof(json));
+        }
+
         policy.NetworkProfiles ??= new();
         policy.NetworkProfiles.RemoveAll(network => network is null);
         foreach (var network in policy.NetworkProfiles)
