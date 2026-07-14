@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.124] - 2026-07-14
+
+### Changed
+- Direct Microsoft runtime, data, dependency-injection, and Windows packages
+  now share the 10.0.10 servicing baseline.
+- All eight test projects now use `Microsoft.NET.Test.Sdk` 18.8.1; dependency
+  hygiene reports no vulnerable or outdated direct packages.
+
 ## [0.12.123] - 2026-07-14
 
 ### Added

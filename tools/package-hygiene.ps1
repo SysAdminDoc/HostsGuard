@@ -32,11 +32,11 @@ $deferredTransitive = @{
         -Revisit "Upgrade when TraceEvent ships a newer dependency graph or this package receives a CVE."
     "Microsoft.Extensions.DependencyInjection" = New-TransitiveDeferral `
         -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
-        -Reason "TraceEvent still carries the Microsoft.Extensions 6.x graph; HostsGuard-owned DI references are pinned directly to 10.0.9." `
+        -Reason "TraceEvent still carries the Microsoft.Extensions 6.x graph; HostsGuard-owned DI references are pinned directly to 10.0.10." `
         -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions or a vulnerability requires direct override."
     "Microsoft.Extensions.DependencyInjection.Abstractions" = New-TransitiveDeferral `
         -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4 / Grpc.Net.Client 2.80.0 / Hardcodet.NotifyIcon.Wpf 2.0.1" `
-        -Reason "Multiple supported packages own this abstraction transitively; HostsGuard-owned Microsoft.Extensions references are pinned directly to 10.0.9." `
+        -Reason "Multiple supported packages own this abstraction transitively; HostsGuard-owned Microsoft.Extensions references are pinned directly to 10.0.10." `
         -Revisit "Upgrade when owning packages lift the abstraction or a vulnerability requires direct override."
     "Microsoft.Extensions.Logging" = New-TransitiveDeferral `
         -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
@@ -44,7 +44,7 @@ $deferredTransitive = @{
         -Revisit "Upgrade when TraceEvent lifts Microsoft.Extensions.Logging or a vulnerability appears."
     "Microsoft.Extensions.Logging.Abstractions" = New-TransitiveDeferral `
         -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4 / Grpc.Net.Client 2.80.0 / Hardcodet.NotifyIcon.Wpf 2.0.1" `
-        -Reason "The app/service-owned Microsoft.Extensions references are already pinned to 10.0.9; remaining drift is dependency-owned." `
+        -Reason "The app/service-owned Microsoft.Extensions references are already pinned to 10.0.10; remaining drift is dependency-owned." `
         -Revisit "Upgrade when owning packages lift the abstraction or a vulnerability appears."
     "Microsoft.Extensions.Options" = New-TransitiveDeferral `
         -Owner "Microsoft.Diagnostics.Tracing.TraceEvent 3.2.4" `
