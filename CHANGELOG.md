@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.109] - 2026-07-14
+
+### Fixed
+- The documented Python-profile migrator now ships as a matching-version,
+  self-contained x64/ARM64 artifact and is included under the installer's
+  `migrator` directory. Publishing runs the actual packaged executable against a
+  legacy SQLite/config fixture and proves `--dry-run` reports two domains and
+  expected config state without creating the target directory.
+- Migration previews now count legacy database domains through a read-only
+  connection instead of incorrectly reporting zero.
+
+### Changed
+- The release gate now rejects missing or stale-version migrator artifacts and
+  rejects an installer definition that omits the runtime-specific migrator.
+
 ## [0.12.108] - 2026-07-14
 
 ### Security

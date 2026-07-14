@@ -19,8 +19,8 @@
 #endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.108"
-#define MyAppVersionInfo "0.12.108.0"
+#define MyAppVersion "0.12.109"
+#define MyAppVersionInfo "0.12.109.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
@@ -58,6 +58,7 @@ VersionInfoProductVersion={#MyAppVersion}
 Source: "dist\dotnet\{#TargetRid}\service\*"; DestDir: "{app}\service"; Flags: ignoreversion recursesubdirs
 Source: "dist\dotnet\{#TargetRid}\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "dist\dotnet\{#TargetRid}\cli\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs
+Source: "dist\dotnet\{#TargetRid}\migrator\*"; DestDir: "{app}\migrator"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\HostsGuard"; Filename: "{app}\HostsGuard.App.exe"

@@ -170,6 +170,9 @@ if ($iss -notmatch "#define\s+MyAppVersion\s+`"$([regex]::Escape($version))`"") 
 if ($iss -notmatch "#define\s+MyAppVersionInfo\s+`"$([regex]::Escape($version))\.0`"") {
     Add-Error "installer-dotnet.iss MyAppVersionInfo does not match $version.0"
 }
+if (-not $iss.Contains('Source: "dist\dotnet\{#TargetRid}\migrator\*"; DestDir: "{app}\migrator"')) {
+    Add-Error 'installer-dotnet.iss does not package the runtime-specific migrator'
+}
 
 Require-Contains 'README.md' "version-$version-blue" 'README badge'
 $readme = Read-Text 'README.md'
@@ -219,6 +222,19 @@ foreach ($rid in @('win-x64', 'win-arm64')) {
     }
     elseif ($RequireArtifacts) {
         Add-Error "required artifact missing: $artifact"
+    }
+
+    if ($RequireArtifacts) {
+        $migrator = Join-Path $repo "dist\dotnet\$rid\migrator\HostsGuard.Migrator.exe"
+        if (-not (Test-Path -LiteralPath $migrator)) {
+            Add-Error "required migrator artifact missing: $migrator"
+        }
+        else {
+            $migratorVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($migrator).FileVersion
+            if (-not (Version-Matches $migratorVersion $version)) {
+                Add-Error "published $rid migrator fileVersion '$migratorVersion' does not match $version"
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HostsGuard.Core;
+using Microsoft.Data.Sqlite;
 
 namespace HostsGuard.Data;
 
@@ -178,7 +179,9 @@ public static class PythonMigration
                 }
             }
 
-            var domainCount = 0;
+            var domainCount = dryRun && File.Exists(sourceDb) && !File.Exists(targetDb)
+                ? CountDomainsReadOnly(sourceDb)
+                : 0;
             if (db is not null)
             {
                 domainCount = db.GetDomains().Count;
@@ -228,5 +231,20 @@ public static class PythonMigration
         {
             db?.Dispose();
         }
+    }
+
+    private static int CountDomainsReadOnly(string databasePath)
+    {
+        var builder = new SqliteConnectionStringBuilder
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false
+        };
+        using var connection = new SqliteConnection(builder.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM domains";
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
     }
 }

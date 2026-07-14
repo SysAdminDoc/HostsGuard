@@ -23,6 +23,15 @@ public sealed class InstallerScriptTests
         script.Should().Contain("StatusMsg: \"Verifying safe network posture...\"");
     }
 
+    [Fact]
+    public void Installer_packages_the_runtime_specific_migrator()
+    {
+        var script = File.ReadAllText(RepoFile("installer-dotnet.iss"));
+
+        script.Should().Contain(
+            "Source: \"dist\\dotnet\\{#TargetRid}\\migrator\\*\"; DestDir: \"{app}\\migrator\"");
+    }
+
     private static string RepoFile(string name)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

@@ -1,6 +1,6 @@
 # HostsGuard .NET publish pipeline (NET-050 / NET-142).
-# Single-file, self-contained Windows builds of the service, the WPF app, and
-# the CLI into dist\dotnet\<rid>\. Trimming is deliberately OFF (WPF, gRPC
+# Single-file, self-contained Windows builds of the service, WPF app, CLI, and
+# Python-profile migrator into dist\dotnet\<rid>\. Trimming is deliberately OFF (WPF, gRPC
 # codegen, and COM interop depend on reflection the trimmer cannot prove) and so
 # is ReadyToRun (crossgen2 rejects TraceEvent's duplicate Dia2Lib assets; the
 # start-time gain is irrelevant for a long-running service). Run from anywhere;
@@ -33,7 +33,8 @@ if (Test-Path $outRoot) {
 $projects = @(
     @{ Name = 'HostsGuard.Service'; Dir = 'service' },
     @{ Name = 'HostsGuard.App';     Dir = 'app' },
-    @{ Name = 'HostsGuard.Cli';     Dir = 'cli' }
+    @{ Name = 'HostsGuard.Cli';     Dir = 'cli' },
+    @{ Name = 'HostsGuard.Migrator'; Dir = 'migrator' }
 )
 
 function Test-CanRunRuntime([string]$Rid) {
@@ -43,6 +44,53 @@ function Test-CanRunRuntime([string]$Rid) {
     }
 
     return $arch -in @('X64', 'Arm64')
+}
+
+function Invoke-MigratorSmoke([string]$Executable) {
+    $smokeRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("hostsguard-migrator-smoke-" + [guid]::NewGuid().ToString('N'))
+    $source = Join-Path $smokeRoot 'python-profile'
+    $target = Join-Path $smokeRoot 'dotnet-profile'
+    try {
+        New-Item -ItemType Directory -Path $source -Force | Out-Null
+
+        # GZip-compressed minimal Python-era SQLite database with two domains.
+        # Embedded bytes keep the release smoke independent of sqlite3/Python.
+        $databaseGzipBase64 = 'H4sIAAAAAAACCu3YTUvDMBgH8KQT5wStICiygxEPKmxjUzx5sWoVcYrOCu40siXTYNfgmvpyFE9+Lk9+AL+AZz+AR7utviOedhD+P5o0eZqXtrcnhwdlZSRr6naLG7ZExgilZJUxQkgqKW9oXAa+9f+SIoWLuxH7hVijT2T0yX4gAAAAAAAAAH1xI2h6Mpult9OG130pdIurIExu1nrFdTyXec5a2WVJcH6YdfW6zHOPPbZf2d51KlW241ZzLDTcRGHvwYa76RyVPTZX93XjTIq5HGtwI090+7o7IJcsFuqo3ZC9EBPxiBoXQorPgZYWqqneYsm8U2VqDR0Fhm3vee6WW3nfsZhjgTay9x4LeWtw0slSogIhr8JzX3V2iIzu9mvJl9VKSaOT1w91/s5IXCz7htj3cQUAAAAAAAAA/bFqZUqzZGpmZohw39eXhaa6MlFbFuLM3lzG2b/0VWikaPEg4v5icXE5XyzF10drhWby2c4KlHARfpmfnEn8Pjc93M3/H4n9HFcAAAAAAAAA8H9MpEr052GCNZ7KZ76fELwCqOmoUwAwAAA='
+        $compressed = [System.IO.MemoryStream]::new([Convert]::FromBase64String($databaseGzipBase64))
+        $database = [System.IO.File]::Create((Join-Path $source 'hostsguard.db'))
+        try {
+            $gzip = [System.IO.Compression.GZipStream]::new($compressed, [System.IO.Compression.CompressionMode]::Decompress)
+            try { $gzip.CopyTo($database) } finally { $gzip.Dispose() }
+        }
+        finally {
+            $database.Dispose()
+            $compressed.Dispose()
+        }
+
+        Set-Content -LiteralPath (Join-Path $source 'config.json') -Encoding utf8 -Value @'
+{
+  "schedules": [{"target":"fixture.test","days":[1],"start":"09:00","end":"17:00"}],
+  "allowlist_subscriptions": ["https://lists.example/allow.txt"]
+}
+'@
+
+        $output = (& $Executable --source $source --target $target --dry-run 2>&1 | Out-String)
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -ne 0) {
+            throw "migrator --dry-run failed (exit $exitCode): $output"
+        }
+        if ($output -notmatch '(?m)^\s*domains:\s+2\s*$' -or
+            $output -notmatch '(?m)^\s*schedules:\s+1\s*$' -or
+            $output -notmatch '(?m)^\s*allowlist subscriptions:\s*1\s*$') {
+            throw "migrator --dry-run did not report the packaged DB/config fixture: $output"
+        }
+        if (Test-Path -LiteralPath $target) {
+            throw "migrator --dry-run mutated the target directory: $target"
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $smokeRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 foreach ($rid in $runtimeIds) {
@@ -68,6 +116,9 @@ foreach ($rid in $runtimeIds) {
         if ($LASTEXITCODE -ne 0) {
             throw "release-smoke failed for $rid (exit $LASTEXITCODE)"
         }
+
+        Write-Host "migrator --dry-run smoke ($rid):" -ForegroundColor Cyan
+        Invoke-MigratorSmoke (Join-Path $out 'migrator\HostsGuard.Migrator.exe')
     }
     elseif (-not $SkipSmoke) {
         Write-Host "`nrelease-smoke ($rid): skipped on $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture)" -ForegroundColor Yellow

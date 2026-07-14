@@ -102,6 +102,7 @@ public sealed class PythonMigrationTests : IDisposable
 
         var report = PythonMigration.Run(Source, Target, dryRun: true);
 
+        report.Domains.Should().Be(2);
         report.Schedules.Should().Be(1);
         report.TempAllows.Should().Be(1);
         Directory.Exists(Target).Should().BeFalse();

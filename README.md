@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.108-blue)
+![Version](https://img.shields.io/badge/version-0.12.109-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -45,7 +45,7 @@ The elevated logic lives in a LocalSystem service that starts with the OS, so th
 
 ### Migrating from the Python build (v3.x)
 
-`HostsGuard.Migrator.exe` performs a one-shot import of a Python-era profile — `hostsguard.db` (domains, feed, event log, profiles, firewall state), `config.json` (schedules, allowlists, DoH state, learning trust sets), and `doh_resolvers.json` — into the new schema. `HG_` firewall rules are re-discovered live via COM and carry over automatically. The migration is idempotent and supports `--dry-run`.
+The installer includes `%ProgramFiles%\HostsGuard\migrator\HostsGuard.Migrator.exe`, a one-shot import of a Python-era profile — `hostsguard.db` (domains, feed, event log, profiles, firewall state), `config.json` (schedules, allowlists, DoH state, learning trust sets), and `doh_resolvers.json` — into the new schema. `HG_` firewall rules are re-discovered live via COM and carry over automatically. Preview first with `HostsGuard.Migrator.exe --dry-run`; the migration is idempotent.
 
 The final Python build (v3.17.0) is preserved at the [`python-eol`](https://github.com/SysAdminDoc/HostsGuard/releases/tag/python-eol) tag.
 
@@ -227,7 +227,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1522 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1598 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1
@@ -236,7 +236,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.p
                                       # release cut only: also requires current installers + winget hashes
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\visual-smoke.ps1
                                       # offscreen rendered WPF dark/light smoke
-build\publish.ps1 -AllRuntimes       # single-file self-contained win-x64/win-arm64 -> dist\dotnet\<rid>\
+build\publish.ps1 -AllRuntimes       # app/service/CLI/migrator, including packaged dry-run smoke
+                                      # single-file self-contained win-x64/win-arm64 -> dist\dotnet\<rid>\
 winget install --id JRSoftware.InnoSetup -e
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-dotnet.iss
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DTargetRid=win-arm64 /DTargetArchitecturesAllowed=arm64 /DTargetInstallIn64BitMode=arm64 installer-dotnet.iss
