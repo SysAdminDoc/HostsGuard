@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.128] - 2026-07-14
+
+### Fixed
+- Address columns in live firewall activity, consent decisions, listener
+  exposure, connection history, and firewall rules now sort IPv4 numerically
+  and IPv6 by normalized bytes and numeric scope ID.
+- Ascending address order consistently places `Any`, then `LocalSubnet`, then
+  IPv4/IPv6; non-address rule specifications remain visible and sort last.
+
 ## [0.12.127] - 2026-07-14
 
 ### Changed

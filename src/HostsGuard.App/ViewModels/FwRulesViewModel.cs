@@ -26,7 +26,10 @@ public sealed partial class FwRuleViewModel : ObservableObject
     private bool _enabled;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoteAddressSortKey))]
     private string _remoteAddr = string.Empty;
+
+    public NetworkAddressSortKey RemoteAddressSortKey => NetworkAddressSortKey.Create(RemoteAddr);
 
     [ObservableProperty]
     private string _protocol = string.Empty;

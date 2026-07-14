@@ -1842,7 +1842,7 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding Service}" Width="72" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_PID_dde57e82}" Binding="{Binding Pid}" Width="42" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="44" />
-                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" Width="100" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" SortMemberPath="RemoteAddressSortKey" Width="100" />
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Site_5b6825d3}" Binding="{Binding Host}" Width="*" MinWidth="90">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -2195,7 +2195,7 @@
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Dir_84c6b9ac}" Binding="{Binding Direction}" Width="46" />
-                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddress}" Width="*">
+                                        <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddress}" SortMemberPath="RemoteAddressSortKey" Width="*">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -2269,7 +2269,7 @@
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Risk}" Binding="{Binding Risk}" Width="72" />
                                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="54" />
-                                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Endpoint}" Binding="{Binding Endpoint}" Width="138" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Endpoint}" Binding="{Binding Endpoint}" SortMemberPath="AddressSortKey" Width="138" />
                                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="100" />
                                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_PID_dde57e82}" Binding="{Binding Pid}" Width="52" />
                                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding Service}" Width="110" />
@@ -2383,7 +2383,7 @@
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_PID_dde57e82}" Binding="{Binding Pid}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=History_ColumnHost}" Binding="{Binding Host}" Width="150" />
-                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_address_209fa9f4}" Binding="{Binding RemoteAddr}" Width="*" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_address_209fa9f4}" Binding="{Binding RemoteAddr}" SortMemberPath="RemoteAddressSortKey" Width="*" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Port_fe035157}" Binding="{Binding RemotePort}" Width="56" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Country_d523ebbd}" Binding="{Binding Country}" Width="70" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_ASN_b4d90f17}" Binding="{Binding Asn}" Width="160" />
@@ -2765,7 +2765,7 @@
                                  <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Origin}" Width="68" IsReadOnly="True" />
                                  <DataGridTextColumn Header="{svc:Loc Key=FwRules_TargetKind, Default=Kind}" Binding="{Binding TargetKind}" Width="64" IsReadOnly="True" />
                                  <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_On_e0049a66}" Binding="{Binding Enabled}" Width="38" IsReadOnly="True" />
-                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" Width="0.8*" />
+                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" SortMemberPath="RemoteAddressSortKey" Width="0.8*" />
                                  <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="52" />
                                  <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="64" IsReadOnly="True" />
                                  <DataGridTextColumn Header="{svc:Loc Key=FwRules_Target, Default=Target}" Binding="{Binding Target}" Width="1.8*" IsReadOnly="True" />

@@ -16,7 +16,10 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     private int _localPort;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoteAddressSortKey))]
     private string _remoteAddr = string.Empty;
+
+    public NetworkAddressSortKey RemoteAddressSortKey => NetworkAddressSortKey.Create(RemoteAddr);
 
     /// <summary>Site the remote IP was resolved as (ETW DNS); "" when unknown.</summary>
     [ObservableProperty]
@@ -70,7 +73,10 @@ public sealed partial class ListenerExposureRowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Endpoint))]
+    [NotifyPropertyChangedFor(nameof(AddressSortKey))]
     private string _localAddress = string.Empty;
+
+    public NetworkAddressSortKey AddressSortKey => NetworkAddressSortKey.Create(LocalAddress);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Endpoint))]
@@ -134,7 +140,10 @@ public sealed partial class DecisionRowViewModel : ObservableObject
     private string _direction = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoteAddressSortKey))]
     private string _remoteAddress = string.Empty;
+
+    public NetworkAddressSortKey RemoteAddressSortKey => NetworkAddressSortKey.Create(RemoteAddress);
 
     [ObservableProperty]
     private string _protocol = string.Empty;
@@ -241,7 +250,10 @@ public sealed partial class HistoryRowViewModel : ObservableObject
     private string _protocol = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RemoteAddressSortKey))]
     private string _remoteAddr = string.Empty;
+
+    public NetworkAddressSortKey RemoteAddressSortKey => NetworkAddressSortKey.Create(RemoteAddr);
 
     [ObservableProperty]
     private string _host = string.Empty;
