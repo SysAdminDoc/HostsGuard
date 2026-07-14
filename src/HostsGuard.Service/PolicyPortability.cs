@@ -98,8 +98,7 @@ public static class PolicyPortability
             policy.Profiles.Add(profile);
         }
 
-        var (lockEnabled, lockHash) = state.Lock.ExportState();
-        policy.Lock = new PolicyLock { Enabled = lockEnabled, Hash = lockHash };
+        policy.Lock = new PolicyLock { Enabled = state.Lock.Enabled };
 
         foreach (var (fingerprint, profile, label) in state.Db.GetNetworkProfiles())
         {
@@ -255,7 +254,7 @@ public static class PolicyPortability
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(policy);
-        var summary = new List<string>();
+        var summary = new List<string> { LockIntentSummary(policy.Lock) };
         long added = 0;
         long changed = 0;
         long removed = 0;
@@ -360,7 +359,6 @@ public static class PolicyPortability
         }
 
         var postureChanged =
-            policy.Lock is not null ||
             policy.Consent is not null ||
             policy.DnsPrivacy is not null ||
             policy.KillSwitch is not null ||
@@ -387,7 +385,7 @@ public static class PolicyPortability
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(policy);
-        var summary = new List<string>();
+        var summary = new List<string> { LockIntentSummary(policy.Lock) };
 
         // ── Managed domains → reconcile the hosts file to the imported set ──
         foreach (var d in policy.Domains)
@@ -521,8 +519,8 @@ public static class PolicyPortability
         summary.Add($"{policy.Profiles.Count} profiles");
 
         // ── Settings lock ──
-        state.Lock.ImportState(policy.Lock.Enabled, policy.Lock.Hash);
-        summary.Add(policy.Lock.Enabled ? "settings lock armed" : "settings lock disarmed");
+        // Lock credentials are deliberately machine-local. Preserve the local
+        // state and report only the source document's intent.
 
         // ── Network→profile mappings ──
         foreach (var n in policy.NetworkProfiles)
@@ -602,7 +600,7 @@ public static class PolicyPortability
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(policy);
-        var summary = new List<string>();
+        var summary = new List<string> { LockIntentSummary(policy.Lock) };
 
         state.Db.ReplaceDomains(policy.Domains
             .Where(d => !string.IsNullOrWhiteSpace(d.Domain))
@@ -762,6 +760,10 @@ public static class PolicyPortability
             $"{policy.Domains.Count} domains, {policy.Profiles.Count} profiles", reason: "manual");
         return summary;
     }
+
+    private static string LockIntentSummary(PolicyLock policyLock) => policyLock.Enabled
+        ? "settings lock: source intended armed; credential omitted — set a new local password; current lock unchanged"
+        : "settings lock: source intended disarmed; credentials are never portable; current lock unchanged";
 
     private static void ApplyConsent(ServiceState state, PortablePolicy policy, List<string> summary)
     {

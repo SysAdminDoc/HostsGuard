@@ -6,7 +6,7 @@ namespace HostsGuard.Core;
 /// <summary>
 /// A single versioned, portable snapshot of a HostsGuard machine's whole policy
 /// (NET-089): managed domains, HG_ firewall rules, schedules, rule-set profiles,
-/// the settings lock, network→profile mappings, allow/blocklist subscriptions,
+/// settings-lock intent (never its credential), network→profile mappings, allow/blocklist subscriptions,
 /// and non-secret mutable privacy posture. Serializes to one JSON document so a
 /// machine's policy can be backed up and reconstructed on a clean install. Pure
 /// data — no OS deps or secrets — so the service, CLI, and UI all share it.
@@ -75,6 +75,8 @@ public sealed class PortablePolicy
     {
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNameCaseInsensitive = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
     public string ToJson() => JsonSerializer.Serialize(this, Options);
@@ -87,12 +89,14 @@ public sealed class PortablePolicy
     public static PortablePolicy FromJson(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
-        var policy = JsonSerializer.Deserialize<PortablePolicy>(json, Options)
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 64 });
+        RejectDuplicateProperties(document.RootElement, "$", 0);
+        var policy = document.RootElement.Deserialize<PortablePolicy>(Options)
             ?? throw new JsonException("policy document is empty");
-        if (policy.Version > CurrentVersion)
+        if (policy.Version <= 0 || policy.Version > CurrentVersion)
         {
             throw new InvalidOperationException(
-                $"policy document version {policy.Version} is newer than this build supports (v{CurrentVersion})");
+                $"policy document version {policy.Version} is unsupported; this build accepts v1-v{CurrentVersion}");
         }
 
         // Defensive: deserialization can leave collections null if the JSON omits
@@ -103,9 +107,8 @@ public sealed class PortablePolicy
         policy.Schedules ??= new();
         policy.Profiles ??= new();
         policy.Lock ??= new();
-        policy.Lock.Hash ??= string.Empty;
-        if ((policy.Lock.Enabled || policy.Lock.Hash.Length != 0) &&
-            !PasswordHash.IsValidEncoding(policy.Lock.Hash))
+        var legacyHash = policy.Lock.ConsumeLegacyHash();
+        if (legacyHash.Length != 0 && !PasswordHash.IsValidEncoding(legacyHash))
         {
             throw new ArgumentException(
                 "settings-lock hash must use the supported PBKDF2-SHA256 format and work-factor bounds",
@@ -113,9 +116,10 @@ public sealed class PortablePolicy
         }
 
         policy.NetworkProfiles ??= new();
-        policy.NetworkProfiles.RemoveAll(network => network is null);
-        foreach (var network in policy.NetworkProfiles)
+        for (var index = 0; index < policy.NetworkProfiles.Count; index++)
         {
+            var network = policy.NetworkProfiles[index]
+                ?? throw new JsonException($"NetworkProfiles[{index}] must not be null");
             network.Fingerprint ??= string.Empty;
             network.Profile ??= string.Empty;
             network.Label ??= string.Empty;
@@ -132,7 +136,161 @@ public sealed class PortablePolicy
         policy.LanAttackSurface ??= new();
         policy.LanAttackSurface.Toggles ??= new();
         policy.Settings ??= new(StringComparer.Ordinal);
+        RejectDuplicateIdentities(policy);
         return policy;
+    }
+
+    private static void RejectDuplicateProperties(JsonElement element, string path, int depth)
+    {
+        if (depth > 64)
+        {
+            throw new JsonException("policy document exceeds the maximum nesting depth");
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                {
+                    throw new JsonException($"duplicate JSON property '{property.Name}' at {path}");
+                }
+
+                RejectDuplicateProperties(property.Value, $"{path}.{property.Name}", depth + 1);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            var index = 0;
+            foreach (var item in element.EnumerateArray())
+            {
+                RejectDuplicateProperties(item, $"{path}[{index++}]", depth + 1);
+            }
+        }
+    }
+
+    private static void RejectDuplicateIdentities(PortablePolicy policy)
+    {
+        RejectDuplicates(policy.Domains, static row => NormalizeDomainIdentity(row.Domain), "Domains");
+        RejectDuplicates(policy.FirewallRules, static row => row.Name, "FirewallRules");
+        RejectDuplicates(policy.DomainFirewallRules, static row => row.RuleName, "DomainFirewallRules.RuleName");
+        RejectDuplicates(policy.DomainFirewallRules,
+            static row => $"{NormalizeDomainIdentity(row.Domain)}\u001f{CleanIdentity(row.Program)}",
+            "DomainFirewallRules.Domain+Program");
+        RejectDuplicates(policy.Schedules,
+            static row => $"{CleanIdentity(row.Target)}\u001f{CleanIdentity(row.Days)}\u001f{CleanIdentity(row.Start)}\u001f{CleanIdentity(row.End)}",
+            "Schedules");
+        RejectDuplicates(policy.Profiles, static row => row.Name, "Profiles");
+        foreach (var profile in policy.Profiles)
+        {
+            profile.Rules ??= new();
+            RejectDuplicates(profile.Rules, static row => NormalizeDomainIdentity(row.Domain), $"Profiles[{profile.Name}].Rules");
+        }
+
+        RejectDuplicates(policy.NetworkProfiles, static row => NetworkIdentity(row), "NetworkProfiles");
+        RejectDuplicates(policy.RuleGroups, static row => row.Name, "RuleGroups");
+        foreach (var group in policy.RuleGroups)
+        {
+            group.Rules ??= new();
+            RejectDuplicateStrings(group.Rules, $"RuleGroups[{group.Name}].Rules", StringComparer.OrdinalIgnoreCase);
+        }
+
+        RejectDuplicates(policy.BlocklistSubs, static row => row.Name, "BlocklistSubs");
+        RejectDuplicates(policy.IpBlocklists, static row => row.Name, "IpBlocklists");
+        RejectDuplicateStrings(policy.AllowlistSubs, "AllowlistSubs", StringComparer.Ordinal);
+        RejectDuplicates(policy.AppVpnBindings, static row => row.Program, "AppVpnBindings");
+        if (policy.UsageQuotas is { } quotas)
+        {
+            RejectDuplicates(quotas, static row => $"{CleanIdentity(row.Scope)}\u001f{CleanIdentity(row.Match)}", "UsageQuotas");
+        }
+
+        if (policy.HistoryPrivacyExclusions is { } exclusions)
+        {
+            RejectDuplicates(exclusions, static row => $"{CleanIdentity(row.Scope)}\u001f{CleanIdentity(row.Match)}", "HistoryPrivacyExclusions");
+        }
+
+        RejectDuplicates(policy.LanAttackSurface!.Toggles, static row => row.Key, "LanAttackSurface.Toggles");
+        if (policy.AiKnowledge is { } knowledge)
+        {
+            RejectDuplicates(knowledge, static row => $"{CleanIdentity(row.Kind)}\u001f{CleanIdentity(row.Key)}", "AiKnowledge");
+        }
+
+        if (policy.UserOverrides is { } overrides)
+        {
+            RejectDuplicates(overrides, static row => $"{CleanIdentity(row.Kind)}\u001f{CleanIdentity(row.Key)}", "UserOverrides");
+        }
+
+        if (policy.Webhooks?.Urls is { } webhooks)
+        {
+            RejectDuplicateStrings(webhooks, "Webhooks.Urls", StringComparer.Ordinal);
+        }
+    }
+
+    private static string NetworkIdentity(PolicyNetworkProfile row)
+    {
+        try
+        {
+            return row.StorageFingerprint();
+        }
+        catch (ArgumentException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string CleanIdentity(string? value) => (value ?? string.Empty).Trim();
+
+    private static string NormalizeDomainIdentity(string? value) =>
+        global::HostsGuard.Core.Domains.ToAscii(value ?? string.Empty);
+
+    private static void RejectDuplicates<T>(
+        IEnumerable<T> rows,
+        Func<T, string?> identity,
+        string section)
+        where T : class
+    {
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var index = 0;
+        foreach (var row in rows)
+        {
+            if (row is null)
+            {
+                throw new JsonException($"{section}[{index}] must not be null");
+            }
+
+            var key = (identity(row) ?? string.Empty).Trim();
+            if (key.Length != 0 && !keys.Add(key))
+            {
+                throw new JsonException($"{section} contains a duplicate identity");
+            }
+
+            index++;
+        }
+    }
+
+    private static void RejectDuplicateStrings(
+        IEnumerable<string> values,
+        string section,
+        StringComparer comparer)
+    {
+        var keys = new HashSet<string>(comparer);
+        var index = 0;
+        foreach (var value in values)
+        {
+            if (value is null)
+            {
+                throw new JsonException($"{section}[{index}] must not be null");
+            }
+
+            var key = value.Trim();
+            if (key.Length != 0 && !keys.Add(key))
+            {
+                throw new JsonException($"{section} contains a duplicate identity");
+            }
+
+            index++;
+        }
     }
 }
 
@@ -234,12 +392,31 @@ public sealed class PolicyProfileRule
     public string Source { get; set; } = string.Empty;
 }
 
-/// <summary>The settings-lock state (armed flag + password hash, never plaintext).</summary>
+/// <summary>The settings-lock intent. Credential material is machine-local and never portable.</summary>
 public sealed class PolicyLock
 {
+    private string? _legacyHash;
+
     public bool Enabled { get; set; }
 
-    public string Hash { get; set; } = string.Empty;
+    /// <summary>
+    /// Deserialization-only compatibility for older v1 exports. The parser
+    /// validates then clears it; new documents never serialize this value.
+    /// </summary>
+    [JsonPropertyName("Hash")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyHash
+    {
+        get => null;
+        set => _legacyHash = value;
+    }
+
+    internal string ConsumeLegacyHash()
+    {
+        var value = _legacyHash ?? string.Empty;
+        _legacyHash = null;
+        return value;
+    }
 }
 
 /// <summary>A network-fingerprint → profile auto-switch mapping (NET-083).</summary>

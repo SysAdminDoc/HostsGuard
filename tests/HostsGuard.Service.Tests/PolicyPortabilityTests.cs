@@ -140,8 +140,11 @@ public sealed class PolicyPortabilityTests : IDisposable
         // Export → JSON → parse (proves the wire shape survives).
         var exported = PolicyPortability.Export(src);
         var json = exported.ToJson();
+        json.Should().NotContain("\"Hash\"").And.NotContain("pbkdf2_sha256");
         var policy = PortablePolicy.FromJson(json);
         policy.Version.Should().Be(PortablePolicy.CurrentVersion);
+        policy.Lock.Enabled.Should().BeTrue();
+        policy.Lock.LegacyHash.Should().BeNull();
         policy.FirewallRules.Should().NotContain(r => r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal));
         policy.FirewallRules.Should().ContainSingle(r =>
             r.Name == "HG_Package_Block_Contoso_Reader_Out" &&
@@ -154,6 +157,7 @@ public sealed class PolicyPortabilityTests : IDisposable
         var (dst, dstFw) = NewMachine();
         var summary = PolicyPortability.Import(dst, policy);
         summary.Should().NotBeEmpty();
+        summary[0].Should().Contain("credential omitted", "CLI and bounded WPF summaries must surface the omission");
 
         dst.Db.GetDomainStatus("ads.example.com").Should().Be("blocked");
         dst.Db.GetDomainStatus("safe.example.com").Should().Be("whitelisted");
@@ -180,7 +184,50 @@ public sealed class PolicyPortabilityTests : IDisposable
             b.Name == "hagezi-doh-ips" && b.Url == "https://example.com/doh-ips.txt" && !b.Enabled);
         dst.Db.GetAllowlistSubs().Should().Contain("https://example.com/allow.txt");
         dst.Db.GetMeta("history_retention_days").Should().Be("45");
-        dst.Lock.Enabled.Should().BeTrue();
+        dst.Lock.Enabled.Should().BeFalse("portable policy must not copy a password verifier between machines");
+    }
+
+    [Fact]
+    public void Legacy_v1_lock_verifier_is_scrubbed_and_never_imported()
+    {
+        const string legacyHash = "pbkdf2_sha256$210000$AAECAwQFBgcICQoLDA0ODw==$dwuexifK4Fe/1NquYoJuiWZKOFaR+Cy7JI8GAbc+U/4=";
+        var policy = PortablePolicy.FromJson($$"""
+            {
+              "Version": 1,
+              "Lock": { "Enabled": true, "Hash": "{{legacyHash}}" }
+            }
+            """);
+
+        policy.Lock.Enabled.Should().BeTrue();
+        policy.Lock.LegacyHash.Should().BeNull();
+        policy.ToJson().Should().NotContain("\"Hash\"").And.NotContain(legacyHash);
+
+        var (target, _) = NewMachine();
+        var summary = PolicyPortability.Import(target, policy);
+        target.Lock.Enabled.Should().BeFalse();
+        summary.Should().Contain(item => item.Contains("credential omitted", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Ambiguous_policy_is_rejected_before_preview_or_mutation()
+    {
+        var (target, _) = NewMachine();
+        var service = new PolicyServiceImpl(target);
+        const string duplicate = """
+            { "Version": 1, "Domains": [
+              { "Domain": "duplicate.example", "Status": "blocked" },
+              { "Domain": "DUPLICATE.EXAMPLE", "Status": "whitelisted" }
+            ] }
+            """;
+
+        var preview = await service.PreviewPolicyImport(
+            new ImportPolicyRequest { Json = duplicate, Preview = true }, TestContext());
+
+        preview.Ok.Should().BeFalse();
+        preview.ErrorCode.Should().Be("hostsguard.error.v1/invalid_policy");
+        preview.Message.Should().Contain("duplicate identity");
+        target.Db.GetDomainStatus("duplicate.example").Should().BeNull();
+        target.Hosts.GetBlocked().Should().NotContain("duplicate.example");
     }
 
     [Fact]

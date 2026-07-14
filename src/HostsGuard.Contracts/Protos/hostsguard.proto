@@ -1953,7 +1953,7 @@ service Policy {
   rpc SetNetworkProfile(NetworkProfileEntry) returns (Ack);
   // Full portable-policy export/import (NET-089): one versioned JSON document
   // covering managed domains, HG_ firewall rules, schedules, profiles, the
-  // settings lock, network profiles, and allow/blocklist subscriptions. Import
+  // credential-free settings-lock intent, network profiles, and allow/blocklist subscriptions. Import
   // reconstructs the policy on a clean machine; the round-trip is idempotent.
   rpc ExportPolicy(Empty) returns (PolicyDocument);
   rpc PreviewPolicyImport(ImportPolicyRequest) returns (ImportPolicyResult);

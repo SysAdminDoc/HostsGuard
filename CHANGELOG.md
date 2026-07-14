@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.121] - 2026-07-14
+
+### Security
+- Portable-policy exports retain settings-lock intent but never include or
+  transfer its PBKDF2 verifier. Legacy v1 verifier fields are validated,
+  scrubbed, and reported as omitted while the destination lock stays local.
+- Policy parsing now rejects duplicate JSON properties, unknown fields,
+  unsupported or nonpositive versions, null keyed rows, and duplicate domain,
+  firewall-rule, profile, source, and other persisted identities before preview
+  or mutation.
+
+### Changed
+- Import previews and results put the credential-omission notice first so both
+  the CLI and bounded WPF summaries tell operators to configure a local lock.
+
 ## [0.12.120] - 2026-07-14
 
 ### Fixed

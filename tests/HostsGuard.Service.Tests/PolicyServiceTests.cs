@@ -175,11 +175,15 @@ public sealed class PolicyServiceTests : IDisposable
     [InlineData("pbkdf2_sha256$600000$MDEyMzQ1Njc4OWFiY2RlZg==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
     public async Task Policy_import_rejects_unsafe_lock_hash_before_mutation(string hash)
     {
-        var policy = PolicyPortability.Export(_state);
-        policy.Domains.Add(new PolicyDomain { Domain = "must-not-import.example", Status = "blocked", Source = "test" });
-        policy.Lock = new PolicyLock { Enabled = true, Hash = hash };
+        var json = $$"""
+            {
+              "Version": 1,
+              "Domains": [ { "Domain": "must-not-import.example", "Status": "blocked", "Source": "test" } ],
+              "Lock": { "Enabled": true, "Hash": "{{hash}}" }
+            }
+            """;
 
-        var result = await _policy.ImportPolicy(new ImportPolicyRequest { Json = policy.ToJson() }, Ctx);
+        var result = await _policy.ImportPolicy(new ImportPolicyRequest { Json = json }, Ctx);
 
         result.Ok.Should().BeFalse();
         result.ErrorCode.Should().Be("hostsguard.error.v1/invalid_policy");

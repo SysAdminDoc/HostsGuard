@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.120-blue)
+![Version](https://img.shields.io/badge/version-0.12.121-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -154,7 +154,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
 | Loopback API | Opt-in (`HG_LOOPBACK_API=1`) token-authed `127.0.0.1` JSON-RPC/OpenAPI surface |
 | Event webhooks | Opt-in signed HTTPS POST of engine events (`X-HG-Signature` HMAC-SHA256, bounded retries), configured via the loopback API with public-endpoint SSRF validation |
-| Portable policy | Export/import a versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, usage-budget alert rules, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent; optional HTTPS policy subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply |
+| Portable policy | Export/import a strictly validated, versioned JSON policy carrying domains, firewall posture, DNS-following domain-firewall intents, LAN attack-surface posture, per-app VPN bindings, usage-budget alert rules, schedules, profiles, consent trust sets, DNS privacy toggles, DoH intelligence, kill-switch intent, AI knowledge, user overrides, and webhook endpoint intent. Lock intent is reported but its password verifier stays machine-local, like AI API keys and webhook secrets. Duplicate/unknown fields and duplicate keyed rows are rejected before preview or mutation; optional HTTPS subscriptions preview diffs, pin the fetched SHA-256, keep auto-apply off by default, and roll back the latest subscription apply. |
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
