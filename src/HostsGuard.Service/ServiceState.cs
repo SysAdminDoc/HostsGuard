@@ -348,8 +348,11 @@ public sealed class ServiceState : IDisposable
         MaybeAlertNewlyObserved(d, process, firstContact);
     }
 
-    private readonly HashSet<string> _dgaAlerted = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _newlyObservedAlerted = new(StringComparer.Ordinal);
+    // Alert dedup sets are bounded/TTL'd so the always-on service never grows
+    // one retained entry per distinct domain/root/process for its whole lifetime.
+    private readonly BoundedDedupSet _dgaAlerted = new(comparer: StringComparer.Ordinal);
+    private readonly BoundedDedupSet _newlyObservedAlerted = new(comparer: StringComparer.Ordinal);
+    private const int BinaryIdentityCacheCap = 4096;
     private readonly Dictionary<string, FileIdentity> _binaryIdentityCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _binaryIdentityGate = new();
 
@@ -366,13 +369,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        bool fresh;
-        lock (_newlyObservedAlerted)
-        {
-            fresh = _newlyObservedAlerted.Add(domain);
-        }
-
-        if (fresh)
+        if (_newlyObservedAlerted.Add(domain, DateTime.UtcNow))
         {
             Db.AddAlert(
                 "newly_observed_domain",
@@ -405,13 +402,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        bool fresh;
-        lock (_dgaAlerted)
-        {
-            fresh = _dgaAlerted.Add(root);
-        }
-
-        if (fresh)
+        if (_dgaAlerted.Add(root, DateTime.UtcNow))
         {
             Db.AddAlert(
                 "suspicious_domain",
@@ -462,7 +453,7 @@ public sealed class ServiceState : IDisposable
             $"{evidence.RootDomain} produced {evidence.QueryCount} queries ({evidence.UniqueQueryCount} unique; ratio {evidence.UniqueQueryRatio:P1}, threshold {evidence.UniqueQueryRatioThreshold:P1}) in {evidence.WindowSeconds:F1}s ({evidence.QueriesPerSecond:F2}/s, threshold {evidence.QueriesPerSecondThreshold:F2}/s). Subdomain payload length averaged {evidence.AverageSubdomainLength:F1}, max {evidence.MaximumSubdomainLength}; {evidence.LongSubdomainCount}/{evidence.QueryCount} were at least {evidence.SubdomainLengthThreshold} characters (ratio {evidence.LongSubdomainRatio:P1}, threshold {evidence.LongSubdomainRatioThreshold:P1}). Entropy averaged {evidence.AverageSubdomainEntropy:F3}, max {evidence.MaximumSubdomainEntropy:F3}; {evidence.HighEntropyCount}/{evidence.QueryCount} met {evidence.SubdomainEntropyThreshold:F3} (ratio {evidence.HighEntropyRatio:P1}, threshold {evidence.HighEntropyRatioThreshold:P1}). Record types: {recordTypes}; suspicious type ratio {evidence.SuspiciousRecordTypeRatio:P1} (threshold {evidence.SuspiciousRecordTypeRatioThreshold:P1}). Signals {evidence.SignalCount}/{evidence.DecisionThreshold}; model {evidence.Version}. Alert only — no domain was blocked.");
     }
 
-    private readonly HashSet<string> _dnsBypassAlerted = new(StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedDedupSet _dnsBypassAlerted = new(comparer: StringComparer.OrdinalIgnoreCase);
 
     // The Windows DNS Client (dnscache) legitimately owns the system resolver's
     // port-53 egress; those processes are not "bypassing" anything.
@@ -509,13 +500,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        bool fresh;
-        lock (_dnsBypassAlerted)
-        {
-            fresh = _dnsBypassAlerted.Add($"{process}|{kind}");
-        }
-
-        if (fresh)
+        if (_dnsBypassAlerted.Add($"{process}|{kind}", DateTime.UtcNow))
         {
             Db.AddAlert(
                 "dns_bypass",
@@ -628,7 +613,19 @@ public sealed class ServiceState : IDisposable
                 if (_binaryIdentityCache.TryGetValue(key, out var cached)) return cached;
             }
             var computed = FirewallIdentity.Compute(path);
-            lock (_binaryIdentityGate) _binaryIdentityCache[key] = computed;
+            lock (_binaryIdentityGate)
+            {
+                // Keyed by path|size|mtime, so binary churn over long uptime
+                // accretes stale entries; drop the cache when it exceeds the cap
+                // (a pure perf cache — recomputing a hash is cheap).
+                if (_binaryIdentityCache.Count >= BinaryIdentityCacheCap)
+                {
+                    _binaryIdentityCache.Clear();
+                }
+
+                _binaryIdentityCache[key] = computed;
+            }
+
             return computed;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)

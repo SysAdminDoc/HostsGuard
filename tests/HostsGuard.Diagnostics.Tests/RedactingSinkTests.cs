@@ -75,6 +75,31 @@ public class RedactingSinkTests
     }
 
     [Fact]
+    public void Exception_message_and_tostring_are_redacted_before_the_sink()
+    {
+        var (logger, sink) = Build();
+        // An exception carrying a credentialed URL and a public IP, as an
+        // HttpRequestException/UriFormatException realistically would.
+        var inner = new InvalidOperationException("failed calling https://user:s3cr3t@hooks.example.com/deliver from 8.8.8.8");
+        logger.Error(inner, "delivery failed");
+
+        var ex = sink.Events.Should().ContainSingle().Subject.Exception;
+        ex.Should().NotBeNull();
+        var full = ex!.ToString() + "\n" + ex.Message;
+        full.Should().NotContain("hooks.example.com");
+        full.Should().NotContain("s3cr3t");
+        full.Should().NotContain("8.8.8.8");
+    }
+
+    [Fact]
+    public void Null_exception_stays_null()
+    {
+        var (logger, sink) = Build();
+        logger.Information("no exception here");
+        sink.Events.Should().ContainSingle().Which.Exception.Should().BeNull();
+    }
+
+    [Fact]
     public void Redaction_preserves_ambient_trace_and_span_ids()
     {
         using var activity = new Activity("redaction-test");

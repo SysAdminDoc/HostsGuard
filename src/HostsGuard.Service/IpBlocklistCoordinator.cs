@@ -35,6 +35,7 @@ public sealed class IpBlocklistCoordinator : IDisposable
     private readonly int _maxRules;
     private readonly Timer _refreshTimer;
     private readonly object _gate = new();
+    private readonly CancellationTokenSource _shutdown = new();
     private Task _scheduledRefresh = Task.CompletedTask;
     private bool _disposed;
 
@@ -137,7 +138,13 @@ public sealed class IpBlocklistCoordinator : IDisposable
             {
                 outcome = await ImportAsync(source.Name, source.Url, ct, guardChurn: true);
             }
-            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Owner cancellation (shutdown): stop the whole refresh promptly
+                // instead of fast-failing every remaining source in turn.
+                throw;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException or IOException)
             {
                 failed++;
                 warning = $"refresh failed for {source.Name}: {ex.Message}";
@@ -266,9 +273,12 @@ public sealed class IpBlocklistCoordinator : IDisposable
 
         try
         {
-            await RefreshAllAsync(CancellationToken.None);
+            // Thread the owner token so Dispose can INTERRUPT a slow multi-source
+            // HTTPS fetch already in flight, not merely wait it out (the class the
+            // shared drain pattern fixed for the other coordinators).
+            await RefreshAllAsync(_shutdown.Token);
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException or IOException)
         {
             _db.LogEvent("iplists", "refresh_failed", details: ex.GetType().Name, reason: "ip_blocklist");
         }
@@ -333,8 +343,11 @@ public sealed class IpBlocklistCoordinator : IDisposable
         }
 
         _refreshTimer.Dispose();
-        // Drain a timer-driven refresh already running so it can never touch the
-        // database or firewall after Db.Dispose (which runs last on shutdown).
+        // Interrupt an in-flight refresh (its fetch/resolve now observe this token)
+        // then drain it, so it can never touch the database or firewall after
+        // Db.Dispose (which runs last on shutdown) and Dispose returns promptly
+        // instead of waiting out a slow multi-source HTTPS fetch.
+        _shutdown.Cancel();
         try
         {
             inFlight.Wait(TimeSpan.FromSeconds(5));
@@ -343,6 +356,10 @@ public sealed class IpBlocklistCoordinator : IDisposable
         {
             // SafeScheduledRefreshAsync swallows its own expected exceptions;
             // anything else surfacing here is benign during teardown.
+        }
+        finally
+        {
+            _shutdown.Dispose();
         }
     }
 }

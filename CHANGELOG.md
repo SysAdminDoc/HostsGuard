@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.97] - 2026-07-14
+
+### Fixed
+- Bounded the in-memory alert-dedup sets (`suspicious_domain`, `newly_observed_domain`,
+  `dns_bypass`) behind a shared TTL'd, capacity-capped `BoundedDedupSet` so the
+  always-on service no longer retains one entry per distinct domain for its whole
+  lifetime; the binary-identity cache is now capped as well.
+- Closed the last un-redacted logging egress: the redaction sink now scrubs the
+  logged exception's message and full `ToString()` (type, stack, inner) before it
+  reaches the file/EventLog sink, and every service `Console` diagnostic runs
+  `ex.Message` through the redactor.
+- The scheduled IP-blocklist refresh now runs under the coordinator's shutdown
+  token, so Dispose interrupts an in-flight multi-source HTTPS fetch instead of
+  waiting out the full drain window.
+
 ## [0.12.96] - 2026-07-13
 
 ### Changed

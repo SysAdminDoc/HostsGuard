@@ -1,5 +1,6 @@
 using System.Runtime.Versioning;
 using System.Text.Json;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Ipc;
 using HostsGuard.Service;
@@ -33,7 +34,7 @@ try
 catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or InvalidOperationException)
 {
     Directory.CreateDirectory(baseDir);
-    Console.WriteLine($"HostsGuard: could not harden {baseDir} ACL ({ex.Message}); continuing.");
+    Console.WriteLine($"HostsGuard: could not harden {baseDir} ACL ({Redaction.RedactText(ex.Message)}); continuing.");
 }
 
 var dbPath = Path.Combine(baseDir, "hostsguard.db");
@@ -60,7 +61,7 @@ catch (StateSnapshotException ex)
 {
     // This exception means startup validation failed but the coordinator proved
     // its automatic rollback. Continue from the restored fallback state.
-    Console.WriteLine($"HostsGuard: {ex.Message}");
+    Console.WriteLine($"HostsGuard: {Redaction.RedactText(ex.Message)}");
 }
 
 var hosts = new HostsEngine(HostsEngine.DefaultHostsPath);
@@ -103,7 +104,7 @@ try
 }
 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
 {
-    Console.WriteLine($"HostsGuard: category normalization skipped ({ex.Message}).");
+    Console.WriteLine($"HostsGuard: category normalization skipped ({Redaction.RedactText(ex.Message)}).");
 }
 
 // NET-188: on startup, adopt any hand edits made while the service was stopped —
@@ -121,7 +122,7 @@ if (state.Adoption.Enabled)
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
     {
-        Console.WriteLine($"HostsGuard: manual-edit adoption skipped ({ex.Message}).");
+        Console.WriteLine($"HostsGuard: manual-edit adoption skipped ({Redaction.RedactText(ex.Message)}).");
     }
 }
 
@@ -346,7 +347,7 @@ using var blockedWatch = new BlockedConnectionWatch(
         {
             // Detector/audit persistence must not suppress the existing
             // consent path for this blocked connection.
-            Console.WriteLine($"HostsGuard: port-scan detector failed ({ex.Message}).");
+            Console.WriteLine($"HostsGuard: port-scan detector failed ({Redaction.RedactText(ex.Message)}).");
         }
 
         state.Consent.OnBlocked(blocked);
@@ -389,7 +390,7 @@ if (LoopbackApi.IsEnabled())
     catch (Exception ex) when (ex is System.Net.HttpListenerException or InvalidOperationException)
     {
         db.LogEvent("loopback", "api_start_failed", details: ex.Message);
-        Console.WriteLine($"HostsGuard: loopback API could not start ({ex.Message}); continuing without it.");
+        Console.WriteLine($"HostsGuard: loopback API could not start ({Redaction.RedactText(ex.Message)}); continuing without it.");
     }
 }
 

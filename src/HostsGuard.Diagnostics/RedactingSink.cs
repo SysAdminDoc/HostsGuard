@@ -33,10 +33,15 @@ public sealed class RedactingSink : ILogEventSink, IDisposable
         var rendered = Redaction.RedactText(logEvent.RenderMessage());
         var template = new MessageTemplate(new MessageTemplateToken[] { new TextToken(rendered) });
 
+        // The exception is the last un-redacted egress: a file/EventLog sink renders
+        // it via ToString(), which can carry a credentialed URL, a path, or a public
+        // IP in its message/inner-exception. Wrap it so every rendering is scrubbed.
+        var exception = logEvent.Exception is null ? null : new RedactedException(logEvent.Exception);
+
         var redacted = new LogEvent(
             logEvent.Timestamp,
             logEvent.Level,
-            logEvent.Exception,
+            exception,
             template,
             props,
             // Rebuild must not drop the W3C correlation ids (NET-180) — they are
@@ -66,4 +71,25 @@ public sealed class RedactingSink : ILogEventSink, IDisposable
     }
 
     public void Dispose() => (_inner as IDisposable)?.Dispose();
+
+    /// <summary>
+    /// Carries a fully-redacted rendering of a real exception. Serilog's file and
+    /// EventLog sinks format exceptions through <see cref="Exception.ToString"/> and
+    /// read <see cref="Exception.Message"/>; both are pre-scrubbed here so no secret,
+    /// URL, path, or public IP inside an exception can reach a persistent sink.
+    /// </summary>
+    private sealed class RedactedException : Exception
+    {
+        private readonly string _redacted;
+
+        public RedactedException(Exception inner)
+            : base(Redaction.RedactText(inner.Message)) =>
+            _redacted = Redaction.RedactText(inner.ToString());
+
+        public override string ToString() => _redacted;
+
+        // Never surface the original stack/inner separately — the redacted
+        // ToString() above already includes them, scrubbed.
+        public override string? StackTrace => null;
+    }
 }

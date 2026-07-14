@@ -219,10 +219,12 @@ public sealed class IpBlocklistCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public async Task Dispose_drains_an_in_flight_scheduled_refresh()
+    public async Task Dispose_cancels_an_in_flight_scheduled_refresh_promptly()
     {
-        // The timer callback fire-and-forgets an async refresh; Dispose must wait
-        // for it so it can never touch the DB/firewall after Db.Dispose.
+        // The timer callback fire-and-forgets an async refresh whose fetch blocks.
+        // Dispose must INTERRUPT it through the owner cancellation token, not wait
+        // out the full fetch: previously the refresh ran with CancellationToken.None,
+        // so Dispose stalled for the entire 5s drain window on a slow source.
         var fetcher = new BlockingFetcher();
         var coordinator = new IpBlocklistCoordinator(_db, _firewall, fetcher);
         _db.UpsertIpBlocklistSource("drain", "https://lists.example.com/x.txt",
@@ -231,14 +233,16 @@ public sealed class IpBlocklistCoordinatorTests : IDisposable
         coordinator.KickScheduledRefresh(); // simulate the timer tick
         fetcher.Started.Wait(TimeSpan.FromSeconds(5)).Should().BeTrue("the scheduled refresh should reach the fetcher");
 
+        // Release is deliberately never set — only cancellation can unblock the
+        // fetch, proving Dispose interrupts rather than drains-to-completion.
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var dispose = Task.Run(() => coordinator.Dispose());
-        (await Task.WhenAny(dispose, Task.Delay(300))).Should().NotBe(dispose,
-            "Dispose must block while a refresh is in flight");
-
-        fetcher.Release.Set();
-        (await Task.WhenAny(dispose, Task.Delay(TimeSpan.FromSeconds(6)))).Should().Be(dispose,
-            "Dispose returns once the in-flight refresh drains");
+        (await Task.WhenAny(dispose, Task.Delay(TimeSpan.FromSeconds(4)))).Should().Be(dispose,
+            "Dispose cancels the in-flight fetch instead of waiting out the 5s drain window");
         await dispose;
+        sw.Stop();
+        sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(4),
+            "cancellation interrupts the fetch well before the drain timeout");
     }
 
     public void Dispose()
