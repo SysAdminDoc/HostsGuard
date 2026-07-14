@@ -75,8 +75,8 @@ function Test-ScreenshotManifest([string]$Version) {
     }
 
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    if ($manifest.schemaVersion -ne 2) {
-        Add-Error "visual smoke manifest schemaVersion must be 2"
+    if ($manifest.schemaVersion -ne 3) {
+        Add-Error "visual smoke manifest schemaVersion must be 3"
     }
 
     if ($manifest.version -ne $Version) {
@@ -92,6 +92,49 @@ function Test-ScreenshotManifest([string]$Version) {
 
         if (-not (Version-Matches ([string]$binary.fileVersion) $Version)) {
             Add-Error "visual smoke $binaryName fileVersion '$($binary.fileVersion)' does not match $Version"
+        }
+    }
+
+    $expectedTabs = @('Hosts Activity', 'Alerts', 'Hosts File', 'Firewall Activity', 'Firewall Rules', 'Tools')
+    $expectedLandmarks = @{
+        'Hosts Activity' = 'ActivityGrid'
+        'Alerts' = 'AlertsGrid'
+        'Hosts File' = 'DomainsGrid'
+        'Firewall Activity' = 'ConnectionsGrid'
+        'Firewall Rules' = 'FwRulesGrid'
+        'Tools' = 'ToolsSurface'
+    }
+    foreach ($theme in @('dark', 'light')) {
+        $primary = @($manifest.primaryCaptures | Where-Object { $_.theme -eq $theme })
+        if ($primary.Count -ne $expectedTabs.Count) {
+            Add-Error "visual smoke manifest has $($primary.Count) $theme primary captures; expected $($expectedTabs.Count)"
+            continue
+        }
+
+        foreach ($tab in $expectedTabs) {
+            $capture = @($primary | Where-Object { $_.tab -eq $tab })
+            if ($capture.Count -ne 1) {
+                Add-Error "visual smoke $theme must capture '$tab' exactly once"
+                continue
+            }
+            if ($capture[0].landmark -ne $expectedLandmarks[$tab]) {
+                Add-Error "visual smoke $theme '$tab' landmark '$($capture[0].landmark)' is not '$($expectedLandmarks[$tab])'"
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$capture[0].sha256)) {
+                Add-Error "visual smoke $theme '$tab' has no pixel hash"
+            }
+        }
+
+        $distinctHashes = @($primary.sha256 | Select-Object -Unique)
+        if ($distinctHashes.Count -ne $primary.Count) {
+            Add-Error "visual smoke $theme primary pages contain identical pixel hashes"
+        }
+
+        $disconnected = @($manifest.stateCaptures | Where-Object {
+            $_.theme -eq $theme -and $_.state -eq 'disconnected'
+        })
+        if ($disconnected.Count -ne 1 -or $disconnected[0].landmark -ne 'DisconnectedOverlay') {
+            Add-Error "visual smoke $theme lacks one separate disconnected recovery capture"
         }
     }
 

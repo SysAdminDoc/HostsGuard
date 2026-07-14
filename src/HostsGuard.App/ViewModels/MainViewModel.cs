@@ -193,54 +193,55 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             HostsBlocked = status.HostsBlocked;
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
-            Hosts = new HostsViewModel(client, _confirm);
-            Activity = new HostsActivityViewModel(client, _config, _prompt, _confirm);
-            RawHosts = new RawHostsViewModel(client);
-            FwActivity = new FwActivityViewModel(client, _confirm, _config, _filePicker);
-            Alerts = new AlertsViewModel(client);
-            FwRules = new FwRulesViewModel(client, _confirm, _filePicker, _prompt);
-            Tools = new ToolsViewModel(client, _confirm);
-            Blocklists = new BlocklistsViewModel(client, _confirm);
+            InitializeViews(client);
+            var hosts = Hosts!;
+            var activity = Activity!;
+            var rawHosts = RawHosts!;
+            var fwActivity = FwActivity!;
+            var alerts = Alerts!;
+            var fwRules = FwRules!;
+            var tools = Tools!;
+            var blocklists = Blocklists!;
             IsConnected = true;
             ConnectionText = I18n.T("Status.ConnectedLoading", "Connected - loading views...");
 
-            await Hosts.RefreshAsync();
-            await Activity.RefreshAsync();
-            Activity.StartWatching();
-            await RawHosts.LoadAsync();
-            FwActivity.StartWatching();
-            await FwActivity.LoadPostureAsync();
-            await FwActivity.LoadFlowTeardownAsync();
-            await FwActivity.LoadConsentHistoryAsync();
-            await FwActivity.LoadLearnedAsync();
-            await Alerts.LoadAsync();
-            await FwRules.RefreshAsync();
-            await FwRules.LoadInterfaceAliasesAsync();
-            await Tools.LoadSchedulesAsync();
-            await Tools.LoadServicesAsync();
-            await Tools.LoadDohStatusAsync();
-            await Tools.LoadIdnHomographStatusAsync();
-            await Tools.LoadDnsAdaptersAsync();
-            await Tools.LoadResolverHealthAsync();
-            await Tools.LoadLanAttackSurfaceAsync();
-            await Tools.LoadProfilesAsync();
-            await Tools.LoadNetworkProfileRulesAsync();
-            await Tools.LoadPolicySubscriptionsAsync();
-            await Tools.LoadIpBlocklistsAsync();
-            await Tools.LoadHealthAsync();
-            await Tools.InspectProxyBaselineAsync();
-            await Tools.LoadDefenderStatusAsync();
-            await Tools.LoadBackupsAsync();
-            await Tools.LoadFullStateSnapshotsAsync();
-            await Tools.LoadSecureRulesAsync();
-            await Tools.LoadAiStatusAsync();
-            await Tools.LoadAdoptionStatusAsync();
-            await Tools.LoadIntelStatusAsync();
-            await Tools.LoadTrustedPublishersAsync();
-            await Tools.LoadTrustedFoldersAsync();
-            await Tools.LoadKillSwitchAsync();
-            await Tools.LoadAppVpnBindingsAsync();
-            await Blocklists.RefreshAsync();
+            await hosts.RefreshAsync();
+            await activity.RefreshAsync();
+            activity.StartWatching();
+            await rawHosts.LoadAsync();
+            fwActivity.StartWatching();
+            await fwActivity.LoadPostureAsync();
+            await fwActivity.LoadFlowTeardownAsync();
+            await fwActivity.LoadConsentHistoryAsync();
+            await fwActivity.LoadLearnedAsync();
+            await alerts.LoadAsync();
+            await fwRules.RefreshAsync();
+            await fwRules.LoadInterfaceAliasesAsync();
+            await tools.LoadSchedulesAsync();
+            await tools.LoadServicesAsync();
+            await tools.LoadDohStatusAsync();
+            await tools.LoadIdnHomographStatusAsync();
+            await tools.LoadDnsAdaptersAsync();
+            await tools.LoadResolverHealthAsync();
+            await tools.LoadLanAttackSurfaceAsync();
+            await tools.LoadProfilesAsync();
+            await tools.LoadNetworkProfileRulesAsync();
+            await tools.LoadPolicySubscriptionsAsync();
+            await tools.LoadIpBlocklistsAsync();
+            await tools.LoadHealthAsync();
+            await tools.InspectProxyBaselineAsync();
+            await tools.LoadDefenderStatusAsync();
+            await tools.LoadBackupsAsync();
+            await tools.LoadFullStateSnapshotsAsync();
+            await tools.LoadSecureRulesAsync();
+            await tools.LoadAiStatusAsync();
+            await tools.LoadAdoptionStatusAsync();
+            await tools.LoadIntelStatusAsync();
+            await tools.LoadTrustedPublishersAsync();
+            await tools.LoadTrustedFoldersAsync();
+            await tools.LoadKillSwitchAsync();
+            await tools.LoadAppVpnBindingsAsync();
+            await blocklists.RefreshAsync();
             await LoadFilteringModeAsync();
             await LoadEnforcementPauseAsync();
             StartDecisionWatch();
@@ -256,6 +257,171 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 "Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}",
                 ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Builds a deterministic connected/populated shell for the release visual gate.
+    /// No RPC is sent and no machine policy is read or mutated.
+    /// </summary>
+    internal void PrepareVisualSmokeFixture()
+    {
+        ResetConnection();
+        _client = _connectFactory();
+        InitializeViews(_client);
+
+        ServiceVersion = AppVersion;
+        HostsBlocked = 42;
+        DbBlocked = 40;
+        DbAllowed = 2;
+        FilteringMode = "normal";
+        FilteringModeText = "Normal — deterministic fixture";
+        ConnectionText = "Connected — deterministic visual fixture";
+
+        Activity!.Rows.Add(new ActivityRowViewModel
+        {
+            Domain = "telemetry.example.test",
+            Root = "example.test",
+            Status = "blocked",
+            Process = "browser.exe",
+            Hits = 27,
+            LastSeen = "2026-07-14T12:00:00Z",
+            Purpose = "Visual smoke telemetry",
+            Reason = "Curated fixture",
+            Bytes = 184_320,
+            IsNew = true,
+            SparklinePoints = "0,18 12,12 24,16 36,7 48,13 60,4",
+        });
+        Activity.Rows.Add(new ActivityRowViewModel
+        {
+            Domain = "cdn.example.test",
+            Root = "example.test",
+            Status = "allowed",
+            Process = "updater.exe",
+            Hits = 8,
+            LastSeen = "2026-07-14T11:58:00Z",
+            Purpose = "Content delivery",
+            Reason = "Manual allow",
+            Bytes = 2_621_440,
+        });
+
+        Alerts!.Alerts.Add(new AlertRowViewModel
+        {
+            Id = 1,
+            Created = "2026-07-14T11:55:00Z",
+            Updated = "2026-07-14T11:55:00Z",
+            Type = "hosts_tamper",
+            Severity = "high",
+            Title = "Hosts file change restored",
+            Subject = "hosts",
+            Details = "A deterministic external edit was detected and restored.",
+            Action = "restored",
+            Process = "fixture-editor.exe",
+            Surfaced = true,
+        });
+        Alerts.UnreadCount = 1;
+        Alerts.SelectedAlert = Alerts.Alerts[0];
+        Alerts.StatusText = "1 deterministic alert";
+
+        Hosts!.Domains.Add(new ManagedDomainViewModel
+        {
+            Domain = "telemetry.example.test",
+            Status = "blocked",
+            Source = "manual",
+            Reason = "Visual smoke policy",
+            Hits = 27,
+            Category = "Telemetry",
+        });
+        Hosts.Domains.Add(new ManagedDomainViewModel
+        {
+            Domain = "cdn.example.test",
+            Status = "whitelisted",
+            Source = "manual",
+            Reason = "Required content",
+            Hits = 8,
+            Category = "Infrastructure",
+        });
+        Hosts.StatusText = "2 deterministic managed domains";
+        RawHosts!.Text = "# HostsGuard deterministic visual fixture\n0.0.0.0 telemetry.example.test\n";
+        RawHosts.StatusText = "2 fixture lines";
+
+        FwActivity!.Rows.Add(new ConnectionRowViewModel
+        {
+            Protocol = "TCP",
+            LocalAddr = "192.0.2.10",
+            LocalPort = 53142,
+            RemoteAddr = "203.0.113.20",
+            RemotePort = 443,
+            Host = "api.example.test",
+            Process = "browser.exe",
+            Pid = 4711,
+            State = "Established",
+            Country = "US",
+            Asn = "AS64500 Example Network",
+            FwStatus = "Allowed",
+        });
+        FwActivity.Rows.Add(new ConnectionRowViewModel
+        {
+            Protocol = "UDP",
+            LocalAddr = "192.0.2.10",
+            LocalPort = 53000,
+            RemoteAddr = "198.51.100.53",
+            RemotePort = 53,
+            Host = "resolver.example.test",
+            Process = "system-service.exe",
+            Pid = 902,
+            State = "Observed",
+            Country = "US",
+            FwStatus = "Monitored",
+        });
+        FwActivity.StatusText = "2 deterministic live connections";
+
+        FwRules!.Rules.Add(new FwRuleViewModel
+        {
+            Name = "HG_Domain_browser_example_test",
+            Direction = "Out",
+            Action = "Block",
+            Enabled = true,
+            RemoteAddr = "203.0.113.20",
+            Protocol = "TCP",
+            Program = @"C:\Program Files\Browser\browser.exe",
+            Source = "hostsguard",
+            RemotePortsForDisplay = "443",
+        });
+        FwRules.Rules.Add(new FwRuleViewModel
+        {
+            Name = "HG_LAN_SMB_Inbound",
+            Direction = "In",
+            Action = "Block",
+            Enabled = true,
+            RemoteAddr = "Any",
+            Protocol = "TCP",
+            Source = "hostsguard",
+            LocalPorts = "445",
+        });
+        FwRules.StatusText = "2 deterministic HostsGuard rules";
+
+        Tools!.Schedules.Add(new ScheduleRowViewModel
+        {
+            Target = "telemetry.example.test",
+            DaysText = "Mon,Tue,Wed,Thu,Fri",
+            Start = "09:00",
+            End = "17:00",
+        });
+        Tools.StatusText = "Deterministic diagnostics ready";
+
+        IsConnected = true;
+    }
+
+    private void InitializeViews(HostsServiceClient client)
+    {
+        Hosts = new HostsViewModel(client, _confirm);
+        Activity = new HostsActivityViewModel(client, _config, _prompt, _confirm);
+        RawHosts = new RawHostsViewModel(client);
+        FwActivity = new FwActivityViewModel(client, _confirm, _config, _filePicker);
+        Alerts = new AlertsViewModel(client);
+        FwRules = new FwRulesViewModel(client, _confirm, _filePicker, _prompt);
+        Tools = new ToolsViewModel(client, _confirm);
+        Blocklists = new BlocklistsViewModel(client, _confirm);
     }
 
     // ─── Filtering mode + consent prompts (WFC parity) ────────────────────────

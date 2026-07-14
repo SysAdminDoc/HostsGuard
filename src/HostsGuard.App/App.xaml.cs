@@ -69,7 +69,7 @@ public partial class App : Application
         window.Show();
         if (uiSmoke.VisualSmokeOutputDir is not null)
         {
-            _ = main.ConnectCommand.ExecuteAsync(null);
+            main.PrepareVisualSmokeFixture();
             _ = RunVisualSmokeAsync(window, uiSmoke, theme);
             return;
         }

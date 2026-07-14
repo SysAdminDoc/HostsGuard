@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -6,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using HostsGuard.App.ViewModels;
 using HostsGuard.Contracts;
 
 namespace HostsGuard.App.Services;
@@ -15,14 +17,14 @@ namespace HostsGuard.App.Services;
 /// </summary>
 internal static class VisualSmokeRunner
 {
-    private static readonly string[] TabNames =
+    private static readonly (string Tab, string Landmark)[] PrimaryPages =
     [
-        "Hosts Activity",
-        "Alerts",
-        "Hosts File",
-        "Firewall Activity",
-        "Firewall Rules",
-        "Tools",
+        ("Hosts Activity", "ActivityGrid"),
+        ("Alerts", "AlertsGrid"),
+        ("Hosts File", "DomainsGrid"),
+        ("Firewall Activity", "ConnectionsGrid"),
+        ("Firewall Rules", "FwRulesGrid"),
+        ("Tools", "ToolsSurface"),
     ];
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -70,33 +72,42 @@ internal static class VisualSmokeRunner
             return 2;
         }
 
-        for (var i = 0; i < Math.Min(TabNames.Length, tabs.Items.Count); i++)
+        if (window.DataContext is not MainViewModel fixture || !fixture.IsConnected)
         {
+            result.Failures.Add("Primary-page capture requires the deterministic connected fixture.");
+        }
+
+        for (var i = 0; i < Math.Min(PrimaryPages.Length, tabs.Items.Count); i++)
+        {
+            var page = PrimaryPages[i];
             tabs.SelectedIndex = i;
             tabs.UpdateLayout();
             window.UpdateLayout();
             await WaitForLayoutAsync(window, settleMs, cancellationToken).ConfigureAwait(true);
 
-            foreach (var failure in FindUnexpectedHorizontalScrollbars(window, TabNames[i]))
+            foreach (var failure in FindUnexpectedHorizontalScrollbars(window, page.Tab))
             {
                 result.Failures.Add(failure);
             }
 
             if (IsPseudoLocale(locale))
             {
-                foreach (var failure in FindPseudoLocaleLayoutFailures(window, TabNames[i]))
+                foreach (var failure in FindPseudoLocaleLayoutFailures(window, page.Tab))
                 {
                     result.Failures.Add(failure);
                 }
             }
 
-            var fileName = $"{theme}-{Slug(TabNames[i])}.png";
+            ValidateSelectedPage(window, tabs, i, page.Tab, page.Landmark, result.Failures);
+            var fileName = $"{theme}-{Slug(page.Tab)}.png";
             var path = Path.Combine(outputDir, fileName);
             var metrics = Capture(captureSurface, path);
             result.Captures.Add(new VisualSmokeCapture
             {
-                Tab = TabNames[i],
+                Tab = page.Tab,
+                Landmark = page.Landmark,
                 Path = path,
+                Sha256 = GetSha256(path),
                 ChromeLuminance = Math.Round(AverageLuma(captureSurface, 0, 90), 1),
                 AverageLuminance = Math.Round(metrics.AverageLuminance, 1),
                 LuminanceRange = Math.Round(metrics.LuminanceRange, 1),
@@ -105,7 +116,7 @@ internal static class VisualSmokeRunner
                 ContentTileRatio = Math.Round(metrics.ContentTileRatio, 4),
             });
 
-            ValidateCapture(theme, TabNames[i], metrics, result.Failures);
+            ValidateCapture(theme, page.Tab, metrics, result.Failures);
 
             if (i == 0)
             {
@@ -113,10 +124,20 @@ internal static class VisualSmokeRunner
             }
         }
 
-        if (tabs.Items.Count < TabNames.Length)
+        if (tabs.Items.Count < PrimaryPages.Length)
         {
-            result.Failures.Add($"Only {tabs.Items.Count} tabs rendered; expected {TabNames.Length}.");
+            result.Failures.Add($"Only {tabs.Items.Count} tabs rendered; expected {PrimaryPages.Length}.");
         }
+
+        foreach (var duplicate in result.Captures.GroupBy(capture => capture.Sha256)
+                     .Where(group => group.Count() > 1))
+        {
+            result.Failures.Add(
+                $"Primary pages rendered identical pixels: {string.Join(", ", duplicate.Select(capture => capture.Tab))}.");
+        }
+
+        await CaptureDisconnectedRecoveryAsync(window, captureSurface, outputDir, theme, settleMs, result,
+            cancellationToken).ConfigureAwait(true);
 
         await CaptureDialogsAsync(window, outputDir, theme, settleMs, result, cancellationToken)
             .ConfigureAwait(true);
@@ -253,6 +274,87 @@ internal static class VisualSmokeRunner
             }
         }
     }
+
+    private static async Task CaptureDisconnectedRecoveryAsync(
+        Window window,
+        FrameworkElement captureSurface,
+        string outputDir,
+        string theme,
+        int settleMs,
+        VisualSmokeResult result,
+        CancellationToken cancellationToken)
+    {
+        if (window.DataContext is not MainViewModel viewModel)
+        {
+            result.Failures.Add("Disconnected recovery capture could not access the shell view model.");
+            return;
+        }
+
+        viewModel.IsConnected = false;
+        viewModel.ConnectionText = "Service unavailable — deterministic recovery fixture";
+        await WaitForLayoutAsync(window, Math.Min(settleMs, 250), cancellationToken).ConfigureAwait(true);
+        ValidateLandmark(window, "Disconnected recovery", "DisconnectedOverlay", result.Failures);
+
+        var path = Path.Combine(outputDir, $"{theme}-disconnected-recovery.png");
+        var metrics = Capture(captureSurface, path);
+        result.StateCaptures.Add(new VisualSmokeStateCapture
+        {
+            State = "disconnected",
+            Landmark = "DisconnectedOverlay",
+            Path = path,
+            Sha256 = GetSha256(path),
+        });
+        ValidateCapture(theme, "Disconnected recovery", metrics, result.Failures);
+        viewModel.IsConnected = true;
+        await WaitForLayoutAsync(window, 50, cancellationToken).ConfigureAwait(true);
+    }
+
+    private static void ValidateSelectedPage(
+        Window window,
+        TabControl tabs,
+        int expectedIndex,
+        string tab,
+        string landmark,
+        IList<string> failures)
+    {
+        if (tabs.SelectedIndex != expectedIndex)
+        {
+            failures.Add($"{tab} was not the selected primary page at capture time.");
+        }
+
+        if (window.DataContext is not MainViewModel { IsConnected: true })
+        {
+            failures.Add($"{tab} was captured without the connected fixture.");
+        }
+
+        if (window.FindName("DisconnectedOverlay") is FrameworkElement { IsVisible: true })
+        {
+            failures.Add($"{tab} was obscured by the disconnected recovery overlay.");
+        }
+
+        ValidateLandmark(window, tab, landmark, failures);
+    }
+
+    private static void ValidateLandmark(
+        Window window,
+        string surface,
+        string landmark,
+        IList<string> failures)
+    {
+        if (window.FindName(landmark) is not FrameworkElement element)
+        {
+            failures.Add($"{surface} landmark '{landmark}' was not found.");
+        }
+        else if (!element.IsVisible || element.ActualWidth < 20 || element.ActualHeight < 20)
+        {
+            failures.Add(
+                $"{surface} landmark '{landmark}' was not visibly rendered " +
+                $"({element.ActualWidth:F0}x{element.ActualHeight:F0}).");
+        }
+    }
+
+    private static string GetSha256(string path) =>
+        Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
     private static IEnumerable<string> FindUnexpectedHorizontalScrollbars(Window window, string tabName)
     {
@@ -542,6 +644,8 @@ internal static class VisualSmokeRunner
 
         public List<VisualSmokeDialogCapture> DialogCaptures { get; } = [];
 
+        public List<VisualSmokeStateCapture> StateCaptures { get; } = [];
+
         public List<string> Failures { get; init; } = [];
     }
 
@@ -550,6 +654,10 @@ internal static class VisualSmokeRunner
         public string Tab { get; init; } = "";
 
         public string Path { get; init; } = "";
+
+        public string Landmark { get; init; } = "";
+
+        public string Sha256 { get; init; } = "";
 
         public double ChromeLuminance { get; init; }
 
@@ -578,5 +686,16 @@ internal static class VisualSmokeRunner
         public string Path { get; init; } = "";
 
         public string ActualSize { get; init; } = "";
+    }
+
+    private sealed class VisualSmokeStateCapture
+    {
+        public string State { get; init; } = "";
+
+        public string Landmark { get; init; } = "";
+
+        public string Path { get; init; } = "";
+
+        public string Sha256 { get; init; } = "";
     }
 }

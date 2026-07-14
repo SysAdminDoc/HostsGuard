@@ -433,6 +433,28 @@ public sealed class WpfSmokeTests
     }
 
     [Fact]
+    public void Release_visual_fixture_populates_every_primary_page_without_an_rpc()
+    {
+        RunSta(() =>
+        {
+            var config = new AppConfigStore(Path.Combine(
+                Path.GetTempPath(), "hg_release_visual_" + Guid.NewGuid().ToString("N") + ".json"));
+            var client = new HostsServiceClient(NamedPipeChannel.Create(
+                SessionToken.Generate(), "hg-release-visual-" + Guid.NewGuid().ToString("N")));
+            using var vm = new MainViewModel(() => client, config, new ThemeManager(), new FakeConfirm(true));
+            vm.PrepareVisualSmokeFixture();
+
+            vm.IsConnected.Should().BeTrue();
+            vm.Activity!.Rows.Should().HaveCount(2);
+            vm.Alerts!.Alerts.Should().ContainSingle();
+            vm.Hosts!.Domains.Should().HaveCount(2);
+            vm.FwActivity!.Rows.Should().HaveCount(2);
+            vm.FwRules!.Rules.Should().HaveCount(2);
+            vm.Tools!.Schedules.Should().ContainSingle();
+        });
+    }
+
+    [Fact]
     public void Firewall_pseudo_locale_hotspots_use_wrapping_content_at_every_supported_scale()
     {
         var xaml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "HostsGuard.App", "MainWindow.xaml"));

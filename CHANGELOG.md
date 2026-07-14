@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.110] - 2026-07-14
+
+### Fixed
+- Release visual smoke no longer captures a disconnected overlay six times while
+  claiming page coverage. It now uses a deterministic connected/populated shell,
+  asserts the selected page's named landmark, records a SHA-256 for each capture,
+  fails duplicate primary-page pixels, and captures disconnected recovery as a
+  separate state.
+- Visual smoke refuses stale app or service binaries before launching, and the
+  release gate requires matching binary metadata plus the complete landmark/hash
+  evidence for dark and light themes.
+
+### Changed
+- Refreshed the dark/light Hosts Activity screenshots from the connected fixture
+  and advanced the visual evidence manifest to schema 3.
+
 ## [0.12.109] - 2026-07-14
 
 ### Fixed

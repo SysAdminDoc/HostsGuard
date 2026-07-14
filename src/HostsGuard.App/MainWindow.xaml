@@ -4546,7 +4546,8 @@
                 </TabItem>
             </TabControl>
 
-            <Grid Background="{DynamicResource Hg.Bg}"
+            <Grid x:Name="DisconnectedOverlay"
+                  Background="{DynamicResource Hg.Bg}"
                   Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}">
                 <Border Style="{StaticResource Hg.Card}"
                         MaxWidth="520"

@@ -110,6 +110,14 @@ function Get-BinaryVersion([string]$Path) {
     }
 }
 
+function Test-VersionMatches([string]$Actual, [string]$Expected) {
+    return -not [string]::IsNullOrWhiteSpace($Actual) -and (
+        $Actual -eq $Expected -or
+        $Actual -eq "$Expected.0" -or
+        $Actual.StartsWith("$Expected+", [StringComparison]::OrdinalIgnoreCase) -or
+        $Actual.StartsWith("$Expected.", [StringComparison]::OrdinalIgnoreCase))
+}
+
 function Find-ServicePath([string]$ResolvedAppPath) {
     $appDir = Split-Path -Parent $ResolvedAppPath
     $appParent = Split-Path -Parent $appDir
@@ -163,6 +171,11 @@ function Invoke-SmokeTheme {
         $run.failures += "Captured $captureCount tabs for $Theme theme; expected $($Tabs.Count)."
     }
 
+    $stateCapture = @($run.stateCaptures | Where-Object { $_.state -eq 'disconnected' })
+    if ($stateCapture.Count -ne 1 -or $stateCapture[0].landmark -ne 'DisconnectedOverlay') {
+        $run.failures += "Disconnected recovery was not captured separately with its asserted landmark for $Theme theme."
+    }
+
     if ($process.ExitCode -ne 0 -and @($run.failures).Count -eq 0) {
         $run.failures += "HostsGuard exited with code $($process.ExitCode) for $Theme theme."
     }
@@ -173,6 +186,17 @@ function Invoke-SmokeTheme {
 $productVersion = Get-ProjectVersion
 $resolvedAppPath = (Resolve-Path -LiteralPath $AppPath).Path
 $servicePath = Find-ServicePath $resolvedAppPath
+$appBinary = Get-BinaryVersion $resolvedAppPath
+if (-not (Test-VersionMatches ([string]$appBinary.fileVersion) $productVersion)) {
+    throw "Refusing stale visual smoke app '$($appBinary.fileVersion)'; project version is $productVersion. Publish/build the current app first."
+}
+if ($null -eq $servicePath) {
+    throw "Refusing visual smoke without a matching HostsGuard.Service.exe beside a known build output."
+}
+$serviceBinary = Get-BinaryVersion $servicePath
+if (-not (Test-VersionMatches ([string]$serviceBinary.fileVersion) $productVersion)) {
+    throw "Refusing stale visual smoke service '$($serviceBinary.fileVersion)'; project version is $productVersion. Publish/build the current service first."
+}
 
 $summary = [ordered]@{
     productVersion = $productVersion
@@ -200,8 +224,26 @@ if ($failures.Count -gt 0) {
 
 New-Item -ItemType Directory -Force -Path $ReadmeImageDir | Out-Null
 $readmeScreenshots = @()
+$primaryCaptures = @()
+$stateCaptures = @()
 foreach ($theme in @("dark", "light")) {
     $run = $summary.runs | Where-Object { $_.theme -eq $theme -and $_.locale -ne "qps-ploc" } | Select-Object -First 1
+    foreach ($primary in @($run.captures)) {
+        $primaryCaptures += [ordered]@{
+            theme = $theme
+            tab = $primary.tab
+            landmark = $primary.landmark
+            sha256 = $primary.sha256
+        }
+    }
+    foreach ($state in @($run.stateCaptures)) {
+        $stateCaptures += [ordered]@{
+            theme = $theme
+            state = $state.state
+            landmark = $state.landmark
+            sha256 = $state.sha256
+        }
+    }
     $capture = @($run.captures | Where-Object { $_.tab -eq "Hosts Activity" }) | Select-Object -First 1
     if ($null -eq $capture) {
         throw "Visual smoke did not capture the Hosts Activity README screenshot for $theme theme."
@@ -228,14 +270,16 @@ foreach ($theme in @("dark", "light")) {
 }
 
 $manifest = [ordered]@{
-    schemaVersion = 2
+    schemaVersion = 3
     product = "HostsGuard"
     version = $productVersion
     generatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
     expectedSize = "${Width}x${Height}"
-    app = Get-BinaryVersion $resolvedAppPath
-    service = if ($null -ne $servicePath) { Get-BinaryVersion $servicePath } else { $null }
+    app = $appBinary
+    service = $serviceBinary
     sourceSummary = Get-RelativeRepoPath $summaryPath
+    primaryCaptures = $primaryCaptures
+    stateCaptures = $stateCaptures
     readmeScreenshots = $readmeScreenshots
 }
 
