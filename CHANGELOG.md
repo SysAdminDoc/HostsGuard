@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.104] - 2026-07-14
+
+### Fixed
+- Renamed 38 resource keys whose names carried double-encoded UTF-8 mojibake
+  (e.g. `Xaml_Normal_â_enforce_silently_…`) to clean ASCII across `Strings.resx`
+  and `MainWindow.xaml`, and added an I18n guard test that fails if any resx key
+  name contains a non-ASCII character. Displayed values were already correct.
+
 ## [0.12.103] - 2026-07-14
 
 ### Added

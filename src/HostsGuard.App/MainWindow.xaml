@@ -78,11 +78,11 @@
                     <MenuItem Header="{svc:Loc Key=Xaml_Open_HostsGuard_0cf1d264}" Click="OnTrayOpen" />
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Filtering_mode_10d184c2}">
-                        <MenuItem x:Name="TrayModeNormal" Header="{svc:Loc Key=Xaml_Normal_â_enforce_silently_6f006f4f}" Tag="normal" Click="OnTrayMode" />
-                        <MenuItem x:Name="TrayModeNotify" Header="{svc:Loc Key=Xaml_Notify_â_prompt_on_new_connections_1dd99427}" Tag="notify" Click="OnTrayMode" />
-                        <MenuItem x:Name="TrayModeLearning" Header="{svc:Loc Key=Xaml_Learning_â_auto_allow_and_record_6c277dd9}" Tag="learning" Click="OnTrayMode" />
-                        <MenuItem Header="{svc:Loc Key=Xaml_Learning_â_15_min_then_lock_66553a49}" Tag="learning:15" Click="OnTrayMode" />
-                        <MenuItem Header="{svc:Loc Key=Xaml_Learning_â_1_hour_then_lock_468ea740}" Tag="learning:60" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeNormal" Header="{svc:Loc Key=Xaml_Normal_enforce_silently_6f006f4f}" Tag="normal" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeNotify" Header="{svc:Loc Key=Xaml_Notify_prompt_on_new_connections_1dd99427}" Tag="notify" Click="OnTrayMode" />
+                        <MenuItem x:Name="TrayModeLearning" Header="{svc:Loc Key=Xaml_Learning_auto_allow_and_record_6c277dd9}" Tag="learning" Click="OnTrayMode" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_Learning_15_min_then_lock_66553a49}" Tag="learning:15" Click="OnTrayMode" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_Learning_1_hour_then_lock_468ea740}" Tag="learning:60" Click="OnTrayMode" />
                     </MenuItem>
                     <MenuItem Header="{svc:Loc Key=Xaml_Global_outbound_90a53e2a}">
                         <MenuItem Header="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}" Tag="block-all" Click="OnTrayGlobalMode" />
@@ -107,15 +107,15 @@
             <!-- Menu bar -->
             <Menu DockPanel.Dock="Top">
                 <MenuItem Header="{svc:Loc Key=Menu_File, Default=File}">
-                    <MenuItem Header="{svc:Loc Key=Xaml_Import_hosts_fileâ_fcc431cd}" Command="{Binding ImportHostsFileCommand}"
+                    <MenuItem Header="{svc:Loc Key=Xaml_Import_hosts_file_fcc431cd}" Command="{Binding ImportHostsFileCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Replace_the_live_hosts_file_with_b6081ef3}" />
-                    <MenuItem Header="{svc:Loc Key=Xaml_Export_hosts_fileâ_cb20a33b}" Command="{Binding ExportHostsFileCommand}" />
-                    <MenuItem Header="{svc:Loc Key=Xaml_Export_managed_domains_JSON_â_f2f0acf7}" Command="{Binding ExportDomainsCommand}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Export_hosts_file_cb20a33b}" Command="{Binding ExportHostsFileCommand}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Export_managed_domains_JSON_f2f0acf7}" Command="{Binding ExportDomainsCommand}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Export_AI_knowledge_c58d27a3}" Command="{Binding Tools.ExportAiKnowledgeCommand}" />
                     <Separator />
-                    <MenuItem Header="{svc:Loc Key=Xaml_Export_policy_JSON_â_2b2d496c}" Command="{Binding ExportPolicyCommand}"
-                              ToolTip="{svc:Loc Key=Xaml_Save_the_whole_policy_â_domains_f8586b5d}" />
-                    <MenuItem Header="{svc:Loc Key=Xaml_Import_policy_JSON_â_f74619f8}" Command="{Binding ImportPolicyCommand}"
+                    <MenuItem Header="{svc:Loc Key=Xaml_Export_policy_JSON_2b2d496c}" Command="{Binding ExportPolicyCommand}"
+                              ToolTip="{svc:Loc Key=Xaml_Save_the_whole_policy_domains_f8586b5d}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Import_policy_JSON_f74619f8}" Command="{Binding ImportPolicyCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Reconstruct_the_policy_from_an_exported_d0d84c0e}" />
                     <MenuItem Header="{svc:Loc Key=Xaml_Restore_policy_checkpoint_74b7d23a, Default=Restore policy checkpoint}" Command="{Binding RestorePolicyCheckpointCommand}"
                               ToolTip="{svc:Loc Key=Xaml_Restore_the_latest_policy_state_captured_74b7d23a, Default=Restore the latest policy state captured before an import}" />
@@ -285,14 +285,14 @@
                                    ToolTip="{svc:Loc Key=Xaml_Managed_domains_set_to_blocked_ce919f47}" />
                         <TextBlock Style="{StaticResource Hg.SubText}" Margin="14,0,0,0"
                                    Text="{Binding DbAllowed, Mode=OneWay, StringFormat='Allowed: {0}'}"
-                                   ToolTip="{svc:Loc Key=Xaml_Managed_domains_set_to_allowed_â_2b3fb277}" />
+                                   ToolTip="{svc:Loc Key=Xaml_Managed_domains_set_to_allowed_2b3fb277}" />
                     </StackPanel>
                 </StatusBarItem>
                 <Separator />
                 <StatusBarItem>
                     <TextBlock Text="{Binding FilteringModeText}" Style="{StaticResource Hg.SubText}"
                                AutomationProperties.LiveSetting="Polite"
-                               ToolTip="{svc:Loc Key=Xaml_Filtering_mode_â_switch_from_the_340a5c61}" />
+                               ToolTip="{svc:Loc Key=Xaml_Filtering_mode_switch_from_the_340a5c61}" />
                 </StatusBarItem>
                 <StatusBarItem HorizontalAlignment="Right">
                     <TextBlock Text="{Binding ServiceVersion, StringFormat='service {0}'}"
@@ -694,7 +694,7 @@
                                     <MenuItem Header="{svc:Loc Key=Xaml_Allow_3ad0e369}"
                                               Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              ToolTip="{svc:Loc Key=Xaml_Allow_every_selected_domain_â_remove_85f98590}" />
+                                              ToolTip="{svc:Loc Key=Xaml_Allow_every_selected_domain_remove_85f98590}" />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Unblock_remove_from_hosts_da345a55}"
                                               Command="{Binding PlacementTarget.DataContext.UnblockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -738,14 +738,14 @@
                                               Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <Separator />
-                                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_purposeâ_226cec91}"
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_purpose_226cec91}"
                                               Command="{Binding PlacementTarget.DataContext.FixPurposeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_purpose_â_0a507959}" />
-                                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_categoryâ_2b0ad390}"
+                                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_purpose_0a507959}" />
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_category_2b0ad390}"
                                               Command="{Binding PlacementTarget.DataContext.FixCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_category_â_c06fdadd}" />
+                                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_category_c06fdadd}" />
                                     <Separator />
                                     <MenuItem Header="{svc:Loc Key=Xaml_Research_online_0fdb1e04}">
                                         <MenuItem Header="{svc:Loc Key=Xaml_Google_2b681c0a}"
@@ -1255,7 +1255,7 @@
                                              Style="{StaticResource Hg.HintBox}"
                                              Tag="{svc:Loc Key=Xaml_SearchManagedDomainsHint}"
                                              AutomationProperties.Name="{svc:Loc Key=Xaml_Search_managed_domains_f5421c94}"
-                                             ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_â_supports_a2c98d15}" />
+                                             ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_supports_a2c98d15}" />
                                 </DockPanel>
                                 </Border>
 
@@ -1496,7 +1496,7 @@
                                                 Command="{Binding RefreshAllListsCommand}" Margin="8,0,0,0"
                                                 VerticalAlignment="Top" />
                                         <StackPanel>
-                                            <TextBlock Text="{svc:Loc Key=Xaml_Allowlist_URLs_one_per_line_â_67b8a98c}"
+                                            <TextBlock Text="{svc:Loc Key=Xaml_Allowlist_URLs_one_per_line_67b8a98c}"
                                                        Style="{StaticResource Hg.SubText}" Margin="0,0,0,4" />
                                             <TextBox Text="{Binding AllowlistUrlsText, UpdateSourceTrigger=PropertyChanged}"
                                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Allowlist_subscription_URLs_ef7fa97d}"
@@ -1534,7 +1534,7 @@
                                             Command="{Binding AiCategorizeCommand}" Margin="0,0,8,0"
                                             ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_categorize_every_hosts_file_3b37a22a}" />
                                     <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" VerticalAlignment="Center"
-                                               Text="{svc:Loc Key=Xaml_â_Unsaved_changes_617137b6}" Foreground="{DynamicResource Hg.Peach}"
+                                               Text="{svc:Loc Key=Xaml_Unsaved_changes_617137b6}" Foreground="{DynamicResource Hg.Peach}"
                                                Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}" />
                                 </DockPanel>
                                 </Border>
@@ -2018,7 +2018,7 @@
                                     <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Learning_review_e304e7cd}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                     <Button DockPanel.Dock="Right" Padding="10,2" Margin="6,0,0,0"
                                             Command="{Binding DiscardAllLearnedCommand}"
-                                            ToolTip="{svc:Loc Key=Xaml_Remove_every_auto_allow_â_apps_163401e7}">
+                                            ToolTip="{svc:Loc Key=Xaml_Remove_every_auto_allow_apps_163401e7}">
                                         <TextBlock Text="{svc:Loc Key=Xaml_Discard_all_5b034df8}" TextWrapping="Wrap" />
                                     </Button>
                                     <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Keep_all_cbfb83ff}" Padding="10,2" Margin="6,0,0,0"
@@ -2133,7 +2133,7 @@
                                         <DataGridTextColumn Header="{svc:Loc Key=Xaml_Scope_4651a34e}" Binding="{Binding Scope}" Width="86" />
                                     </DataGrid.Columns>
                                 </DataGrid>
-                                <TextBlock Text="{svc:Loc Key=Xaml_No_decisions_yet_â_switch_to_da4e0810}"
+                                <TextBlock Text="{svc:Loc Key=Xaml_No_decisions_yet_switch_to_da4e0810}"
                                            Style="{StaticResource Hg.DimText}" Margin="0,4,0,0"
                                            Visibility="{Binding ConsentHistory.Count, Converter={StaticResource EmptyStateVis}}" />
                             </StackPanel>
@@ -2603,7 +2603,7 @@
                                      Style="{StaticResource Hg.HintBox}"
                                       Tag="{svc:Loc Key=Xaml_SearchRulesHint}"
                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Search_firewall_rules_bbf5460e}"
-                                     ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_â_matches_4dd5c1e7}" />
+                                     ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_matches_4dd5c1e7}" />
                         </DockPanel>
                         </Border>
 
@@ -2633,11 +2633,11 @@
                                               Command="{Binding PlacementTarget.DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <Separator />
-                                    <MenuItem Header="{svc:Loc Key=Xaml_Assign_to_groupâ_0952229e}"
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Assign_to_group_0952229e}"
                                               Command="{Binding PlacementTarget.DataContext.AssignToGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               ToolTip="{svc:Loc Key=Xaml_Assign_the_selected_HG_rules_to_490e2bd6}" />
-                                    <MenuItem Header="{svc:Loc Key=Xaml_Suggest_rebind_programâ_00cd0094}"
+                                    <MenuItem Header="{svc:Loc Key=Xaml_Suggest_rebind_program_00cd0094}"
                                               Command="{Binding PlacementTarget.DataContext.RebindRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                               CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 </ContextMenu>
@@ -3442,7 +3442,7 @@
                                     <DockPanel LastChildFill="False" Margin="0,0,0,6">
                                         <Button DockPanel.Dock="Left"
                                                 Command="{Binding ToggleSeeEverythingCommand}"
-                                                AutomationProperties.Name="{svc:Loc Key=Xaml_See_everything_â_force_browser_DNS_11a79a3d}"
+                                                AutomationProperties.Name="{svc:Loc Key=Xaml_See_everything_force_browser_DNS_11a79a3d}"
                                                 ToolTip="{svc:Loc Key=Xaml_One_click_block_QUIC_UDP_443_edd53016}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource Hg.AccentButton}">

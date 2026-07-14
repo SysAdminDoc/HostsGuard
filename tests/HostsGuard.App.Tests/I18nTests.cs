@@ -69,6 +69,28 @@ public sealed class I18nTests
     }
 
     [Fact]
+    public void No_resource_key_contains_non_ascii_characters()
+    {
+        // Guards the double-encoded-mojibake regression: an em-dash/ellipsis in
+        // source text leaking into a generated resx key name (e.g. "Xaml_Normal_â_…")
+        // forces every satellite to carry the mangled key and is easy to reintroduce.
+        var offenders = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(AppDir, "Resources"), "Strings*.resx"))
+        {
+            foreach (Match m in Regex.Matches(File.ReadAllText(file), "<data name=\"(?<key>[^\"]+)\""))
+            {
+                var key = m.Groups["key"].Value;
+                if (key.Any(c => c > 127))
+                {
+                    offenders.Add($"{Path.GetFileName(file)}: {key}");
+                }
+            }
+        }
+
+        offenders.Should().BeEmpty("resx key names must be ASCII");
+    }
+
+    [Fact]
     public void LocExtension_provides_the_localized_value()
     {
         var original = CultureInfo.CurrentUICulture;
