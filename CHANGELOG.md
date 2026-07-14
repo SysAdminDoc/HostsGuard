@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.100] - 2026-07-14
+
+### Security
+- The IPC client now verifies the control pipe's object owner before handshaking
+  and refuses a pipe owned by an untrusted principal (a different-user squatter),
+  closing the reverse gap where a process pre-creates the pipe name to impersonate
+  the service. Trusts SYSTEM/Administrators (the LocalSystem service) and the
+  current user (dev/console runs); fails open on an indeterminate owner so
+  legitimate connections are never blocked.
+
 ## [0.12.99] - 2026-07-14
 
 ### Added

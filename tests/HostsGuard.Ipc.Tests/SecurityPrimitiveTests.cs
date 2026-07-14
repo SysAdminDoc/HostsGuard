@@ -70,6 +70,33 @@ public class SecurityPrimitiveTests
     }
 
     [Fact]
+    public void Pipe_owner_trust_accepts_system_admins_and_the_current_user()
+    {
+        var currentUser = WindowsIdentity.GetCurrent().User!;
+        var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+        var admins = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        var localService = new SecurityIdentifier(WellKnownSidType.LocalServiceSid, null);
+
+        // Production (LocalSystem) and dev/console (current user) owners are trusted.
+        PipeServerTrust.IsTrustedOwner(system, currentUser).Should().BeTrue();
+        PipeServerTrust.IsTrustedOwner(admins, currentUser).Should().BeTrue();
+        PipeServerTrust.IsTrustedOwner(localService, currentUser).Should().BeTrue();
+        PipeServerTrust.IsTrustedOwner(currentUser, currentUser).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Pipe_owner_trust_rejects_a_different_user_but_fails_open_when_unknown()
+    {
+        // A pipe owned by some OTHER interactive user is the squatter case.
+        var me = new SecurityIdentifier("S-1-5-21-111-222-333-1001");
+        var squatter = new SecurityIdentifier("S-1-5-21-111-222-333-1002");
+        PipeServerTrust.IsTrustedOwner(squatter, me).Should().BeFalse();
+
+        // An indeterminate owner (probe failure) must never block legitimate IPC.
+        PipeServerTrust.IsTrustedOwner(null, me).Should().BeTrue();
+    }
+
+    [Fact]
     public void Token_generate_is_256bit_hex_and_unique()
     {
         var a = SessionToken.Generate();

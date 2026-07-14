@@ -29,6 +29,11 @@ public static class NamedPipeChannel
                     PipeOptions.Asynchronous | PipeOptions.WriteThrough,
                     TokenImpersonationLevel.Anonymous);
                 await pipe.ConnectAsync(ct).ConfigureAwait(false);
+                // Squatting defense: refuse a pipe presented by an untrusted owner
+                // (a different user pre-created the pipe name). Fail-open on an
+                // indeterminate owner so legitimate SYSTEM/current-user pipes always
+                // connect; the per-session token remains the auth layer on top.
+                PipeServerTrust.EnsureTrustedServer(pipe.SafePipeHandle);
                 return pipe;
             },
         };
