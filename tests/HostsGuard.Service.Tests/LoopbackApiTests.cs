@@ -74,6 +74,31 @@ public sealed class LoopbackApiTests : IDisposable
     }
 
     [Fact]
+    public void Repeated_wrong_tokens_are_rate_limited_but_valid_callers_pass()
+    {
+        // Injected clock so the token-bucket boundary is deterministic (no sleeps).
+        var now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        using var api = new LoopbackApi(_state, Token, clock: () => now);
+
+        // The burst (15) of wrong tokens all report 401 at a fixed instant...
+        for (var i = 0; i < 15; i++)
+        {
+            api.Handle("GET", "/status", NoQuery, "wrong", null).Status.Should().Be(401);
+        }
+
+        // ...the next wrong token, still at the same instant, is throttled to 429.
+        api.Handle("GET", "/status", NoQuery, "wrong", null).Status.Should().Be(429);
+
+        // A valid caller is never penalized by an attacker's failures.
+        api.Handle("GET", "/status", NoQuery, Token, null).Status.Should().Be(200);
+
+        // One second later the bucket refills one unit → one more wrong try is 401.
+        now = now.AddSeconds(1);
+        api.Handle("GET", "/status", NoQuery, "wrong", null).Status.Should().Be(401);
+        api.Handle("GET", "/status", NoQuery, "wrong", null).Status.Should().Be(429);
+    }
+
+    [Fact]
     public void Status_and_stats_report_counts()
     {
         _hosts.Block("ads.example.com");

@@ -23,18 +23,30 @@ public sealed class LoopbackApi : IDisposable
     public const int DefaultPort = 7847;
     private const int MaxBodyBytes = 1_048_576;
 
+    // Failed-auth rate limit (defense-in-depth against local token guessing, à la
+    // Pi-hole v6.3): a token bucket that permits a short burst then refills at
+    // ~1/sec. Valid callers never touch it, so they are unaffected.
+    private const double AuthFailureBurst = 15;
+    private const double AuthFailureRefillPerSecond = 1;
+
     private readonly ServiceState _state;
     private readonly string _token;
     private readonly int _port;
+    private readonly Func<DateTime> _clock;
     private HttpListener? _listener;
     private Task? _loop;
     private readonly CancellationTokenSource _cts = new();
+    private readonly object _authGate = new();
+    private double _authFailureBudget = AuthFailureBurst;
+    private DateTime _authBudgetRefilledAt;
 
-    public LoopbackApi(ServiceState state, string token, int port = DefaultPort)
+    public LoopbackApi(ServiceState state, string token, int port = DefaultPort, Func<DateTime>? clock = null)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _token = token ?? throw new ArgumentNullException(nameof(token));
         _port = port is > 0 and < 65536 ? port : DefaultPort;
+        _clock = clock ?? (() => DateTime.UtcNow);
+        _authBudgetRefilledAt = _clock();
     }
 
     /// <summary>Resolve enablement + port from the environment (opt-in).</summary>
@@ -179,7 +191,11 @@ public sealed class LoopbackApi : IDisposable
         if (provided.Length != _token.Length ||
             !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(provided), Encoding.UTF8.GetBytes(_token)))
         {
-            return (401, Error("unauthorized", "missing or invalid X-HG-Token"));
+            // Throttle sustained wrong-token guessing without penalizing a caller
+            // who simply presented the right token (they never reach here).
+            return RegisterAuthFailureAllowed()
+                ? (401, Error("unauthorized", "missing or invalid X-HG-Token"))
+                : (429, Error("rate_limited", "too many failed authentication attempts; slow down"));
         }
 
         return (method, path) switch
@@ -418,6 +434,34 @@ public sealed class LoopbackApi : IDisposable
 
         _state.Db.LogEvent("webhook", "config", details: $"{urls.Count} endpoint(s)", reason: "loopback");
         return (200, new JsonObject { ["ok"] = true, ["urls"] = urls.Count, ["secret_set"] = _state.Webhooks.Secret.Length != 0 }.ToJsonString());
+    }
+
+    /// <summary>
+    /// Consume one unit of the failed-auth budget, refilling it for elapsed time
+    /// first. Returns true while the caller is within the burst (answer 401), false
+    /// once the budget is exhausted (answer 429) — capping sustained guessing to the
+    /// refill rate after the initial burst.
+    /// </summary>
+    private bool RegisterAuthFailureAllowed()
+    {
+        lock (_authGate)
+        {
+            var now = _clock();
+            var elapsed = (now - _authBudgetRefilledAt).TotalSeconds;
+            if (elapsed > 0)
+            {
+                _authFailureBudget = Math.Min(AuthFailureBurst, _authFailureBudget + (elapsed * AuthFailureRefillPerSecond));
+                _authBudgetRefilledAt = now;
+            }
+
+            if (_authFailureBudget >= 1)
+            {
+                _authFailureBudget -= 1;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     private static string Error(string code, string message) =>

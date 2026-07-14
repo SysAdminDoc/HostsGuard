@@ -24,6 +24,14 @@ public sealed class SsrfGuardTests
     [InlineData("100.128.0.1", true)]    // just outside CGNAT /10
     [InlineData("0.0.0.0", false)]
     [InlineData("224.0.0.1", false)]     // multicast
+    [InlineData("255.255.255.255", false)] // broadcast
+    [InlineData("192.0.0.171", false)]   // 192.0.0.0/24 IETF protocol assignments (NAT64 discovery)
+    [InlineData("192.0.2.5", false)]     // TEST-NET-1
+    [InlineData("198.51.100.5", false)]  // TEST-NET-2
+    [InlineData("203.0.113.5", false)]   // TEST-NET-3
+    [InlineData("198.18.0.1", false)]    // benchmarking /15
+    [InlineData("198.19.255.1", false)]  // benchmarking /15
+    [InlineData("198.20.0.1", true)]     // just outside the /15
     [InlineData("8.8.8.8", true)]
     [InlineData("1.1.1.1", true)]
     public void Ipv4_public_classification(string ip, bool expectedPublic)
@@ -31,10 +39,14 @@ public sealed class SsrfGuardTests
 
     [Theory]
     [InlineData("::1", false)]
+    [InlineData("::", false)]            // unspecified
     [InlineData("fe80::1", false)]       // link-local
     [InlineData("fc00::1", false)]       // unique local
     [InlineData("fd12:3456::1", false)]  // unique local
     [InlineData("ff02::1", false)]       // multicast
+    [InlineData("64:ff9b::a00:1", false)]        // NAT64 well-known embedding 10.0.0.1 (private)
+    [InlineData("64:ff9b::c0a8:105", false)]     // NAT64 well-known embedding 192.168.1.5 (private)
+    [InlineData("64:ff9b::808:808", true)]       // NAT64 well-known embedding 8.8.8.8 (public)
     [InlineData("2606:4700:4700::1111", true)] // Cloudflare public v6
     public void Ipv6_public_classification(string ip, bool expectedPublic)
         => SsrfGuard.IsPublic(IPAddress.Parse(ip)).Should().Be(expectedPublic);

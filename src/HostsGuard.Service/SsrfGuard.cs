@@ -78,7 +78,12 @@ public static class SsrfGuard
                 [100, >= 64 and <= 127, ..] => false,       // 100.64.0.0/10 CGNAT
                 [127, ..] => false,                         // loopback
                 [0, ..] => false,                           // 0.0.0.0/8
-                [>= 224, ..] => false,                      // multicast/reserved
+                [192, 0, 0, ..] => false,                   // 192.0.0.0/24 IETF protocol assignments
+                [192, 0, 2, ..] => false,                   // 192.0.2.0/24 TEST-NET-1
+                [198, 51, 100, ..] => false,                // 198.51.100.0/24 TEST-NET-2
+                [203, 0, 113, ..] => false,                 // 203.0.113.0/24 TEST-NET-3
+                [198, 18 or 19, ..] => false,               // 198.18.0.0/15 benchmarking
+                [>= 224, ..] => false,                      // multicast/reserved/broadcast
                 _ => true,
             };
         }
@@ -90,16 +95,50 @@ public static class SsrfGuard
                 return false;
             }
 
+            if (address.Equals(IPAddress.IPv6Any))
+            {
+                return false; // :: unspecified
+            }
+
             var b = address.GetAddressBytes();
             if ((b[0] & 0xFE) == 0xFC)
             {
                 return false; // fc00::/7 unique local
             }
 
+            // NAT64 well-known prefix 64:ff9b::/96 embeds an IPv4 target in its
+            // low 32 bits; a NAT64 gateway would route it, so the embedded v4 is
+            // the address that actually decides reachability (a private v4 here is
+            // a real SSRF-rebind vector).
+            if (IsNat64WellKnown(b, out var embedded))
+            {
+                return IsPublic(embedded);
+            }
+
             return true;
         }
 
         return false;
+    }
+
+    private static bool IsNat64WellKnown(byte[] b, out IPAddress embedded)
+    {
+        embedded = IPAddress.None;
+        if (b.Length != 16 || b[0] != 0x00 || b[1] != 0x64 || b[2] != 0xFF || b[3] != 0x9B)
+        {
+            return false;
+        }
+
+        for (var i = 4; i < 12; i++)
+        {
+            if (b[i] != 0)
+            {
+                return false;
+            }
+        }
+
+        embedded = new IPAddress(new[] { b[12], b[13], b[14], b[15] });
+        return true;
     }
 
     /// <summary>

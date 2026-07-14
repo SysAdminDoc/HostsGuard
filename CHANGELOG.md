@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.98] - 2026-07-14
+
+### Security
+- Broadened the SSRF guard's non-routable classification to reject IPv6 NAT64
+  (`64:ff9b::/96`) targets by their embedded IPv4, the IPv6 unspecified address,
+  and the IPv4 TEST-NET-1/2/3, benchmarking (`198.18.0.0/15`), and IETF-protocol
+  (`192.0.0.0/24`) ranges so a client-supplied list/webhook URL cannot reach them.
+- The loopback API now rate-limits failed token attempts with a token bucket
+  (short burst, ~1/sec refill); valid callers are never throttled.
+
+### Changed
+- Added a reflection-based disposal guard test that pins every IDisposable member
+  of `ServiceState` to a declared owner (disposed by `ServiceState.Dispose` or by a
+  `Program.cs` `using var`), failing the build if a collaborator's lifecycle is
+  added or changed without recording who disposes it.
+
 ## [0.12.97] - 2026-07-14
 
 ### Fixed
