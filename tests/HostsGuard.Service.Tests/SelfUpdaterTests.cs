@@ -11,8 +11,9 @@ namespace HostsGuard.Service.Tests;
 /// <summary>
 /// NET-187: SHA-256-verified service self-update. Staging verifies the
 /// downloaded installer against the digest the release feed pins (reject on
-/// mismatch, fail closed on a digest-less feed); apply-on-start consumes the
-/// manifest before launching so a crashing installer can never loop.
+/// mismatch, fail closed on a digest-less feed); apply-on-start moves the
+/// manifest to a launched-attempt record before process creation so a crashing
+/// installer can never loop.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class SelfUpdaterTests : IDisposable
@@ -302,6 +303,21 @@ public sealed class SelfUpdaterTests : IDisposable
         first.Should().StartWith("applying");
         launched.Should().ContainSingle("the manifest is consumed before launch, so a second start never re-runs it");
         second.Should().Be("no pending update");
+        File.Exists(UpdateRecoveryCoordinator.LaunchedPath(_dir)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Apply_on_start_does_not_requeue_a_launcher_failure()
+    {
+        ServeFeed("v9.9.9", InstallerHash);
+        (await _updater.StageAsync(CancellationToken.None)).Ok.Should().BeTrue();
+
+        var first = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, _ => false);
+        var second = SelfUpdater.ApplyPendingOnStart(_dir, "1.0.0", _db, _ => true);
+
+        first.Should().Contain("failed to launch");
+        second.Should().Be("no pending update");
+        File.Exists(UpdateRecoveryCoordinator.LaunchedPath(_dir)).Should().BeTrue();
     }
 
     [Fact]

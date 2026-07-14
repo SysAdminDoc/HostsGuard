@@ -19,8 +19,8 @@
 #endif
 
 #define MyAppName "HostsGuard"
-#define MyAppVersion "0.12.112"
-#define MyAppVersionInfo "0.12.112.0"
+#define MyAppVersion "0.12.113"
+#define MyAppVersionInfo "0.12.113.0"
 #define MyServiceName "HostsGuardSvc"
 
 [Setup]
@@ -56,6 +56,9 @@ VersionInfoProductVersion={#MyAppVersion}
 
 [Files]
 Source: "dist\dotnet\{#TargetRid}\service\*"; DestDir: "{app}\service"; Flags: ignoreversion recursesubdirs
+; Extracted before file replacement so upgrades can stop/wait, snapshot, and
+; later roll back without executing a helper from the tree being replaced.
+Source: "dist\dotnet\{#TargetRid}\service\HostsGuard.Service.exe"; DestDir: "{tmp}"; DestName: "HostsGuard.UpdateHelper.exe"; Flags: dontcopy
 Source: "dist\dotnet\{#TargetRid}\app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "dist\dotnet\{#TargetRid}\cli\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs
 Source: "dist\dotnet\{#TargetRid}\migrator\*"; DestDir: "{app}\migrator"; Flags: ignoreversion recursesubdirs
@@ -69,19 +72,7 @@ Name: "{autodesktop}\HostsGuard"; Filename: "{app}\HostsGuard.App.exe"; Tasks: d
 Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional shortcuts:"
 
 [Run]
-; Register the elevated engine: LocalSystem, auto-start, after the Windows
-; Firewall service. Recovery: restart on failure (5s / 10s / 30s, daily reset).
-Filename: "{sys}\sc.exe"; Parameters: "create {#MyServiceName} binPath= ""{app}\service\HostsGuard.Service.exe"" start= auto depend= MpsSvc obj= LocalSystem DisplayName= ""HostsGuard Service"""; Flags: runhidden
-Filename: "{sys}\sc.exe"; Parameters: "description {#MyServiceName} ""HostsGuard elevated engine: hosts file, firewall rules, DNS/connection monitors, consent prompts."""; Flags: runhidden
-Filename: "{sys}\sc.exe"; Parameters: "failure {#MyServiceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000"; Flags: runhidden
-Filename: "{sys}\sc.exe"; Parameters: "start {#MyServiceName}"; Flags: runhidden
-; Fresh installs and upgrades must never leave broad network-blocking posture on
-; by default. This restores Normal/Allow posture, disarms DNS-bypass blocks,
-; flow teardown, and kill-switch, and intentionally leaves hosts-file blocks
-; unchanged.
-Filename: "{app}\cli\HostsGuard.Cli.exe"; Parameters: "safe-posture"; StatusMsg: "Restoring safe network posture..."; Flags: runhidden
-Filename: "{app}\cli\HostsGuard.Cli.exe"; Parameters: "safe-posture-smoke"; StatusMsg: "Verifying safe network posture..."; Flags: runhidden
-Filename: "{app}\HostsGuard.App.exe"; Description: "Launch HostsGuard"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\HostsGuard.App.exe"; Description: "Launch HostsGuard"; Flags: nowait postinstall skipifsilent; Check: CanLaunchApp
 
 [UninstallRun]
 Filename: "{sys}\sc.exe"; Parameters: "stop {#MyServiceName}"; Flags: runhidden; RunOnceId: "StopSvc"
@@ -93,16 +84,196 @@ Filename: "{sys}\sc.exe"; Parameters: "delete {#MyServiceName}"; Flags: runhidde
 Type: dirifempty; Name: "{app}"
 
 [Code]
-// Re-install safety: stop and remove an existing service registration before
-// files are replaced, so the binary is never locked and `sc create` succeeds.
-procedure CurStepChanged(CurStep: TSetupStep);
+var
+  WasUpgrade: Boolean;
+  UpdatePrepared: Boolean;
+  UpdateFailed: Boolean;
+  UpdateFailure: String;
+
+function RunAndCheck(const Filename, Parameters: String; var ResultCode: Integer): Boolean;
+begin
+  Result := Exec(Filename, Parameters, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+            (ResultCode = 0);
+end;
+
+function ServiceExists(): Boolean;
 var
   ResultCode: Integer;
 begin
-  if CurStep = ssInstall then
+  Result := Exec(ExpandConstant('{sys}\sc.exe'), 'query {#MyServiceName}', '',
+    SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  Helper, Parameters: String;
+begin
+  Result := '';
+  NeedsRestart := False;
+  WasUpgrade := DirExists(ExpandConstant('{app}\service')) or ServiceExists();
+  if not WasUpgrade then
+    exit;
+
+  ExtractTemporaryFile('HostsGuard.UpdateHelper.exe');
+  Helper := ExpandConstant('{tmp}\HostsGuard.UpdateHelper.exe');
+  Parameters := '--prepare-update "{#MyAppVersion}" "' + ExpandConstant('{app}') +
+    '" "' + ExpandConstant('{commonappdata}\HostsGuard') + '"';
+  if not RunAndCheck(Helper, Parameters, ResultCode) then
   begin
-    Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#MyServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Sleep(1500);
-    Exec(ExpandConstant('{sys}\sc.exe'), 'delete {#MyServiceName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Result := 'HostsGuard update preflight failed before any files were replaced ' +
+      '(helper exit ' + IntToStr(ResultCode) + '). The existing installation was left in place.';
+    exit;
   end;
+
+  UpdatePrepared := True;
+end;
+
+function ConfigureAndStartService(var Failure: String): Boolean;
+var
+  ResultCode: Integer;
+  Command: String;
+begin
+  Result := False;
+  if not WasUpgrade then
+  begin
+    Command := 'create {#MyServiceName} binPath= ""' +
+      ExpandConstant('{app}\service\HostsGuard.Service.exe') +
+      '"" start= auto depend= MpsSvc obj= LocalSystem DisplayName= ""HostsGuard Service""';
+
+    if not RunAndCheck(ExpandConstant('{sys}\sc.exe'), Command, ResultCode) then
+    begin
+      Failure := 'service registration failed (sc.exe exit ' + IntToStr(ResultCode) + ')';
+      exit;
+    end;
+
+    if not RunAndCheck(ExpandConstant('{sys}\sc.exe'),
+        'description {#MyServiceName} ""HostsGuard elevated engine: hosts file, firewall rules, DNS/connection monitors, consent prompts.""',
+        ResultCode) then
+    begin
+      Failure := 'service description failed (sc.exe exit ' + IntToStr(ResultCode) + ')';
+      exit;
+    end;
+
+    if not RunAndCheck(ExpandConstant('{sys}\sc.exe'),
+        'failure {#MyServiceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000',
+        ResultCode) then
+    begin
+      Failure := 'service recovery configuration failed (sc.exe exit ' + IntToStr(ResultCode) + ')';
+      exit;
+    end;
+  end
+  else if not ServiceExists() then
+  begin
+    Failure := 'the existing service registration disappeared after update preflight';
+    exit;
+  end;
+
+  if not RunAndCheck(ExpandConstant('{sys}\sc.exe'), 'start {#MyServiceName}', ResultCode) then
+  begin
+    Failure := 'service start failed (sc.exe exit ' + IntToStr(ResultCode) + ')';
+    exit;
+  end;
+
+  Result := True;
+end;
+
+procedure RollBackOrFail(const Failure: String);
+var
+  ResultCode: Integer;
+  Helper, Parameters: String;
+begin
+  if WasUpgrade and UpdatePrepared then
+  begin
+    Helper := ExpandConstant('{commonappdata}\HostsGuard\updates\rollback-helper\HostsGuard.Service.exe');
+    Parameters := '--rollback-update "' + ExpandConstant('{commonappdata}\HostsGuard') + '"';
+    if RunAndCheck(Helper, Parameters, ResultCode) then
+    begin
+      UpdateFailed := True;
+      UpdateFailure := Failure;
+      UpdatePrepared := False;
+      Log('Update failed and the previous version was restored once: ' + Failure);
+      exit;
+    end;
+
+    RaiseException(Failure + '; automatic rollback also failed (helper exit ' +
+      IntToStr(ResultCode) + ').');
+  end;
+
+  RaiseException(Failure);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+  Failure, Parameters: String;
+begin
+  if CurStep <> ssPostInstall then
+    exit;
+
+  if not ConfigureAndStartService(Failure) then
+  begin
+    RollBackOrFail(Failure);
+    exit;
+  end;
+
+  if WasUpgrade then
+  begin
+    Parameters := 'update health --expected "{#MyAppVersion}" --timeout 30';
+    if not RunAndCheck(ExpandConstant('{app}\cli\HostsGuard.Cli.exe'), Parameters, ResultCode) then
+    begin
+      RollBackOrFail('installed service failed exact-version/read-only posture health (CLI exit ' +
+        IntToStr(ResultCode) + ')');
+      exit;
+    end;
+
+    Parameters := '--complete-update "' + ExpandConstant('{commonappdata}\HostsGuard') +
+      '" "{#MyAppVersion}"';
+    if not RunAndCheck(ExpandConstant('{app}\service\HostsGuard.Service.exe'), Parameters, ResultCode) then
+    begin
+      RollBackOrFail('healthy update state could not be committed (helper exit ' +
+        IntToStr(ResultCode) + ')');
+      exit;
+    end;
+
+    UpdatePrepared := False;
+  end
+  else
+  begin
+    // A new install starts from safe defaults. Upgrades intentionally skip
+    // these mutating commands and use the read-only health probe above.
+    if not RunAndCheck(ExpandConstant('{app}\cli\HostsGuard.Cli.exe'), 'safe-posture', ResultCode) then
+      RaiseException('fresh-install safe posture failed (CLI exit ' + IntToStr(ResultCode) + ')');
+    if not RunAndCheck(ExpandConstant('{app}\cli\HostsGuard.Cli.exe'), 'safe-posture-smoke', ResultCode) then
+      RaiseException('fresh-install posture verification failed (CLI exit ' + IntToStr(ResultCode) + ')');
+  end;
+end;
+
+procedure DeinitializeSetup();
+var
+  ResultCode: Integer;
+  Helper, Parameters: String;
+begin
+  // Cancellation/internal setup failure after preflight must not leave the old
+  // service stopped. Claim the same one-shot rollback path used by health fail.
+  if WasUpgrade and UpdatePrepared then
+  begin
+    Helper := ExpandConstant('{commonappdata}\HostsGuard\updates\rollback-helper\HostsGuard.Service.exe');
+    Parameters := '--rollback-update "' + ExpandConstant('{commonappdata}\HostsGuard') + '"';
+    RunAndCheck(Helper, Parameters, ResultCode);
+    UpdatePrepared := False;
+  end;
+end;
+
+function CanLaunchApp(): Boolean;
+begin
+  Result := not UpdateFailed;
+end;
+
+function GetCustomSetupExitCode(): Integer;
+begin
+  if UpdateFailed then
+    Result := 10
+  else
+    Result := 0;
 end;

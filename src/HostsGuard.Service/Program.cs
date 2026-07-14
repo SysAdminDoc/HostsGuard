@@ -21,6 +21,36 @@ if (args is ["--sqlite-version"])
     return;
 }
 
+if (args is ["--prepare-update", var expectedVersion, var installRoot, var updateDataDir])
+{
+    var result = UpdateRecoveryCoordinator.Prepare(
+        updateDataDir,
+        installRoot,
+        expectedVersion,
+        Environment.ProcessPath ?? string.Empty,
+        new WindowsServiceUpdateControl());
+    Console.WriteLine(result.Message);
+    Environment.ExitCode = result.Ok ? 0 : 20;
+    return;
+}
+
+if (args is ["--rollback-update", var rollbackDataDir])
+{
+    var result = UpdateRecoveryCoordinator.Rollback(rollbackDataDir, new WindowsServiceUpdateControl());
+    Console.WriteLine(result.Message);
+    Environment.ExitCode = result.Ok ? 0 : 21;
+    return;
+}
+
+if (args is ["--complete-update", var completeDataDir, var healthyVersion])
+{
+    using var completionDb = new HostsDatabase(Path.Combine(completeDataDir, "hostsguard.db"));
+    var result = UpdateRecoveryCoordinator.CompleteHealthy(completeDataDir, healthyVersion, completionDb);
+    Console.WriteLine(result.Message);
+    Environment.ExitCode = result.Ok ? 0 : 22;
+    return;
+}
+
 var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 var baseDir = Path.Combine(programData, "HostsGuard");
 // Lock the data dir down BEFORE any state file is created (the DB, consent
@@ -70,6 +100,10 @@ if (quarantinedDb is not null)
 {
     Console.WriteLine($"HostsGuard: state database was unreadable and was quarantined to {quarantinedDb}; a fresh database was created.");
 }
+
+// A restored previous version records the failed update once, then removes the
+// versioned backup/attempt so it cannot roll back a second time.
+UpdateRecoveryCoordinator.ReconcileOnServiceStart(baseDir, db);
 
 // NET-187: if a hash-verified installer was staged, apply it now — the manifest
 // is consumed before launch so a crashing installer can never loop the service.

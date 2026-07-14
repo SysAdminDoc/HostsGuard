@@ -18,8 +18,9 @@ public sealed record UpdateOutcome(bool Ok, string Message, string LatestVersion
 /// release feed pins for that asset (reject on mismatch, fail closed when the
 /// feed carries no digest), and parks it under <c>%ProgramData%\HostsGuard\updates</c>.
 /// The staged installer is applied on the next service start: the manifest is
-/// consumed FIRST (a crashing installer can never loop), then the installer
-/// runs detached and performs the usual stop/replace/restart.
+/// moved to a durable launched record before process creation (a crashing
+/// installer can never loop), then the installer performs a health-checked,
+/// rollback-capable stop/replace/restart transaction.
 /// </summary>
 public sealed class SelfUpdater
 {
@@ -257,7 +258,7 @@ public sealed class SelfUpdater
 
     /// <summary>
     /// Startup hook: if a staged installer is pending and still newer than the
-    /// running build, consume the manifest FIRST (crash-safe: never loops) and
+    /// running build, consume the manifest before launch (crash-safe: never loops) and
     /// launch the installer detached; it performs stop/replace/restart. Returns
     /// what happened for logging/tests. The launcher is injectable for tests.
     /// </summary>
@@ -275,18 +276,9 @@ public sealed class SelfUpdater
             return "no pending update";
         }
 
-        // Consume the manifest before anything can go wrong.
-        try
-        {
-            File.Delete(manifestPath);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return $"pending update manifest could not be consumed: {ex.Message}";
-        }
-
         if (pending.Version != "(local)" && CompareVersions(installedVersion, pending.Version) >= 0)
         {
+            TryDelete(manifestPath);
             TryDelete(pending.InstallerPath);
             db.LogEvent("self_update", "update_already_applied",
                 details: $"staged {pending.Version} <= installed {installedVersion}; cleaned up", reason: "self_update");
@@ -295,6 +287,7 @@ public sealed class SelfUpdater
 
         if (!File.Exists(pending.InstallerPath))
         {
+            TryDelete(manifestPath);
             return "staged installer is missing; nothing to apply";
         }
 
@@ -303,11 +296,24 @@ public sealed class SelfUpdater
         var actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(pending.InstallerPath))).ToLowerInvariant();
         if (!string.Equals(actual, pending.Sha256, StringComparison.OrdinalIgnoreCase))
         {
+            TryDelete(manifestPath);
             TryDelete(pending.InstallerPath);
             db.LogEvent("self_update", "update_hash_mismatch",
                 details: $"staged installer no longer matches its manifest hash ({actual} != {pending.Sha256}); deleted",
                 reason: "self_update");
             return "staged installer failed re-verification and was deleted";
+        }
+
+        // Preserve exactly what was launched for post-install diagnostics, but
+        // remove it from the pending path before process creation so a failed
+        // installer can never be re-executed by a service restart.
+        try
+        {
+            File.Move(manifestPath, UpdateRecoveryCoordinator.LaunchedPath(dataDir), overwrite: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"pending update manifest could not be consumed: {ex.Message}";
         }
 
         var launched = (launcher ?? LaunchInstaller)(pending.InstallerPath);

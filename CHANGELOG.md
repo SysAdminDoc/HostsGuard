@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.113] - 2026-07-14
+
+### Fixed
+- In-place updates now stop-and-wait before file replacement and preserve a
+  versioned snapshot of the previous binaries plus SCM path, account,
+  dependencies, description, start/error modes, and recovery actions.
+- Installer service commands now check their exit codes. The new service must
+  start at the exact expected version with a matching database schema and
+  readable firewall/filtering posture; this health probe is read-only, so an
+  upgrade no longer resets the user's network posture.
+- A failed registration, start, or health check invokes the out-of-tree helper
+  once to restore the previous files and service configuration, restart that
+  version, and log the rollback result. Healthy startup logs success and clears
+  the attempt, launched manifest, helper, and backup.
+
 ## [0.12.112] - 2026-07-14
 
 ### Security

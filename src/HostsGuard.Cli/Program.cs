@@ -158,6 +158,7 @@ static int Usage()
           HostsGuard.Cli mode [normal|notify|learning]
           HostsGuard.Cli update [check|stage]
           HostsGuard.Cli update stage --path <feed-matching-installer.exe> [--sha256 <hash>]
+          HostsGuard.Cli update health --expected <version> [--timeout <seconds>]
           HostsGuard.Cli safe-posture
           HostsGuard.Cli safe-posture-smoke
           HostsGuard.Cli release-smoke
@@ -3065,6 +3066,11 @@ static async Task<int> ModeAsync(string? requested)
 static async Task<int> UpdateAsync(string[] args)
 {
     var subcommand = args.Length > 1 ? args[1].ToLowerInvariant() : "check";
+    if (subcommand == "health")
+    {
+        return await UpdateHealthAsync(args);
+    }
+
     return await RunCommandAsync(async channel =>
     {
         var client = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
@@ -3116,6 +3122,140 @@ static async Task<int> UpdateAsync(string[] args)
                 return 1;
         }
     });
+}
+
+// Installer-only, read-only verification. It retries service startup, then
+// proves the exact service version, DB schema, and readable firewall/filtering
+// posture without calling any mutating RPC.
+static async Task<int> UpdateHealthAsync(string[] args)
+{
+    var expected = string.Empty;
+    var timeoutSeconds = 30;
+    for (var i = 2; i < args.Length; i++)
+    {
+        var arg = args[i];
+        if (TryReadOptionValue(args, ref i, arg, "--expected", out var value))
+        {
+            expected = value;
+            continue;
+        }
+
+        if (TryReadOptionValue(args, ref i, arg, "--timeout", out value) &&
+            int.TryParse(value, out timeoutSeconds) && timeoutSeconds is >= 1 and <= 120)
+        {
+            continue;
+        }
+
+        Console.Error.WriteLine($"Unknown or invalid update health option: {arg}");
+        return 1;
+    }
+
+    if (expected.Length == 0)
+    {
+        Console.Error.WriteLine("update health requires --expected <version>");
+        return 1;
+    }
+
+    var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+    string lastError = "service did not become reachable";
+    do
+    {
+        var (channel, connectError) = Connect();
+        if (channel is null)
+        {
+            lastError = connectError;
+            await Task.Delay(250);
+            continue;
+        }
+
+        using (channel)
+        {
+            try
+            {
+                var callDeadline = DateTime.UtcNow.AddSeconds(3);
+                var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
+                    .GetStatusAsync(new Empty(), deadline: callDeadline);
+                var posture = await new FirewallControl.FirewallControlClient(channel)
+                    .GetPostureAsync(new Empty(), deadline: callDeadline);
+                var mode = await new Consent.ConsentClient(channel)
+                    .GetModeAsync(new Empty(), deadline: callDeadline);
+
+                var failures = new List<string>();
+                if (!VersionsEqual(status.Version, expected))
+                {
+                    failures.Add($"service version {status.Version} != expected {expected}");
+                }
+
+                if (status.SchemaVersion <= 0 || status.SchemaVersionOnDisk != status.SchemaVersion)
+                {
+                    failures.Add($"database schema {status.SchemaVersionOnDisk} != code {status.SchemaVersion}");
+                }
+
+                if (!posture.Available || posture.Profiles.Count == 0)
+                {
+                    failures.Add("firewall posture is unavailable or has no profiles");
+                }
+
+                if (mode.Mode is not ("normal" or "notify" or "learning"))
+                {
+                    failures.Add($"filtering mode '{mode.Mode}' is invalid");
+                }
+
+                if (status.RuntimeVersion.Length == 0 || status.SqliteVersion.Length == 0)
+                {
+                    failures.Add("runtime or SQLite health metadata is missing");
+                }
+
+                if (failures.Count != 0)
+                {
+                    foreach (var failure in failures)
+                    {
+                        Console.Error.WriteLine($"FAIL: {failure}");
+                    }
+
+                    return 2;
+                }
+
+                Console.WriteLine($"OK: service {status.Version}; schema {status.SchemaVersion}; " +
+                    $"{posture.Profiles.Count} firewall profiles; filtering {mode.Mode}; posture unchanged");
+                return 0;
+            }
+            catch (Grpc.Core.RpcException ex) when (
+                ex.StatusCode is Grpc.Core.StatusCode.Unavailable or
+                    Grpc.Core.StatusCode.DeadlineExceeded or
+                    Grpc.Core.StatusCode.Cancelled or
+                    Grpc.Core.StatusCode.Unauthenticated)
+            {
+                lastError = $"{ex.StatusCode}: {ex.Status.Detail}";
+            }
+        }
+
+        await Task.Delay(250);
+    }
+    while (DateTime.UtcNow < deadline);
+
+    Console.Error.WriteLine($"FAIL: update health timed out after {timeoutSeconds} seconds ({lastError})");
+    return 3;
+
+    static bool VersionsEqual(string actual, string expectedVersion)
+    {
+        static Version? Parse(string value)
+        {
+            var core = value.Trim().TrimStart('v', 'V');
+            var metadata = core.IndexOfAny(['-', '+']);
+            if (metadata >= 0)
+            {
+                core = core[..metadata];
+            }
+
+            return System.Version.TryParse(core, out var parsed) ? parsed : null;
+        }
+
+        var left = Parse(actual);
+        var right = Parse(expectedVersion);
+        return left is not null && right is not null &&
+            left.Major == right.Major && left.Minor == right.Minor && left.Build == right.Build;
+    }
 }
 
 // NET-054: pre-release smoke — runtime, dependency versions, service

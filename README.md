@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.112-blue)
+![Version](https://img.shields.io/badge/version-0.12.113-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -207,12 +207,13 @@ HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
 HostsGuard.Cli update check
 HostsGuard.Cli update stage
 HostsGuard.Cli update stage --path <feed-matching-installer.exe> [--sha256 <hash>]
+HostsGuard.Cli update health --expected <version> [--timeout <seconds>]
 HostsGuard.Cli safe-posture
 HostsGuard.Cli safe-posture-smoke
 HostsGuard.Cli release-smoke
 ```
 
-The CLI talks to the service over the same authenticated pipe contract as the app, so it works unelevated too. Local update staging is an online-assisted path: the supplied file name, architecture, newer version, and streamed SHA-256 must match the current GitHub release metadata; `--sha256` is only an additional assertion and cannot authorize another executable.
+The CLI talks to the service over the same authenticated pipe contract as the app, so it works unelevated too. Local update staging is an online-assisted path: the supplied file name, architecture, newer version, and streamed SHA-256 must match the current GitHub release metadata; `--sha256` is only an additional assertion and cannot authorize another executable. Before an upgrade replaces files, the installer must stop the service and create a versioned binary/SCM snapshot. It then requires the expected service version, matching database schema, and readable firewall/filtering posture without changing that posture. A failed check restores the previous version once; a healthy start removes the recovery state.
 
 ## Data locations
 
@@ -227,7 +228,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1610 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1616 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

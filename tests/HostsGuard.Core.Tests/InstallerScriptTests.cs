@@ -5,22 +5,18 @@ namespace HostsGuard.Core.Tests;
 public sealed class InstallerScriptTests
 {
     [Fact]
-    public void Installer_restores_and_verifies_safe_posture_before_launching_the_app()
+    public void Installer_health_checks_upgrades_without_resetting_posture_and_safes_fresh_installs()
     {
         var script = File.ReadAllText(RepoFile("installer-dotnet.iss"));
 
-        var serviceStart = script.IndexOf("Parameters: \"start {#MyServiceName}\"", StringComparison.Ordinal);
-        var safePosture = script.IndexOf("Parameters: \"safe-posture\"", StringComparison.Ordinal);
-        var safeSmoke = script.IndexOf("Parameters: \"safe-posture-smoke\"", StringComparison.Ordinal);
-        var launchApp = script.IndexOf("Description: \"Launch HostsGuard\"", StringComparison.Ordinal);
-
-        serviceStart.Should().BeGreaterThanOrEqualTo(0);
-        safePosture.Should().BeGreaterThan(serviceStart);
-        safeSmoke.Should().BeGreaterThan(safePosture);
-        launchApp.Should().BeGreaterThan(safeSmoke);
-        script.Should().Contain("leaves hosts-file blocks");
-        script.Should().Contain("StatusMsg: \"Restoring safe network posture...\"");
-        script.Should().Contain("StatusMsg: \"Verifying safe network posture...\"");
+        script.Should().Contain("'start {#MyServiceName}'");
+        script.Should().Contain("update health --expected");
+        script.Should().Contain("if WasUpgrade then");
+        script.Should().Contain("'safe-posture'");
+        script.Should().Contain("'safe-posture-smoke'");
+        script.Should().Contain("Upgrades intentionally skip");
+        script.Should().Contain("Check: CanLaunchApp");
+        script.Should().NotContain("Filename: \"{app}\\cli\\HostsGuard.Cli.exe\"; Parameters: \"safe-posture\"");
     }
 
     [Fact]
