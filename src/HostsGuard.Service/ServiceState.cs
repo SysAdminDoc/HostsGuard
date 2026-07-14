@@ -33,17 +33,19 @@ public sealed class ServiceState : IDisposable
         ILanAttackSurfaceStore? lanSurfaceStore = null,
         IProxyConfigurationSnapshotSource? proxySnapshotSource = null,
         IDnsServiceBindingQuery? serviceBindingQuery = null,
-        ICaptivePortalProbe? captivePortalProbe = null)
+        ICaptivePortalProbe? captivePortalProbe = null,
+        IClock? clock = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
+        Clock = clock ?? SystemClock.Instance;
         ShutdownToken = _shutdown.Token;
-        IdnHomographs = new IdnHomographMonitor(db);
+        IdnHomographs = new IdnHomographMonitor(db, clock: Clock);
         DnsTunnels = new DnsTunnelDetector();
         Firewall = firewall;
         Identity = identity;
         Dns = dns;
-        ResolverHealth = new ResolverHealthCoordinator(dns, db);
+        ResolverHealth = new ResolverHealthCoordinator(dns, db, Clock);
         ServiceBindingQuery = serviceBindingQuery;
         DataDir = dataDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
@@ -52,18 +54,18 @@ public sealed class ServiceState : IDisposable
             hosts.HostsPath,
             DataDir,
             typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0");
-        StartedAtUtc = DateTime.UtcNow;
+        StartedAtUtc = Clock.UtcNow;
         Bus = new EventBus();
         // Surface new alerts on the bus so the outbound webhook deliverer can
         // forward tamper/detector notifications, not just DNS/connection activity.
         // Log-only (unsurfaced) alert types are not forwarded.
         Db.AlertRaised += OnAlertRaised;
         ActivityPersistence = new ActivityPersistenceQueue(db);
-        TempAllows = new TempAllowScheduler(hosts, db, Bus);
+        TempAllows = new TempAllowScheduler(hosts, db, Bus, Clock);
         TempAllows.Resume();
-        TempBlocks = new TempBlockScheduler(hosts, db, Bus);
+        TempBlocks = new TempBlockScheduler(hosts, db, Bus, Clock);
         TempBlocks.Resume();
-        EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir);
+        EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir, Clock);
         EnforcementPause.Resume();
         CaptivePortalProbe = captivePortalProbe ?? new WindowsNcsiCaptivePortalProbe();
         ConnectionSnapshot = connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot());
@@ -76,15 +78,15 @@ public sealed class ServiceState : IDisposable
             db,
             firewall,
             lanSurfaceStore ?? NullLanAttackSurfaceStore.Instance);
-        Schedules = new ScheduleEnforcer(hosts, db, firewall);
+        Schedules = new ScheduleEnforcer(hosts, db, firewall, clock: Clock);
         QuotaEnforcer = new UsageQuotaEnforcer(db, hosts, firewall);
-        Doh = new DohIntelligence(DataDir);
+        Doh = new DohIntelligence(DataDir, clock: Clock);
         Threats = new ThreatIntel(DataDir);
         ThreatHistoryRescan = new ThreatHistoryRescanCoordinator(db, Threats.Contains);
         GeoIp = new GeoIpService(DataDir);
         Asn = new AsnService(DataDir);
         DirectIp = new Core.DirectIpHeuristic();
-        Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir)
+        Consent = new ConsentBroker(db, Bus, firewall, identity, DataDir, Clock)
         {
             LookupCountry = GeoIp.Lookup,
             LookupThreat = Threats.Contains,
@@ -123,16 +125,19 @@ public sealed class ServiceState : IDisposable
         if (listFetcher is not null)
         {
             Lists = new ListImporter(hosts, db, listFetcher);
-            Intel = new BlocklistIntelligence(db, listFetcher);
+            Intel = new BlocklistIntelligence(db, listFetcher, Clock);
             IpBlocklists = new IpBlocklistCoordinator(db, firewall, listFetcher);
             Updater = new SelfUpdater(db, DataDir, listFetcher,
-                typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0");
+                typeof(ServiceState).Assembly.GetName().Version?.ToString() ?? "0.0.0",
+                clock: Clock);
         }
     }
 
     public HostsEngine Hosts { get; }
 
     public HostsDatabase Db { get; }
+
+    public IClock Clock { get; }
 
     public IdnHomographMonitor IdnHomographs { get; }
 
@@ -237,7 +242,7 @@ public sealed class ServiceState : IDisposable
     /// </summary>
     public Contracts.Ack? GateWhenLocked()
     {
-        if (Lock.IsLocked(DateTime.UtcNow))
+        if (Lock.IsLocked(Clock.UtcNow))
         {
             return new Contracts.Ack
             {
@@ -335,7 +340,7 @@ public sealed class ServiceState : IDisposable
         }
 
         var host = obs.Host.ToLowerInvariant();
-        ResolvedIps.Record(host, new[] { obs.RemoteAddress }, DateTime.Now);
+        ResolvedIps.Record(host, new[] { obs.RemoteAddress }, Clock.Now);
         ActivityPersistence.EnqueueResolvedHosts(new[] { (obs.RemoteAddress, host) }, "sni");
     }
 
@@ -376,7 +381,7 @@ public sealed class ServiceState : IDisposable
         var firstContact = !Db.FeedContains(d);
         IdnHomographs.Observe(d, process);
         if (!Db.IsHistoryPersistenceExcluded(process, d))
-            ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, DateTime.Now);
+            ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, Clock.Now);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot
         // uses. Without this the live stream re-adds blocked domains as normal
@@ -389,13 +394,13 @@ public sealed class ServiceState : IDisposable
             Pid = pid,
             Blocked = isBlocked,
             Hidden = Db.IsHidden(d, root),
-            Ts = Timestamp.FromDateTime(DateTime.UtcNow),
+            Ts = Timestamp.FromDateTime(Clock.UtcNow),
         };
         ev.Blocklists.AddRange(Db.GetBlocklistsFor(d));
         Bus.Publish(ev);
 
         MaybeAlertSuspiciousDomain(d, root, process);
-        MaybeAlertDnsTunnel(d, process, pid, queryType, observedAtUtc ?? DateTime.UtcNow);
+        MaybeAlertDnsTunnel(d, process, pid, queryType, observedAtUtc ?? Clock.UtcNow);
         MaybeAlertNewlyObserved(d, process, firstContact);
     }
 
@@ -420,7 +425,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        if (_newlyObservedAlerted.Add(domain, DateTime.UtcNow))
+        if (_newlyObservedAlerted.Add(domain, Clock.UtcNow))
         {
             Db.AddAlert(
                 "newly_observed_domain",
@@ -453,7 +458,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        if (_dgaAlerted.Add(root, DateTime.UtcNow))
+        if (_dgaAlerted.Add(root, Clock.UtcNow))
         {
             Db.AddAlert(
                 "suspicious_domain",
@@ -551,7 +556,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        if (_dnsBypassAlerted.Add($"{process}|{kind}", DateTime.UtcNow))
+        if (_dnsBypassAlerted.Add($"{process}|{kind}", Clock.UtcNow))
         {
             Db.AddAlert(
                 "dns_bypass",
@@ -585,7 +590,7 @@ public sealed class ServiceState : IDisposable
         MaybeAlertFirstNetworkActivity(info, host);
         var threat = Threats.Contains(info.RemoteAddress);
         var fwStatus = threat ? "THREAT"
-            : DirectIp.IsDirect(info.RemoteAddress, DateTime.Now) ? "DIRECT-IP"
+            : DirectIp.IsDirect(info.RemoteAddress, Clock.Now) ? "DIRECT-IP"
             : string.Empty;
         if (threat)
         {
@@ -602,7 +607,7 @@ public sealed class ServiceState : IDisposable
         if (recordHistory && !Db.IsHistoryPersistenceExcluded(info.Process, host))
         {
             Db.RecordConnection(new ConnHistoryRow(
-                DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                Clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
                 info.Process, info.Pid, info.Protocol, info.RemoteAddress, info.RemotePort,
                 country, fwStatus, host, asn));
         }
@@ -623,7 +628,7 @@ public sealed class ServiceState : IDisposable
             Asn = asn,
             FwStatus = fwStatus,
             Service = LookupService?.Invoke(info.Pid) ?? string.Empty,
-            Ts = Timestamp.FromDateTime(DateTime.UtcNow),
+            Ts = Timestamp.FromDateTime(Clock.UtcNow),
         });
     }
 
@@ -638,7 +643,7 @@ public sealed class ServiceState : IDisposable
         if (identity.EndsWith(':') || !Db.TryRecordBinaryNetworkFirstSeen(new BinaryNetworkFirstSeenRow(
                 identity, process, path, fileIdentity?.Sha256 ?? string.Empty,
                 fileIdentity?.Signer ?? string.Empty, host.Length != 0 ? host : info.RemoteAddress,
-                DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture))))
+                Clock.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture))))
             return;
 
         if (!Db.IsAlertTypeSurfaced("first_network_activity")) return;
@@ -692,7 +697,7 @@ public sealed class ServiceState : IDisposable
     /// </summary>
     public string ResolveKnownHost(string ip)
     {
-        var live = ResolvedIps.Lookup(ip, DateTime.Now);
+        var live = ResolvedIps.Lookup(ip, Clock.Now);
         return live.Length != 0 ? live : Db.GetResolvedHost(ip);
     }
 
@@ -710,7 +715,7 @@ public sealed class ServiceState : IDisposable
             return;
         }
 
-        var now = DateTime.Now;
+        var now = Clock.Now;
         ResolvedIps.Record(d, addresses, now);
         if (!Db.IsHistoryPersistenceExcluded(null, d))
             ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");

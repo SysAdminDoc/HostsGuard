@@ -19,20 +19,27 @@ public sealed class EnforcementPauseCoordinator : IDisposable
     private readonly HostsEngine _hosts;
     private readonly HostsDatabase _db;
     private readonly IFirewallEngine? _firewall;
+    private readonly IClock _clock;
     private readonly string _statePath;
     private readonly Timer _timer;
     private readonly object _gate = new();
     private PauseState _state;
     private bool _disposed;
 
-    public EnforcementPauseCoordinator(HostsEngine hosts, HostsDatabase db, IFirewallEngine? firewall, string dataDir)
+    public EnforcementPauseCoordinator(
+        HostsEngine hosts,
+        HostsDatabase db,
+        IFirewallEngine? firewall,
+        string dataDir,
+        IClock? clock = null)
     {
         _hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _firewall = firewall;
+        _clock = clock ?? SystemClock.Instance;
         _statePath = Path.Combine(dataDir, "enforcement_pause_state.json");
         _state = LoadState();
-        _timer = new Timer(_ => Sweep(DateTime.UtcNow), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _timer = new Timer(_ => Sweep(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     public Func<bool>? IsKillSwitchEngaged { get; set; }
@@ -54,7 +61,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
             return Error("killswitch_engaged", "cannot pause enforcement while the VPN kill-switch is engaged");
         }
 
-        var expires = DateTime.UtcNow.AddMinutes(minutes);
+        var expires = _clock.UtcNow.AddMinutes(minutes);
         lock (_gate)
         {
             if (_disposed)
@@ -96,7 +103,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
 
     public EnforcementPauseStatus Status()
     {
-        Sweep(DateTime.UtcNow);
+        Sweep();
         lock (_gate)
         {
             var status = new EnforcementPauseStatus();
@@ -109,7 +116,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
             status.Active = true;
             status.SuspendedByKillSwitch = _state.SuspendedByKillSwitch;
             status.Expires = Timestamp.FromDateTime(DateTime.SpecifyKind(expires, DateTimeKind.Utc));
-            status.MinutesRemaining = Math.Max(1, (int)Math.Ceiling((expires - DateTime.UtcNow).TotalMinutes));
+            status.MinutesRemaining = Math.Max(1, (int)Math.Ceiling((expires - _clock.UtcNow).TotalMinutes));
             return status;
         }
     }
@@ -123,7 +130,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
                 return;
             }
 
-            if (_state.ExpiresUtc!.Value <= DateTime.UtcNow)
+            if (_state.ExpiresUtc!.Value <= _clock.UtcNow)
             {
                 CompleteExpiredNoLock();
                 return;
@@ -150,6 +157,8 @@ public sealed class EnforcementPauseCoordinator : IDisposable
             CompleteExpiredNoLock();
         }
     }
+
+    public void Sweep() => Sweep(_clock.UtcNow);
 
     public void SuspendForKillSwitch()
     {
@@ -178,7 +187,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
                 return;
             }
 
-            if (_state.ExpiresUtc!.Value <= DateTime.UtcNow)
+            if (_state.ExpiresUtc!.Value <= _clock.UtcNow)
             {
                 CompleteExpiredNoLock();
                 return;
@@ -255,7 +264,7 @@ public sealed class EnforcementPauseCoordinator : IDisposable
             return;
         }
 
-        var due = _state.ExpiresUtc!.Value - DateTime.UtcNow;
+        var due = _state.ExpiresUtc!.Value - _clock.UtcNow;
         if (due < TimeSpan.FromSeconds(1))
         {
             due = TimeSpan.FromSeconds(1);

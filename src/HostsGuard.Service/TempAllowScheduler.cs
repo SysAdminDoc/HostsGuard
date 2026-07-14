@@ -21,15 +21,17 @@ public sealed class TempAllowScheduler : IDisposable
     private readonly HostsEngine _hosts;
     private readonly HostsDatabase _db;
     private readonly EventBus _bus;
+    private readonly IClock _clock;
     private readonly object _gate = new();
     private readonly Timer _timer;
     private bool _disposed;
 
-    public TempAllowScheduler(HostsEngine hosts, HostsDatabase db, EventBus bus)
+    public TempAllowScheduler(HostsEngine hosts, HostsDatabase db, EventBus bus, IClock? clock = null)
     {
         _hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
+        _clock = clock ?? SystemClock.Instance;
         _timer = new Timer(_ => Sweep(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
@@ -37,7 +39,7 @@ public sealed class TempAllowScheduler : IDisposable
     public void Add(string domain, int minutes, string source = "temp_allow")
     {
         var d = domain.ToLowerInvariant().Trim();
-        var expires = DateTime.UtcNow.AddMinutes(Math.Clamp(minutes, 1, MaxMinutes));
+        var expires = _clock.UtcNow.AddMinutes(Math.Clamp(minutes, 1, MaxMinutes));
         // Whole sequence under _gate so a concurrent Sweep()/Add() can't interleave
         // the unblock-persist-arm steps and leave the domain/window inconsistent.
         lock (_gate)
@@ -75,7 +77,7 @@ public sealed class TempAllowScheduler : IDisposable
 
             foreach (var (domain, expiresUtc) in _db.GetTempAllows())
             {
-                if (expiresUtc <= DateTime.UtcNow)
+                if (expiresUtc <= _clock.UtcNow)
                 {
                     Revert(domain);
                 }
@@ -103,7 +105,7 @@ public sealed class TempAllowScheduler : IDisposable
         _db.LogEvent(domain, "blocked", details: "temp-allow expired", reason: "temp_reverted");
         _bus.Publish(new ActivityEvent
         {
-            Ts = Timestamp.FromDateTime(DateTime.UtcNow),
+            Ts = Timestamp.FromDateTime(_clock.UtcNow),
             Domain = domain,
             Action = "blocked",
             Details = "temp-allow expired",
@@ -120,7 +122,7 @@ public sealed class TempAllowScheduler : IDisposable
             return;
         }
 
-        var next = pending.Min(p => p.ExpiresUtc) - DateTime.UtcNow;
+        var next = pending.Min(p => p.ExpiresUtc) - _clock.UtcNow;
         if (next < TimeSpan.FromSeconds(1))
         {
             next = TimeSpan.FromSeconds(1);

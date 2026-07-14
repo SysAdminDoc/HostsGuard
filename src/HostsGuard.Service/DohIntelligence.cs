@@ -39,15 +39,17 @@ public sealed class DohIntelligence
 
     private readonly string _path;
     private readonly TimeSpan _currentIpsStatTtl;
+    private readonly IClock _clock;
     private readonly object _gate = new();
 
-    public DohIntelligence(string dataDir, TimeSpan? currentIpsStatTtl = null)
+    public DohIntelligence(string dataDir, TimeSpan? currentIpsStatTtl = null, IClock? clock = null)
     {
         _path = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "doh_resolvers.json");
         var ttl = currentIpsStatTtl ?? DefaultCurrentIpsStatTtl;
         _currentIpsStatTtl = ttl > TimeSpan.Zero
             ? ttl
             : TimeSpan.Zero;
+        _clock = clock ?? SystemClock.Instance;
     }
 
     public string FilePath => _path;
@@ -90,7 +92,7 @@ public sealed class DohIntelligence
     {
         lock (_gate)
         {
-            var now = DateTime.UtcNow;
+            var now = _clock.UtcNow;
             if (_ipCache is not null && now - _ipCacheLastStatUtc < _currentIpsStatTtl)
             {
                 return _ipCache;
@@ -152,7 +154,7 @@ public sealed class DohIntelligence
 
         var state = new DohState
         {
-            Updated = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            Updated = _clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             Source = sources.Count != 0 ? string.Join(" + ", sources) : "Built-in resolver defaults",
             Sha256 = actualHash,
             Ips = merged.OrderBy(i => i, StringComparer.Ordinal).ToList(),

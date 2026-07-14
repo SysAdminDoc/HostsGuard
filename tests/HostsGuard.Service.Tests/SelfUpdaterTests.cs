@@ -29,13 +29,14 @@ public sealed class SelfUpdaterTests : IDisposable
     private readonly HostsDatabase _db;
     private readonly FakeListFetcher _fetcher = new();
     private readonly SelfUpdater _updater;
+    private readonly TestClock _clock = new(DateTime.UtcNow);
 
     public SelfUpdaterTests()
     {
         _dir = Path.Combine(Path.GetTempPath(), "hg_update_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_dir);
         _db = new HostsDatabase(Path.Combine(_dir, "hostsguard.db"));
-        _updater = new SelfUpdater(_db, _dir, _fetcher, "1.0.0", FeedUrl, assetArch: "x64");
+        _updater = new SelfUpdater(_db, _dir, _fetcher, "1.0.0", FeedUrl, assetArch: "x64", clock: _clock);
     }
 
     private void ServeFeed(string version, string? digest)
@@ -72,6 +73,7 @@ public sealed class SelfUpdaterTests : IDisposable
         outcome.Ok.Should().BeTrue();
         outcome.UpdateAvailable.Should().BeTrue();
         outcome.LatestVersion.Should().Be("v9.9.9");
+        _updater.LastCheck.Should().Be(_clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     [Fact]

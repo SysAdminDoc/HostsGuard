@@ -22,7 +22,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     private readonly ServiceState _state;
     private readonly Func<DateTime> _nowUtc;
 
-    public PolicyServiceImpl(ServiceState state) : this(state, () => DateTime.UtcNow)
+    public PolicyServiceImpl(ServiceState state) : this(state, () => state.Clock.UtcNow)
     {
     }
 

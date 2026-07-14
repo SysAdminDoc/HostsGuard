@@ -42,6 +42,7 @@ public sealed class SelfUpdater
     private readonly string _installedVersion;
     private readonly string _feedUrl;
     private readonly string _assetArch;
+    private readonly IClock _clock;
     private readonly object _gate = new();
 
     private string _lastCheck = string.Empty;
@@ -54,13 +55,15 @@ public sealed class SelfUpdater
         IListFetcher fetcher,
         string installedVersion,
         string feedUrl = DefaultFeedUrl,
-        string? assetArch = null)
+        string? assetArch = null,
+        IClock? clock = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _updatesDir = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "updates");
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
         _installedVersion = (installedVersion ?? string.Empty).Trim();
         _feedUrl = feedUrl;
+        _clock = clock ?? SystemClock.Instance;
         _assetArch = assetArch ?? (System.Runtime.InteropServices.RuntimeInformation.OSArchitecture
             == System.Runtime.InteropServices.Architecture.Arm64 ? "arm64" : "x64");
     }
@@ -84,7 +87,7 @@ public sealed class SelfUpdater
             var available = CompareVersions(_installedVersion, version) < 0;
             lock (_gate)
             {
-                _lastCheck = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                _lastCheck = _clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
                 _lastError = string.Empty;
                 _latestVersion = version;
             }
@@ -99,7 +102,7 @@ public sealed class SelfUpdater
         {
             lock (_gate)
             {
-                _lastCheck = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                _lastCheck = _clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
                 _lastError = ex.Message;
             }
 
@@ -145,7 +148,7 @@ public sealed class SelfUpdater
             var installerPath = Path.Combine(_updatesDir, Path.GetFileName(asset.Name));
             File.WriteAllBytes(installerPath, bytes);
             WriteManifest(new PendingUpdate(version, actual, installerPath,
-                DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
+                _clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
             _db.LogEvent("self_update", "update_staged",
                 details: $"{asset.Name} ({bytes.Length:N0} bytes, sha256 {actual}) — applies on next service restart",
                 reason: "self_update");
@@ -234,7 +237,7 @@ public sealed class SelfUpdater
             File.Move(temporaryPath, installerPath, overwrite: true);
             temporaryPath = null;
             WriteManifest(new PendingUpdate(version, actual, installerPath,
-                DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
+                _clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture)));
             _db.LogEvent("self_update", "update_staged",
                 details: $"local copy of {asset.Name} ({length:N0} bytes, feed-verified sha256 {actual}) — applies on next service restart",
                 reason: "self_update");

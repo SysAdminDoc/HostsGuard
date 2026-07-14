@@ -33,6 +33,7 @@ internal sealed class ResolverHealthCoordinator : IDisposable
     private readonly object _gate = new();
     private readonly IDnsConfig? _dns;
     private readonly HostsDatabase _db;
+    private readonly IClock _clock;
     private readonly ScheduledTaskDrain _scheduledRun = new();
     private readonly SemaphoreSlim _runGate = new(1, 1);
     private Timer? _timer;
@@ -47,10 +48,11 @@ internal sealed class ResolverHealthCoordinator : IDisposable
     private bool _scheduleEnabled;
     private int _intervalMinutes;
 
-    internal ResolverHealthCoordinator(IDnsConfig? dns, HostsDatabase db)
+    internal ResolverHealthCoordinator(IDnsConfig? dns, HostsDatabase db, IClock? clock = null)
     {
         _dns = dns;
         _db = db;
+        _clock = clock ?? SystemClock.Instance;
         _intervalMinutes = ReadInterval(db.GetMeta(IntervalMetaKey));
         _scheduleEnabled = string.Equals(db.GetMeta(EnabledMetaKey), "true", StringComparison.OrdinalIgnoreCase);
         if (_scheduleEnabled)
@@ -133,7 +135,7 @@ internal sealed class ResolverHealthCoordinator : IDisposable
     private void ArmTimerLocked()
     {
         var interval = TimeSpan.FromMinutes(_intervalMinutes);
-        _nextScheduledAtUtc = DateTime.UtcNow.Add(interval);
+        _nextScheduledAtUtc = _clock.UtcNow.Add(interval);
         _timer = new Timer(_ => KickScheduledRun(), null, interval, interval);
     }
 
@@ -146,7 +148,7 @@ internal sealed class ResolverHealthCoordinator : IDisposable
                 return;
             }
 
-            _nextScheduledAtUtc = DateTime.UtcNow.AddMinutes(_intervalMinutes);
+            _nextScheduledAtUtc = _clock.UtcNow.AddMinutes(_intervalMinutes);
         }
 
         _scheduledRun.TryRun(RunScheduledAsync);
@@ -234,7 +236,7 @@ internal sealed class ResolverHealthCoordinator : IDisposable
             _entries = entries;
             _host = host;
             _source = source;
-            _checkedAtUtc = DateTime.UtcNow;
+            _checkedAtUtc = _clock.UtcNow;
             _message = message;
             _db.LogEvent("dns", "resolver_health_check", details: $"source={source}; host={host}; rows={entries.Count}; {message}");
             return SnapshotLocked();

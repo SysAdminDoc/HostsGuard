@@ -24,6 +24,7 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     private WebApplication _app = null!;
     private ServiceState _state = null!;
     private FakeFirewallEngine _fw = null!;
+    private TestClock _clock = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -35,12 +36,14 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         File.WriteAllText(hostsPath, "# hosts\n");
 
         _fw = new FakeFirewallEngine();
+        _clock = new TestClock(DateTime.UtcNow);
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             _fw,
             new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
-            dataDir: _dir);
+            dataDir: _dir,
+            clock: _clock);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.ConsentTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -144,6 +147,22 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         _state.Consent.OnBlocked(Blocked(app, now.AddSeconds(20)));
 
         (_fw.ListRulesCalls - before).Should().Be(1);
+    }
+
+    [Fact]
+    public void Covering_rule_cache_refreshes_exactly_at_injected_ttl_boundary()
+    {
+        _state.Consent.SetMode("notify");
+        var before = _fw.ListRulesCalls;
+
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\clock-a.exe", _clock.UtcNow));
+        _clock.Advance(ConsentBroker.RuleCacheTtl - TimeSpan.FromTicks(1));
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\clock-b.exe", _clock.UtcNow));
+        (_fw.ListRulesCalls - before).Should().Be(1);
+
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.Consent.OnBlocked(Blocked(@"C:\apps\clock-c.exe", _clock.UtcNow));
+        (_fw.ListRulesCalls - before).Should().Be(2);
     }
 
     [Fact]

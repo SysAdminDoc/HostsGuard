@@ -22,6 +22,7 @@ public sealed class BandwidthAggregator : IDisposable
     private readonly IBandwidthSource _source;
     private readonly Func<int, string> _resolve;
     private readonly Func<string, string>? _resolveHost;
+    private readonly IClock _clock;
     private readonly ConcurrentDictionary<int, string> _nameCache = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly TimeSpan _interval;
@@ -30,12 +31,14 @@ public sealed class BandwidthAggregator : IDisposable
 
     public BandwidthAggregator(
         HostsDatabase db, IBandwidthSource source, Func<int, string>? resolveProcess = null,
-        TimeSpan? flushInterval = null, Func<string, string>? resolveHost = null)
+        TimeSpan? flushInterval = null, Func<string, string>? resolveHost = null,
+        IClock? clock = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _source = source ?? throw new ArgumentNullException(nameof(source));
         _resolve = resolveProcess ?? DefaultResolve;
         _resolveHost = resolveHost;
+        _clock = clock ?? SystemClock.Instance;
         _interval = flushInterval ?? TimeSpan.FromSeconds(15);
     }
 
@@ -61,7 +64,7 @@ public sealed class BandwidthAggregator : IDisposable
 
             try
             {
-                FlushOnce(DateTime.Now);
+                FlushOnce(_clock.Now);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

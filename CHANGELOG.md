@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.127] - 2026-07-14
+
+### Changed
+- A shared injectable service clock now drives consent cache and rule expiry,
+  temporary allow/block windows, enforcement pause, scheduled rules, resolver
+  and DoH caches, intelligence staleness, usage windows, and status uptime.
+- Production behavior still defaults to the system clock; focused tests now
+  advance an in-memory clock across exact TTL boundaries without wall-clock
+  sleeps.
+
 ## [0.12.126] - 2026-07-14
 
 ### Added

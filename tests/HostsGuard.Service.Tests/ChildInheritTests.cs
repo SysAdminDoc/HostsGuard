@@ -19,6 +19,7 @@ public sealed class ChildInheritTests : IDisposable
     private readonly string _dir;
     private readonly ServiceState _state;
     private readonly FakeFirewallEngine _fw;
+    private readonly TestClock _clock;
 
     private const string ParentPath = @"C:\apps\installer.exe";
     private const int ParentPid = 4242;
@@ -29,12 +30,14 @@ public sealed class ChildInheritTests : IDisposable
         Directory.CreateDirectory(_dir);
         File.WriteAllText(Path.Combine(_dir, "hosts"), "# hosts\n");
         _fw = new FakeFirewallEngine();
+        _clock = new TestClock(DateTime.UtcNow);
         _state = new ServiceState(
             new HostsEngine(Path.Combine(_dir, "hosts")),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             _fw,
             new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
-            dataDir: _dir);
+            dataDir: _dir,
+            clock: _clock);
         _state.Consent.SetMode(ConsentBroker.ModeNotify);
         // A direct child (pid 9000) whose parent is the trusted installer.
         _state.Consent.LookupParent = pid => pid == 9000 ? (ParentPid, ParentPath) : null;
@@ -45,8 +48,8 @@ public sealed class ChildInheritTests : IDisposable
         _fw.CreateRule(new FwRule("HG_Consent_Allow_installer_Out", "Out", "Allow", true, "Any", "Any", ParentPath, "hostsguard"));
     }
 
-    private static BlockedConnection Child(string app, int pid = 9000)
-        => new(DateTime.UtcNow, app, "Out", "203.0.113.9", 443, "TCP", pid, 5157);
+    private BlockedConnection Child(string app, int pid = 9000)
+        => new(_clock.UtcNow, app, "Out", "203.0.113.9", 443, "TCP", pid, 5157);
 
     [Fact]
     public void Child_of_a_trusted_parent_is_auto_allowed_when_inherit_is_on()
@@ -91,6 +94,24 @@ public sealed class ChildInheritTests : IDisposable
 
         using var reloaded = new ConsentBroker(_state.Db, _state.Bus, _fw, null, _dir);
         reloaded.ChildInherit.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Child_allow_rule_reaps_at_injected_lifetime_boundary()
+    {
+        GiveParentAnAllowRule();
+        _state.Consent.SetChildInherit(true);
+        _state.Consent.OnBlocked(Child(@"C:\apps\bounded-child.exe"));
+        var childRule = _fw.Rules.Keys.Single(name =>
+            name.StartsWith("HG_Child_bounded-child_Out", StringComparison.Ordinal));
+
+        _clock.Advance(ConsentBroker.ChildRuleLifetime - TimeSpan.FromTicks(1));
+        _state.Consent.Sweep();
+        _fw.Rules.Should().ContainKey(childRule);
+
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.Consent.Sweep();
+        _fw.Rules.Should().NotContainKey(childRule);
     }
 
     public void Dispose()

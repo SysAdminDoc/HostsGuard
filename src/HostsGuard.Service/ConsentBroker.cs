@@ -51,6 +51,7 @@ public sealed partial class ConsentBroker : IDisposable
     private readonly FirewallIdentity? _identity;
     private readonly HostsDatabase _db;
     private readonly EventBus _bus;
+    private readonly IClock _clock;
     private readonly string _statePath;
     private readonly object _gate = new();
     private readonly object _sweepGate = new();
@@ -63,7 +64,7 @@ public sealed partial class ConsentBroker : IDisposable
     // Covering-rule cache: the COM rule enumeration is expensive, and Notify/
     // Learning mode runs HasCoveringRule on EVERY blocked event. A short TTL
     // collapses event bursts; the broker's own rule writes invalidate eagerly.
-    private static readonly TimeSpan RuleCacheTtl = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan RuleCacheTtl = TimeSpan.FromSeconds(5);
     private readonly object _ruleCacheGate = new();
     private IReadOnlyList<FwRule>? _cachedRules;
     private DateTime _rulesCachedAtUtc = DateTime.MinValue;
@@ -113,16 +114,23 @@ public sealed partial class ConsentBroker : IDisposable
     /// <summary>PID→command-line reader for interpreter-aware prompts (NET-156).</summary>
     public Func<int, string?>? LookupCommandLine { get; set; }
 
-    public ConsentBroker(HostsDatabase db, EventBus bus, IFirewallEngine? firewall, FirewallIdentity? identity, string dataDir)
+    public ConsentBroker(
+        HostsDatabase db,
+        EventBus bus,
+        IFirewallEngine? firewall,
+        FirewallIdentity? identity,
+        string dataDir,
+        IClock? clock = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
+        _clock = clock ?? SystemClock.Instance;
         _firewall = firewall;
         _identity = identity;
         _statePath = Path.Combine(dataDir ?? throw new ArgumentNullException(nameof(dataDir)), "consent_state.json");
         _state = LoadState();
-        ReapExpiredOnceRules(DateTime.UtcNow, startup: true);
-        _sweepTimer = new System.Threading.Timer(_ => Sweep(DateTime.UtcNow), null,
+        ReapExpiredOnceRules(_clock.UtcNow, startup: true);
+        _sweepTimer = new System.Threading.Timer(_ => Sweep(), null,
             TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
@@ -227,7 +235,7 @@ public sealed partial class ConsentBroker : IDisposable
                     return 0;
                 }
 
-                var remaining = (int)Math.Ceiling((until - DateTime.UtcNow).TotalMinutes);
+                var remaining = (int)Math.Ceiling((until - _clock.UtcNow).TotalMinutes);
                 return remaining > 0 ? remaining : 0;
             }
         }
@@ -258,7 +266,7 @@ public sealed partial class ConsentBroker : IDisposable
                 if (mode == ModeLearning)
                 {
                     _state.LearnUntilUtc = learnMinutes > 0
-                        ? DateTime.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
+                        ? _clock.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
                         : null;
                     SaveState();
                     return new Ack { Ok = true, Message = learnMinutes > 0 ? $"learning for {learnMinutes} more minutes" : "already in learning mode" };
@@ -291,7 +299,7 @@ public sealed partial class ConsentBroker : IDisposable
 
             _state.Mode = mode;
             _state.LearnUntilUtc = mode == ModeLearning && learnMinutes > 0
-                ? DateTime.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
+                ? _clock.UtcNow + TimeSpan.FromMinutes(Math.Clamp(learnMinutes, 1, 1440))
                 : null;
             SaveState();
         }
@@ -563,7 +571,7 @@ public sealed partial class ConsentBroker : IDisposable
     {
         lock (_ruleCacheGate)
         {
-            if (_cachedRules is not null && DateTime.UtcNow - _rulesCachedAtUtc < RuleCacheTtl)
+            if (_cachedRules is not null && _clock.UtcNow - _rulesCachedAtUtc < RuleCacheTtl)
             {
                 return _cachedRules;
             }
@@ -573,7 +581,7 @@ public sealed partial class ConsentBroker : IDisposable
         lock (_ruleCacheGate)
         {
             _cachedRules = rules;
-            _rulesCachedAtUtc = DateTime.UtcNow;
+            _rulesCachedAtUtc = _clock.UtcNow;
         }
 
         return rules;
@@ -714,7 +722,7 @@ public sealed partial class ConsentBroker : IDisposable
             _identity?.Remember(name, blocked.Application);
             lock (_gate)
             {
-                _onceRules.Add((name, DateTime.UtcNow + ChildRuleLifetime));
+                _onceRules.Add((name, _clock.UtcNow + ChildRuleLifetime));
                 SaveState();
             }
         }
@@ -1156,7 +1164,7 @@ public sealed partial class ConsentBroker : IDisposable
             d = legacyPermanent ? "always" : "once";
         }
 
-        var now = DateTime.UtcNow;
+        var now = _clock.UtcNow;
         return d switch
         {
             "always" => (true, DateTime.MaxValue, "permanent"),
@@ -1181,6 +1189,8 @@ public sealed partial class ConsentBroker : IDisposable
             SweepCore(nowUtc);
         }
     }
+
+    public void Sweep() => Sweep(_clock.UtcNow);
 
     private void SweepCore(DateTime nowUtc)
     {

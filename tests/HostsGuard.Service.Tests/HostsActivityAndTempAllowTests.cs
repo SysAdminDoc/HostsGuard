@@ -26,6 +26,7 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     private string _token = null!;
     private string _hostsPath = null!;
     private string _dbPath = null!;
+    private TestClock _clock = null!;
 
     public async Task InitializeAsync()
     {
@@ -35,7 +36,11 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
         _dbPath = Path.Combine(_dir, "hostsguard.db");
         File.WriteAllText(_hostsPath, "# hosts\n");
 
-        _state = new ServiceState(new HostsEngine(_hostsPath), new HostsDatabase(_dbPath));
+        _clock = new TestClock(DateTime.UtcNow);
+        _state = new ServiceState(
+            new HostsEngine(_hostsPath),
+            new HostsDatabase(_dbPath),
+            clock: _clock);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.TaTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -205,6 +210,23 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
 
         ack.Ok.Should().BeFalse();
         ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_duration");
+    }
+
+    [Fact]
+    public void Temp_allow_reverts_exactly_at_injected_expiry_boundary()
+    {
+        _state.Db.AddDomain("clock-allow.example", "blocked", "manual");
+        _state.Hosts.Block("clock-allow.example");
+        _state.TempAllows.Add("clock-allow.example", 5);
+
+        _clock.Advance(TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1));
+        _state.TempAllows.Resume();
+        _state.Hosts.GetBlocked().Should().NotContain("clock-allow.example");
+
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.TempAllows.Resume();
+        _state.Hosts.GetBlocked().Should().Contain("clock-allow.example");
+        _state.Db.GetTempAllows().Should().BeEmpty();
     }
 
     [Fact]
@@ -387,6 +409,21 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
 
         ack.Ok.Should().BeFalse();
         ack.ErrorCode.Should().Be("hostsguard.error.v1/invalid_duration");
+    }
+
+    [Fact]
+    public void Temp_block_reverts_exactly_at_injected_expiry_boundary()
+    {
+        _state.TempBlocks.Add("clock-block.example", 5);
+
+        _clock.Advance(TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1));
+        _state.TempBlocks.Resume();
+        _state.Hosts.GetBlocked().Should().Contain("clock-block.example");
+
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.TempBlocks.Resume();
+        _state.Hosts.GetBlocked().Should().NotContain("clock-block.example");
+        _state.Db.GetTempBlocks().Should().BeEmpty();
     }
 
     [Fact]

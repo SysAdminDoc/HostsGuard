@@ -34,7 +34,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         {
             Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0",
             Elevated = IsElevated(),
-            UptimeSeconds = (long)(DateTime.UtcNow - _state.StartedAtUtc).TotalSeconds,
+            UptimeSeconds = (long)(_state.Clock.UtcNow - _state.StartedAtUtc).TotalSeconds,
             HostsBlocked = _state.Hosts.GetBlocked().Count,
             HostsOverScaleThreshold = HostsEngine.IsOverScaleThreshold(_state.Hosts.GetBlocked().Count),
             DbBlocked = stats.Blocked,
@@ -100,7 +100,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
         {
-            return new RemoteSessionSnapshot(false, "wts_snapshot_failed", DateTime.UtcNow, []);
+            return new RemoteSessionSnapshot(false, "wts_snapshot_failed", _state.Clock.UtcNow, []);
         }
     }
 
@@ -185,7 +185,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             return Task.FromResult(new ProxyBaselineReport
             {
                 Message = "proxy baseline monitor unavailable",
-                CheckedAt = DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                CheckedAt = _state.Clock.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             });
         }
 
@@ -251,7 +251,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         var dir = Path.Combine(_state.DataDir, "support");
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir,
-            $"hostsguard_bundle_{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}.zip");
+            $"hostsguard_bundle_{_state.Clock.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}.zip");
 
         using (var zip = ZipFile.Open(path, ZipArchiveMode.Create))
         {
@@ -260,7 +260,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             {
                 version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
                 elevated = IsElevated(),
-                uptime_seconds = (long)(DateTime.UtcNow - _state.StartedAtUtc).TotalSeconds,
+                uptime_seconds = (long)(_state.Clock.UtcNow - _state.StartedAtUtc).TotalSeconds,
                 hosts_blocked = _state.Hosts.GetBlocked().Count,
                 db_blocked = stats.Blocked,
                 db_allowed = stats.Whitelisted,
@@ -293,7 +293,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
             // NET-176 protocol-aware metadata profile for Wireshark handoff and
             // support triage. This is deliberately not PCAP; all endpoint,
             // domain, URL, secret, and path-like text is redacted before write.
-            var trafficProfile = TrafficProfileExporter.BuildBundle(_state, request, DateTime.Now);
+            var trafficProfile = TrafficProfileExporter.BuildBundle(_state, request, _state.Clock.Now);
             AddEntry(zip, "traffic_profile_manifest.json", trafficProfile.Manifest);
             AddEntry(zip, "traffic_profile.json", trafficProfile.Json);
             AddEntry(zip, "traffic_profile.csv", trafficProfile.Csv);
@@ -345,7 +345,7 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
 
         return JsonSerializer.Serialize(new
         {
-            generated = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            generated = _state.Clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             app_version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
             runtime_version = Environment.Version.ToString(),
             sqlite_version = _state.Db.SqliteEngineVersion(),

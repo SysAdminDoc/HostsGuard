@@ -27,22 +27,27 @@ public sealed class ResolverHealthCoordinatorTests : IDisposable
                     TimeSpan.FromMilliseconds(11), DnsResolverTlsStatus.NotApplicable, string.Empty),
             ],
         };
+        var clock = new TestClock(DateTime.UtcNow);
 
-        using (var coordinator = new ResolverHealthCoordinator(dns, db))
+        using (var coordinator = new ResolverHealthCoordinator(dns, db, clock))
         {
             coordinator.Snapshot().ScheduleEnabled.Should().BeFalse();
-            coordinator.ConfigureSchedule(true, 30).ScheduleEnabled.Should().BeTrue();
+            var configured = coordinator.ConfigureSchedule(true, 30);
+            configured.ScheduleEnabled.Should().BeTrue();
+            configured.NextScheduledAtUtc.Should().Be(clock.UtcNow.AddMinutes(30));
             await coordinator.TriggerScheduledForTestAsync();
             var cached = coordinator.Snapshot();
             cached.Source.Should().Be("scheduled");
             cached.Host.Should().Be(ResolverHealthCoordinator.DefaultProbeHost);
             cached.Entries.Should().ContainSingle();
+            cached.CheckedAtUtc.Should().Be(clock.UtcNow);
         }
 
-        using var restarted = new ResolverHealthCoordinator(dns, db);
+        clock.Advance(TimeSpan.FromMinutes(7));
+        using var restarted = new ResolverHealthCoordinator(dns, db, clock);
         restarted.Snapshot().ScheduleEnabled.Should().BeTrue();
         restarted.Snapshot().ScheduleIntervalMinutes.Should().Be(30);
-        restarted.Snapshot().NextScheduledAtUtc.Should().NotBeNull();
+        restarted.Snapshot().NextScheduledAtUtc.Should().Be(clock.UtcNow.AddMinutes(30));
     }
 
     [Fact]

@@ -15,7 +15,7 @@ public sealed partial class ConsentBroker
         CommandLineRule? rule;
         lock (_gate)
         {
-            ReapExpiredCommandLineRulesNoLock(DateTime.UtcNow);
+            ReapExpiredCommandLineRulesNoLock(_clock.UtcNow);
             rule = _state.CommandLineRules.FirstOrDefault(r => CommandLineRuleMatches(r, blocked, binding));
         }
 

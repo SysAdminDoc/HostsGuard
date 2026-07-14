@@ -16,6 +16,7 @@ public sealed class GlobalModeAndScopeTests : IDisposable
     private readonly string _dir;
     private readonly ServiceState _state;
     private readonly FakeFirewallEngine _fw = new();
+    private readonly TestClock _clock = new(DateTime.UtcNow);
     private readonly FirewallControlServiceImpl _impl;
 
     public GlobalModeAndScopeTests()
@@ -25,7 +26,7 @@ public sealed class GlobalModeAndScopeTests : IDisposable
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n");
         _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
-            firewall: _fw, dataDir: _dir);
+            firewall: _fw, dataDir: _dir, clock: _clock);
         _impl = new FirewallControlServiceImpl(_state);
     }
 
@@ -85,7 +86,12 @@ public sealed class GlobalModeAndScopeTests : IDisposable
         status.Active.Should().BeTrue();
         status.MinutesRemaining.Should().BePositive();
 
-        _state.EnforcementPause.Sweep(DateTime.UtcNow.AddMinutes(6));
+        _clock.Advance(TimeSpan.FromMinutes(5) - TimeSpan.FromTicks(1));
+        _state.EnforcementPause.Sweep();
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.EnforcementPause.Sweep();
 
         _state.Hosts.GetBlocked().Should().Contain("ads.example.com");
         _fw.PerProfileBlock.Should().BeEquivalentTo(prior);

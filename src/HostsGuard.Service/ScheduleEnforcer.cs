@@ -24,15 +24,22 @@ public sealed class ScheduleEnforcer : IDisposable
     private readonly HostsEngine _hosts;
     private readonly HostsDatabase _db;
     private readonly IFirewallEngine? _firewall;
+    private readonly IClock _clock;
     private readonly object _gate = new();
     private readonly Timer _timer;
     private bool _disposed;
 
-    public ScheduleEnforcer(HostsEngine hosts, HostsDatabase db, IFirewallEngine? firewall = null, TimeSpan? interval = null)
+    public ScheduleEnforcer(
+        HostsEngine hosts,
+        HostsDatabase db,
+        IFirewallEngine? firewall = null,
+        TimeSpan? interval = null,
+        IClock? clock = null)
     {
         _hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _firewall = firewall;
+        _clock = clock ?? SystemClock.Instance;
         var period = interval ?? TimeSpan.FromSeconds(30);
         var dueTime = period == Timeout.InfiniteTimeSpan ? Timeout.InfiniteTimeSpan : TimeSpan.Zero;
         _timer = new Timer(_ => Sweep(), null, dueTime, period);
@@ -50,7 +57,7 @@ public sealed class ScheduleEnforcer : IDisposable
                 return;
             }
 
-            SweepAt(DateTime.Now);
+            SweepAt(_clock.Now);
         }
     }
 

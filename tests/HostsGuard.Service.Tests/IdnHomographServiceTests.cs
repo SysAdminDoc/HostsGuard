@@ -13,6 +13,7 @@ public sealed class IdnHomographServiceTests : IDisposable
     private readonly string _dir;
     private readonly HostsDatabase _db;
     private readonly ServiceState _state;
+    private readonly TestClock _clock;
 
     public IdnHomographServiceTests()
     {
@@ -21,7 +22,8 @@ public sealed class IdnHomographServiceTests : IDisposable
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n");
         _db = new HostsDatabase(Path.Combine(_dir, "hostsguard.db"));
-        _state = new ServiceState(new HostsEngine(hostsPath), _db, dataDir: _dir);
+        _clock = new TestClock(DateTime.UtcNow);
+        _state = new ServiceState(new HostsEngine(hostsPath), _db, dataDir: _dir, clock: _clock);
     }
 
     [Fact]
@@ -96,6 +98,19 @@ public sealed class IdnHomographServiceTests : IDisposable
     {
         IdnHomographMonitor.EscapeUnsafe("safe\u202Etxt\n")
             .Should().Be("safe\\u202Etxt\\u000A");
+    }
+
+    [Fact]
+    public void Local_corpus_refreshes_exactly_at_injected_ttl_boundary()
+    {
+        _db.AddDomain("first.example", "whitelisted", "manual");
+        _state.IdnHomographs.CorpusSize.Should().Be(1);
+        _db.AddDomain("second.example", "whitelisted", "manual");
+
+        _clock.Advance(TimeSpan.FromSeconds(30) - TimeSpan.FromTicks(1));
+        _state.IdnHomographs.CorpusSize.Should().Be(1);
+        _clock.Advance(TimeSpan.FromTicks(1));
+        _state.IdnHomographs.CorpusSize.Should().Be(2);
     }
 
     public void Dispose()

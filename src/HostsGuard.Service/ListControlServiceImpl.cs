@@ -474,7 +474,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         try
         {
             var count = await _state.Threats.RefreshAsync(fetcher, context.CancellationToken);
-            var scan = _state.ThreatHistoryRescan.Scan(DateTime.Now, context.CancellationToken);
+            var scan = _state.ThreatHistoryRescan.Scan(_state.Clock.Now, context.CancellationToken);
             _state.Db.LogEvent(
                 "threat-intel",
                 "refreshed",

@@ -22,14 +22,16 @@ public sealed class BlocklistIntelligence : IDisposable
 
     private readonly HostsDatabase _db;
     private readonly IListFetcher _fetcher;
+    private readonly IClock _clock;
     private readonly Timer _timer;
     private readonly ScheduledTaskDrain _scheduledRefresh = new();
     private int _refreshing;
 
-    public BlocklistIntelligence(HostsDatabase db, IListFetcher fetcher)
+    public BlocklistIntelligence(HostsDatabase db, IListFetcher fetcher, IClock? clock = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _fetcher = fetcher ?? throw new ArgumentNullException(nameof(fetcher));
+        _clock = clock ?? SystemClock.Instance;
         _timer = new Timer(_ => KickScheduledRefresh(), null, RefreshInterval, RefreshInterval);
     }
 
@@ -50,7 +52,7 @@ public sealed class BlocklistIntelligence : IDisposable
             var fresh = lists > 0 &&
                         DateTime.TryParse(LastRefreshed, CultureInfo.InvariantCulture,
                             DateTimeStyles.RoundtripKind, out var at) &&
-                        DateTime.UtcNow - at.ToUniversalTime() < RefreshInterval;
+                        _clock.UtcNow - at.ToUniversalTime() < RefreshInterval;
             if (!fresh)
             {
                 await RefreshAsync(cancellationToken);
@@ -107,7 +109,7 @@ public sealed class BlocklistIntelligence : IDisposable
 
             if (indexed > 0)
             {
-                _db.SetMeta(RefreshedMetaKey, DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
+                _db.SetMeta(RefreshedMetaKey, _clock.UtcNow.ToString("o", CultureInfo.InvariantCulture));
                 var (lists, rows) = _db.GetListIndexStats();
                 _db.LogEvent("intel", "index_refreshed", details: $"{lists} lists, {rows:N0} domains, {failed} failed");
             }

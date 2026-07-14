@@ -498,7 +498,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var usage = _state.Db.GetDomainUsageTotals(feed.Select(r => r.Domain));
         // First-seen cue: a domain observed for the first time within this window
         // renders a local "new" flag. The window is meta-configurable (default 24h).
-        var newlyObservedCutoff = DateTime.Now - NewlyObservedWindow();
+        var newlyObservedCutoff = _state.Clock.Now - NewlyObservedWindow();
         var list = new ActivityList();
         foreach (var row in feed)
         {
@@ -804,7 +804,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var sparkline = new Sparkline();
         if (root.Length != 0)
         {
-            sparkline.Hits.AddRange(_state.Db.GetHourlyHits(root, DateTime.Now));
+            sparkline.Hits.AddRange(_state.Db.GetHourlyHits(root, _state.Clock.Now));
         }
 
         return sparkline;
@@ -1102,7 +1102,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
         if (request.MarkReviewed)
         {
-            _state.Db.SetMeta(ReviewMetaKey, DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
+            _state.Db.SetMeta(ReviewMetaKey, _state.Clock.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         _state.Db.LogEvent("ai", "knowledge_review", details: $"promoted {promoted}, discarded {discarded}");

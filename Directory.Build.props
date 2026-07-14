@@ -15,6 +15,9 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.127: a service-wide injectable clock now drives TTL, expiry,
+         scheduling, retention-window, and status-time decisions; deterministic
+         tests advance exact cache/rule/pause/temp-policy boundaries. -->
     <!-- 0.12.126: successful threat-intelligence refreshes retrospectively
          scan at most 30 days / 10,000 privacy-eligible retained connections,
          raise alert-only findings, and persist dedup across acknowledgement. -->
@@ -226,7 +229,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.126</Version>
+    <Version>0.12.127</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

@@ -339,7 +339,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     }
 
     public override Task<AppBandwidthList> GetAppBandwidth(BandwidthRequest request, ServerCallContext context)
-        => Task.FromResult(BuildBandwidth(request, DateTime.Now));
+        => Task.FromResult(BuildBandwidth(request, _state.Clock.Now));
 
     /// <summary>Aligned, zero-filled per-app series ending at <paramref name="now"/>'s minute.</summary>
     public AppBandwidthList BuildBandwidth(BandwidthRequest request, DateTime now)
@@ -441,7 +441,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     }
 
     public override Task<UsageRollupList> GetUsageRollups(UsageRollupRequest request, ServerCallContext context)
-        => Task.FromResult(BuildUsageRollups(request, DateTime.Now));
+        => Task.FromResult(BuildUsageRollups(request, _state.Clock.Now));
 
     public UsageRollupList BuildUsageRollups(UsageRollupRequest request, DateTime now)
     {
@@ -473,7 +473,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
     }
 
     public override Task<UsageQuotaRuleList> GetUsageQuotaRules(Empty request, ServerCallContext context)
-        => Task.FromResult(BuildUsageQuotaRules(DateTime.Now));
+        => Task.FromResult(BuildUsageQuotaRules(_state.Clock.Now));
 
     public UsageQuotaRuleList BuildUsageQuotaRules(DateTime now)
     {
@@ -600,14 +600,14 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
             format = "csv";
         }
 
-        var since = DateTime.Now.Date.AddDays(-(days - 1));
+        var since = _state.Clock.Now.Date.AddDays(-(days - 1));
         var rows = _state.Db.GetUsageQuotaHistory(since, request.Scope, request.Match);
         var content = format == "json" ? BuildUsageQuotaHistoryJson(rows) : BuildUsageQuotaHistoryCsv(rows);
         return Task.FromResult(new UsageQuotaHistoryExport { Format = format, Content = content });
     }
 
     public override Task<TrafficProfileExport> ExportTrafficProfile(TrafficProfileRequest request, ServerCallContext context)
-        => Task.FromResult(TrafficProfileExporter.Build(_state, request, DateTime.Now));
+        => Task.FromResult(TrafficProfileExporter.Build(_state, request, _state.Clock.Now));
 
     public override Task<Ack> SetHistorySettings(HistorySettings request, ServerCallContext context)
     {
@@ -627,7 +627,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         }
 
         _state.Db.HistoryRetentionDays = request.RetentionDays;
-        _state.Db.RunRetentionSweep(DateTime.Now, forceMaintenance: true);
+        _state.Db.RunRetentionSweep(_state.Clock.Now, forceMaintenance: true);
         return Task.FromResult(new Ack { Ok = true, Message = $"history retention set to {request.RetentionDays} days" });
     }
 

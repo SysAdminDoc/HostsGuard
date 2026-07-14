@@ -283,7 +283,7 @@ dnsMonitor.DnsResolved += (_, e) =>
     state.CnameCloak.Evaluate(e.QueryName, e.Cnames);
     // Feed the direct-IP heuristic (NET-076): resolved addresses are "known
     // good" — a later connection to a public IP never resolved is direct-to-IP.
-    state.DirectIp.RecordResolved(e.Addresses, DateTime.Now);
+    state.DirectIp.RecordResolved(e.Addresses, state.Clock.Now);
     // Remember which site each IP belongs to (in-memory cache + persistent
     // store) so the live-connections view shows the domain next to the raw
     // remote address, now and after a restart.
@@ -304,7 +304,11 @@ using var bandwidthMonitor = new BandwidthMonitor(endpointObserver: info =>
 var bandwidthStatus = bandwidthMonitor.Start();
 // NET-108: resolveHost maps a connection's remote IP → its resolved domain
 // (ETW forward-DNS cache → persistent store) so bytes attribute to a domain.
-using var bandwidth = new BandwidthAggregator(db, bandwidthMonitor, resolveHost: state.ResolveKnownHost);
+using var bandwidth = new BandwidthAggregator(
+    db,
+    bandwidthMonitor,
+    resolveHost: state.ResolveKnownHost,
+    clock: state.Clock);
 bandwidth.QuotaEnforcer = state.QuotaEnforcer;
 if (bandwidthStatus == DnsMonitorStatus.Started)
 {

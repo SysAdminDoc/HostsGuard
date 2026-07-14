@@ -45,7 +45,7 @@ public sealed class LoopbackApi : IDisposable
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _token = token ?? throw new ArgumentNullException(nameof(token));
         _port = port is > 0 and < 65536 ? port : DefaultPort;
-        _clock = clock ?? (() => DateTime.UtcNow);
+        _clock = clock ?? (() => state.Clock.UtcNow);
         _authBudgetRefilledAt = _clock();
     }
 
@@ -219,7 +219,7 @@ public sealed class LoopbackApi : IDisposable
         var obj = new JsonObject
         {
             ["version"] = typeof(LoopbackApi).Assembly.GetName().Version?.ToString() ?? "0.0.0",
-            ["uptime_seconds"] = (long)(DateTime.UtcNow - _state.StartedAtUtc).TotalSeconds,
+            ["uptime_seconds"] = (long)(_clock() - _state.StartedAtUtc).TotalSeconds,
             ["blocked"] = stats.Blocked,
             ["whitelisted"] = stats.Whitelisted,
             ["feed_total"] = stats.FeedTotal,

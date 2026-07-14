@@ -14,15 +14,17 @@ public sealed class IdnHomographMonitor
 
     private readonly HostsDatabase _db;
     private readonly IdnHomographDetector _detector;
+    private readonly IClock _clock;
     private readonly HashSet<string> _alerted = new(StringComparer.Ordinal);
     private readonly object _gate = new();
     private Corpus? _corpus;
     private DateTime _corpusAtUtc;
 
-    public IdnHomographMonitor(HostsDatabase db, IdnHomographDetector? detector = null)
+    public IdnHomographMonitor(HostsDatabase db, IdnHomographDetector? detector = null, IClock? clock = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _detector = detector ?? new IdnHomographDetector();
+        _clock = clock ?? SystemClock.Instance;
     }
 
     public bool Enabled => string.Equals(_db.GetMeta(EnabledMetaKey), "on", StringComparison.Ordinal);
@@ -93,13 +95,13 @@ public sealed class IdnHomographMonitor
     {
         lock (_gate)
         {
-            if (_corpus is not null && DateTime.UtcNow - _corpusAtUtc < CorpusTtl)
+            if (_corpus is not null && _clock.UtcNow - _corpusAtUtc < CorpusTtl)
             {
                 return _corpus;
             }
 
             _corpus = BuildCorpus();
-            _corpusAtUtc = DateTime.UtcNow;
+            _corpusAtUtc = _clock.UtcNow;
             return _corpus;
         }
     }

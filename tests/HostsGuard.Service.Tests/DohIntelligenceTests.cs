@@ -21,7 +21,8 @@ public sealed class DohIntelligenceTests : IDisposable
     [Fact]
     public void CurrentIps_uses_short_file_stat_ttl_and_save_invalidates()
     {
-        var doh = new DohIntelligence(_dir, TimeSpan.FromHours(1));
+        var clock = new TestClock(DateTime.UtcNow);
+        var doh = new DohIntelligence(_dir, TimeSpan.FromHours(1), clock);
         doh.Import(new DohState { Ips = { "203.0.113.10" } });
 
         doh.CurrentIps().Should().Contain("203.0.113.10");
@@ -31,7 +32,13 @@ public sealed class DohIntelligenceTests : IDisposable
         doh.CurrentIps().Should().Contain("203.0.113.10");
         doh.CurrentIps().Should().NotContain("203.0.113.11");
 
-        var noTtl = new DohIntelligence(_dir, TimeSpan.Zero);
+        clock.Advance(TimeSpan.FromHours(1) - TimeSpan.FromTicks(1));
+        doh.CurrentIps().Should().Contain("203.0.113.10");
+        clock.Advance(TimeSpan.FromTicks(1));
+        doh.CurrentIps().Should().Contain("203.0.113.11");
+        doh.CurrentIps().Should().NotContain("203.0.113.10");
+
+        var noTtl = new DohIntelligence(_dir, TimeSpan.Zero, clock);
         noTtl.CurrentIps().Should().Contain("203.0.113.11");
 
         doh.Import(new DohState { Ips = { "203.0.113.12" } });

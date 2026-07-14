@@ -26,6 +26,7 @@ public sealed class BlocklistIntelligenceTests : IDisposable
     private readonly string _dir;
     private readonly HostsDatabase _db;
     private readonly FakeIntelFetcher _fetcher = new();
+    private readonly TestClock _clock = new(DateTime.UtcNow);
 
     public BlocklistIntelligenceTests()
     {
@@ -49,7 +50,7 @@ public sealed class BlocklistIntelligenceTests : IDisposable
         _fetcher.Responses[first.Url] = "0.0.0.0 ads.example.com\n0.0.0.0 tracker.example.net\n";
         _fetcher.Responses[second.Url] = "0.0.0.0 ads.example.com\n";
 
-        using var intel = new BlocklistIntelligence(_db, _fetcher);
+        using var intel = new BlocklistIntelligence(_db, _fetcher, _clock);
         var (indexed, failed) = await intel.RefreshAsync(CancellationToken.None);
 
         indexed.Should().Be(2);
@@ -57,7 +58,7 @@ public sealed class BlocklistIntelligenceTests : IDisposable
         _db.GetBlocklistsFor("ads.example.com").Should().BeEquivalentTo(new[] { first.Name, second.Name });
         _db.GetBlocklistsFor("tracker.example.net").Should().BeEquivalentTo(new[] { first.Name });
         _db.GetBlocklistsFor("clean.example.org").Should().BeEmpty();
-        intel.LastRefreshed.Should().NotBeEmpty();
+        intel.LastRefreshed.Should().Be(_clock.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture));
 
         var membership = _db.GetListMembership(new[] { "ads.example.com", "clean.example.org" });
         membership.Should().ContainKey("ads.example.com").WhoseValue.Should().HaveCount(2);
@@ -69,7 +70,7 @@ public sealed class BlocklistIntelligenceTests : IDisposable
     {
         var first = BlocklistCatalog.Sources[0];
         _fetcher.Responses[first.Url] = "0.0.0.0 old.example.com\n";
-        using var intel = new BlocklistIntelligence(_db, _fetcher);
+        using var intel = new BlocklistIntelligence(_db, _fetcher, _clock);
         await intel.RefreshAsync(CancellationToken.None);
 
         _fetcher.Responses[first.Url] = "0.0.0.0 new.example.com\n";
