@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.126] - 2026-07-14
+
+### Added
+- Successful threat-intelligence refreshes now re-scan up to 10,000 retained
+  connections from the last 30 days and raise one alert-only finding for each
+  newly matching IP.
+
+### Security
+- Retrospective scans reapply current app/domain privacy exclusions at query
+  time, honor the shorter configured retention period, and never create a
+  firewall rule.
+- Indicator findings deduplicate durably across repeated refreshes and alert
+  acknowledgement, preventing reviewed history from returning as inbox noise.
+
 ## [0.12.125] - 2026-07-14
 
 ### Added

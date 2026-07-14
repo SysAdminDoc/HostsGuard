@@ -70,6 +70,57 @@ public sealed partial class HostsDatabase
         }
     }
 
+    /// <summary>
+    /// Return only recent, privacy-eligible rows for the retrospective
+    /// threat-intelligence scan. The scan is independently capped at
+    /// <paramref name="maxLookbackDays"/> and <paramref name="limit"/>, even
+    /// when the operator retains a longer history window. Exclusions are
+    /// applied again at read time so a stale row can never be revived if a
+    /// prior purge was interrupted.
+    /// </summary>
+    public IReadOnlyList<ConnHistoryRow> GetThreatIntelRescanHistory(
+        DateTime now,
+        int limit,
+        int maxLookbackDays)
+    {
+        var boundedLimit = Math.Clamp(limit, 1, 10_000);
+        var lookbackDays = Math.Min(
+            HistoryRetentionDays,
+            Math.Clamp(maxLookbackDays, 1, 365));
+        var cutoff = now.AddDays(-lookbackDays)
+            .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        lock (_gate)
+        {
+            return _conn.Query<ConnHistoryRow>(
+                """
+                WITH bounded AS (
+                    SELECT ts, process, pid, protocol, remote_addr, remote_port,
+                           country, fw_status, host, asn
+                    FROM conn_history
+                    ORDER BY ts DESC
+                    LIMIT @boundedLimit
+                )
+                SELECT ts AS Ts, process AS Process, pid AS Pid, protocol AS Protocol,
+                       remote_addr AS RemoteAddr, remote_port AS RemotePort,
+                       country AS Country, fw_status AS FwStatus, host AS Host, asn AS Asn
+                FROM bounded AS h
+                WHERE julianday(h.ts) IS NOT NULL
+                  AND julianday(h.ts) >= julianday(@cutoff)
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM history_privacy_exclusions AS e
+                      WHERE (e.scope='app' AND h.process=e.match COLLATE NOCASE)
+                         OR (e.scope='domain' AND h.host<>'' AND (
+                                h.host=e.match COLLATE NOCASE
+                                OR (length(h.host)>length(e.match)
+                                    AND lower(substr(h.host, -(length(e.match)+1)))='.' || lower(e.match))))
+                  )
+                ORDER BY julianday(h.ts) DESC
+                """,
+                new { cutoff, boundedLimit }).ToList();
+        }
+    }
+
     public int ClearConnectionHistory()
     {
         lock (_gate)

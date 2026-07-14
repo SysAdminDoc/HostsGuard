@@ -80,6 +80,7 @@ public sealed class ServiceState : IDisposable
         QuotaEnforcer = new UsageQuotaEnforcer(db, hosts, firewall);
         Doh = new DohIntelligence(DataDir);
         Threats = new ThreatIntel(DataDir);
+        ThreatHistoryRescan = new ThreatHistoryRescanCoordinator(db, Threats.Contains);
         GeoIp = new GeoIpService(DataDir);
         Asn = new AsnService(DataDir);
         DirectIp = new Core.DirectIpHeuristic();
@@ -176,6 +177,8 @@ public sealed class ServiceState : IDisposable
     public IDefender? Defender { get; }
 
     public ThreatIntel Threats { get; }
+
+    public ThreatHistoryRescanCoordinator ThreatHistoryRescan { get; }
 
     public GeoIpService GeoIp { get; }
 

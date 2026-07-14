@@ -83,6 +83,39 @@ public sealed partial class HostsDatabase
         string action = "",
         string process = "",
         long sourceEventId = 0)
+        => AddAlertCore(
+            type, severity, title, subject, details, action, process,
+            sourceEventId, deduplicateReadAlerts: false).Id;
+
+    /// <summary>
+    /// Insert an alert only when no prior row with the same type, subject, and
+    /// action exists, including acknowledged rows. This is for durable
+    /// indicator/baseline findings where a refresh must never recreate an
+    /// alert the operator already reviewed.
+    /// </summary>
+    public bool TryAddAlertOnce(
+        string type,
+        string severity,
+        string title,
+        string subject,
+        string details,
+        string action = "",
+        string process = "",
+        long sourceEventId = 0)
+        => AddAlertCore(
+            type, severity, title, subject, details, action, process,
+            sourceEventId, deduplicateReadAlerts: true).Inserted;
+
+    private (long Id, bool Inserted) AddAlertCore(
+        string type,
+        string severity,
+        string title,
+        string subject,
+        string details,
+        string action,
+        string process,
+        long sourceEventId,
+        bool deduplicateReadAlerts)
     {
         type = CleanToken(type, "general");
         severity = CleanToken(severity, "info").ToLowerInvariant();
@@ -100,23 +133,26 @@ public sealed partial class HostsDatabase
         {
             EnsureAlertTypeNoLock(type);
             surfaced = AlertTypeSurfaceNoLock(type);
+            var existingSql = deduplicateReadAlerts
+                ? "SELECT id FROM alerts WHERE type=@type AND subject=@subject AND action=@action ORDER BY id DESC LIMIT 1"
+                : "SELECT id FROM alerts WHERE is_read=0 AND type=@type AND subject=@subject AND action=@action ORDER BY id DESC LIMIT 1";
             var existing = _conn.QueryFirstOrDefault<long?>(
-                """
-                SELECT id FROM alerts
-                WHERE is_read=0 AND type=@type AND subject=@subject AND action=@action
-                ORDER BY id DESC LIMIT 1
-                """,
+                existingSql,
                 new { type, subject, action });
             if (existing is { } id)
             {
-                _conn.Execute(
-                    """
-                    UPDATE alerts
-                    SET updated=@now, severity=@severity, title=@title, details=@details,
-                        process=@process, source_event_id=@sourceEventId, surfaced=@surfaced
-                    WHERE id=@id
-                    """,
-                    new { id, now, severity, title, details, process, sourceEventId, surfaced = surfaced ? 1 : 0 });
+                if (!deduplicateReadAlerts)
+                {
+                    _conn.Execute(
+                        """
+                        UPDATE alerts
+                        SET updated=@now, severity=@severity, title=@title, details=@details,
+                            process=@process, source_event_id=@sourceEventId, surfaced=@surfaced
+                        WHERE id=@id
+                        """,
+                        new { id, now, severity, title, details, process, sourceEventId, surfaced = surfaced ? 1 : 0 });
+                }
+
                 resultId = id;
                 inserted = false;
             }
@@ -141,7 +177,7 @@ public sealed partial class HostsDatabase
                 type, severity, title, subject, details, action, process, surfaced, now));
         }
 
-        return resultId;
+        return (resultId, inserted);
     }
 
     public AlertPage GetAlerts(AlertFilter filter)

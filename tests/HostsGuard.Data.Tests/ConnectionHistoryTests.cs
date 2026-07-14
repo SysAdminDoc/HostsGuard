@@ -155,6 +155,29 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
+    public void Threat_rescan_history_is_count_time_and_privacy_bounded()
+    {
+        var now = DateTime.Now;
+        _db.HistoryRetentionDays = 365;
+        _db.UpsertHistoryPrivacyExclusion("app", "private.exe");
+        _db.UpsertHistoryPrivacyExclusion("domain", "private.example");
+
+        _db.RecordConnection(Row(Iso(now.AddDays(-31)), "expired.exe", "203.0.113.1"));
+        _db.RecordConnection(Row(Iso(now.AddMinutes(-5)), "private.exe", "203.0.113.2"));
+        _db.RecordConnection(Row(Iso(now.AddMinutes(-4)), "browser.exe", "203.0.113.3", "api.private.example"));
+        _db.RecordConnection(Row(Iso(now.AddMinutes(-3)), "first.exe", "203.0.113.4"));
+        _db.RecordConnection(Row(Iso(now.AddMinutes(-2)), "second.exe", "203.0.113.5"));
+        _db.RecordConnection(Row(Iso(now.AddMinutes(-1)), "third.exe", "203.0.113.6"));
+
+        var rows = _db.GetThreatIntelRescanHistory(now, limit: 2, maxLookbackDays: 30);
+
+        rows.Select(row => row.Process).Should().Equal("third.exe", "second.exe");
+        rows.Should().NotContain(row =>
+            row.Process == "expired.exe" || row.Process == "private.exe" ||
+            row.Host.EndsWith("private.example", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Bandwidth_buckets_accumulate_per_process_per_minute()
     {
         _db.AddBandwidth("app.exe", "2026-07-02T12:00", 100, 50);

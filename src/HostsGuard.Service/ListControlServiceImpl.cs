@@ -474,8 +474,16 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         try
         {
             var count = await _state.Threats.RefreshAsync(fetcher, context.CancellationToken);
-            _state.Db.LogEvent("threat-intel", "refreshed", details: $"{count} IPs");
-            return new Ack { Ok = true, Message = $"threat intel refreshed: {count} IPs" };
+            var scan = _state.ThreatHistoryRescan.Scan(DateTime.Now, context.CancellationToken);
+            _state.Db.LogEvent(
+                "threat-intel",
+                "refreshed",
+                details: $"{count} IPs; scanned {scan.ScannedRows} retained rows; raised {scan.AlertsRaised} alerts");
+            return new Ack
+            {
+                Ok = true,
+                Message = $"threat intel refreshed: {count} IPs; scanned {scan.ScannedRows} retained connections; {scan.AlertsRaised} new alerts",
+            };
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
         {

@@ -99,6 +99,50 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Threat_refresh_rescans_only_bounded_privacy_eligible_history_and_dedupes_forever()
+    {
+        var now = DateTime.Now;
+        _state.Db.HistoryRetentionDays = 365;
+        _state.Db.UpsertHistoryPrivacyExclusion("domain", "private.example");
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-5).ToString("o"), "one.exe", 1, "TCP",
+            "198.51.100.66", 443, "US", string.Empty, "public.example"));
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-4).ToString("o"), "one.exe", 1, "TCP",
+            "198.51.100.66", 8443, "US", string.Empty, "public.example"));
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-3).ToString("o"), "two.exe", 2, "UDP",
+            "203.0.113.99", 53, "US", string.Empty));
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-2).ToString("o"), "private.exe", 3, "TCP",
+            "192.0.2.10", 443, "US", string.Empty, "api.private.example"));
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddDays(-31).ToString("o"), "expired.exe", 4, "TCP",
+            "192.0.2.11", 443, "US", string.Empty));
+        _state.Db.RecordConnection(new ConnHistoryRow(now.AddMinutes(-1).ToString("o"), "benign.exe", 5, "TCP",
+            "192.0.2.12", 443, "US", string.Empty));
+        _fetcher.Responses[ThreatIntel.FeodoUrl] = "198.51.100.66\n203.0.113.99\n192.0.2.10\n192.0.2.11\n";
+
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = new ListControl.ListControlClient(channel);
+        var first = await client.RefreshThreatIntelAsync(new Empty());
+
+        first.Ok.Should().BeTrue();
+        first.Message.Should().Contain("scanned 4 retained connections").And.Contain("2 new alerts");
+        var alerts = _state.Db.GetAlerts(new AlertFilter(Type: "threat_hit", SurfaceOnly: false)).Rows;
+        alerts.Should().HaveCount(2).And.OnlyContain(alert =>
+            alert.Action == "threat_connection" &&
+            alert.Details.Contains("alert-only", StringComparison.Ordinal) &&
+            !alert.Details.Contains("private.example", StringComparison.Ordinal));
+        _state.Db.GetFwState().Should().BeEmpty("retrospective matching is alert-only");
+
+        _state.Db.AckAlerts(alerts.Select(alert => alert.Id)).Should().Be(2);
+        var second = await client.RefreshThreatIntelAsync(new Empty());
+
+        second.Ok.Should().BeTrue();
+        second.Message.Should().Contain("0 new alerts");
+        _state.Db.GetAlerts(new AlertFilter(
+            IncludeRead: true,
+            SurfaceOnly: false,
+            Type: "threat_hit")).Rows.Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task Corrupt_geoip_download_never_replaces_state()
     {
         var junk = new byte[2048];

@@ -369,6 +369,16 @@ public sealed class HostsDatabaseTests : IDisposable
         db.GetAlerts(new AlertFilter(IncludeRead: true, SurfaceOnly: false)).Rows
             .Should().ContainSingle(r => r.IsRead);
         db.GetAlerts(new AlertFilter(SurfaceOnly: false)).Unread.Should().Be(0);
+
+        db.TryAddAlertOnce("threat_hit", "critical", "Threat", "198.51.100.66", "retrospective",
+            action: "connect", process: "evil.exe").Should().BeFalse();
+        db.GetAlerts(new AlertFilter(IncludeRead: true, SurfaceOnly: false)).Rows.Should().ContainSingle();
+
+        db.TryAddAlertOnce("threat_hit", "critical", "Threat", "203.0.113.99", "retrospective",
+            action: "connect", process: "other.exe").Should().BeTrue();
+        db.TryAddAlertOnce("threat_hit", "critical", "Threat", "203.0.113.99", "again",
+            action: "connect", process: "other.exe").Should().BeFalse();
+        db.GetAlerts(new AlertFilter(IncludeRead: true, SurfaceOnly: false)).Rows.Should().HaveCount(2);
     }
 
     [Fact]
