@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using FluentAssertions;
 using Grpc.Core;
 using HostsGuard.Contracts;
+using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Ipc;
 using HostsGuard.Windows;
@@ -32,7 +33,11 @@ public sealed class GrpcBoundaryTests : IAsyncLifetime
         Directory.CreateDirectory(_dir);
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n");
-        _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "hostsguard.db")));
+        _state = new ServiceState(
+            new HostsEngine(hostsPath),
+            new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
+            dataDir: _dir,
+            listFetcher: new FakeListFetcher());
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.BoundaryTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -54,23 +59,62 @@ public sealed class GrpcBoundaryTests : IAsyncLifetime
         var hosts = new HostsControl.HostsControlClient(channel);
         var before = (await hosts.GetHostsTextAsync(new Empty())).Text;
 
-        // 6 MB exceeds the gRPC receive limit (4 MB default) and approaches the
-        // app-level 10 MB cap — either layer may refuse, but the payload must
-        // never land in the hosts file.
-        var huge = new string('a', 6 * 1024 * 1024);
-        var refused = false;
-        try
-        {
-            var ack = await hosts.SetHostsTextAsync(new HostsText { Text = huge });
-            refused = !ack.Ok && ack.ErrorCode.StartsWith("hostsguard.error.v1/", StringComparison.Ordinal);
-        }
-        catch (RpcException ex)
-        {
-            refused = ex.StatusCode is StatusCode.ResourceExhausted or StatusCode.InvalidArgument or StatusCode.Internal;
-        }
+        // ListControl gets a narrow exception for local blocklists. Every other
+        // service remains at gRPC's 4 MiB default.
+        var huge = new string('a', (4 * 1024 * 1024) + 1);
+        var act = async () => await hosts.SetHostsTextAsync(new HostsText { Text = huge });
 
-        refused.Should().BeTrue("an oversize payload must be refused with a typed failure");
+        (await act.Should().ThrowAsync<RpcException>()).Which.StatusCode
+            .Should().Be(StatusCode.ResourceExhausted);
         (await hosts.GetHostsTextAsync(new Empty())).Text.Should().Be(before);
+    }
+
+    [Fact]
+    public async Task Local_blocklist_transport_honors_the_exact_application_cap()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var lists = new ListControl.ListControlClient(channel);
+
+        foreach (var size in new[] { (4 * 1024 * 1024) + 1, BlocklistCatalog.MaxBlocklistBytes })
+        {
+            var response = await lists.PreviewBlocklistContentAsync(
+                new BlocklistContentRequest
+                {
+                    Name = $"boundary-{size}",
+                    Content = CommentPayload(size),
+                },
+                deadline: DateTime.UtcNow.AddSeconds(60));
+
+            response.Ok.Should().BeTrue($"{size:N0} content bytes are inside the documented limit");
+            response.ErrorCode.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task Local_blocklist_rejects_one_byte_over_the_application_cap_in_the_handler()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var lists = new ListControl.ListControlClient(channel);
+
+        var response = await lists.PreviewBlocklistContentAsync(
+            new BlocklistContentRequest
+            {
+                Name = "one-byte-over",
+                Content = CommentPayload(BlocklistCatalog.MaxBlocklistBytes + 1),
+            },
+            deadline: DateTime.UtcNow.AddSeconds(60));
+
+        response.Ok.Should().BeFalse();
+        response.ErrorCode.Should().Be("hostsguard.error.v1/content_too_large");
+        response.Message.Should().Contain("exceeds");
+    }
+
+    private static Google.Protobuf.ByteString CommentPayload(int size)
+    {
+        var payload = new byte[size];
+        payload.AsSpan().Fill((byte)'x');
+        payload[0] = (byte)'#';
+        return Google.Protobuf.UnsafeByteOperations.UnsafeWrap(payload);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using HostsGuard.Core;
 using HostsGuard.Ipc;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,11 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public static class ServiceHost
 {
+    // The application accepts exactly 25,000,000 content bytes. gRPC's receive
+    // ceiling covers the whole protobuf envelope, so reserve bounded headroom
+    // for the field tags and list name while keeping this exception service-local.
+    internal const int ListControlMaxReceiveMessageBytes = BlocklistCatalog.MaxBlocklistBytes + (64 * 1024);
+
     public static WebApplication Build(
         ServiceState state,
         string token,
@@ -42,6 +48,10 @@ public static class ServiceHost
             services =>
             {
                 services.AddSingleton(state);
+                services.AddGrpc().AddServiceOptions<ListControlServiceImpl>(options =>
+                {
+                    options.MaxReceiveMessageSize = ListControlMaxReceiveMessageBytes;
+                });
                 if (WindowsServiceHelpers.IsWindowsService())
                 {
                     // Hosted by the SCM (WFCP-000a): adopt the Windows Service

@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.111] - 2026-07-14
+
+### Fixed
+- Local blocklist content now has a service-specific gRPC receive ceiling with
+  bounded protobuf-envelope headroom, so the documented 25,000,000-byte handler
+  limit is reachable over the named pipe. Real transport tests accept 4 MiB + 1
+  and exactly 25,000,000 content bytes, return `content_too_large` for
+  25,000,001, and prove other services retain gRPC's 4 MiB default.
+
 ## [0.12.110] - 2026-07-14
 
 ### Fixed
