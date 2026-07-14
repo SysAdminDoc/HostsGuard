@@ -72,7 +72,9 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         string protocol = "TCP",
         string filterOrigin = "",
         int interfaceIndex = 0,
-        string interfaceName = "")
+        string interfaceName = "",
+        string localAddress = "",
+        int localPort = 0)
         => new(
             tsUtc,
             app,
@@ -87,7 +89,9 @@ public sealed class ConsentServiceTests : IAsyncLifetime
             "%%14611",
             "48",
             interfaceIndex,
-            interfaceName);
+            interfaceName,
+            localAddress,
+            localPort);
 
     [Fact]
     public void Normal_mode_drops_everything_and_notify_dedups_bursts()
@@ -242,6 +246,7 @@ public sealed class ConsentServiceTests : IAsyncLifetime
     public void Notify_publishes_wfp_provenance_and_alerts_external_filters()
     {
         _state.Consent.SetMode("notify");
+        _fw.ActiveInboundProfiles.Add(new InboundFirewallProfile("Private", true, true));
         using var sub = _state.Bus.Subscribe<ConnectionDecisionRequest>();
 
         _state.Consent.OnBlocked(Blocked(
@@ -249,7 +254,9 @@ public sealed class ConsentServiceTests : IAsyncLifetime
             DateTime.UtcNow,
             filterOrigin: "VendorBlockRule",
             interfaceIndex: 12,
-            interfaceName: "Ethernet"));
+            interfaceName: "Ethernet",
+            localAddress: "192.168.1.10",
+            localPort: 53117));
 
         sub.Reader.TryRead(out var request).Should().BeTrue();
         request!.FilterRuntimeId.Should().Be("67338");
@@ -260,6 +267,9 @@ public sealed class ConsentServiceTests : IAsyncLifetime
         request.InterfaceName.Should().Be("Ethernet");
         request.FilterOwner.Should().Be("External firewall rule");
         request.ExternalFilter.Should().BeTrue();
+        request.LocalAddress.Should().Be("192.168.1.10");
+        request.LocalPort.Should().Be(53117);
+        request.ActiveFirewallProfiles.Should().Equal("Private");
 
         _state.Db.GetAlerts(new AlertFilter(Type: "wfp_external_filter")).Rows.Should()
             .ContainSingle(a => a.Subject == "VendorBlockRule" && a.Process == @"C:\apps\external.exe");

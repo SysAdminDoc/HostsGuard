@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.129] - 2026-07-14
+
+### Added
+- Connection-consent prompts now show the local endpoint and, when Windows
+  supplies them, the network interface, active firewall profiles, and WFP
+  filter owner/origin alongside the remote endpoint and protocol.
+- Optional evidence rows collapse when unavailable and expose localized
+  screen-reader names; IPv6 endpoints use unambiguous bracketed formatting.
+
 ## [0.12.128] - 2026-07-14
 
 ### Fixed

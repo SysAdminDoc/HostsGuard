@@ -1869,6 +1869,9 @@ message ConnectionDecisionRequest {
   string interface_name = 22;
   string filter_owner = 23;       // "HostsGuard rule" | "Windows default filter" | "External firewall rule"
   bool external_filter = 24;      // true when filter_origin is a non-HG, non-default firewall rule
+  string local_address = 25;      // local endpoint from WFP source/destination fields
+  int32 local_port = 26;
+  repeated string active_firewall_profiles = 27; // machine-wide current profiles; not per-interface attribution
 }
 
 message ConnectionDecision {

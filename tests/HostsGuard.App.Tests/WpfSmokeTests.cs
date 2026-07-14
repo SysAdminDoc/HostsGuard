@@ -67,6 +67,102 @@ public sealed class WpfSmokeTests
         return dispatcher!;
     }
 
+    [Fact]
+    public void Consent_evidence_is_exact_accessible_and_collapses_when_unknown()
+    {
+        RunSta(() =>
+        {
+            Application.Current!.Resources.MergedDictionaries.Clear();
+            Application.Current.Resources.MergedDictionaries.Add(Load("Dark"));
+            Application.Current.Resources.MergedDictionaries.Add(Load("Styles"));
+
+            var lan = BuildConsent(new ConnectionDecisionRequest
+            {
+                Application = @"C:\apps\lan.exe",
+                Direction = "Out",
+                RemoteAddress = "192.168.1.1",
+                RemotePort = 443,
+                Protocol = "TCP",
+                LocalAddress = "192.168.1.10",
+                LocalPort = 53117,
+                InterfaceIndex = 12,
+                InterfaceName = "Ethernet",
+                ActiveFirewallProfiles = { "Private" },
+            });
+            Evidence(lan, "LocalText").Should().Be(("192.168.1.10:53117", "Local endpoint: 192.168.1.10:53117"));
+            Evidence(lan, "NetworkText").Should().Be((
+                "Interface: Ethernet (index 12) · Active firewall profiles: Private",
+                "Network evidence: Interface: Ethernet (index 12) · Active firewall profiles: Private"));
+
+            var loopback = BuildConsent(new ConnectionDecisionRequest
+            {
+                Application = @"C:\apps\loopback.exe",
+                Direction = "In",
+                RemoteAddress = "::1",
+                RemotePort = 53000,
+                Protocol = "TCP",
+                LocalAddress = "::1",
+                LocalPort = 8080,
+            });
+            Evidence(loopback, "LocalText").Should().Be(("[::1]:8080", "Local endpoint: [::1]:8080"));
+            Evidence(loopback, "RemoteText").Should().Be(("[::1]:53000 (TCP)", "Remote endpoint: [::1]:53000 (TCP)"));
+
+            var foreign = BuildConsent(new ConnectionDecisionRequest
+            {
+                Application = @"C:\apps\vpn.exe",
+                Direction = "Out",
+                RemoteAddress = "203.0.113.9",
+                RemotePort = 443,
+                Protocol = "TCP",
+                LocalAddress = "10.8.0.4",
+                LocalPort = 50100,
+                InterfaceIndex = 42,
+                InterfaceName = "VPN",
+                FilterOwner = "External firewall rule",
+                FilterOrigin = "VendorBlockRule",
+                ExternalFilter = true,
+                ActiveFirewallProfiles = { "Public" },
+            });
+            Evidence(foreign, "OriginText").Should().Be((
+                "Owner: External firewall rule · Origin: VendorBlockRule",
+                "WFP evidence: Owner: External firewall rule · Origin: VendorBlockRule"));
+
+            var unknown = BuildConsent(new ConnectionDecisionRequest
+            {
+                Application = @"C:\apps\unknown.exe",
+                Direction = "Out",
+                RemoteAddress = "198.51.100.4",
+                RemotePort = 53,
+                Protocol = "UDP",
+            });
+            foreach (var name in new[] { "LocalLabel", "LocalText", "NetworkLabel", "NetworkText", "OriginLabel", "OriginText" })
+            {
+                ((FrameworkElement)unknown.FindName(name)).Visibility.Should().Be(Visibility.Collapsed, name);
+            }
+
+            lan.Close();
+            loopback.Close();
+            foreign.Close();
+            unknown.Close();
+        });
+    }
+
+    private static ConsentWindow BuildConsent(ConnectionDecisionRequest request)
+    {
+        var window = new ConsentWindow(request);
+        window.Measure(new Size(540, 720));
+        window.Arrange(new Rect(0, 0, 540, 720));
+        window.UpdateLayout();
+        return window;
+    }
+
+    private static (string Text, string AccessibleName) Evidence(ConsentWindow window, string name)
+    {
+        var value = (TextBlock)window.FindName(name);
+        value.Visibility.Should().Be(Visibility.Visible);
+        return (value.Text, AutomationProperties.GetName(value));
+    }
+
     private static ResourceDictionary Load(string name) => new()
     {
         Source = new Uri($"pack://application:,,,/HostsGuard.App;component/Themes/{name}.xaml"),

@@ -375,6 +375,18 @@
   <data name="Vpn_AdapterDown" xml:space="preserve"><value>adaptateur inactif ou absent</value></data>
   <data name="Vpn_NoneActive" xml:space="preserve"><value>aucun actif</value></data>
   <data name="Dns_ResolverDhcpDefault" xml:space="preserve"><value>DHCP (par défaut)</value></data>
+  <data name="Consent_LocalEndpoint" xml:space="preserve"><value>Point de terminaison local</value></data>
+  <data name="Consent_NetworkEvidence" xml:space="preserve"><value>Informations réseau</value></data>
+  <data name="Consent_WfpEvidence" xml:space="preserve"><value>Informations WFP</value></data>
+  <data name="Consent_RemoteEndpoint" xml:space="preserve"><value>Point de terminaison distant</value></data>
+  <data name="Consent_InterfaceEvidence" xml:space="preserve"><value>Interface : {0}</value></data>
+  <data name="Consent_ActiveFirewallProfilesEvidence" xml:space="preserve"><value>Profils de pare-feu actifs : {0}</value></data>
+  <data name="Consent_FilterOwnerEvidence" xml:space="preserve"><value>Propriétaire : {0}</value></data>
+  <data name="Consent_FilterOriginEvidence" xml:space="preserve"><value>Origine : {0}</value></data>
+  <data name="Consent_AccessibleEvidence" xml:space="preserve"><value>{0} : {1}</value></data>
+  <data name="Consent_InterfaceWithIndex" xml:space="preserve"><value>{0} (indice {1})</value></data>
+  <data name="Consent_InterfaceIndex" xml:space="preserve"><value>indice {0}</value></data>
+  <data name="Consent_PortOnly" xml:space="preserve"><value>port {0}</value></data>
   <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - connexion bloquée</value></data>
   <data name="Consent_ThreatBanner" xml:space="preserve"><value>Avertissement : cette adresse distante figure dans la liste des menaces</value></data>
   <data name="Consent_Resolving" xml:space="preserve"><value>résolution...</value></data>

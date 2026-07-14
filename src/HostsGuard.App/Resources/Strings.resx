@@ -622,6 +622,18 @@
   <data name="Xaml_HostsGuard_input_cfced166" xml:space="preserve"><value>HostsGuard input</value></data>
   <data name="Xaml_Input_value_a9e020d6" xml:space="preserve"><value>Input value</value></data>
   <data name="Xaml_Save_applies_the_value_immediately_Cancel_bb5061bb" xml:space="preserve"><value>Save applies the value immediately. Cancel keeps the current setting.</value></data>
+  <data name="Consent_LocalEndpoint" xml:space="preserve"><value>Local endpoint</value></data>
+  <data name="Consent_NetworkEvidence" xml:space="preserve"><value>Network evidence</value></data>
+  <data name="Consent_WfpEvidence" xml:space="preserve"><value>WFP evidence</value></data>
+  <data name="Consent_RemoteEndpoint" xml:space="preserve"><value>Remote endpoint</value></data>
+  <data name="Consent_InterfaceEvidence" xml:space="preserve"><value>Interface: {0}</value></data>
+  <data name="Consent_ActiveFirewallProfilesEvidence" xml:space="preserve"><value>Active firewall profiles: {0}</value></data>
+  <data name="Consent_FilterOwnerEvidence" xml:space="preserve"><value>Owner: {0}</value></data>
+  <data name="Consent_FilterOriginEvidence" xml:space="preserve"><value>Origin: {0}</value></data>
+  <data name="Consent_AccessibleEvidence" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="Consent_InterfaceWithIndex" xml:space="preserve"><value>{0} (index {1})</value></data>
+  <data name="Consent_InterfaceIndex" xml:space="preserve"><value>index {0}</value></data>
+  <data name="Consent_PortOnly" xml:space="preserve"><value>port {0}</value></data>
   <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - connection blocked</value></data>
   <data name="Xaml_HostsGuard_connection_consent_prompt_370e8956" xml:space="preserve"><value>HostsGuard connection consent prompt</value></data>
   <data name="Xaml_Connection_blocked_c2c1ee6c" xml:space="preserve"><value>Connection blocked</value></data>

@@ -376,6 +376,18 @@
   <data name="Vpn_AdapterUp" xml:space="preserve"><value>adaptador activo</value></data>
   <data name="Vpn_AdapterDown" xml:space="preserve"><value>adaptador inactivo o ausente</value></data>
   <data name="Vpn_NoneActive" xml:space="preserve"><value>ninguno activo</value></data>
+  <data name="Consent_LocalEndpoint" xml:space="preserve"><value>Punto de conexión local</value></data>
+  <data name="Consent_NetworkEvidence" xml:space="preserve"><value>Evidencia de red</value></data>
+  <data name="Consent_WfpEvidence" xml:space="preserve"><value>Evidencia WFP</value></data>
+  <data name="Consent_RemoteEndpoint" xml:space="preserve"><value>Punto de conexión remoto</value></data>
+  <data name="Consent_InterfaceEvidence" xml:space="preserve"><value>Interfaz: {0}</value></data>
+  <data name="Consent_ActiveFirewallProfilesEvidence" xml:space="preserve"><value>Perfiles de Firewall activos: {0}</value></data>
+  <data name="Consent_FilterOwnerEvidence" xml:space="preserve"><value>Propietario: {0}</value></data>
+  <data name="Consent_FilterOriginEvidence" xml:space="preserve"><value>Origen: {0}</value></data>
+  <data name="Consent_AccessibleEvidence" xml:space="preserve"><value>{0}: {1}</value></data>
+  <data name="Consent_InterfaceWithIndex" xml:space="preserve"><value>{0} (índice {1})</value></data>
+  <data name="Consent_InterfaceIndex" xml:space="preserve"><value>índice {0}</value></data>
+  <data name="Consent_PortOnly" xml:space="preserve"><value>puerto {0}</value></data>
   <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - conexión bloqueada</value></data>
   <data name="Consent_ThreatBanner" xml:space="preserve"><value>Advertencia: esta dirección remota está en la lista de inteligencia de amenazas</value></data>
   <data name="Consent_Resolving" xml:space="preserve"><value>resolviendo...</value></data>

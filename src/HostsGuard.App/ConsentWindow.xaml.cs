@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using HostsGuard.Contracts;
 
@@ -26,7 +28,55 @@ public partial class ConsentWindow : Window
 
         AppName.Text = request.CommandLine.Length != 0 ? request.CommandLine : Path.GetFileName(request.Application);
         AppPath.Text = request.Application;
-        RemoteText.Text = $"{request.RemoteAddress}:{request.RemotePort} ({request.Protocol})";
+        var remoteEndpoint = FormatEndpoint(request.RemoteAddress, request.RemotePort);
+        RemoteText.Text = request.Protocol.Length != 0 ? $"{remoteEndpoint} ({request.Protocol})" : remoteEndpoint;
+        AutomationProperties.SetName(RemoteText, EvidenceName(
+            Services.I18n.T("Consent_RemoteEndpoint", "Remote endpoint"), RemoteText.Text));
+
+        var localEndpoint = FormatEndpoint(request.LocalAddress, request.LocalPort);
+        ShowOptionalEvidence(
+            LocalLabel,
+            LocalText,
+            localEndpoint,
+            Services.I18n.T("Consent_LocalEndpoint", "Local endpoint"));
+
+        var networkEvidence = new List<string>();
+        var interfaceEvidence = FormatInterface(request.InterfaceName, request.InterfaceIndex);
+        if (interfaceEvidence.Length != 0)
+        {
+            networkEvidence.Add(Services.I18n.T("Consent_InterfaceEvidence", "Interface: {0}", interfaceEvidence));
+        }
+
+        if (request.ActiveFirewallProfiles.Count != 0)
+        {
+            networkEvidence.Add(Services.I18n.T(
+                "Consent_ActiveFirewallProfilesEvidence",
+                "Active firewall profiles: {0}",
+                string.Join(", ", request.ActiveFirewallProfiles)));
+        }
+
+        ShowOptionalEvidence(
+            NetworkLabel,
+            NetworkText,
+            string.Join(" · ", networkEvidence),
+            Services.I18n.T("Consent_NetworkEvidence", "Network evidence"));
+
+        var originEvidence = new List<string>();
+        if (request.FilterOwner.Length != 0)
+        {
+            originEvidence.Add(Services.I18n.T("Consent_FilterOwnerEvidence", "Owner: {0}", request.FilterOwner));
+        }
+
+        if (request.FilterOrigin.Length != 0)
+        {
+            originEvidence.Add(Services.I18n.T("Consent_FilterOriginEvidence", "Origin: {0}", request.FilterOrigin));
+        }
+
+        ShowOptionalEvidence(
+            OriginLabel,
+            OriginText,
+            string.Join(" · ", originEvidence),
+            Services.I18n.T("Consent_WfpEvidence", "WFP evidence"));
         DirectionText.Text = request.Direction == "In"
             ? Services.I18n.T("Consent_Inbound", "Inbound")
             : Services.I18n.T("Consent_Outbound", "Outbound");
@@ -92,6 +142,50 @@ public partial class ConsentWindow : Window
         // Land keyboard/screen-reader focus on the primary action (NET-080).
         Loaded += (_, _) => AllowButton.Focus();
         Closed += (_, _) => _timer.Stop();
+    }
+
+    private static void ShowOptionalEvidence(TextBlock label, TextBlock value, string evidence, string accessibleLabel)
+    {
+        if (evidence.Length == 0)
+        {
+            return;
+        }
+
+        label.Visibility = value.Visibility = Visibility.Visible;
+        value.Text = evidence;
+        AutomationProperties.SetName(value, EvidenceName(accessibleLabel, evidence));
+    }
+
+    private static string EvidenceName(string label, string evidence)
+        => Services.I18n.T("Consent_AccessibleEvidence", "{0}: {1}", label, evidence);
+
+    private static string FormatInterface(string name, int index)
+    {
+        name = name.Trim();
+        if (name.Length != 0)
+        {
+            return index > 0
+                ? Services.I18n.T("Consent_InterfaceWithIndex", "{0} (index {1})", name, index)
+                : name;
+        }
+
+        return index > 0
+            ? Services.I18n.T("Consent_InterfaceIndex", "index {0}", index)
+            : string.Empty;
+    }
+
+    private static string FormatEndpoint(string address, int port)
+    {
+        address = address.Trim();
+        if (address.Length == 0)
+        {
+            return port > 0
+                ? Services.I18n.T("Consent_PortOnly", "port {0}", port)
+                : string.Empty;
+        }
+
+        var host = address.Contains(':', StringComparison.Ordinal) ? $"[{address}]" : address;
+        return port > 0 ? $"{host}:{port}" : host;
     }
 
     /// <summary>Best-effort reverse-DNS for the remote IP, resolved off-thread so the prompt never blocks.</summary>

@@ -94,27 +94,37 @@
                 <Grid.RowDefinitions>
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
                     <RowDefinition /> <RowDefinition /> <RowDefinition />
+                    <RowDefinition /> <RowDefinition /> <RowDefinition />
                     <RowDefinition /> <RowDefinition />
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="{svc:Loc Key=Xaml_Remote_c93f6536}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
                 <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RemoteText" FontFamily="Consolas" />
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="{svc:Loc Key=Xaml_Host_3960ec4c}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="HostText" Foreground="{DynamicResource Hg.Dim}" Text="{svc:Loc Key=Consent_Resolving}" />
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="{svc:Loc Key=Xaml_Location_d219c681}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CountryText" />
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="{svc:Loc Key=Xaml_Direction_fd8e45ba}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="DirectionText" />
-                <TextBlock Grid.Row="4" Grid.Column="0" Text="{svc:Loc Key=Xaml_Process_12f4c13a}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
-                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="PidText" />
-                <TextBlock Grid.Row="5" Grid.Column="0" Text="{svc:Loc Key=Xaml_Signer_362166e4}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,0" />
-                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="SignerText" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="6" Grid.Column="0" x:Name="ServiceLabel" Text="{svc:Loc Key=Xaml_Service_329cb8b6}" Visibility="Collapsed"
+                <TextBlock Grid.Row="1" Grid.Column="0" x:Name="LocalLabel" Text="{svc:Loc Key=Consent_LocalEndpoint}" Visibility="Collapsed"
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="LocalText" Visibility="Collapsed" FontFamily="Consolas" />
+                <TextBlock Grid.Row="2" Grid.Column="0" x:Name="NetworkLabel" Text="{svc:Loc Key=Consent_NetworkEvidence}" Visibility="Collapsed"
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NetworkText" Visibility="Collapsed" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="3" Grid.Column="0" x:Name="OriginLabel" Text="{svc:Loc Key=Consent_WfpEvidence}" Visibility="Collapsed"
+                           Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="OriginText" Visibility="Collapsed" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="{svc:Loc Key=Xaml_Host_3960ec4c}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="HostText" Foreground="{DynamicResource Hg.Dim}" Text="{svc:Loc Key=Consent_Resolving}" />
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="{svc:Loc Key=Xaml_Location_d219c681}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="5" Grid.Column="1" x:Name="CountryText" />
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="{svc:Loc Key=Xaml_Direction_fd8e45ba}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="DirectionText" />
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="{svc:Loc Key=Xaml_Process_12f4c13a}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,4" />
+                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="PidText" />
+                <TextBlock Grid.Row="8" Grid.Column="0" Text="{svc:Loc Key=Xaml_Signer_362166e4}" Foreground="{DynamicResource Hg.Sub}" Margin="0,0,16,0" />
+                <TextBlock Grid.Row="8" Grid.Column="1" x:Name="SignerText" TextWrapping="Wrap" />
+                <TextBlock Grid.Row="9" Grid.Column="0" x:Name="ServiceLabel" Text="{svc:Loc Key=Xaml_Service_329cb8b6}" Visibility="Collapsed"
                            Foreground="{DynamicResource Hg.Sub}" Margin="0,4,16,0" />
-                <TextBlock Grid.Row="6" Grid.Column="1" x:Name="ServiceText" Visibility="Collapsed"
+                <TextBlock Grid.Row="9" Grid.Column="1" x:Name="ServiceText" Visibility="Collapsed"
                            Margin="0,4,0,0" TextWrapping="Wrap" />
-                <TextBlock Grid.Row="7" Grid.Column="0" x:Name="CommandLineLabel" Text="{svc:Loc Key=Xaml_Command_line_796f8db3}" Visibility="Collapsed"
+                <TextBlock Grid.Row="10" Grid.Column="0" x:Name="CommandLineLabel" Text="{svc:Loc Key=Xaml_Command_line_796f8db3}" Visibility="Collapsed"
                            Foreground="{DynamicResource Hg.Sub}" Margin="0,4,16,0" />
-                <TextBlock Grid.Row="7" Grid.Column="1" x:Name="CommandLineText" Visibility="Collapsed"
+                <TextBlock Grid.Row="10" Grid.Column="1" x:Name="CommandLineText" Visibility="Collapsed"
                            Margin="0,4,0,0" TextWrapping="Wrap" FontFamily="Consolas" />
             </Grid>
             </Border>

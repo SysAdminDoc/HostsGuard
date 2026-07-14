@@ -481,15 +481,41 @@ public sealed partial class ConsentBroker : IDisposable
             LayerRuntimeId = blocked.LayerRuntimeId,
             InterfaceIndex = blocked.InterfaceIndex,
             InterfaceName = blocked.InterfaceName,
-            FilterOwner = blocked.Provenance.OwnerLabel,
+            FilterOwner = blocked.FilterOrigin.Length != 0 ? blocked.Provenance.OwnerLabel : string.Empty,
             ExternalFilter = blocked.Provenance.IsExternalRule,
+            LocalAddress = blocked.LocalAddress,
+            LocalPort = blocked.LocalPort,
         };
+        request.ActiveFirewallProfiles.AddRange(ActiveFirewallProfiles());
         lock (_gate)
         {
             _pending[request.Id] = (request, blocked.TsUtc + PendingTtl);
         }
 
         _bus.Publish(request);
+    }
+
+    private IReadOnlyList<string> ActiveFirewallProfiles()
+    {
+        if (_firewall is null)
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            // COM exposes profiles active somewhere on the machine, not a
+            // trustworthy per-interface profile attribution.
+            return _firewall.GetActiveInboundProfiles()
+                .Select(static profile => profile.Name.Trim())
+                .Where(static name => name.Length != 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or InvalidOperationException or System.Runtime.InteropServices.COMException)
+        {
+            return Array.Empty<string>();
+        }
     }
 
     private void AddExternalFilterAlert(BlockedConnection blocked)
