@@ -119,6 +119,33 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.HostsBlocked.Should().Be(1);
         vm.Hosts.Should().NotBeNull();
         vm.Hosts!.Domains.Should().ContainSingle(d => d.Domain == "ads.example.com");
+        vm.FilteringModeTitle.Should().Be("Normal");
+        vm.EnforcementPauseTitle.Should().Be("Active");
+        vm.SetFilteringModeCommand.CanExecute("notify").Should().BeTrue();
+        vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
+        vm.PauseEnforcementCommand.CanExecute("5").Should().BeTrue();
+        vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Disconnected_status_rail_is_explicit_and_service_commands_are_disabled()
+    {
+        using var vm = CreateShell();
+
+        vm.ConnectionStateTitle.Should().Be("Disconnected");
+        vm.FilteringModeTitle.Should().Be("Unavailable");
+        vm.FilteringModeDisplayText.Should().Be("Connect to view or change filtering mode.");
+        vm.EnforcementPauseTitle.Should().Be("Unavailable");
+        vm.EnforcementPauseDisplayText.Should().Be("Connect to view or change global posture.");
+        vm.HostsBlockedText.Should().Be("Hosts file: unavailable");
+        vm.DbBlockedText.Should().Be("Blocked: unavailable");
+        vm.DbAllowedText.Should().Be("Allowed: unavailable");
+        vm.ServiceVersionText.Should().Be("service unavailable");
+        vm.ServiceCommandAvailabilityText.Should().Contain("Reconnect first");
+        vm.SetFilteringModeCommand.CanExecute("notify").Should().BeFalse();
+        vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeFalse();
+        vm.PauseEnforcementCommand.CanExecute("5").Should().BeFalse();
+        vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeFalse();
     }
 
     [Fact]
@@ -138,7 +165,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         using var vm = CreateShell();
 
-        await vm.RestoreSafeNetworkPostureCommand.ExecuteAsync(null);
+        vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeFalse();
+        await vm.RestoreSafeNetworkPostureAsync();
 
         vm.ConnectionText.Should().Be("Safe posture unavailable - service is not connected");
     }
@@ -189,8 +217,10 @@ public sealed class MainViewModelTests : IAsyncLifetime
     public async Task Reconnect_recreates_client_after_token_rotation_and_restores_live_feeds()
     {
         using var vm = CreateShell();
+        vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeFalse();
         await vm.ConnectCommand.ExecuteAsync(null);
         vm.IsConnected.Should().BeTrue();
+        vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
         var firstActivity = vm.Activity;
         var firstFwActivity = vm.FwActivity;
 
@@ -198,6 +228,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         await vm.ConnectCommand.ExecuteAsync(null);
 
         vm.IsConnected.Should().BeTrue();
+        vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
         vm.Activity.Should().NotBeNull().And.NotBeSameAs(firstActivity);
         vm.FwActivity.Should().NotBeNull().And.NotBeSameAs(firstFwActivity);
 

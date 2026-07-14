@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -635,6 +636,7 @@ public sealed class WpfSmokeTests
                     window.ShowInTaskbar = false;
                     window.Show();
                     window.UpdateLayout();
+                    AssertRailServiceCommands(window, vm, item.State);
                     var tabs = (TabControl)window.FindName("MainTabs");
                     for (var tab = 0; tab < tabs.Items.Count; tab++)
                     {
@@ -708,20 +710,15 @@ public sealed class WpfSmokeTests
     private static MainViewModel CreateMatrixShell(HostsServiceClient client, AppConfigStore config)
     {
         var vm = new MainViewModel(() => client, config, new ThemeManager(), new FakeConfirm(true));
-        vm.Hosts = new HostsViewModel(client, new FakeConfirm(true));
-        vm.Activity = new HostsActivityViewModel(client);
-        vm.Alerts = new AlertsViewModel(client);
-        vm.RawHosts = new RawHostsViewModel(client);
-        vm.FwActivity = new FwActivityViewModel(client, new FakeConfirm(true), config);
-        vm.FwRules = new FwRulesViewModel(client, new FakeConfirm(true));
-        vm.Tools = new ToolsViewModel(client, new FakeConfirm(true));
-        vm.Blocklists = new BlocklistsViewModel(client, new FakeConfirm(true));
+        vm.PrepareVisualSmokeConnectionFixture();
         return vm;
     }
 
     private static void SeedShellState(MainViewModel vm, string state)
     {
         vm.IsConnected = state is "empty" or "populated" or "loading";
+        vm.FilteringModeText = vm.IsConnected ? "Normal - deterministic state" : string.Empty;
+        vm.EnforcementPauseText = vm.IsConnected ? "Hosts and firewall enforcement active." : string.Empty;
         vm.ConnectionText = state switch
         {
             "loading" => "Loading deterministic service data...",
@@ -735,6 +732,39 @@ public sealed class WpfSmokeTests
             vm.DbBlocked = 40;
             vm.DbAllowed = 2;
             vm.Activity!.Rows.Add(new ActivityRowViewModel { Domain = "matrix.example", Root = "matrix.example" });
+        }
+    }
+
+    private static void AssertRailServiceCommands(Window window, MainViewModel vm, string state)
+    {
+        var commands = new HashSet<ICommand>
+        {
+            vm.SetFilteringModeCommand,
+            vm.SetGlobalModeCommand,
+            vm.PauseEnforcementCommand,
+            vm.RestoreSafeNetworkPostureCommand,
+            vm.RunDiagnosticsCommand,
+            vm.Tools!.FlushDnsCommand,
+            vm.Alerts!.RefreshCommand,
+        };
+        var buttons = Descendants<Button>(window)
+            .Where(button => button.Command is not null && commands.Contains(button.Command))
+            .ToArray();
+
+        buttons.Should().HaveCount(10,
+            "the status surfaces must expose filtering, posture, three pause, DNS, diagnostics, and alert actions");
+        var connected = state is "empty" or "populated" or "loading";
+        buttons.Should().OnlyContain(button => button.IsEnabled == connected);
+        if (!connected)
+        {
+            var missingHelp = buttons
+                .Where(button => !string.Equals(
+                    AutomationProperties.GetHelpText(button),
+                    vm.ServiceCommandAvailabilityText,
+                    StringComparison.Ordinal))
+                .Select(button => $"{AutomationProperties.GetName(button)}: '{AutomationProperties.GetHelpText(button)}'")
+                .ToArray();
+            missingHelp.Should().BeEmpty("disabled service actions must explain that reconnect is required");
         }
     }
 

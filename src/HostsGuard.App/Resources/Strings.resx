@@ -1287,6 +1287,14 @@
   <data name="Shell_ModeNotify" xml:space="preserve"><value>Notify</value></data>
   <data name="Shell_ModeLearning" xml:space="preserve"><value>Learning</value></data>
   <data name="Shell_ModeNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="Shell_Unavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="Shell_LoadingState" xml:space="preserve"><value>Loading…</value></data>
+  <data name="Shell_LoadingServiceState" xml:space="preserve"><value>Loading service state…</value></data>
+  <data name="Shell_FilteringUnavailable" xml:space="preserve"><value>Connect to view or change filtering mode.</value></data>
+  <data name="Shell_PostureUnavailable" xml:space="preserve"><value>Connect to view or change global posture.</value></data>
+  <data name="Shell_AlertsUnavailable" xml:space="preserve"><value>Connect to view or refresh alerts.</value></data>
+  <data name="Shell_ServiceActionAvailable" xml:space="preserve"><value>Available while connected to HostsGuardSvc.</value></data>
+  <data name="Shell_ServiceActionUnavailable" xml:space="preserve"><value>Requires a connected HostsGuardSvc. Reconnect first.</value></data>
   <data name="Shell_Suspended" xml:space="preserve"><value>Suspended</value></data>
   <data name="Shell_Paused" xml:space="preserve"><value>Paused</value></data>
   <data name="Shell_Active" xml:space="preserve"><value>Active</value></data>
@@ -1295,6 +1303,10 @@
   <data name="Shell_StatusBlocked" xml:space="preserve"><value>Blocked: {0}</value></data>
   <data name="Shell_StatusAllowed" xml:space="preserve"><value>Allowed: {0}</value></data>
   <data name="Shell_StatusService" xml:space="preserve"><value>service {0}</value></data>
+  <data name="Shell_StatusHostsFileUnavailable" xml:space="preserve"><value>Hosts file: unavailable</value></data>
+  <data name="Shell_StatusBlockedUnavailable" xml:space="preserve"><value>Blocked: unavailable</value></data>
+  <data name="Shell_StatusAllowedUnavailable" xml:space="preserve"><value>Allowed: unavailable</value></data>
+  <data name="Shell_StatusServiceUnavailable" xml:space="preserve"><value>service unavailable</value></data>
   <data name="FwActivity_SiteColumnTip" xml:space="preserve"><value>Domain this IP was resolved as (live DNS)</value></data>
   <data name="Lock_PasswordWatermark" xml:space="preserve"><value>Enter lock password</value></data>
   <data name="Shell_ElevatedSuffix" xml:space="preserve"><value> (elevated)</value></data>

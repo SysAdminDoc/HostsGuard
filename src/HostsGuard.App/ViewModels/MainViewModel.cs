@@ -31,6 +31,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(ConnectionStateTitle))]
     [NotifyPropertyChangedFor(nameof(PostureText))]
     [NotifyPropertyChangedFor(nameof(PostureIsSafe))]
+    [NotifyPropertyChangedFor(nameof(FilteringModeTitle))]
+    [NotifyPropertyChangedFor(nameof(FilteringModeDisplayText))]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseDisplayText))]
+    [NotifyPropertyChangedFor(nameof(ServiceVersionText))]
+    [NotifyPropertyChangedFor(nameof(HostsBlockedText))]
+    [NotifyPropertyChangedFor(nameof(DbBlockedText))]
+    [NotifyPropertyChangedFor(nameof(DbAllowedText))]
+    [NotifyPropertyChangedFor(nameof(ServiceCommandAvailabilityText))]
+    [NotifyCanExecuteChangedFor(nameof(SetFilteringModeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetGlobalModeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PauseEnforcementCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RestoreSafeNetworkPostureCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunDiagnosticsCommand))]
     private bool _isConnected;
 
     [ObservableProperty]
@@ -88,6 +102,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _filteringMode = "normal";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FilteringModeTitle))]
+    [NotifyPropertyChangedFor(nameof(FilteringModeDisplayText))]
     private string _filteringModeText = string.Empty;
 
     [ObservableProperty]
@@ -102,6 +118,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _enforcementPauseSuspended;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    [NotifyPropertyChangedFor(nameof(EnforcementPauseDisplayText))]
     private string _enforcementPauseText = I18n.T("Shell_EnforcementActive", "Enforcement active.");
 
     /// <summary>Child-process auto-allow (NET-093): direct children inherit a trusted parent's allow.</summary>
@@ -154,13 +172,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : I18n.T("TopBand_SafePosture", "Safe posture");
 
     // Localized status-bar counters (the label + value must translate together).
-    public string HostsBlockedText => I18n.T("Shell_StatusHostsFile", "Hosts file: {0}", HostsBlocked);
+    public string HostsBlockedText => IsConnected
+        ? I18n.T("Shell_StatusHostsFile", "Hosts file: {0}", HostsBlocked)
+        : I18n.T("Shell_StatusHostsFileUnavailable", "Hosts file: unavailable");
 
-    public string DbBlockedText => I18n.T("Shell_StatusBlocked", "Blocked: {0}", DbBlocked);
+    public string DbBlockedText => IsConnected
+        ? I18n.T("Shell_StatusBlocked", "Blocked: {0}", DbBlocked)
+        : I18n.T("Shell_StatusBlockedUnavailable", "Blocked: unavailable");
 
-    public string DbAllowedText => I18n.T("Shell_StatusAllowed", "Allowed: {0}", DbAllowed);
+    public string DbAllowedText => IsConnected
+        ? I18n.T("Shell_StatusAllowed", "Allowed: {0}", DbAllowed)
+        : I18n.T("Shell_StatusAllowedUnavailable", "Allowed: unavailable");
 
-    public string ServiceVersionText => I18n.T("Shell_StatusService", "service {0}", ServiceVersion);
+    public string ServiceVersionText => IsConnected
+        ? I18n.T("Shell_StatusService", "service {0}", ServiceVersion)
+        : I18n.T("Shell_StatusServiceUnavailable", "service unavailable");
 
     public string ThemeToggleText => Theme == "dark"
         ? I18n.T("Shell_LightTheme", "Light theme")
@@ -168,16 +194,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public static IReadOnlyList<int> UiScaleChoices => AppConfigStore.UiScaleChoices;
 
-    public string FilteringModeTitle => FilteringMode switch
-    {
-        "notify" => I18n.T("Shell_ModeNotify", "Notify"),
-        "learning" => I18n.T("Shell_ModeLearning", "Learning"),
-        _ => I18n.T("Shell_ModeNormal", "Normal"),
-    };
+    public string FilteringModeTitle => !IsConnected
+        ? I18n.T("Shell_Unavailable", "Unavailable")
+        : string.IsNullOrWhiteSpace(FilteringModeText)
+            ? I18n.T("Shell_LoadingState", "Loading…")
+        : FilteringMode switch
+        {
+            "notify" => I18n.T("Shell_ModeNotify", "Notify"),
+            "learning" => I18n.T("Shell_ModeLearning", "Learning"),
+            _ => I18n.T("Shell_ModeNormal", "Normal"),
+        };
 
-    public string EnforcementPauseTitle => EnforcementPauseActive
-        ? EnforcementPauseSuspended ? I18n.T("Shell_Suspended", "Suspended") : I18n.T("Shell_Paused", "Paused")
-        : I18n.T("Shell_Active", "Active");
+    public string FilteringModeDisplayText => IsConnected
+        ? string.IsNullOrWhiteSpace(FilteringModeText)
+            ? I18n.T("Shell_LoadingServiceState", "Loading service state…")
+            : FilteringModeText
+        : I18n.T("Shell_FilteringUnavailable", "Connect to view or change filtering mode.");
+
+    public string EnforcementPauseTitle => !IsConnected
+        ? I18n.T("Shell_Unavailable", "Unavailable")
+        : string.IsNullOrWhiteSpace(EnforcementPauseText)
+            ? I18n.T("Shell_LoadingState", "Loading…")
+        : EnforcementPauseActive
+            ? EnforcementPauseSuspended ? I18n.T("Shell_Suspended", "Suspended") : I18n.T("Shell_Paused", "Paused")
+            : I18n.T("Shell_Active", "Active");
+
+    public string EnforcementPauseDisplayText => IsConnected
+        ? string.IsNullOrWhiteSpace(EnforcementPauseText)
+            ? I18n.T("Shell_LoadingServiceState", "Loading service state…")
+            : EnforcementPauseText
+        : I18n.T("Shell_PostureUnavailable", "Connect to view or change global posture.");
+
+    public string ServiceCommandAvailabilityText => IsConnected
+        ? I18n.T("Shell_ServiceActionAvailable", "Available while connected to HostsGuardSvc.")
+        : I18n.T("Shell_ServiceActionUnavailable", "Requires a connected HostsGuardSvc. Reconnect first.");
 
     [RelayCommand]
     public async Task ConnectAsync()
@@ -265,9 +315,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     internal void PrepareVisualSmokeFixture()
     {
-        ResetConnection();
-        _client = _connectFactory();
-        InitializeViews(_client);
+        PrepareVisualSmokeConnectionFixture();
 
         ServiceVersion = AppVersion;
         HostsBlocked = 42;
@@ -275,6 +323,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DbAllowed = 2;
         FilteringMode = "normal";
         FilteringModeText = "Normal — deterministic fixture";
+        EnforcementPauseText = "Hosts and firewall enforcement active.";
         ConnectionText = "Connected — deterministic visual fixture";
 
         Activity!.Rows.Add(new ActivityRowViewModel
@@ -433,6 +482,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Tools.HealthStatusText = "1 health check needs attention — evidence is incomplete.";
         Tools.StatusText = "Deterministic diagnostics ready";
 
+    }
+
+    /// <summary>
+    /// Establishes the deterministic, non-RPC shell connection used by the
+    /// rendered state matrix. Callers can then seed empty, loading, populated,
+    /// or disconnected presentation state without contacting the service.
+    /// </summary>
+    internal void PrepareVisualSmokeConnectionFixture()
+    {
+        ResetConnection();
+        _client = _connectFactory();
+        InitializeViews(_client);
         IsConnected = true;
     }
 
@@ -514,7 +575,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseConnectedService))]
     public Task SetFilteringModeAsync(string mode) => SetFilteringModeAsync(mode, 0);
 
     /// <summary>
@@ -548,7 +609,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Apply a global outbound posture (NET-076): "block-all" | "allow-all".</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseConnectedService))]
     public async Task SetGlobalModeAsync(string mode)
     {
         if (_client is null)
@@ -590,7 +651,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseConnectedService))]
     public async Task PauseEnforcementAsync(object? minutesValue)
     {
         if (_client is null)
@@ -617,7 +678,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         });
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseConnectedService))]
     public async Task RestoreSafeNetworkPostureAsync()
     {
         if (_client is null)
@@ -1227,7 +1288,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ConnectionText = I18n.T("Shell_AllRefreshed", "All visible surfaces refreshed");
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanUseConnectedService))]
     public async Task RunDiagnosticsAsync()
     {
         if (_client is null)
@@ -1315,8 +1376,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => ConnectionText = s, work);
 
+    private bool CanUseConnectedService() => IsConnected && _client is not null;
+
     private void ResetConnection()
     {
+        IsConnected = false;
         _decisionCts?.Cancel();
         _decisionCts?.Dispose();
         _decisionCts = null;
@@ -1326,12 +1390,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Activity = null;
         RawHosts = null;
         FwActivity = null;
+        Alerts = null;
         FwRules = null;
         Tools = null;
         Blocklists = null;
         _client?.Dispose();
         _client = null;
-        IsConnected = false;
+        FilteringMode = string.Empty;
+        FilteringModeText = string.Empty;
+        EnforcementPauseActive = false;
+        EnforcementPauseSuspended = false;
+        EnforcementPauseText = string.Empty;
     }
 
     public void Dispose() => ResetConnection();

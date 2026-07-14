@@ -230,6 +230,8 @@
                                 Command="{Binding RestoreSafeNetworkPostureCommand}"
                                 IsEnabled="{Binding IsConnected}"
                                 ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}"
+                                ToolTipService.ShowOnDisabled="True"
+                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                 AutomationProperties.Name="{svc:Loc Key=TopBand_RestoreSafe}">
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource Hg.ButtonGlyphPath}"
@@ -245,6 +247,8 @@
                                 IsEnabled="{Binding IsConnected}"
                                 Margin="8,0,0,0"
                                 ToolTip="{svc:Loc Key=Xaml_Flush_DNS_15214212}"
+                                ToolTipService.ShowOnDisabled="True"
+                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                 AutomationProperties.Name="{svc:Loc Key=Xaml_Flush_DNS_15214212}">
                             <StackPanel Orientation="Horizontal">
                                 <Path Style="{StaticResource Hg.ButtonGlyphPath}"
@@ -259,6 +263,8 @@
                                 IsEnabled="{Binding IsConnected}"
                                 Margin="8,0,0,0"
                                 ToolTip="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}"
+                                ToolTipService.ShowOnDisabled="True"
+                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                 AutomationProperties.Name="{svc:Loc Key=Xaml_Run_diagnostics_2d1e4905}">
                             <Path Style="{StaticResource Hg.ButtonGlyphPath}"
                                   Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 8 5 A 3 3 0 1 0 8 11 A 3 3 0 1 0 8 5" />
@@ -312,7 +318,7 @@
                 </StatusBarItem>
                 <Separator />
                 <StatusBarItem>
-                    <TextBlock Text="{Binding FilteringModeText}" Style="{StaticResource Hg.SubText}"
+                    <TextBlock Text="{Binding FilteringModeDisplayText}" Style="{StaticResource Hg.SubText}"
                                AutomationProperties.LiveSetting="Polite"
                                ToolTip="{svc:Loc Key=Xaml_Filtering_mode_switch_from_the_340a5c61}" />
                 </StatusBarItem>
@@ -411,7 +417,7 @@
                                                    Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
                                                    Style="{StaticResource Hg.RailActionText}"
                                                    Foreground="{DynamicResource Hg.Green}" />
-                                        <TextBlock Text="{Binding ServiceVersion, StringFormat='v{0}', TargetNullValue={svc:Loc Key=Xaml_ServiceOfflineTargetNull}}"
+                                        <TextBlock Text="{Binding ServiceVersionText}"
                                                    Style="{StaticResource Hg.DimText}" />
                                         <Button Content="{svc:Loc Key=Xaml_Reconnect_6988b16a}"
                                                 Command="{Binding ConnectCommand}"
@@ -433,15 +439,18 @@
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
-                                        <TextBlock Text="{Binding FilteringModeText}"
+                                        <TextBlock Text="{Binding FilteringModeDisplayText}"
                                                    Style="{StaticResource Hg.HelperText}"
                                                    Margin="0,6,0,10" />
                                         <Button Content="{svc:Loc Key=Xaml_Change_mode_2266c567}"
                                                 Command="{Binding SetFilteringModeCommand}"
                                                 CommandParameter="notify"
+                                                IsEnabled="{Binding IsConnected}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
-                                                ToolTip="{svc:Loc Key=Xaml_Switch_to_Notify_mode_143de68d}" />
+                                                ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                ToolTipService.ShowOnDisabled="True"
+                                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}" />
                                     </StackPanel>
                                 </Border>
 
@@ -456,23 +465,28 @@
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Teal}" />
                                         </StackPanel>
-                                        <TextBlock Text="{Binding EnforcementPauseText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <TextBlock Text="{Binding EnforcementPauseDisplayText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
                                         <Button
                                                 Command="{Binding RestoreSafeNetworkPostureCommand}"
                                                 IsEnabled="{Binding IsConnected}"
                                                 Style="{StaticResource Hg.SafeButton}"
                                                 HorizontalAlignment="Stretch"
                                                 Margin="0,0,0,8"
-                                                ToolTip="{svc:Loc Key=TopBand_RestoreSafeTip}">
+                                                ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                ToolTipService.ShowOnDisabled="True"
+                                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}">
                                             <TextBlock Text="{svc:Loc Key=TopBand_RestoreSafe}" TextWrapping="Wrap" TextAlignment="Center" />
                                         </Button>
                                         <Button
                                                 Command="{Binding SetGlobalModeCommand}"
                                                 CommandParameter="block-all"
+                                                IsEnabled="{Binding IsConnected}"
                                                 Style="{StaticResource Hg.DangerButton}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
-                                                ToolTip="{svc:Loc Key=Xaml_Block_new_outbound_traffic_unless_an_9797ef1d}">
+                                                ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                ToolTipService.ShowOnDisabled="True"
+                                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}">
                                             <TextBlock Text="{svc:Loc Key=Xaml_Block_all_outbound_b110b88e}" TextWrapping="Wrap" TextAlignment="Center" />
                                         </Button>
                                         <TextBlock Text="{svc:Loc Key=Xaml_Pause_enforcement_8c943b55}" Style="{StaticResource Hg.HelperText}" Margin="0,8,0,4" />
@@ -480,16 +494,28 @@
                                             <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="5"
+                                                    IsEnabled="{Binding IsConnected}"
+                                                    ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                    ToolTipService.ShowOnDisabled="True"
+                                                    AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                                     Padding="7,3"
                                                     Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_5_minutes_34e17f47}" TextWrapping="Wrap" /></Button>
                                             <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="15"
+                                                    IsEnabled="{Binding IsConnected}"
+                                                    ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                    ToolTipService.ShowOnDisabled="True"
+                                                    AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                                     Padding="7,3"
                                                     Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_15_minutes_899761ff}" TextWrapping="Wrap" /></Button>
                                             <Button
                                                     Command="{Binding PauseEnforcementCommand}"
                                                     CommandParameter="60"
+                                                    IsEnabled="{Binding IsConnected}"
+                                                    ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                    ToolTipService.ShowOnDisabled="True"
+                                                    AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
                                                     Padding="7,3"
                                                     Margin="0,0,0,6"><TextBlock Text="{svc:Loc Key=Xaml_1_hour_f030c3d6}" TextWrapping="Wrap" /></Button>
                                         </WrapPanel>
@@ -504,15 +530,28 @@
                                                   Data="M 8 2 L 14 13 H 2 Z M 8 6 V 9 M 8 11 H 8"
                                                   Stroke="{DynamicResource Hg.Peach}" />
                                             <TextBlock Text="{Binding Alerts.UnreadTitle}"
+                                                       Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
                                                        Style="{StaticResource Hg.RailValue}"
                                                        Foreground="{DynamicResource Hg.Peach}" />
+                                            <TextBlock Text="{svc:Loc Key=Shell_Unavailable, Default=Unavailable}"
+                                                       Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
+                                                       Style="{StaticResource Hg.RailValue}"
+                                                       Foreground="{DynamicResource Hg.Disabled}" />
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Alerts.UnreadText}" Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <TextBlock Text="{Binding Alerts.UnreadText}"
+                                                   Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"
+                                                   Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
+                                        <TextBlock Text="{svc:Loc Key=Shell_AlertsUnavailable, Default=Connect to view or refresh alerts.}"
+                                                   Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
+                                                   Style="{StaticResource Hg.DimText}" Margin="0,6,0,10" />
                                         <Button Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
                                                 Command="{Binding Alerts.RefreshCommand}"
+                                                IsEnabled="{Binding IsConnected}"
                                                 HorizontalAlignment="Stretch"
                                                 Padding="7,3"
-                                                ToolTip="{svc:Loc Key=Xaml_Stateful_low_volume_alerts_for_security_relevant_97175abd}" />
+                                                ToolTip="{Binding ServiceCommandAvailabilityText}"
+                                                ToolTipService.ShowOnDisabled="True"
+                                                AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}" />
                                     </StackPanel>
                                 </Border>
 

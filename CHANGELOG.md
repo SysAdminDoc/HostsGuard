@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.116] - 2026-07-14
+
+### Changed
+- The status rail and bottom status bar now distinguish disconnected, loading,
+  and live service state instead of displaying default or stale posture values.
+- Service-backed filtering, global-posture, pause, diagnostics, DNS, and alert
+  actions are disabled while offline and expose a reconnect explanation to
+  tooltips and assistive technology.
+
+### Fixed
+- Reconnect now clears stale alert and posture presentation before hydrating
+  the replacement client; live values and command availability return after
+  the service connection succeeds.
+
 ## [0.12.115] - 2026-07-14
 
 ### Added
