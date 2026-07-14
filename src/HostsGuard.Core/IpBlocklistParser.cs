@@ -120,7 +120,35 @@ public static class IpBlocklistParser
             return (null, true);
         }
 
-        return prefix == maxPrefix ? (baseIp.ToString(), false) : ($"{baseIp}/{prefix}", false);
+        // Canonicalize to the network address so host bits never survive
+        // (1.2.3.4/24 -> 1.2.3.0/24) — otherwise equivalent networks dedupe as
+        // distinct and the COM firewall may parse the un-masked base oddly.
+        var network = MaskToNetwork(baseIp, prefix);
+        return prefix == maxPrefix ? (network.ToString(), false) : ($"{network}/{prefix}", false);
+    }
+
+    private static IPAddress MaskToNetwork(IPAddress ip, int prefix)
+    {
+        var bytes = ip.GetAddressBytes();
+        var remaining = prefix;
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            if (remaining >= 8)
+            {
+                remaining -= 8;
+            }
+            else if (remaining <= 0)
+            {
+                bytes[i] = 0;
+            }
+            else
+            {
+                bytes[i] &= (byte)(0xFF << (8 - remaining));
+                remaining = 0;
+            }
+        }
+
+        return new IPAddress(bytes);
     }
 
     /// <summary>An IPv4 "1.2.3.4:443" parses as an address on some runtimes — reject explicitly.</summary>
@@ -129,6 +157,14 @@ public static class IpBlocklistParser
 
     private static bool IsBlockable(IPAddress ip)
     {
+        // Fold IPv4-mapped IPv6 (::ffff:192.168.1.1) to its v4 form first, or a
+        // hostile list could encode a private/LAN target as IPv6 and slip past the
+        // v4 private-range checks into an outbound block rule against the LAN.
+        if (ip.IsIPv4MappedToIPv6)
+        {
+            ip = ip.MapToIPv4();
+        }
+
         if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) ||
             ip.Equals(IPAddress.Broadcast))
         {
@@ -140,12 +176,14 @@ public static class IpBlocklistParser
         {
             return bytes[0] switch
             {
+                0 => false,                                   // 0.0.0.0/8
                 10 => false,                                  // RFC1918
                 127 => false,                                 // loopback
+                100 when bytes[1] >= 64 && bytes[1] <= 127 => false, // CGNAT 100.64/10
                 169 when bytes[1] == 254 => false,            // link-local
                 172 when bytes[1] >= 16 && bytes[1] <= 31 => false, // RFC1918
                 192 when bytes[1] == 168 => false,            // RFC1918
-                >= 224 => false,                              // multicast + reserved
+                >= 224 => false,                              // multicast + reserved + broadcast
                 _ => true,
             };
         }

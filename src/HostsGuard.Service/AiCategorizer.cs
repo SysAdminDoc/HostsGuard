@@ -30,17 +30,30 @@ public interface IAiCompleter
 [SupportedOSPlatform("windows")]
 public sealed class DeepSeekCompleter : IAiCompleter, IDisposable
 {
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(90) };
+    // Connect-time SSRF guard: the API key rides as a Bearer header, so the socket
+    // may only ever open to a public address — never loopback, metadata, or a
+    // private LAN host, even if a (imported) endpoint or a DNS-rebind points there.
+    private readonly HttpClient _http = CreateHttpClient();
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            ConnectCallback = SsrfGuard.ConnectToPublicOnlyAsync,
+        };
+        return new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(90) };
+    }
 
     public async Task<string> CompleteAsync(AiSettings settings, string systemPrompt, string userPrompt, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(settings);
         var endpoint = settings.Endpoint.TrimEnd('/');
-        // Fail closed: the API key rides as a Bearer header, so refuse to send
-        // it over anything but https (a plaintext endpoint would leak the key).
-        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        // Fail closed: refuse to send the Bearer key over anything but https to a
+        // public host (a plaintext or private/metadata endpoint would leak it).
+        if (!SsrfGuard.IsSafeHttpsEndpoint(endpoint))
         {
-            throw new InvalidOperationException("the AI endpoint must be an https URL");
+            throw new InvalidOperationException("the AI endpoint must be a public https URL");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/chat/completions");

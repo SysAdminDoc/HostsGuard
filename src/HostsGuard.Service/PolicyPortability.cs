@@ -964,10 +964,21 @@ public static class PolicyPortability
         if (policy.Ai is { } ai)
         {
             var current = state.Ai.Settings;
+            // An imported policy is untrusted: never let it silently repoint the
+            // Bearer-authenticated AI endpoint at loopback/metadata/private hosts
+            // (the stored key would leak on the next run). Keep the current
+            // endpoint and warn if the imported one isn't a public https URL.
+            var importedEndpoint = NonEmpty(ai.Endpoint, current.Endpoint);
+            var endpoint = SsrfGuard.IsSafeHttpsEndpoint(importedEndpoint) ? importedEndpoint : current.Endpoint;
+            if (!ReferenceEquals(endpoint, importedEndpoint) && !string.Equals(endpoint, importedEndpoint, StringComparison.Ordinal))
+            {
+                summary.Add("AI endpoint in the policy was not a public https URL — kept the existing endpoint");
+            }
+
             state.Ai.SaveSettings(
                 apiKey: string.Empty,
                 model: NonEmpty(ai.Model, current.Model),
-                endpoint: NonEmpty(ai.Endpoint, current.Endpoint),
+                endpoint: endpoint,
                 enabled: ai.Enabled ?? current.Enabled);
 
             SetMetaIfNotNull(state, "ai_last_run", ai.LastRun);

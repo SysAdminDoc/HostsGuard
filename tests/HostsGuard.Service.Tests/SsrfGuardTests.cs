@@ -68,6 +68,18 @@ public sealed class SsrfGuardTests
     public async Task Public_https_literal_passes()
         => await SsrfGuard.EnsurePublicHttpsAsync("https://1.1.1.1/hosts.txt", default);
 
+    [Theory]
+    [InlineData("https://api.deepseek.com", true)]     // public hostname (rebind caught at connect)
+    [InlineData("https://8.8.8.8/v1", true)]           // public IP literal
+    [InlineData("http://api.deepseek.com", false)]     // not https
+    [InlineData("https://127.0.0.1:11434", false)]     // loopback literal
+    [InlineData("https://169.254.169.254/latest", false)] // metadata literal
+    [InlineData("https://192.168.1.10", false)]        // private literal
+    [InlineData("ftp://example.com", false)]
+    [InlineData("", false)]
+    public void IsSafeHttpsEndpoint_gates_scheme_and_ip_literals(string url, bool expected)
+        => SsrfGuard.IsSafeHttpsEndpoint(url).Should().Be(expected);
+
     // DNS-rebinding defense: the connect-time filter drops private addresses even
     // when the pre-check saw a public one, and throws if nothing public survives.
     [Fact]

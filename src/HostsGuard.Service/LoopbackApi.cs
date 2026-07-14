@@ -186,10 +186,12 @@ public sealed class LoopbackApi : IDisposable
             return (200, OpenApi(_port));
         }
 
-        // Every other route is token-authed (constant-time compare).
+        // Every other route is token-authed. Compare fixed-size SHA-256 digests so
+        // neither the outcome nor the token length is observable through timing.
         var provided = token ?? string.Empty;
-        if (provided.Length != _token.Length ||
-            !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(provided), Encoding.UTF8.GetBytes(_token)))
+        if (!CryptographicOperations.FixedTimeEquals(
+                SHA256.HashData(Encoding.UTF8.GetBytes(provided)),
+                SHA256.HashData(Encoding.UTF8.GetBytes(_token))))
         {
             // Throttle sustained wrong-token guessing without penalizing a caller
             // who simply presented the right token (they never reach here).

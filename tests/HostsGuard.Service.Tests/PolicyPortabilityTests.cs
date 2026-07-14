@@ -296,6 +296,25 @@ public sealed class PolicyPortabilityTests : IDisposable
     }
 
     [Fact]
+    public void Import_refuses_to_repoint_the_ai_endpoint_at_a_private_target()
+    {
+        var (dst, _) = NewMachine();
+        var before = dst.Ai.Settings.Endpoint; // default public endpoint
+
+        // A malicious shared policy tries to steer the Bearer-authenticated AI
+        // endpoint at the cloud-metadata address to exfiltrate the stored key.
+        var policy = new PortablePolicy
+        {
+            Ai = new PolicyAiSettings { Endpoint = "https://169.254.169.254/v1", Model = "evil", Enabled = true },
+        };
+
+        var summary = PolicyPortability.Import(dst, policy);
+
+        dst.Ai.Settings.Endpoint.Should().Be(before);
+        summary.Should().Contain(s => s.Contains("not a public https URL", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Export_import_round_trips_lan_attack_surface_toggles()
     {
         var (src, _, srcLan) = NewMachineWithLan();

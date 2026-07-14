@@ -41,6 +41,16 @@ public static partial class Redaction
     [GeneratedRegex(@"\b[0-9a-f]{32,}\b", RegexOptions.IgnoreCase)]
     private static partial Regex LongHexRegex();
 
+    // Token-shaped secrets that are NOT long hex: provider API keys (sk-… DeepSeek/
+    // OpenAI, gh*_ GitHub, xox* Slack) and JWTs. RedactScalar catches secrets by
+    // key name, but a token leaking into a free-form message/exception would slip
+    // past the hex-only rule.
+    [GeneratedRegex(@"\b(?:sk|rk|pk|gh[pousr]|xox[baprs])[-_][A-Za-z0-9_-]{16,}\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ApiKeyTokenRegex();
+
+    [GeneratedRegex(@"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b")]
+    private static partial Regex JwtRegex();
+
     /// <summary>Marker with a short stable hash of the value, e.g. <c>&lt;REDACTED_URL:abcdef0123&gt;</c>.</summary>
     public static string Marker(string kind, string? value)
     {
@@ -56,6 +66,8 @@ public static partial class Redaction
         var s = text ?? string.Empty;
         s = UrlRegex().Replace(s, m => Marker("url", m.Value));
         s = PathTextRegex().Replace(s, m => Marker("path", m.Value));
+        s = ApiKeyTokenRegex().Replace(s, Markers["secret"]);
+        s = JwtRegex().Replace(s, Markers["secret"]);
         s = IpTextRegex().Replace(s, m => LooksLikePublicIp(m.Value) ? Marker("ip", m.Value) : m.Value);
         s = DomainTextRegex().Replace(s, m => Domains.LooksLikeDomain(m.Value.ToLowerInvariant().Trim('.')) ? Marker("domain", m.Value) : m.Value);
         s = LongHexRegex().Replace(s, Markers["secret"]);

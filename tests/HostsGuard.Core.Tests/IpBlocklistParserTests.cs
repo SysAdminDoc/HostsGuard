@@ -86,6 +86,35 @@ public class IpBlocklistParserTests
         scan.Unsafe.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData("::ffff:192.168.1.1")]  // IPv4-mapped RFC1918 — must not slip past v4 checks
+    [InlineData("::ffff:10.0.0.1")]
+    [InlineData("::ffff:127.0.0.1")]     // IPv4-mapped loopback
+    [InlineData("100.64.0.1")]           // CGNAT 100.64/10 (the user's ISP path)
+    [InlineData("100.127.255.1")]        // CGNAT upper bound
+    [InlineData("0.5.4.3")]              // 0.0.0.0/8
+    public void Refuses_mapped_and_extra_nonroutable_targets_as_unsafe(string entry)
+    {
+        var scan = IpBlocklistParser.Scan(entry + "\n");
+        scan.Entries.Should().BeEmpty();
+        scan.Unsafe.Should().Be(1);
+    }
+
+    [Fact]
+    public void Cidr_host_bits_are_masked_to_the_network()
+    {
+        var scan = IpBlocklistParser.Scan("203.0.113.55/24\n2001:db8:abcd:1234::99/32\n");
+        scan.Entries.Should().BeEquivalentTo(new[] { "203.0.113.0/24", "2001:db8::/32" });
+    }
+
+    [Fact]
+    public void Cidr_entries_denoting_the_same_network_dedupe()
+    {
+        var scan = IpBlocklistParser.Scan("203.0.113.5/24\n203.0.113.200/24\n");
+        scan.Entries.Should().BeEquivalentTo(new[] { "203.0.113.0/24" });
+        scan.Duplicates.Should().Be(1);
+    }
+
     [Fact]
     public void Full_prefix_cidr_collapses_to_the_bare_address()
     {

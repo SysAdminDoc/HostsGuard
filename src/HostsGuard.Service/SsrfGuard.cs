@@ -52,6 +52,25 @@ public static class SsrfGuard
         }
     }
 
+    /// <summary>
+    /// Cheap, DNS-free check that a URL is https AND — when the host is an IP
+    /// literal — a public address. A hostname is accepted here; its resolved
+    /// addresses are re-validated at connect time by
+    /// <see cref="ConnectToPublicOnlyAsync"/>, which also closes the rebind window.
+    /// Used to keep a Bearer-authenticated endpoint (e.g. the AI endpoint) off
+    /// loopback/metadata/private targets without a synchronous DNS round-trip.
+    /// </summary>
+    public static bool IsSafeHttpsEndpoint(string? url)
+    {
+        if (!Uri.TryCreate((url ?? string.Empty).Trim(), UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        return !IPAddress.TryParse(uri.Host, out var ip) || IsPublic(ip);
+    }
+
     /// <summary>True if <paramref name="address"/> is a routable public address (SSRF-safe).</summary>
     public static bool IsPublic(IPAddress address)
     {

@@ -2,7 +2,24 @@
 
 All notable changes to HostsGuard are documented in this file.
 
-## [0.12.104] - 2026-07-14
+## [0.12.105] - 2026-07-14
+
+### Security
+- The AI categorization endpoint is now SSRF-guarded end to end: the completer
+  dials only public addresses at connect time (blocking loopback/metadata/private
+  even via DNS rebind), `SetAiConfig` rejects non-public-https endpoints, and an
+  imported (untrusted) portable policy can no longer silently repoint the
+  Bearer-authenticated endpoint at a private/metadata host to exfiltrate the
+  stored API key — it keeps the current endpoint and warns.
+- The IP-blocklist parser now folds IPv4-mapped IPv6 addresses (e.g.
+  `::ffff:192.168.1.1`) before its safety checks, so a hostile list can no longer
+  smuggle a LAN/loopback target into an outbound firewall block rule; it also
+  refuses CGNAT (`100.64/10`) and `0.0.0.0/8`, and masks CIDR host bits to the
+  network address (`1.2.3.4/24` → `1.2.3.0/24`) so equivalent networks dedupe.
+- Log/diagnostics redaction now scrubs provider API keys (`sk-…`, `gh*_`, `xox*`)
+  and JWTs from free-form text, not just long hex.
+- The loopback API compares fixed-size SHA-256 digests of the token so neither the
+  auth outcome nor the token length is observable through timing.
 
 ### Fixed
 - Renamed 38 resource keys whose names carried double-encoded UTF-8 mojibake

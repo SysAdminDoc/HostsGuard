@@ -37,6 +37,20 @@ public class RedactionTests
     }
 
     [Fact]
+    public void RedactText_scrubs_provider_api_keys_and_jwts()
+    {
+        var skKey = "sk-abcdef0123456789ABCDEF0123";
+        Redaction.RedactText($"AI endpoint returned 401 for {skKey}")
+            .Should().Contain("<REDACTED_SECRET>").And.NotContain(skKey);
+
+        var ghKey = "ghp_0123456789abcdefABCDEF0123456789";
+        Redaction.RedactText($"auth failed {ghKey}").Should().NotContain(ghKey);
+
+        var jwt = "eyJhbGciOi.eyJzdWIiOi.SflKxwRJSM";
+        Redaction.RedactText($"Bearer {jwt} rejected").Should().Contain("<REDACTED_SECRET>").And.NotContain(jwt);
+    }
+
+    [Fact]
     public void RedactText_scrubs_windows_paths()
     {
         var outp = Redaction.RedactText(@"launched C:\Users\alice\secret app\chrome.exe");

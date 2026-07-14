@@ -588,12 +588,12 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
 
     public override Task<Ack> SetAiConfig(AiConfig request, ServerCallContext context)
     {
-        // A custom endpoint must be https — the API key is sent as a Bearer
-        // header and a plaintext endpoint would leak it. Empty keeps the default.
-        if (!string.IsNullOrWhiteSpace(request.Endpoint) &&
-            (!Uri.TryCreate(request.Endpoint.Trim(), UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+        // A custom endpoint must be a public https URL — the API key is sent as a
+        // Bearer header, so a plaintext or private/metadata endpoint would leak it.
+        // Empty keeps the default.
+        if (!string.IsNullOrWhiteSpace(request.Endpoint) && !SsrfGuard.IsSafeHttpsEndpoint(request.Endpoint))
         {
-            return Task.FromResult(Error("invalid_endpoint", "the AI endpoint must be an https URL"));
+            return Task.FromResult(Error("invalid_endpoint", "the AI endpoint must be a public https URL"));
         }
 
         try
