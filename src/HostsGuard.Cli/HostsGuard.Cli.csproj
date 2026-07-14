@@ -15,4 +15,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="HostsGuard.Cli.Tests" />
+  </ItemGroup>
+
 </Project>

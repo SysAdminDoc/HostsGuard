@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using HostsGuard.Contracts;
+using HostsGuard.Cli;
 using HostsGuard.Core;
 using HostsGuard.Ipc;
 using HostsGuard.Windows;
@@ -15,59 +16,59 @@ using HostsGuard.Windows;
 // HostsGuard console entry: block/allow/unblock/status/export/mode over the
 // service pipe, plus release-smoke (NET-054) and the uninstaller's cleanup.
 
-return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
+var handlers = new Dictionary<string, Func<string[], Task<int>>>(StringComparer.OrdinalIgnoreCase)
 {
-    "status" => await StatusAsync(),
-    "block" => await DomainOpAsync(args, (c, r) => c.BlockAsync(r).ResponseAsync),
-    "allow" => await DomainOpAsync(args, (c, r) => c.AllowAsync(r).ResponseAsync),
-    "unblock" => await DomainOpAsync(args, (c, r) => c.UnblockAsync(r).ResponseAsync),
-    "temp-block" => await TempBlockAsync(args),
-    "block-app" => await ProgramOpAsync(args, block: true),
-    "unblock-app" => await ProgramOpAsync(args, block: false),
-    "firewall-packages" or "packages" => await ListPackagesAsync(args),
-    "firewall-analyze" => await AnalyzeFirewallRulesAsync(args),
-    "firewall-cleanup" => await CleanupFirewallRulesAsync(args),
-    "firewall-rule" => await FirewallRuleAuthoringAsync(args),
-    "block-package" => await PackageOpAsync(args, "Block"),
-    "allow-package" => await PackageOpAsync(args, "Allow"),
-    "unblock-package" => await PackageOpAsync(args, "Delete"),
-    "explain" => await ExplainAsync(args),
-    "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
-    "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
-    "import-policy" => await ImportPolicyAsync(args),
-    "validate-policy" => ValidatePolicy(args),
-    "events" => await EventsAsync(args),
-    "listeners" => await ListListenersAsync(args),
-    "traffic-profile" => await TrafficProfileAsync(args),
-    "support-bundle" => await SupportBundleAsync(args),
-    "snapshot" => await FullStateSnapshotAsync(args),
-    "usage" => await UsageAsync(args),
-    "usage-quota" => await UsageQuotaAsync(args),
-    "history-privacy" => await HistoryPrivacyAsync(args),
-    "dns-cache" => await DnsCacheAsync(args),
-    "dns-inspect" => await DnsInspectAsync(args),
-    "resolver-health" => await ResolverHealthAsync(args),
-    "profile-match" => await ProfileMatchAsync(args),
-    "captive-portal" => await CaptivePortalAsync(args),
-    "dns-flush-entry" => await DnsFlushEntryAsync(args),
-    "dga-check" => DgaCheck(args),
-    "idn-homograph" => await IdnHomographAsync(args),
-    "proxy" => await ProxyBaselineAsync(args),
-    "adopt-hosts" => await AdoptHostsAsync(args),
-    "blocklists" => await BlocklistsAsync(args),
-    "ip-blocklists" => await IpBlocklistsAsync(args),
-    "mode" => await ModeAsync(args.Length > 1 ? args[1] : null),
-    "secure-rules" => await SecureRulesAsync(args),
-    "update" => await UpdateAsync(args),
-    "safe-posture" => await SafePostureAsync(),
-    "safe-posture-smoke" => await SafePostureSmokeAsync(),
-    "release-smoke" => await ReleaseSmokeAsync(),
-    "uninstall-cleanup" => UninstallCleanup(),
-    "purge-local-data" => PurgeLocalData(),
-    "--version" or "version" => Version(),
-    "help" or "--help" or "-h" or "-?" or "/?" => UsageOk(),
-    _ => Usage(),
-});
+    ["status"] = _ => StatusAsync(),
+    ["block"] = a => DomainOpAsync(a, (c, r) => c.BlockAsync(r).ResponseAsync),
+    ["allow"] = a => DomainOpAsync(a, (c, r) => c.AllowAsync(r).ResponseAsync),
+    ["unblock"] = a => DomainOpAsync(a, (c, r) => c.UnblockAsync(r).ResponseAsync),
+    ["temp-block"] = TempBlockAsync,
+    ["block-app"] = a => ProgramOpAsync(a, block: true),
+    ["unblock-app"] = a => ProgramOpAsync(a, block: false),
+    ["firewall-packages"] = ListPackagesAsync,
+    ["firewall-analyze"] = AnalyzeFirewallRulesAsync,
+    ["firewall-cleanup"] = CleanupFirewallRulesAsync,
+    ["firewall-rule"] = FirewallRuleAuthoringAsync,
+    ["block-package"] = a => PackageOpAsync(a, "Block"),
+    ["allow-package"] = a => PackageOpAsync(a, "Allow"),
+    ["unblock-package"] = a => PackageOpAsync(a, "Delete"),
+    ["explain"] = ExplainAsync,
+    ["export"] = a => ExportAsync(a.Length > 1 ? a[1] : "hostsguard_export.json"),
+    ["export-policy"] = a => ExportPolicyAsync(a.Length > 1 ? a[1] : "hostsguard_policy.json"),
+    ["import-policy"] = ImportPolicyAsync,
+    ["validate-policy"] = a => Task.FromResult(ValidatePolicy(a)),
+    ["events"] = EventsAsync,
+    ["listeners"] = ListListenersAsync,
+    ["traffic-profile"] = TrafficProfileAsync,
+    ["support-bundle"] = SupportBundleAsync,
+    ["snapshot"] = FullStateSnapshotAsync,
+    ["usage"] = UsageAsync,
+    ["usage-quota"] = UsageQuotaAsync,
+    ["history-privacy"] = HistoryPrivacyAsync,
+    ["dns-cache"] = DnsCacheAsync,
+    ["dns-inspect"] = DnsInspectAsync,
+    ["resolver-health"] = ResolverHealthAsync,
+    ["profile-match"] = ProfileMatchAsync,
+    ["captive-portal"] = CaptivePortalAsync,
+    ["dns-flush-entry"] = DnsFlushEntryAsync,
+    ["dga-check"] = a => Task.FromResult(DgaCheck(a)),
+    ["idn-homograph"] = IdnHomographAsync,
+    ["proxy"] = ProxyBaselineAsync,
+    ["adopt-hosts"] = AdoptHostsAsync,
+    ["blocklists"] = BlocklistsAsync,
+    ["ip-blocklists"] = IpBlocklistsAsync,
+    ["mode"] = a => ModeAsync(a.Length > 1 ? a[1] : null),
+    ["secure-rules"] = SecureRulesAsync,
+    ["update"] = UpdateAsync,
+    ["safe-posture"] = _ => SafePostureAsync(),
+    ["safe-posture-smoke"] = _ => SafePostureSmokeAsync(),
+    ["release-smoke"] = _ => ReleaseSmokeAsync(),
+    ["uninstall-cleanup"] = _ => Task.FromResult(UninstallCleanup()),
+    ["purge-local-data"] = _ => Task.FromResult(PurgeLocalData()),
+    ["version"] = _ => Task.FromResult(Version()),
+};
+
+return await CliCommandRouter.RunAsync(args, handlers, Usage, UsageOk);
 
 // Asking for help is a success; falling into usage from a bad command is not.
 static int UsageOk()
@@ -240,7 +241,7 @@ static string InformationalVersion()
            ?.InformationalVersion.Split('+')[0]
        ?? "unknown";
 
-static (Grpc.Net.Client.GrpcChannel Channel, string Error) Connect()
+static (Grpc.Net.Client.GrpcChannel? Channel, string Error) Connect()
 {
     try
     {
@@ -252,61 +253,17 @@ static (Grpc.Net.Client.GrpcChannel Channel, string Error) Connect()
     }
     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or FileNotFoundException)
     {
-        return (null!, $"service handshake unavailable - start or restart HostsGuardSvc. Details: {ex.Message}");
+        return (null, $"service handshake unavailable - start or restart HostsGuardSvc. Details: {ex.Message}");
     }
 }
 
 static void PrintServiceUnavailable(string detail)
-    => Console.Error.WriteLine(
-        $"Couldn't reach HostsGuardSvc. Start or restart the service, then retry. Details: {detail}");
-
-static int PrintRpcFailure(Grpc.Core.RpcException ex)
-{
-    if (ex.StatusCode is Grpc.Core.StatusCode.Unavailable or Grpc.Core.StatusCode.DeadlineExceeded
-        or Grpc.Core.StatusCode.Cancelled or Grpc.Core.StatusCode.Unauthenticated)
-    {
-        PrintServiceUnavailable(ex.Status.Detail);
-        return 3;
-    }
-
-    if (ex.StatusCode is Grpc.Core.StatusCode.Unimplemented)
-    {
-        Console.Error.WriteLine("HostsGuardSvc is older than this CLI and does not support this command. "
-            + "Install the matching HostsGuard service or restart HostsGuardSvc after updating, then retry.");
-        return 2;
-    }
-
-    var detail = ex.Status.Detail;
-    Console.Error.WriteLine(detail.Length != 0 && detail != "Exception was thrown by handler."
-        ? $"HostsGuardSvc rejected the command ({ex.StatusCode}): {detail}"
-        : $"HostsGuardSvc hit an internal error while handling this command ({ex.StatusCode}). "
-          + "The service is still running; export a support bundle for details.");
-    return 2;
-}
+    => CliRpcRunner.WriteServiceUnavailable(Console.Error, detail);
 
 // Shared command wrapper: connect to the service, run the body against the
 // channel, and map connect/RPC failures to the standard messages + exit codes.
 static async Task<int> RunCommandAsync(Func<Grpc.Net.Client.GrpcChannel, Task<int>> body)
-{
-    var (channel, error) = Connect();
-    if (channel is null)
-    {
-        PrintServiceUnavailable(error);
-        return 3;
-    }
-
-    using (channel)
-    {
-        try
-        {
-            return await body(channel);
-        }
-        catch (Grpc.Core.RpcException ex)
-        {
-            return PrintRpcFailure(ex);
-        }
-    }
-}
+    => await new CliRpcRunner(Connect, Console.Error).RunAsync(body);
 
 static async Task<int> StatusAsync()
 {
@@ -367,12 +324,7 @@ static async Task<int> DomainOpAsync(string[] args, Func<HostsControl.HostsContr
 
     return await RunCommandAsync(async channel =>
     {
-        var request = new DomainRequest
-        {
-            Domain = args[1],
-            Reason = args.Length > 2 ? args[2] : string.Empty,
-            Source = "cli",
-        };
+        var request = CliRequestFactory.Domain(args);
         var ack = await op(new HostsControl.HostsControlClient(channel), request);
         Console.WriteLine(ack.Message);
         return ack.Ok ? 0 : 2;
@@ -642,11 +594,11 @@ static async Task<int> ProgramOpAsync(string[] args, bool block)
         Ack ack;
         if (block)
         {
-            ack = await fw.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = dir });
+            ack = await fw.BlockProgramAsync(CliRequestFactory.Program(path, dir));
         }
         else
         {
-            var name = $"HG_BlockApp_{Path.GetFileNameWithoutExtension(path)}_{dir}";
+            var name = CliRequestFactory.ProgramRuleName(path, dir);
             ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = name });
         }
 
@@ -709,14 +661,15 @@ static async Task<int> PackageOpAsync(string[] args, string action)
 
     var package = args[1].Trim();
     var dir = args.Length > 2 && args[2].Trim().ToLowerInvariant() is "in" or "inbound" ? "In" : "Out";
-    var token = FwRuleMapper.RuleToken(package);
     return await RunCommandAsync(async channel =>
     {
         var fw = new FirewallControl.FirewallControlClient(channel);
         if (action == "Delete")
         {
             var deleted = 0;
-            foreach (var ruleName in new[] { $"HG_Package_Block_{token}_{dir}", $"HG_Package_Allow_{token}_{dir}" })
+            var blockName = CliRequestFactory.Package(package, "Block", dir).Name;
+            var allowName = CliRequestFactory.Package(package, "Allow", dir).Name;
+            foreach (var ruleName in new[] { blockName, allowName })
             {
                 var ack = await fw.DeleteRuleAsync(new RuleNameRequest { Name = ruleName });
                 if (ack.Ok)
@@ -729,31 +682,12 @@ static async Task<int> PackageOpAsync(string[] args, string action)
             return deleted == 0 ? 2 : 0;
         }
 
-        var request = new FirewallRule
-        {
-            Name = $"HG_Package_{action}_{token}_{dir}",
-            Direction = dir,
-            Action = action,
-            Enabled = true,
-            RemoteAddr = "Any",
-            Protocol = "Any",
-        };
-        if (IsPackageSid(package))
-        {
-            request.PackageSid = package;
-        }
-        else
-        {
-            request.PackageFamilyName = package;
-        }
-
+        var request = CliRequestFactory.Package(package, action, dir);
         var create = await fw.CreateRuleAsync(request);
         Console.WriteLine(create.Message);
         return create.Ok ? 0 : 2;
     });
 }
-
-static bool IsPackageSid(string value) => value.Trim().StartsWith("S-1-", StringComparison.OrdinalIgnoreCase);
 
 static async Task<int> AnalyzeFirewallRulesAsync(string[] args)
 {
@@ -1029,64 +963,7 @@ static async Task<int> ExportPolicyAsync(string path)
 // Validate a portable-policy document against the generated JSON Schema without a
 // running service. `validate-policy --emit-schema [path]` publishes the schema.
 static int ValidatePolicy(string[] args)
-{
-    if (args.Length > 1 && args[1] == "--emit-schema")
-    {
-        var schema = HostsGuard.Diagnostics.PortablePolicySchema.SchemaJson();
-        var outPath = args.Length > 2 ? args[2] : null;
-        if (outPath is null)
-        {
-            Console.WriteLine(schema);
-            return 0;
-        }
-
-        try
-        {
-            File.WriteAllText(outPath, schema);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            Console.Error.WriteLine($"Couldn't write '{outPath}': {ex.Message}");
-            return 2;
-        }
-
-        Console.WriteLine($"wrote policy schema to {Path.GetFullPath(outPath)}");
-        return 0;
-    }
-
-    if (args.Length < 2)
-    {
-        Console.Error.WriteLine("Usage: validate-policy <path> | validate-policy --emit-schema [path]");
-        return 1;
-    }
-
-    string json;
-    try
-    {
-        json = File.ReadAllText(args[1]);
-    }
-    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-    {
-        Console.Error.WriteLine($"could not read '{args[1]}': {ex.Message}");
-        return 1;
-    }
-
-    var errors = HostsGuard.Diagnostics.PortablePolicySchema.Validate(json);
-    if (errors.Count == 0)
-    {
-        Console.WriteLine("policy document is valid");
-        return 0;
-    }
-
-    Console.Error.WriteLine($"{errors.Count} validation error(s):");
-    foreach (var error in errors)
-    {
-        var where = error.Pointer.Length == 0 ? "(root)" : error.Pointer;
-        Console.Error.WriteLine($"  {where}: {error.Message}");
-    }
-
-    return 2;
-}
+    => CliPolicyCommands.Validate(args, SystemCliFileSystem.Instance, Console.Out, Console.Error);
 
 // NET-089: reconstruct a machine's policy from an exported JSON document.
 static async Task<int> ImportPolicyAsync(string[] args)
@@ -3239,7 +3116,7 @@ static async Task<int> UpdateHealthAsync(string[] args)
         return 1;
     }
 
-    var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+    var deadline = CliRuntime.Clock.UtcNow.AddSeconds(timeoutSeconds);
     string lastError = "service did not become reachable";
     do
     {
@@ -3247,7 +3124,7 @@ static async Task<int> UpdateHealthAsync(string[] args)
         if (channel is null)
         {
             lastError = connectError;
-            await Task.Delay(250);
+            await CliRuntime.Clock.Delay(TimeSpan.FromMilliseconds(250));
             continue;
         }
 
@@ -3255,7 +3132,7 @@ static async Task<int> UpdateHealthAsync(string[] args)
         {
             try
             {
-                var callDeadline = DateTime.UtcNow.AddSeconds(3);
+                var callDeadline = CliRuntime.Clock.UtcNow.AddSeconds(3);
                 var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel)
                     .GetStatusAsync(new Empty(), deadline: callDeadline);
                 var posture = await new FirewallControl.FirewallControlClient(channel)
@@ -3313,9 +3190,9 @@ static async Task<int> UpdateHealthAsync(string[] args)
             }
         }
 
-        await Task.Delay(250);
+        await CliRuntime.Clock.Delay(TimeSpan.FromMilliseconds(250));
     }
-    while (DateTime.UtcNow < deadline);
+    while (CliRuntime.Clock.UtcNow < deadline);
 
     Console.Error.WriteLine($"FAIL: update health timed out after {timeoutSeconds} seconds ({lastError})");
     return 3;
@@ -3516,7 +3393,7 @@ static async Task<int> ReleaseSmokeAsync()
             try
             {
                 var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel).GetStatusAsync(
-                    new Empty(), deadline: DateTime.UtcNow.AddSeconds(5));
+                    new Empty(), deadline: CliRuntime.Clock.UtcNow.AddSeconds(5));
                 Console.WriteLine($"  service:   reachable — v{status.Version}, uptime {status.UptimeSeconds}s");
             }
             catch (Grpc.Core.RpcException ex)

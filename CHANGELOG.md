@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.130] - 2026-07-14
+
+### Changed
+- CLI root dispatch now uses one exhaustive command catalog with canonical
+  alias handling and startup validation that every public verb has a handler.
+- Pipe/RPC failures, portable-policy file access, request construction, and
+  retry timing now have injectable contracts and a dedicated headless CLI test
+  lane covering exit codes, help/invalid forms, file failures, and RPC mapping.
+
 ## [0.12.129] - 2026-07-14
 
 ### Added

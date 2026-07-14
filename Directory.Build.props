@@ -15,6 +15,8 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.130: the CLI now routes through an exhaustive command catalog,
+         injected RPC/file/console/clock contracts, and a dedicated test lane. -->
     <!-- 0.12.129: consent prompts now carry local endpoints plus available
          interface, active Windows Firewall profile, and WFP origin evidence. -->
     <!-- 0.12.128: network grids share semantic address sorting for sentinels,
@@ -233,7 +235,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.129</Version>
+    <Version>0.12.130</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

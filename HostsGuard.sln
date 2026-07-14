@@ -43,6 +43,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Migrator", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Cli", "src\HostsGuard.Cli\HostsGuard.Cli.csproj", "{6162EF9A-C948-47A8-9AAF-A8CD1F63852C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HostsGuard.Cli.Tests", "tests\HostsGuard.Cli.Tests\HostsGuard.Cli.Tests.csproj", "{d9b70802-3141-4578-a16c-49f5737d0d62}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -269,6 +271,18 @@ Global
 		{6162EF9A-C948-47A8-9AAF-A8CD1F63852C}.Release|x64.Build.0 = Release|Any CPU
 		{6162EF9A-C948-47A8-9AAF-A8CD1F63852C}.Release|x86.ActiveCfg = Release|Any CPU
 		{6162EF9A-C948-47A8-9AAF-A8CD1F63852C}.Release|x86.Build.0 = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|x64.Build.0 = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Debug|x86.Build.0 = Debug|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|x64.ActiveCfg = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|x64.Build.0 = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|x86.ActiveCfg = Release|Any CPU
+		{d9b70802-3141-4578-a16c-49f5737d0d62}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -292,5 +306,6 @@ Global
 		{FAEEBF50-2BA3-4366-9D48-CCFA6CE9C02B} = {7A0EADFF-2F42-4968-BDEB-517AB528F71E}
 		{687CE189-8C7B-4763-89FB-97EA842BB9BC} = {5D3827D7-6B71-40AB-AD79-811709D3EC5C}
 		{6162EF9A-C948-47A8-9AAF-A8CD1F63852C} = {5D3827D7-6B71-40AB-AD79-811709D3EC5C}
+		{d9b70802-3141-4578-a16c-49f5737d0d62} = {7A0EADFF-2F42-4968-BDEB-517AB528F71E}
 	EndGlobalSection
 EndGlobal
