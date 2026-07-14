@@ -123,34 +123,34 @@
             <WrapPanel>
                 <CheckBox x:Name="ScopeRemote" Content="{svc:Loc Key=Xaml_This_IP_bf8b4db9}" Margin="0,0,16,0" TabIndex="0"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_this_remote_81fecf80}"
-                          Foreground="{DynamicResource Hg.Sub}" />
+                          Foreground="{DynamicResource Hg.Text}" />
                 <CheckBox x:Name="ScopePort" Content="{svc:Loc Key=Xaml_This_port_04911fa9}" Margin="0,0,16,0" TabIndex="1"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_this_remote_00c2199f}"
-                          Foreground="{DynamicResource Hg.Sub}" />
+                          Foreground="{DynamicResource Hg.Text}" />
                 <CheckBox x:Name="ScopeProtocol" Content="{svc:Loc Key=Xaml_This_protocol_4b170216}" Margin="0,0,16,0" TabIndex="2"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_this_protocol_6e4b38f9}"
-                          Foreground="{DynamicResource Hg.Sub}" />
+                          Foreground="{DynamicResource Hg.Text}" />
                 <CheckBox x:Name="ScopeService" Content="{svc:Loc Key=Xaml_This_service_only_faf667a0}" Visibility="Collapsed" TabIndex="3"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_the_owning_21045308}"
                           ToolTip="{svc:Loc Key=Xaml_Blocks_only_this_service_not_everything_1b90c1c7}"
-                          Foreground="{DynamicResource Hg.Sub}" />
+                          Foreground="{DynamicResource Hg.Text}" />
                 <CheckBox x:Name="ScopeCommandLine" Content="{svc:Loc Key=Xaml_Only_this_script_module_76f07ae2}" Visibility="Collapsed" TabIndex="4"
                           AutomationProperties.Name="{svc:Loc Key=Xaml_Restrict_the_rule_to_this_script_61fd89a5}"
                           ToolTip="{svc:Loc Key=Xaml_Keeps_other_interpreter_scripts_separate_7febbc2b}"
-                          Foreground="{DynamicResource Hg.Sub}" />
+                          Foreground="{DynamicResource Hg.Text}" />
             </WrapPanel>
 
             <!-- NET-113: trust the app's Authenticode publisher (shown only when signed). -->
             <CheckBox x:Name="TrustPublisher" Visibility="Collapsed" Margin="0,10,0,0" TabIndex="5"
                       AutomationProperties.Name="{svc:Loc Key=Xaml_Trust_all_software_signed_by_this_f4f554f6}"
                       ToolTip="{svc:Loc Key=Xaml_On_Allow_auto_allow_any_future_9dd11626}"
-                      Foreground="{DynamicResource Hg.Sub}" />
+                      Foreground="{DynamicResource Hg.Text}" />
 
             <!-- NET-117: trust the app's parent folder (any binary under it). -->
             <CheckBox x:Name="TrustFolder" Visibility="Collapsed" Margin="0,6,0,0" TabIndex="6"
                       AutomationProperties.Name="{svc:Loc Key=Xaml_Trust_all_software_in_this_folder_e1cab6fe}"
                       ToolTip="{svc:Loc Key=Xaml_On_Allow_auto_allow_any_future_155d44e6}"
-                      Foreground="{DynamicResource Hg.Sub}" />
+                      Foreground="{DynamicResource Hg.Text}" />
 
             <DockPanel Margin="0,12,0,0" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" Text="{svc:Loc Key=Xaml_Duration_1370004d}" VerticalAlignment="Center"

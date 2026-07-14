@@ -1280,6 +1280,13 @@
   <data name="Shell_Suspended" xml:space="preserve"><value>Suspended</value></data>
   <data name="Shell_Paused" xml:space="preserve"><value>Paused</value></data>
   <data name="Shell_Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Shell_PostureOffline" xml:space="preserve"><value>Service offline</value></data>
+  <data name="Shell_StatusHostsFile" xml:space="preserve"><value>Hosts file: {0}</value></data>
+  <data name="Shell_StatusBlocked" xml:space="preserve"><value>Blocked: {0}</value></data>
+  <data name="Shell_StatusAllowed" xml:space="preserve"><value>Allowed: {0}</value></data>
+  <data name="Shell_StatusService" xml:space="preserve"><value>service {0}</value></data>
+  <data name="FwActivity_SiteColumnTip" xml:space="preserve"><value>Domain this IP was resolved as (live DNS)</value></data>
+  <data name="Lock_PasswordWatermark" xml:space="preserve"><value>Enter lock password</value></data>
   <data name="Shell_ElevatedSuffix" xml:space="preserve"><value> (elevated)</value></data>
   <data name="Shell_ActionLoadFiltering" xml:space="preserve"><value>Load filtering mode</value></data>
   <data name="Shell_ActionChildInheritance" xml:space="preserve"><value>Set child-process inheritance</value></data>

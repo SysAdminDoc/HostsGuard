@@ -2,6 +2,26 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.107] - 2026-07-14
+
+### Fixed
+- The header no longer reassures with a green "Safe posture" when it isn't true:
+  the shield/label now reflect real posture — green "Safe posture" only when
+  connected and enforcement is active, muted "Paused"/"Suspended" when paused, and
+  "Service offline" when disconnected. The rail service-health value renders red
+  "Disconnected" instead of a misleading green.
+- Localized the always-on status-bar counters (Hosts file / Blocked / Allowed /
+  service version), the FW Activity Site-column tooltip, and the settings-lock
+  password watermark — previously hardcoded English that satellites couldn't
+  translate.
+
+### Changed
+- Consent-prompt scope/trust checkbox labels ("This IP", "This port", "Trust all
+  software signed by…") now render in full-contrast body text instead of muted
+  secondary text, strengthening the most security-critical modal.
+- The disconnected-state Reconnect button — the only recovery path when the
+  workbench is disabled — is now the accented primary action.
+
 ## [0.12.106] - 2026-07-14
 
 ### Fixed

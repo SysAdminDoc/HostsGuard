@@ -1,8 +1,8 @@
 {
     "schemaVersion":  2,
     "product":  "HostsGuard",
-    "version":  "0.12.96",
-    "generatedAtUtc":  "2026-07-13T15:07:30.8434146+00:00",
+    "version":  "0.12.107",
+    "generatedAtUtc":  "2026-07-14T06:54:07.1258205+00:00",
     "expectedSize":  "1600x1000",
     "app":  {
                 "path":  "dist/dotnet/win-x64/app/HostsGuard.App.exe",
@@ -20,29 +20,29 @@
                                   "theme":  "dark",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-dark.png",
-                                  "sha256":  "800FEAABE2B5A750FFE04A1B4A2D5D58D998B6D572732E5F42AFAE7A9B02B23A",
-                                  "bytes":  178449,
+                                  "sha256":  "3EF1228816AD4E524E58F3715BDC0F2C871FCDEEC5C1DF4A3E5637F196FA7186",
+                                  "bytes":  70388,
                                   "width":  1600,
                                   "height":  1000,
-                                  "averageLuminance":  24.8,
-                                  "luminanceRange":  246.4,
+                                  "averageLuminance":  17.9,
+                                  "luminanceRange":  237.2,
                                   "opaqueRatio":  1,
                                   "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.9
+                                  "contentTileRatio":  0.3125
                               },
                               {
                                   "theme":  "light",
                                   "tab":  "Hosts Activity",
                                   "path":  "docs/img/hosts-activity-light.png",
-                                  "sha256":  "414379E76FBA115D80C413F01FB925DCF6649BEAB515C697965EFA5AAF8EC92F",
-                                  "bytes":  178151,
+                                  "sha256":  "747976F130C7885779B050225C7868498BD8453321D2B96D976C7BBA8E28CB9A",
+                                  "bytes":  71263,
                                   "width":  1600,
                                   "height":  1000,
-                                  "averageLuminance":  240.6,
-                                  "luminanceRange":  250,
+                                  "averageLuminance":  238.6,
+                                  "luminanceRange":  217.5,
                                   "opaqueRatio":  1,
                                   "bottomOpaqueRatio":  1,
-                                  "contentTileRatio":  0.9125
+                                  "contentTileRatio":  0.375
                               }
                           ]
 }

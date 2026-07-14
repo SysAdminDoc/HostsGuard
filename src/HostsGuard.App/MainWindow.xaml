@@ -193,15 +193,36 @@
                         <TextBlock Text="{svc:Loc Key=TopBand_System}" Style="{StaticResource Hg.SubText}" VerticalAlignment="Center" Margin="0,0,18,0" />
                         <Path Width="17" Height="17" Stretch="Uniform"
                               Data="M 8 1 L 14 3.5 V 8 C 14 11 11.5 13 8 15 C 4.5 13 2 11 2 8 V 3.5 Z M 5 8 L 7 10 L 11 5.5"
-                              Stroke="{DynamicResource Hg.Green}"
                               Fill="Transparent"
                               StrokeThickness="1.7"
                               StrokeStartLineCap="Round"
                               StrokeEndLineCap="Round"
                               StrokeLineJoin="Round"
-                              Margin="0,0,8,0" />
-                        <TextBlock Text="{svc:Loc Key=TopBand_SafePosture}" Foreground="{DynamicResource Hg.Green}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0" />
-                        <TextBlock Text="{Binding FilteringModeTitle}" Foreground="{DynamicResource Hg.Green}" VerticalAlignment="Center" />
+                              Margin="0,0,8,0">
+                            <Path.Style>
+                                <Style TargetType="Path">
+                                    <Setter Property="Stroke" Value="{DynamicResource Hg.Dim}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PostureIsSafe}" Value="True">
+                                            <Setter Property="Stroke" Value="{DynamicResource Hg.Green}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Path.Style>
+                        </Path>
+                        <TextBlock Text="{Binding PostureText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PostureIsSafe}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding FilteringModeTitle}" Foreground="{DynamicResource Hg.Sub}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource Hg.SafeButton}"
@@ -278,13 +299,13 @@
                 <StatusBarItem>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Style="{StaticResource Hg.SubText}"
-                                   Text="{Binding HostsBlocked, Mode=OneWay, StringFormat='Hosts file: {0}'}"
+                                   Text="{Binding HostsBlockedText, Mode=OneWay}"
                                    ToolTip="{svc:Loc Key=Xaml_Blocked_entries_currently_written_to_the_13a1cafc}" />
                         <TextBlock Style="{StaticResource Hg.SubText}" Margin="14,0,0,0"
-                                   Text="{Binding DbBlocked, Mode=OneWay, StringFormat='Blocked: {0}'}"
+                                   Text="{Binding DbBlockedText, Mode=OneWay}"
                                    ToolTip="{svc:Loc Key=Xaml_Managed_domains_set_to_blocked_ce919f47}" />
                         <TextBlock Style="{StaticResource Hg.SubText}" Margin="14,0,0,0"
-                                   Text="{Binding DbAllowed, Mode=OneWay, StringFormat='Allowed: {0}'}"
+                                   Text="{Binding DbAllowedText, Mode=OneWay}"
                                    ToolTip="{svc:Loc Key=Xaml_Managed_domains_set_to_allowed_2b3fb277}" />
                     </StackPanel>
                 </StatusBarItem>
@@ -295,7 +316,7 @@
                                ToolTip="{svc:Loc Key=Xaml_Filtering_mode_switch_from_the_340a5c61}" />
                 </StatusBarItem>
                 <StatusBarItem HorizontalAlignment="Right">
-                    <TextBlock Text="{Binding ServiceVersion, StringFormat='service {0}'}"
+                    <TextBlock Text="{Binding ServiceVersionText}"
                                Style="{StaticResource Hg.DimText}" />
                 </StatusBarItem>
             </StatusBar>
@@ -371,9 +392,18 @@
                                                     </Style>
                                                 </Ellipse.Style>
                                             </Ellipse>
-                                            <TextBlock Text="{Binding ConnectionStateTitle}"
-                                                       Style="{StaticResource Hg.RailValue}"
-                                                       Foreground="{DynamicResource Hg.Green}" />
+                                            <TextBlock Text="{Binding ConnectionStateTitle}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Hg.RailValue}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                         <TextBlock Text="{svc:Loc Key=Xaml_HostsGuardSvc_cfea64c8}" Style="{StaticResource Hg.DimText}" Margin="0,8,0,0" />
                                         <TextBlock Text="{svc:Loc Key=Xaml_Running_73989d9c}"
@@ -384,6 +414,7 @@
                                                    Style="{StaticResource Hg.DimText}" />
                                         <Button Content="{svc:Loc Key=Xaml_Reconnect_6988b16a}"
                                                 Command="{Binding ConnectCommand}"
+                                                Style="{StaticResource Hg.AccentButton}"
                                                 Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"
                                                 Margin="0,10,0,0"
                                                 HorizontalAlignment="Stretch" />
@@ -1751,7 +1782,7 @@
                                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Site_5b6825d3}" Binding="{Binding Host}" Width="*" MinWidth="90">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="ToolTip" Value="Domain this IP was resolved as (live DNS)" />
+                                            <Setter Property="ToolTip" Value="{svc:Loc Key=FwActivity_SiteColumnTip}" />
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -3180,7 +3211,7 @@
                                                 ToolTip="{svc:Loc Key=Xaml_Enforce_a_SYSTEM_Admins_only_DACL_680f041b}" />
                                         <PasswordBox x:Name="LockPasswordBox" VerticalAlignment="Center"
                                                      Style="{StaticResource Hg.LockPasswordBox}"
-                                                     svc:PasswordBoxHelper.Watermark="Enter lock password"
+                                                     svc:PasswordBoxHelper.Watermark="{svc:Loc Key=Lock_PasswordWatermark}"
                                                      AutomationProperties.Name="{svc:Loc Key=Xaml_Settings_lock_password_c745c4ae}" />
                                     </DockPanel>
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">

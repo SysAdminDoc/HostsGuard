@@ -29,21 +29,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ConnectionStateTitle))]
+    [NotifyPropertyChangedFor(nameof(PostureText))]
+    [NotifyPropertyChangedFor(nameof(PostureIsSafe))]
     private bool _isConnected;
 
     [ObservableProperty]
     private string _connectionText = I18n.T("Status.Connecting", "Connecting to service…");
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ServiceVersionText))]
     private string _serviceVersion = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HostsBlockedText))]
     private int _hostsBlocked;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DbBlockedText))]
     private int _dbBlocked;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DbAllowedText))]
     private int _dbAllowed;
 
     [ObservableProperty]
@@ -86,10 +92,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    [NotifyPropertyChangedFor(nameof(PostureText))]
+    [NotifyPropertyChangedFor(nameof(PostureIsSafe))]
     private bool _enforcementPauseActive;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EnforcementPauseTitle))]
+    [NotifyPropertyChangedFor(nameof(PostureText))]
     private bool _enforcementPauseSuspended;
 
     [ObservableProperty]
@@ -130,6 +139,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string ConnectionStateTitle => IsConnected
         ? I18n.T("Shell_Connected", "Connected")
         : I18n.T("Shell_Disconnected", "Disconnected");
+
+    /// <summary>
+    /// Whether the top-band posture claim ("Safe posture") is actually true —
+    /// only when connected AND enforcement is not paused/suspended. Drives the
+    /// header's shield colour so it never reassures green while offline or paused.
+    /// </summary>
+    public bool PostureIsSafe => IsConnected && !EnforcementPauseActive;
+
+    public string PostureText => !IsConnected
+        ? I18n.T("Shell_PostureOffline", "Service offline")
+        : EnforcementPauseActive
+            ? (EnforcementPauseSuspended ? I18n.T("Shell_Suspended", "Suspended") : I18n.T("Shell_Paused", "Paused"))
+            : I18n.T("TopBand_SafePosture", "Safe posture");
+
+    // Localized status-bar counters (the label + value must translate together).
+    public string HostsBlockedText => I18n.T("Shell_StatusHostsFile", "Hosts file: {0}", HostsBlocked);
+
+    public string DbBlockedText => I18n.T("Shell_StatusBlocked", "Blocked: {0}", DbBlocked);
+
+    public string DbAllowedText => I18n.T("Shell_StatusAllowed", "Allowed: {0}", DbAllowed);
+
+    public string ServiceVersionText => I18n.T("Shell_StatusService", "service {0}", ServiceVersion);
 
     public string ThemeToggleText => Theme == "dark"
         ? I18n.T("Shell_LightTheme", "Light theme")
