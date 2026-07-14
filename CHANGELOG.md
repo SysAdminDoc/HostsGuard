@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.103] - 2026-07-14
+
+### Added
+- Portable-policy JSON Schema and offline validator: a Draft 2020-12 schema is
+  generated from the `PortablePolicy` model (so it can never drift), and a new
+  `HostsGuard.Cli validate-policy <path>` command validates a document without a
+  running service, reporting each error at its exact JSON Pointer path
+  (e.g. `/Domains/0`). `validate-policy --emit-schema [path]` publishes the schema.
+
 ## [0.12.102] - 2026-07-14
 
 ### Added

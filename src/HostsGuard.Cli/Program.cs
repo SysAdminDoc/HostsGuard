@@ -35,6 +35,7 @@ return args.Length == 0 ? Usage() : (args[0].ToLowerInvariant() switch
     "export" => await ExportAsync(args.Length > 1 ? args[1] : "hostsguard_export.json"),
     "export-policy" => await ExportPolicyAsync(args.Length > 1 ? args[1] : "hostsguard_policy.json"),
     "import-policy" => await ImportPolicyAsync(args),
+    "validate-policy" => ValidatePolicy(args),
     "events" => await EventsAsync(args),
     "listeners" => await ListListenersAsync(args),
     "traffic-profile" => await TrafficProfileAsync(args),
@@ -107,6 +108,7 @@ static int Usage()
           HostsGuard.Cli export-policy [path.json]
           HostsGuard.Cli import-policy [--preview] <path.json>
           HostsGuard.Cli import-policy --restore-checkpoint
+          HostsGuard.Cli validate-policy <path.json> | validate-policy --emit-schema [path]
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
                                [--category name] [--export path.csv]
@@ -938,6 +940,68 @@ static async Task<int> ExportPolicyAsync(string path)
         Console.WriteLine($"exported policy to {Path.GetFullPath(path)}");
         return 0;
     });
+}
+
+// Validate a portable-policy document against the generated JSON Schema without a
+// running service. `validate-policy --emit-schema [path]` publishes the schema.
+static int ValidatePolicy(string[] args)
+{
+    if (args.Length > 1 && args[1] == "--emit-schema")
+    {
+        var schema = HostsGuard.Diagnostics.PortablePolicySchema.SchemaJson();
+        var outPath = args.Length > 2 ? args[2] : null;
+        if (outPath is null)
+        {
+            Console.WriteLine(schema);
+            return 0;
+        }
+
+        try
+        {
+            File.WriteAllText(outPath, schema);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Console.Error.WriteLine($"Couldn't write '{outPath}': {ex.Message}");
+            return 2;
+        }
+
+        Console.WriteLine($"wrote policy schema to {Path.GetFullPath(outPath)}");
+        return 0;
+    }
+
+    if (args.Length < 2)
+    {
+        Console.Error.WriteLine("Usage: validate-policy <path> | validate-policy --emit-schema [path]");
+        return 1;
+    }
+
+    string json;
+    try
+    {
+        json = File.ReadAllText(args[1]);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+    {
+        Console.Error.WriteLine($"could not read '{args[1]}': {ex.Message}");
+        return 1;
+    }
+
+    var errors = HostsGuard.Diagnostics.PortablePolicySchema.Validate(json);
+    if (errors.Count == 0)
+    {
+        Console.WriteLine("policy document is valid");
+        return 0;
+    }
+
+    Console.Error.WriteLine($"{errors.Count} validation error(s):");
+    foreach (var error in errors)
+    {
+        var where = error.Pointer.Length == 0 ? "(root)" : error.Pointer;
+        Console.Error.WriteLine($"  {where}: {error.Message}");
+    }
+
+    return 2;
 }
 
 // NET-089: reconstruct a machine's policy from an exported JSON document.
