@@ -1888,4 +1888,6 @@
   <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Quarantined Secure Rules conflicts</value></data>
   <data name="SecureRules_RearmButton" xml:space="preserve"><value>Re-arm tracked state</value></data>
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accept foreign state</value></data>
+  <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Recovery required — lock state is unreadable. Stop HostsGuardSvc as an administrator, remove lock_state.json from the HostsGuard ProgramData directory, and restart the service.</value></data>
+  <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Locked — password attempts paused for {0} seconds after {1} failures</value></data>
 </root>

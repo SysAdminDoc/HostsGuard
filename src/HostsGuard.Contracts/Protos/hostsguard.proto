@@ -2050,6 +2050,10 @@ message NetworkProfileMap {
 message LockState {
   bool enabled = 1;
   bool unlocked = 2;   // inside a timed-unlock window right now
+  bool degraded = 3;   // persisted verifier is unreadable; mutations fail closed
+  int32 failed_attempts = 4;
+  int32 retry_after_seconds = 5;
+  string message = 6;  // safe recovery detail; never verifier/password material
 }
 
 message LockRequest {

@@ -52,6 +52,19 @@ public sealed class SettingsLockTests : IDisposable
     }
 
     [Fact]
+    public void Enable_never_replaces_an_armed_password()
+    {
+        var now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        _state.Lock.Enable("original-password").Ok.Should().BeTrue();
+
+        var replacement = _state.Lock.Enable("attacker-password");
+
+        replacement.Ok.Should().BeFalse();
+        replacement.ErrorCode.Should().Be("lock_already_enabled");
+        _state.Lock.Unlock("original-password", 5, now).Ok.Should().BeTrue();
+    }
+
+    [Fact]
     public void Locked_state_tracks_timed_unlock()
     {
         var now = DateTime.UtcNow;
@@ -66,11 +79,82 @@ public sealed class SettingsLockTests : IDisposable
     [Fact]
     public void Unlock_and_disable_reject_wrong_password()
     {
+        var now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         _state.Lock.Enable("pw12");
-        _state.Lock.Unlock("nope", 5, DateTime.UtcNow).Ok.Should().BeFalse();
-        _state.Lock.Disable("nope").Ok.Should().BeFalse();
-        _state.Lock.Disable("pw12").Ok.Should().BeTrue();
+        _state.Lock.Unlock("nope", 5, now).Ok.Should().BeFalse();
+        _state.Lock.Disable("nope", now.AddSeconds(1)).Ok.Should().BeFalse();
+        _state.Lock.Disable("pw12", now.AddSeconds(3)).Ok.Should().BeTrue();
         _state.Lock.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Wrong_passwords_use_a_bounded_non_blocking_throttle_and_success_resets_it()
+    {
+        var now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        _state.Lock.Enable("correct-password");
+
+        var first = _state.Lock.Unlock("wrong", 5, now);
+        first.RetryAfterSeconds.Should().Be(1);
+        first.ReportSecurityEvent.Should().BeFalse();
+        var second = _state.Lock.Unlock("wrong", 5, now = now.AddSeconds(first.RetryAfterSeconds));
+        second.RetryAfterSeconds.Should().Be(2);
+        second.ReportSecurityEvent.Should().BeFalse();
+        var third = _state.Lock.Unlock("wrong", 5, now = now.AddSeconds(second.RetryAfterSeconds));
+        third.RetryAfterSeconds.Should().Be(4);
+        third.ReportSecurityEvent.Should().BeTrue();
+
+        var throttled = _state.Lock.Unlock("correct-password", 5, now);
+        throttled.ErrorCode.Should().Be("lock_throttled");
+        throttled.ReportSecurityEvent.Should().BeFalse();
+        throttled.RetryAfterSeconds.Should().Be(4);
+        throttled.RetryAfterSeconds.Should().BeLessThanOrEqualTo((int)SettingsLock.MaxRetryDelay.TotalSeconds);
+
+        now = now.AddSeconds(throttled.RetryAfterSeconds);
+        _state.Lock.Unlock("correct-password", 5, now).Ok.Should().BeTrue();
+        var status = _state.Lock.GetStatus(now);
+        status.FailedAttempts.Should().Be(0);
+        status.RetryAfterSeconds.Should().Be(0);
+    }
+
+    [Fact]
+    public void Corrupt_persisted_state_fails_closed_and_reports_an_admin_recovery_path()
+    {
+        var corruptDir = Path.Combine(_dir, "corrupt");
+        Directory.CreateDirectory(corruptDir);
+        var statePath = Path.Combine(corruptDir, "lock_state.json");
+        File.WriteAllText(statePath, "{ not valid json");
+
+        var loaded = new SettingsLock(corruptDir);
+        var status = loaded.GetStatus(DateTime.UtcNow);
+
+        status.Enabled.Should().BeTrue();
+        status.Locked.Should().BeTrue();
+        status.Degraded.Should().BeTrue();
+        status.Message.Should().Contain("Stop HostsGuardSvc").And.Contain("lock_state.json");
+        loaded.Enable("replacement-password").ErrorCode.Should().Be("lock_state_corrupt");
+        loaded.Unlock("replacement-password", 5, DateTime.UtcNow).ErrorCode.Should().Be("lock_state_corrupt");
+        loaded.Disable("replacement-password", DateTime.UtcNow).ErrorCode.Should().Be("lock_state_corrupt");
+        File.ReadAllText(statePath).Should().Be("{ not valid json");
+    }
+
+    [Fact]
+    public void Service_startup_surfaces_one_corrupt_lock_alert_without_unlocking()
+    {
+        var corruptDir = Path.Combine(_dir, "corrupt_service");
+        Directory.CreateDirectory(corruptDir);
+        File.WriteAllText(Path.Combine(corruptDir, "hosts"), "# hosts\n");
+        File.WriteAllText(Path.Combine(corruptDir, "lock_state.json"), "{ not valid json");
+        using var state = new ServiceState(
+            new HostsEngine(Path.Combine(corruptDir, "hosts")),
+            new HostsDatabase(Path.Combine(corruptDir, "hostsguard.db")),
+            dataDir: corruptDir);
+
+        state.GateWhenLocked().Should().NotBeNull();
+        var alert = state.Db.GetAlerts(new AlertFilter(Type: "settings_lock_security"))
+            .Rows.Should().ContainSingle().Subject;
+        alert.Severity.Should().Be("critical");
+        alert.Action.Should().Be("state_corrupt");
+        alert.Details.Should().Contain("lock_state.json");
     }
 
     [Fact]

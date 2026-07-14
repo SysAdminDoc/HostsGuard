@@ -2,6 +2,23 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.119] - 2026-07-14
+
+### Fixed
+- An armed settings-lock password can no longer be replaced through a second
+  `enable` request; changing it now requires disarming with the current password
+  before a new verifier can be set.
+- Corrupt, unreadable, or unsupported lock state now fails closed and surfaces a
+  critical recovery alert instead of silently becoming unlocked.
+
+### Added
+- Wrong unlock/disable attempts share a memory-only exponential retry budget
+  capped at 30 seconds. Verification returns immediately while throttled, raises
+  one deduplicated security alert after three failures, and resets on success or
+  after a quiet recovery window without creating a permanent lockout.
+- Lock status exposes degraded state, failure count, and safe retry timing so the
+  Tools surface can explain recovery without exposing verifier material.
+
 ## [0.12.118] - 2026-07-14
 
 ### Added

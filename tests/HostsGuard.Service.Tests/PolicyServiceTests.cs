@@ -80,6 +80,9 @@ public sealed class PolicyServiceTests : IDisposable
         (await _policy.SetLock(new LockRequest { Action = "enable", Password = "s3cret" }, Ctx)).Ok.Should().BeTrue();
         (await _policy.GetLockState(new Empty(), Ctx)).Enabled.Should().BeTrue();
 
+        var replacement = await _policy.SetLock(new LockRequest { Action = "enable", Password = "attacker" }, Ctx);
+        replacement.ErrorCode.Should().Be("hostsguard.error.v1/lock_already_enabled");
+
         // Unknown lock action → lock error.
         (await _policy.SetLock(new LockRequest { Action = "sideways", Password = "s3cret" }, Ctx))
             .ErrorCode.Should().Be("hostsguard.error.v1/lock");
@@ -96,6 +99,35 @@ public sealed class PolicyServiceTests : IDisposable
         var bad = await _policy.Unlock(new LockRequest { Password = "wrong", Minutes = 5 }, Ctx);
         bad.Ok.Should().BeFalse();
         bad.ErrorCode.Should().Be("hostsguard.error.v1/lock");
+    }
+
+    [Fact]
+    public async Task Repeated_lock_failures_raise_one_deduplicated_alert_and_success_resets_the_budget()
+    {
+        var now = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
+        var policy = new PolicyServiceImpl(_state, () => now);
+        await policy.SetLock(new LockRequest { Action = "enable", Password = "correct-password" }, Ctx);
+
+        (await policy.Unlock(new LockRequest { Password = "wrong" }, Ctx)).ErrorCode
+            .Should().Be("hostsguard.error.v1/lock");
+        now = now.AddSeconds(1);
+        await policy.Unlock(new LockRequest { Password = "wrong" }, Ctx);
+        now = now.AddSeconds(2);
+        await policy.Unlock(new LockRequest { Password = "wrong" }, Ctx);
+
+        var throttled = await policy.Unlock(new LockRequest { Password = "correct-password" }, Ctx);
+        throttled.ErrorCode.Should().Be("hostsguard.error.v1/lock_throttled");
+        var alert = _state.Db.GetAlerts(new AlertFilter(Type: "settings_lock_security"))
+            .Rows.Should().ContainSingle().Subject;
+        alert.Action.Should().Be("password_failures");
+        alert.Details.Should().Contain("30 seconds").And.Contain("no protected posture changed");
+
+        now = now.AddSeconds(4);
+        (await policy.Unlock(new LockRequest { Password = "correct-password", Minutes = 5 }, Ctx)).Ok.Should().BeTrue();
+        var status = await policy.GetLockState(new Empty(), Ctx);
+        status.FailedAttempts.Should().Be(0);
+        status.RetryAfterSeconds.Should().Be(0);
+        status.Unlocked.Should().BeTrue();
     }
 
     [Fact]

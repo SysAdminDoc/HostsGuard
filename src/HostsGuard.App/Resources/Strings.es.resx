@@ -571,4 +571,6 @@
   <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Conflictos de Reglas seguras en cuarentena</value></data>
   <data name="SecureRules_RearmButton" xml:space="preserve"><value>Reactivar estado registrado</value></data>
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Aceptar estado externo</value></data>
+  <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Se requiere recuperación — el estado del bloqueo no se puede leer. Detenga HostsGuardSvc como administrador, elimine lock_state.json del directorio ProgramData de HostsGuard y reinicie el servicio.</value></data>
+  <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Bloqueado — intentos de contraseña pausados durante {0} segundos tras {1} fallos</value></data>
 </root>

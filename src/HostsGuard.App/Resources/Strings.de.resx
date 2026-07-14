@@ -570,4 +570,6 @@
   <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Konflikte sicherer Regeln in Quarantäne</value></data>
   <data name="SecureRules_RearmButton" xml:space="preserve"><value>Gespeicherten Zustand aktivieren</value></data>
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Externen Zustand akzeptieren</value></data>
+  <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Wiederherstellung erforderlich — der Sperrstatus ist nicht lesbar. Stoppen Sie HostsGuardSvc als Administrator, entfernen Sie lock_state.json aus dem HostsGuard-ProgramData-Verzeichnis und starten Sie den Dienst neu.</value></data>
+  <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Gesperrt — Passwortversuche nach {1} Fehlern für {0} Sekunden pausiert</value></data>
 </root>

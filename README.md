@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.118-blue)
+![Version](https://img.shields.io/badge/version-0.12.119-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -148,7 +148,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
 | Network profiles | Save/switch named rule sets and auto-activate them with conjunctive gateway MAC, Wi-Fi SSID, interface, DNS suffix, VPN-presence, or legacy fingerprint rules; deterministic specificity precedence and portable-policy round trips preserve existing mappings |
 | Captive portal recovery | Run a bounded read-only Windows NCSI check with redirects disabled and sanitized evidence; a suspected portal explicitly enables the existing 5/15/60-minute enforcement pause, which auto-resumes and is never activated by detection alone |
-| Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; 600,000-iteration PBKDF2-SHA256 hashes with automatic legacy-hash upgrade; one-click hosts-file write protection |
+| Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; an armed password cannot be replaced without first proving it to disarm; 600,000-iteration PBKDF2-SHA256 verification uses a bounded, non-blocking retry throttle with one deduplicated security alert; unreadable state fails closed with an explicit administrator recovery path |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector plus timed 5/15/60 minute enforcement pause with auto-resume (no restart) |
 | VPN kill-switch | Watch a chosen VPN adapter; force default-outbound Block on every profile whenever it drops so nothing leaks outside the tunnel, restored on reconnect (opt-in) |
 | Per-app VPN binding | Bind a program to one adapter by blocking it on other active interfaces; default outbound posture and hosts-file blocks are unchanged, and bindings round-trip through portable policy |
@@ -158,7 +158,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Defender exclusion helper | Handles the `HostsFileHijack` false positive when blocking Microsoft telemetry |
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
-| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
+| Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, settings-lock failures, kill-switch, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
 | Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,755-key surface currently has 505 Spanish, 502 German, and 499 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
@@ -231,7 +231,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1640 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1645 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

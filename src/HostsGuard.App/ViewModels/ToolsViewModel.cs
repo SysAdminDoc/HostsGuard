@@ -164,9 +164,19 @@ public sealed partial class ToolsViewModel : ObservableObject
         {
             var state = await _client.Policy.GetLockStateAsync(new Empty());
             LockEnabled = state.Enabled;
-            LockStatus = state.Enabled
-                ? state.Unlocked ? I18n.T("SettingsLock_TemporarilyUnlocked", "Locked (temporarily unlocked)") : I18n.T("SettingsLock_Locked", "Locked")
-                : I18n.T("SettingsLock_NotLocked", "Not locked");
+            LockStatus = state.Degraded
+                ? I18n.T("SettingsLock_RecoveryRequired",
+                    "Recovery required — lock state is unreadable. Stop HostsGuardSvc as an administrator, remove lock_state.json from the HostsGuard ProgramData directory, and restart the service.")
+                : state.RetryAfterSeconds > 0
+                    ? I18n.T("SettingsLock_AttemptsPaused",
+                        "Locked — password attempts paused for {0} seconds after {1} failures",
+                        state.RetryAfterSeconds,
+                        state.FailedAttempts)
+                    : state.Enabled
+                        ? state.Unlocked
+                            ? I18n.T("SettingsLock_TemporarilyUnlocked", "Locked (temporarily unlocked)")
+                            : I18n.T("SettingsLock_Locked", "Locked")
+                        : I18n.T("SettingsLock_NotLocked", "Not locked");
         });
     }
 
@@ -178,7 +188,10 @@ public sealed partial class ToolsViewModel : ObservableObject
             var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "enable", Password = LockPassword });
             LockStatus = ack.Message;
             LockPassword = string.Empty;
-            await LoadLockStateAsync();
+            if (ack.Ok)
+            {
+                await LoadLockStateAsync();
+            }
         });
     }
 
@@ -190,7 +203,10 @@ public sealed partial class ToolsViewModel : ObservableObject
             var ack = await _client.Policy.SetLockAsync(new LockRequest { Action = "disable", Password = LockPassword });
             LockStatus = ack.Message;
             LockPassword = string.Empty;
-            await LoadLockStateAsync();
+            if (ack.Ok)
+            {
+                await LoadLockStateAsync();
+            }
         });
     }
 
@@ -202,7 +218,10 @@ public sealed partial class ToolsViewModel : ObservableObject
             var ack = await _client.Policy.UnlockAsync(new LockRequest { Password = LockPassword, Minutes = UnlockMinutes });
             LockStatus = ack.Message;
             LockPassword = string.Empty;
-            await LoadLockStateAsync();
+            if (ack.Ok)
+            {
+                await LoadLockStateAsync();
+            }
         });
     }
 

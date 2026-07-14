@@ -97,6 +97,21 @@ public sealed class ServiceState : IDisposable
         }
         CnameCloak = new CnameCloakGuard(hosts, db);
         Lock = new SettingsLock(DataDir);
+        if (Lock.Degraded)
+        {
+            Db.AddAlert(
+                "settings_lock_security",
+                "critical",
+                "Settings lock state requires recovery",
+                "settings lock",
+                Lock.DegradedMessage,
+                action: "state_corrupt");
+            Db.LogEvent(
+                "settings",
+                "lock_state_corrupt",
+                details: "persisted settings-lock verifier could not be read; protected mutations fail closed",
+                reason: "lock");
+        }
         Webhooks = WebhookConfig.Load(DataDir);
         ListFetcher = listFetcher;
         Defender = defender;

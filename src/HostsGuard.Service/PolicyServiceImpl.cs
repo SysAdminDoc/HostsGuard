@@ -20,8 +20,17 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     private const int MaxRemotePolicyBytes = 10 * 1024 * 1024;
 
     private readonly ServiceState _state;
+    private readonly Func<DateTime> _nowUtc;
 
-    public PolicyServiceImpl(ServiceState state) => _state = state;
+    public PolicyServiceImpl(ServiceState state) : this(state, () => DateTime.UtcNow)
+    {
+    }
+
+    internal PolicyServiceImpl(ServiceState state, Func<DateTime> nowUtc)
+    {
+        _state = state ?? throw new ArgumentNullException(nameof(state));
+        _nowUtc = nowUtc ?? throw new ArgumentNullException(nameof(nowUtc));
+    }
 
     [GeneratedRegex("^([01][0-9]|2[0-3]):[0-5][0-9]$")]
     private static partial Regex HhMm();
@@ -219,34 +228,67 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     // ─── Settings lock + hosts write protection (NET-079) ────────────────────
 
     public override Task<LockState> GetLockState(Empty request, ServerCallContext context)
-        => Task.FromResult(new LockState
+    {
+        var snapshot = _state.Lock.GetStatus(_nowUtc());
+        return Task.FromResult(new LockState
         {
-            Enabled = _state.Lock.Enabled,
-            Unlocked = _state.Lock.Enabled && !_state.Lock.IsLocked(DateTime.UtcNow),
+            Enabled = snapshot.Enabled,
+            Unlocked = snapshot.Enabled && !snapshot.Locked,
+            Degraded = snapshot.Degraded,
+            FailedAttempts = snapshot.FailedAttempts,
+            RetryAfterSeconds = snapshot.RetryAfterSeconds,
+            Message = snapshot.Message,
         });
+    }
 
     public override Task<Ack> SetLock(LockRequest request, ServerCallContext context)
     {
         var action = (request.Action ?? string.Empty).Trim().ToLowerInvariant();
-        var (ok, message) = action switch
+        var result = action switch
         {
             "enable" => _state.Lock.Enable(request.Password),
-            "disable" => _state.Lock.Disable(request.Password),
-            _ => (false, $"unknown lock action '{request.Action}' (enable|disable)"),
+            "disable" => _state.Lock.Disable(request.Password, _nowUtc()),
+            _ => new SettingsLockActionResult(
+                false,
+                $"unknown lock action '{request.Action}' (enable|disable)",
+                "lock"),
         };
 
-        if (ok)
+        if (result.Ok)
         {
             _state.Db.LogEvent("settings", $"lock_{action}", reason: "lock");
         }
 
-        return Task.FromResult(ok ? Ok(message) : Error("lock", message));
+        ReportLockSecurityEvent(result);
+        return Task.FromResult(result.Ok ? Ok(result.Message) : Error(result.ErrorCode, result.Message));
     }
 
     public override Task<Ack> Unlock(LockRequest request, ServerCallContext context)
     {
-        var (ok, message) = _state.Lock.Unlock(request.Password, request.Minutes, DateTime.UtcNow);
-        return Task.FromResult(ok ? Ok(message) : Error("lock", message));
+        var result = _state.Lock.Unlock(request.Password, request.Minutes, _nowUtc());
+        ReportLockSecurityEvent(result);
+        return Task.FromResult(result.Ok ? Ok(result.Message) : Error(result.ErrorCode, result.Message));
+    }
+
+    private void ReportLockSecurityEvent(SettingsLockActionResult result)
+    {
+        if (!result.ReportSecurityEvent)
+        {
+            return;
+        }
+
+        _state.Db.AddAlert(
+            "settings_lock_security",
+            "warning",
+            "Repeated settings-lock password failures",
+            "settings lock",
+            $"Password verification was throttled after repeated failures; retry delay is bounded to {SettingsLock.MaxRetryDelay.TotalSeconds:0} seconds and no protected posture changed.",
+            action: "password_failures");
+        _state.Db.LogEvent(
+            "settings",
+            "lock_auth_throttled",
+            details: "repeated password failures triggered the bounded verification throttle",
+            reason: "lock");
     }
 
     public override Task<Ack> SetHostsProtection(HostsProtectionRequest request, ServerCallContext context)

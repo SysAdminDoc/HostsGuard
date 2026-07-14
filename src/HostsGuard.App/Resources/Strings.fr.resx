@@ -570,4 +570,6 @@
   <data name="SecureRules_ConflictListName" xml:space="preserve"><value>Conflits de règles sécurisées en quarantaine</value></data>
   <data name="SecureRules_RearmButton" xml:space="preserve"><value>Réarmer l'état suivi</value></data>
   <data name="SecureRules_AcceptButton" xml:space="preserve"><value>Accepter l'état externe</value></data>
+  <data name="SettingsLock_RecoveryRequired" xml:space="preserve"><value>Récupération requise — l'état du verrou est illisible. Arrêtez HostsGuardSvc en tant qu'administrateur, supprimez lock_state.json du répertoire ProgramData de HostsGuard, puis redémarrez le service.</value></data>
+  <data name="SettingsLock_AttemptsPaused" xml:space="preserve"><value>Verrouillé — tentatives de mot de passe suspendues pendant {0} secondes après {1} échecs</value></data>
 </root>
