@@ -1,18 +1,18 @@
 {
   "schemaVersion": 4,
   "product": "HostsGuard",
-  "version": "0.12.130",
-  "generatedAtUtc": "2026-07-14T23:56:06.5294793+00:00",
+  "version": "0.12.131",
+  "generatedAtUtc": "2026-07-15T00:10:56.7164712+00:00",
   "expectedSize": "1600x1000",
   "app": {
     "path": "src/HostsGuard.App/bin/Debug/net10.0-windows/HostsGuard.App.exe",
-    "fileVersion": "0.12.130.0",
-    "productVersion": "0.12.130+91ab81c794f652612b2df338f9976faa03b50b1d"
+    "fileVersion": "0.12.131.0",
+    "productVersion": "0.12.131+6fc81f70b206853b74c9a70e326f22180d7532fe"
   },
   "service": {
     "path": "src/HostsGuard.Service/bin/Debug/net10.0-windows/HostsGuard.Service.exe",
-    "fileVersion": "0.12.130.0",
-    "productVersion": "0.12.130+91ab81c794f652612b2df338f9976faa03b50b1d"
+    "fileVersion": "0.12.131.0",
+    "productVersion": "0.12.131+6fc81f70b206853b74c9a70e326f22180d7532fe"
   },
   "sourceSummary": "artifacts/visual-smoke/visual-smoke-summary.json",
   "primaryCaptures": [
@@ -20,217 +20,217 @@
       "theme": "dark",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "CDDE1140FE619D71CFFDD2AC1F59A23B9C5CDD12E625D9D0C2935DCC29D62AB7"
+      "sha256": "607FC060A227260EB0AFC20958C2523BEE88F0669E997B0447818A8FCB0DA666"
     },
     {
       "theme": "dark",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "DD022B708B6E27BB11F287C38EE47979CF0ECD9F0C59BF95DCE9BA234485FF9A"
+      "sha256": "724474D0ACE42B464B0A5E4255335543AAA3BD357BC0A6C58A3CB78B87D3FC8F"
     },
     {
       "theme": "dark",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "F10AAE57F43BB3337437DB92DF9A7E4B22D7523272114F51661631AD53824D21"
+      "sha256": "9346C7BBD364F0A774AE7791EFACC5B419352023EA811A9EEF58A8FAE916B716"
     },
     {
       "theme": "dark",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "36D4CB58FA4B46FD597EF1BCFFBCFC15A0EAEA996EF932B12FF6F8FF12837BD8"
+      "sha256": "79C0FE9DE073A0DDFCBEC273E2D61DDD0E546E2BEAD602F406DA1E9F3CC73FDA"
     },
     {
       "theme": "dark",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "5EAA2A738BF861CC09DC6553F35755760159E9363521C30295748B9D2B7AC8B7"
+      "sha256": "CC45703F1228A3EC195D658CF0840AB0A9C74FC0E591FCFC5BABBE43C914BD74"
     },
     {
       "theme": "dark",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "5118058DFF4F69F8EB0ED77A880E276B370552BCD324FDCEE2430F56CC7536AB"
+      "sha256": "0AEA737F90650CE40B4441D12AC002263C4965CCE6437C7AA633552A792FAD9C"
     },
     {
       "theme": "light",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "734AD6F7EE190AB4C257B4D899A14F5899C4F37614466AFE92E658120515F5B0"
+      "sha256": "7FCF1767C1C9054B258917F08E4094FF60A2FF854B47A621DAB66AF34245009C"
     },
     {
       "theme": "light",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "40D2EB2099A6251C642C791F87F64DE0133928225041EEFEA3FD98E4521F6900"
+      "sha256": "EEAB56AD6E53546C60DC39388F2D2ACB6EB5B3A69F48264726E8DADB5BA8AC20"
     },
     {
       "theme": "light",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "E371139FD524B165ECC602232A8AC8F19F0FBE580561407C37A40481F3070260"
+      "sha256": "7DF3D745C56A3A845C5E272DF3838C501C3A50CF2D8539EC4293EB3B99A3EBE1"
     },
     {
       "theme": "light",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "DB68DC2502989185B367EBB7E58706422E87BBC4F380E8C66650915D622C76F6"
+      "sha256": "D3EC443C3229381A60337128B0867E83524AC0587349BCFBDA807D2BDA995D04"
     },
     {
       "theme": "light",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "0C921A1860A92BB0FEDE90B3C8F3B2298C194C7523F35D0D16E9030B412D9B1A"
+      "sha256": "561BE725B039ABA71D4B5D84E59E2CE8B554959729813255BCB6FCADE45403A8"
     },
     {
       "theme": "light",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "432C3A0BC25336CC91D944EDB6E35F2C169898CA43DEBFCB1D022A90DA2464BD"
+      "sha256": "526EEC2D317482C8854CCE9FA5E23E3D4AA05321AB4282F815528F78A2AA3004"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "A125F40C0050A9A3AEA6AFB41C88DC83D6F913C1FCC60F7E6C5B4443E7D249A1"
+      "sha256": "67B844BC2474833C14356AB0544BE617388DFD90EC90941036AD6A4C7F974627"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "ACB9A1B9114641974C5FCEFB62F2B0562DA4E24C7A77BA0C259B7E2C4F400BFB"
+      "sha256": "49C97AEF7E701DA54E8EC114E58962C51123F5A1CBFCD846502809F2469E4C31"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "74654F7427229A360F1AA7D65EE945E236E389B76C7A4A793F4B8085AFA37142"
+      "sha256": "0EDB31EE86ADF8822CE1A7C8B4E22F19CC4630A2286C46A5F2FF6DA82A293DEA"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "0AE71511EF9473BA71889A6DD1DD0CD842430D1E099BBB92FCD0922F43253995"
+      "sha256": "6C08E12137580D9400D976E3A4588CC8C3655FC936D221EB4A66F5B35808513F"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "079A26ACAB3FDC9766427D5C7D320FA599FBB319B60D75C0A3CA54488EAAC527"
+      "sha256": "DA334D28432DB7AA39505D8395BB5AF86592A164FA5ECC28559390839EA4565F"
     },
     {
       "theme": "contrast-aquatic",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "1AE0B222E27530394BFDFAE79131EAF0E23ECA8D2C75EA5A797EF860A4CDC430"
+      "sha256": "A249A0E4B67B657282C305E3B26C9C893717DE06FD6BFA6DEDA4AC074048E902"
     },
     {
       "theme": "contrast-desert",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "942C22F85BB05879A1652C6E5BAE71C15B4750EC7F069EB850FB1F3E40F5C1A8"
+      "sha256": "0A6C5DFC0F98519BBE21077ED94CD5AEDA2936F5D362983B85349422A877D874"
     },
     {
       "theme": "contrast-desert",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "27580E373C68F99CBD3C537FEE3B86B88AC908F9FEE7FD28FF8489DEDA77588A"
+      "sha256": "B8FA4240A34F1CF792CA93DED36255507851EC3CC23C0D3A865D0772FDBED220"
     },
     {
       "theme": "contrast-desert",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "6E550AAB62AC092DB36DFC27E4A9CB77B6397C93A016EB66F3EF5D6E02410398"
+      "sha256": "2E51BCB827EC254BAA2D7A3DD6827731F88A2AA536A004F8530BB99D50692768"
     },
     {
       "theme": "contrast-desert",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "D7E70622E589A07641F68A29F4746586D794ECBC6E128D7CE15B91F0F049673B"
+      "sha256": "9D69E688CAF4A66E9D0FA2411CFB6D6CCCA0338E8933B5D36F469B73265620E0"
     },
     {
       "theme": "contrast-desert",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "E4CCCA309EEFA14C1AD7003E19F1050C4EE4AF56F2F1B7931B075B9877A940B5"
+      "sha256": "359AA940277BA959CFF6613A134148F497179B9696F22742DAA41B725EC42276"
     },
     {
       "theme": "contrast-desert",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "BA8CAA5374872E7D8E5E16C6D54EA5B1CCFCB8E248E0C5B0E60C23005E6FF2C2"
+      "sha256": "9475DB0477004EFEDEF8CE54387923582D883A9EDCEC2B22F2AD12C5060EBEF9"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "9C67473B03E6B0C36D24BE88924AE3002A9B6ECB101943A02A0EF9E2BEEB5521"
+      "sha256": "4E9908385CBBD92700BD2CEC695E26B7F426BCAD0365B93FC6DA05088B8AC40C"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "4EEB6C781058B154753D8E73AC0ABB19E9D0315812969C78B2D512EA2891AAC7"
+      "sha256": "698F092C9FF30CDEA56FC693804625566AB559A1EEC341D228EF51FF0BC24A06"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "9A5C8C79BB5FEDA9695C8E291FFD38D3904CECF8D49F3293DD05080E1305033A"
+      "sha256": "4C2BB54E316F6E2098D35F862F16367E1CAAECEA03EE5E990C0869CD4C24C3DF"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "C663E5B0F277CC64C52C6B9E2BABA07627A87F29794751970AEB99CF818913C6"
+      "sha256": "4881F740ACE59A407E6CBD1793C5B73E1BBEED4FC8387BF080CE69D7E84A52C9"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "CD8A0A990376367BD5099ADB562F24BD13EFD1F92AFCE24797D7A6F6B818EEF2"
+      "sha256": "C55DF450F55205F6E5F669BF996C8F4AC3B895DEEB4D19351F599A0422EB3AEC"
     },
     {
       "theme": "contrast-dusk",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "D68ACABCC6D869AA8C916E80F3F4A68094364F1DA5EF8672FAFE91750FAF9EF7"
+      "sha256": "053BAD6FD9579A9C6530C71C9D028E01DC572986AF49A25B1F7F894E29DA2E12"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Hosts Activity",
       "landmark": "ActivityGrid",
-      "sha256": "22E0F58E1336A67ABB0BAB600881F9DCA9D30D61B5550C486971F47C87400472"
+      "sha256": "B74CD936A2B4D4913E87308FE568EF17F5BBFC65A7281582A8BD3BF85A1FF66E"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Alerts",
       "landmark": "AlertsGrid",
-      "sha256": "6D3BAD0CF16BD3FD993107EE22AF82768EC4E76AD3FAB495DB2788AF22B34668"
+      "sha256": "460F5A19F493BF5EE4D15EB893EAC5101C9732B77991FA58DEA753DE036836A2"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Hosts File",
       "landmark": "DomainsGrid",
-      "sha256": "814D1288177F65827B80CBC303DBA374C2355399F3C76DDBB0B79CF058A67ED6"
+      "sha256": "75054ECCBFF1D5480A7A7181599B4C9C6572D63D941BE301C84AB9B4B0A497F0"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Firewall Activity",
       "landmark": "ConnectionsGrid",
-      "sha256": "2F9939C352880019588357BDA53A4BA59F9867E94668BC02EDD1528EE3A87030"
+      "sha256": "319B2EA755F231CAA37190235EA5B3530B085BBF0B84EA011BFDC270FEB173EE"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Firewall Rules",
       "landmark": "FwRulesGrid",
-      "sha256": "9A641C3FB5DA69916092A39BFAF434A6A484A4F629A9DD78D4293E3B459B9862"
+      "sha256": "759D9DC17615016AECBA34F475950CF63F08A3248FF8108BB1564F5B4E45F57A"
     },
     {
       "theme": "contrast-night-sky",
       "tab": "Tools",
       "landmark": "ToolsSurface",
-      "sha256": "3B9254D71C9ED0B5649F758B31A5DB18CF9A654D6EBFBEF8C97E6F9F4E622378"
+      "sha256": "0DED615F9D966317335C28EA95D1B7443E7E23D004785787D537277F3505BD18"
     }
   ],
   "stateCaptures": [
@@ -238,37 +238,37 @@
       "theme": "dark",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "DB6E6CD39FD4789163786F309E7EB23F3AB567B94B1FFC2306CD68E2FC50C105"
+      "sha256": "CD7E07F6A4A8A0E5099E78B34B253116D5E1402A87FCA965293B7DA7E24D6BAA"
     },
     {
       "theme": "light",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "54FFE675003596C37AB2D81E917832C0CCAF862CA92B6DEE0F8AA8768D395E15"
+      "sha256": "F4CD30D65C09AC725A713EB14C0C075A13B52B661C1580AE2745F39C34D18BDB"
     },
     {
       "theme": "contrast-aquatic",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "3FE384AB872F8FA41AEA484E3CC32D71D9FA49C134773A2232EB62F48A760A6F"
+      "sha256": "583D73087F7687B723C8E40D969420A750CFB0EDDCEED4DD71D7DDA842152011"
     },
     {
       "theme": "contrast-desert",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "6BE37569952136FF3091844A84352D209C07E254D4CB77C8862CAA45E6293029"
+      "sha256": "72061D3323DB33A2296BBFFD1F82A03CF6EAC71A5D15692FD4A9FF74BDFE89A9"
     },
     {
       "theme": "contrast-dusk",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "643E6276926DD55CF1B7696C2AA12C744673B3006A77314A28D0E7882141864B"
+      "sha256": "083520D78B026386A8E6FBF6024013648D290DC015E62E31FD0427FAF6B4396D"
     },
     {
       "theme": "contrast-night-sky",
       "state": "disconnected",
       "landmark": "DisconnectedOverlay",
-      "sha256": "2580D7F7B2C7563056CEF939D5D883C31DC87070FA447AECC4C7E2CC42EDCC04"
+      "sha256": "20A9AF304C00CE6460CBD6C524C905AD28D10AA5AC072A1C04A7B2D32EA7D8B3"
     }
   ],
   "readmeScreenshots": [
@@ -276,8 +276,8 @@
       "theme": "dark",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-dark.png",
-      "sha256": "CDDE1140FE619D71CFFDD2AC1F59A23B9C5CDD12E625D9D0C2935DCC29D62AB7",
-      "bytes": 148593,
+      "sha256": "607FC060A227260EB0AFC20958C2523BEE88F0669E997B0447818A8FCB0DA666",
+      "bytes": 148497,
       "width": 1600,
       "height": 1000,
       "averageLuminance": 24.6,
@@ -290,8 +290,8 @@
       "theme": "light",
       "tab": "Hosts Activity",
       "path": "docs/img/hosts-activity-light.png",
-      "sha256": "734AD6F7EE190AB4C257B4D899A14F5899C4F37614466AFE92E658120515F5B0",
-      "bytes": 148342,
+      "sha256": "7FCF1767C1C9054B258917F08E4094FF60A2FF854B47A621DAB66AF34245009C",
+      "bytes": 148215,
       "width": 1600,
       "height": 1000,
       "averageLuminance": 241.8,

@@ -24,8 +24,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IPrompt? _prompt;
     private readonly IReleaseUpdateChecker _releaseUpdateChecker;
     private readonly SynchronizationContext? _ui = SynchronizationContext.Current;
+    private readonly ShellHydrationCoordinator _hydration = new(4);
+    private readonly object _tabHydrationGate = new();
+    private readonly HashSet<int> _hydratedTabs = [];
+    private readonly Dictionary<int, long> _loadingTabs = [];
     private HostsServiceClient? _client;
     private CancellationTokenSource? _decisionCts;
+    private CancellationTokenSource? _connectionCts;
+    private long _connectionGeneration;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ConnectionStateTitle))]
@@ -49,6 +55,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _connectionText = I18n.T("Status.Connecting", "Connecting to service…");
+
+    [ObservableProperty]
+    private int _selectedMainTabIndex;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ServiceVersionText))]
@@ -132,6 +141,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Raised on the UI thread when the service pushes a consent prompt.</summary>
     public event Action<ConnectionDecisionRequest>? DecisionRequested;
+
+    internal Func<int, IReadOnlyList<ShellHydrationWork>>? HydrationPlanOverride { get; set; }
 
     public MainViewModel(
         Func<HostsServiceClient> connectFactory, AppConfigStore config, ThemeManager themes,
@@ -233,73 +244,69 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public async Task ConnectAsync()
     {
         ResetConnection();
+        var generation = Volatile.Read(ref _connectionGeneration);
+        var connectionCts = new CancellationTokenSource();
+        _connectionCts = connectionCts;
+        var cancellationToken = connectionCts.Token;
 
         try
         {
             _client = _connectFactory();
             var client = _client;
-            var status = await client.Diagnostics.GetStatusAsync(new Empty());
+            var status = await client.Diagnostics.GetStatusAsync(new Empty(), cancellationToken: cancellationToken);
+            if (!IsCurrentConnection(generation, cancellationToken))
+            {
+                return;
+            }
+
             ServiceVersion = status.Version;
             HostsBlocked = status.HostsBlocked;
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
             InitializeViews(client);
-            var hosts = Hosts!;
             var activity = Activity!;
-            var rawHosts = RawHosts!;
             var fwActivity = FwActivity!;
-            var alerts = Alerts!;
-            var fwRules = FwRules!;
-            var tools = Tools!;
-            var blocklists = Blocklists!;
             IsConnected = true;
             ConnectionText = I18n.T("Status.ConnectedLoading", "Connected - loading views...");
 
-            await hosts.RefreshAsync();
-            await activity.RefreshAsync();
             activity.StartWatching();
-            await rawHosts.LoadAsync();
             fwActivity.StartWatching();
-            await fwActivity.LoadPostureAsync();
-            await fwActivity.LoadFlowTeardownAsync();
-            await fwActivity.LoadConsentHistoryAsync();
-            await fwActivity.LoadLearnedAsync();
-            await alerts.LoadAsync();
-            await fwRules.RefreshAsync();
-            await fwRules.LoadInterfaceAliasesAsync();
-            await tools.LoadSchedulesAsync();
-            await tools.LoadServicesAsync();
-            await tools.LoadDohStatusAsync();
-            await tools.LoadIdnHomographStatusAsync();
-            await tools.LoadDnsAdaptersAsync();
-            await tools.LoadResolverHealthAsync();
-            await tools.LoadLanAttackSurfaceAsync();
-            await tools.LoadProfilesAsync();
-            await tools.LoadNetworkProfileRulesAsync();
-            await tools.LoadPolicySubscriptionsAsync();
-            await tools.LoadIpBlocklistsAsync();
-            await tools.LoadHealthAsync();
-            await tools.InspectProxyBaselineAsync();
-            await tools.LoadDefenderStatusAsync();
-            await tools.LoadBackupsAsync();
-            await tools.LoadFullStateSnapshotsAsync();
-            await tools.LoadSecureRulesAsync();
-            await tools.LoadAiStatusAsync();
-            await tools.LoadAdoptionStatusAsync();
-            await tools.LoadIntelStatusAsync();
-            await tools.LoadTrustedPublishersAsync();
-            await tools.LoadTrustedFoldersAsync();
-            await tools.LoadKillSwitchAsync();
-            await tools.LoadAppVpnBindingsAsync();
-            await blocklists.RefreshAsync();
-            await LoadFilteringModeAsync();
-            await LoadEnforcementPauseAsync();
             StartDecisionWatch();
-            ConnectionText = I18n.T("Status.Connected", "Connected — service v{0}", status.Version)
-                + (status.Elevated ? I18n.T("Shell_ElevatedSuffix", " (elevated)") : string.Empty);
+
+            var coreTask = _hydration.RunAsync(
+                [
+                    Work("filtering-mode", LoadFilteringModeAsync),
+                    Work("enforcement-pause", LoadEnforcementPauseAsync),
+                ],
+                cancellationToken);
+            var activeTabTask = LoadTabForGenerationAsync(
+                SelectedMainTabIndex,
+                generation,
+                cancellationToken);
+
+            var coreFailures = await coreTask;
+            var activeTabLoaded = await activeTabTask;
+            if (!IsCurrentConnection(generation, cancellationToken))
+            {
+                return;
+            }
+
+            var suffix = status.Elevated ? I18n.T("Shell_ElevatedSuffix", " (elevated)") : string.Empty;
+            ConnectionText = coreFailures.Count == 0 && activeTabLoaded
+                ? I18n.T("Status.Connected", "Connected — service v{0}", status.Version) + suffix
+                : I18n.T("Status.ConnectedPartial", "Connected — service v{0}; one or more views need attention", status.Version) + suffix;
+        }
+        catch (OperationCanceledException) when (!IsCurrentConnection(generation, cancellationToken))
+        {
+            // A newer connection owns the shell. Never let stale work clear it.
         }
         catch (Exception ex)
         {
+            if (!IsCurrentConnection(generation, cancellationToken))
+            {
+                return;
+            }
+
             ResetConnection();
             IsConnected = false;
             ConnectionText = I18n.T(
@@ -494,6 +501,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ResetConnection();
         _client = _connectFactory();
         InitializeViews(_client);
+        lock (_tabHydrationGate)
+        {
+            _hydratedTabs.UnionWith([0, 1, 2, 3, 4, 5]);
+        }
+
         IsConnected = true;
     }
 
@@ -508,6 +520,202 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Tools = new ToolsViewModel(client, _confirm);
         Blocklists = new BlocklistsViewModel(client, _confirm);
     }
+
+    partial void OnSelectedMainTabIndexChanged(int value) => _ = LoadTabAsync(value);
+
+    /// <summary>Loads a major tab once per service connection, on first activation.</summary>
+    internal async Task LoadTabAsync(int tabIndex)
+    {
+        var connectionCts = _connectionCts;
+        if (connectionCts is null)
+        {
+            return;
+        }
+
+        await LoadTabForGenerationAsync(
+            tabIndex,
+            Volatile.Read(ref _connectionGeneration),
+            connectionCts.Token);
+    }
+
+    private async Task<bool> LoadTabForGenerationAsync(
+        int tabIndex,
+        long generation,
+        CancellationToken cancellationToken)
+    {
+        if (tabIndex is < 0 or > 5 || !IsCurrentConnection(generation, cancellationToken) || !IsConnected)
+        {
+            return false;
+        }
+
+        lock (_tabHydrationGate)
+        {
+            if (_hydratedTabs.Contains(tabIndex))
+            {
+                return true;
+            }
+
+            if (_loadingTabs.TryGetValue(tabIndex, out var loadingGeneration)
+                && loadingGeneration == generation)
+            {
+                return false;
+            }
+
+            _loadingTabs[tabIndex] = generation;
+        }
+
+        try
+        {
+            var tabName = TabName(tabIndex);
+            SetTabStatus(tabIndex, I18n.T("Shell_LoadingTab", "Loading {0}…", tabName));
+            var plan = HydrationPlanOverride?.Invoke(tabIndex) ?? CreateTabHydrationPlan(tabIndex);
+            var failures = await _hydration.RunAsync(plan, cancellationToken);
+            if (!IsCurrentConnection(generation, cancellationToken))
+            {
+                return false;
+            }
+
+            if (failures.Count != 0)
+            {
+                var failureStatus = I18n.T("Shell_TabLoadFailed",
+                    "{0} could not finish loading. Use Refresh to retry. Details: {1}",
+                    tabName,
+                    failures[0].Error.Message);
+                SetTabStatus(tabIndex, failureStatus);
+                return false;
+            }
+
+            lock (_tabHydrationGate)
+            {
+                _hydratedTabs.Add(tabIndex);
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+        finally
+        {
+            lock (_tabHydrationGate)
+            {
+                if (_loadingTabs.TryGetValue(tabIndex, out var loadingGeneration)
+                    && loadingGeneration == generation)
+                {
+                    _loadingTabs.Remove(tabIndex);
+                }
+            }
+        }
+    }
+
+    private IReadOnlyList<ShellHydrationWork> CreateTabHydrationPlan(int tabIndex) => tabIndex switch
+    {
+        0 => [Work("hosts-activity", Activity!.RefreshAsync)],
+        1 => [Work("alerts", Alerts!.LoadAsync)],
+        2 =>
+        [
+            Work("managed-hosts", Hosts!.RefreshAsync),
+            Work("raw-hosts", RawHosts!.LoadAsync),
+            Work("blocklists", Blocklists!.RefreshAsync),
+        ],
+        3 =>
+        [
+            Work("firewall-posture", FwActivity!.LoadPostureAsync),
+            Work("flow-teardown", FwActivity!.LoadFlowTeardownAsync),
+            Work("consent-history", FwActivity!.LoadConsentHistoryAsync),
+            Work("learned-connections", FwActivity!.LoadLearnedAsync),
+        ],
+        4 =>
+        [
+            Work("firewall-rules", FwRules!.RefreshAsync),
+            Work("interface-aliases", FwRules!.LoadInterfaceAliasesAsync),
+        ],
+        5 => CreateToolsHydrationPlan(),
+        _ => [],
+    };
+
+    private IReadOnlyList<ShellHydrationWork> CreateToolsHydrationPlan()
+    {
+        var tools = Tools!;
+        return
+        [
+            Work("schedules", tools.LoadSchedulesAsync),
+            Work("services", tools.LoadServicesAsync),
+            Work("encrypted-dns", tools.LoadDohStatusAsync),
+            Work("idn-homograph", tools.LoadIdnHomographStatusAsync),
+            Work("dns-adapters", tools.LoadDnsAdaptersAsync),
+            Work("resolver-health", tools.LoadResolverHealthAsync),
+            Work("lan-attack-surface", tools.LoadLanAttackSurfaceAsync),
+            Work("profiles", tools.LoadProfilesAsync),
+            Work("network-profile-rules", tools.LoadNetworkProfileRulesAsync),
+            Work("policy-subscriptions", tools.LoadPolicySubscriptionsAsync),
+            Work("ip-blocklists", tools.LoadIpBlocklistsAsync),
+            Work("health", tools.LoadHealthAsync),
+            Work("proxy-baseline", tools.InspectProxyBaselineAsync),
+            Work("defender", tools.LoadDefenderStatusAsync),
+            Work("backups", tools.LoadBackupsAsync),
+            Work("full-state-snapshots", tools.LoadFullStateSnapshotsAsync),
+            Work("secure-rules", tools.LoadSecureRulesAsync),
+            Work("ai", tools.LoadAiStatusAsync),
+            Work("adoption", tools.LoadAdoptionStatusAsync),
+            Work("intel", tools.LoadIntelStatusAsync),
+            Work("trusted-publishers", tools.LoadTrustedPublishersAsync),
+            Work("trusted-folders", tools.LoadTrustedFoldersAsync),
+            Work("kill-switch", tools.LoadKillSwitchAsync),
+            Work("app-vpn", tools.LoadAppVpnBindingsAsync),
+        ];
+    }
+
+    private static ShellHydrationWork Work(string name, Func<Task> run) => new(
+        name,
+        cancellationToken =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return run();
+        });
+
+    private static string TabName(int tabIndex) => tabIndex switch
+    {
+        0 => I18n.T("Tab_HostsActivity", "Hosts Activity"),
+        1 => I18n.T("Tab_Alerts", "Alerts"),
+        2 => I18n.T("Tab_HostsFile", "Hosts File"),
+        3 => I18n.T("Tab_FirewallActivity", "Firewall Activity"),
+        4 => I18n.T("Tab_FirewallRules", "Firewall Rules"),
+        5 => I18n.T("Tab_Tools", "Tools"),
+        _ => string.Empty,
+    };
+
+    private void SetTabStatus(int tabIndex, string status)
+    {
+        switch (tabIndex)
+        {
+            case 0:
+                if (Activity is not null) Activity.StatusText = status;
+                break;
+            case 1:
+                if (Alerts is not null) Alerts.StatusText = status;
+                break;
+            case 2:
+                if (Hosts is not null) Hosts.StatusText = status;
+                if (RawHosts is not null) RawHosts.StatusText = status;
+                if (Blocklists is not null) Blocklists.StatusText = status;
+                break;
+            case 3:
+                if (FwActivity is not null) FwActivity.StatusText = status;
+                break;
+            case 4:
+                if (FwRules is not null) FwRules.StatusText = status;
+                break;
+            case 5:
+                if (Tools is not null) Tools.StatusText = status;
+                break;
+        }
+    }
+
+    private bool IsCurrentConnection(long generation, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested
+        && generation == Volatile.Read(ref _connectionGeneration);
 
     // ─── Filtering mode + consent prompts (WFC parity) ────────────────────────
 
@@ -1390,6 +1598,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ResetConnection()
     {
+        Interlocked.Increment(ref _connectionGeneration);
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
+        lock (_tabHydrationGate)
+        {
+            _hydratedTabs.Clear();
+            _loadingTabs.Clear();
+        }
+
         IsConnected = false;
         _decisionCts?.Cancel();
         _decisionCts?.Dispose();

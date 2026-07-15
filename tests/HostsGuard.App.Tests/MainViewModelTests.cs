@@ -117,6 +117,10 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.ServiceVersion.Should().NotBeNullOrEmpty();
         vm.HostsBlocked.Should().Be(1);
         vm.Hosts.Should().NotBeNull();
+        vm.Hosts!.Domains.Should().BeEmpty("the inactive Hosts File tab hydrates only on first activation");
+
+        await vm.LoadTabAsync(2);
+
         vm.Hosts!.Domains.Should().ContainSingle(d => d.Domain == "ads.example.com");
         vm.FilteringModeTitle.Should().Be("Normal");
         vm.EnforcementPauseTitle.Should().Be("Active");
@@ -124,6 +128,81 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
         vm.PauseEnforcementCommand.CanExecute("5").Should().BeTrue();
         vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Connect_hydrates_only_the_active_tab_and_caches_first_activation()
+    {
+        using var vm = CreateShell();
+        var loadedTabs = new List<int>();
+        vm.HydrationPlanOverride = tabIndex =>
+        [
+            new ShellHydrationWork($"tab-{tabIndex}", _ =>
+            {
+                loadedTabs.Add(tabIndex);
+                return Task.CompletedTask;
+            }),
+        ];
+
+        await vm.ConnectAsync();
+
+        loadedTabs.Should().Equal(0);
+
+        await vm.LoadTabAsync(5);
+        await vm.LoadTabAsync(5);
+
+        loadedTabs.Should().Equal(0, 5);
+    }
+
+    [Fact]
+    public async Task Optional_tab_failure_keeps_the_connected_shell_available()
+    {
+        using var vm = CreateShell();
+        vm.HydrationPlanOverride = _ =>
+        [
+            new ShellHydrationWork(
+                "optional",
+                _ => Task.FromException(new InvalidOperationException("optional surface failed"))),
+        ];
+
+        await vm.ConnectAsync();
+
+        vm.IsConnected.Should().BeTrue();
+        vm.ConnectionText.Should().Contain("need attention");
+        vm.Activity.Should().NotBeNull();
+        vm.Activity!.StatusText.Should().Contain("Use Refresh to retry")
+            .And.Contain("optional surface failed");
+    }
+
+    [Fact]
+    public async Task Reconnect_cancels_stale_hydration_without_clearing_the_new_session()
+    {
+        using var vm = CreateShell();
+        var firstStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var planCount = 0;
+        vm.HydrationPlanOverride = _ =>
+        [
+            new ShellHydrationWork("active-tab", async cancellationToken =>
+            {
+                if (Interlocked.Increment(ref planCount) == 1)
+                {
+                    firstStarted.SetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+            }),
+        ];
+
+        var staleConnect = vm.ConnectAsync();
+        await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        var currentConnect = vm.ConnectAsync();
+        await Task.WhenAll(staleConnect, currentConnect);
+
+        planCount.Should().Be(2);
+        vm.IsConnected.Should().BeTrue();
+        vm.ConnectionText.Should().Contain("Connected").And.NotContain("unavailable");
+        vm.Activity.Should().NotBeNull();
+        vm.FwActivity.Should().NotBeNull();
     }
 
     [Fact]

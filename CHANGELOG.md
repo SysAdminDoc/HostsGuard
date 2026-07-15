@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.131] - 2026-07-14
+
+### Changed
+- The connected shell now exposes core posture and live feeds before loading
+  inactive tabs; each major tab hydrates on first activation.
+- Independent service reads share a four-request concurrency bound, optional
+  surface failures remain local, and reconnect cancels stale generations
+  without letting their cleanup blank the current session.
+
 ## [0.12.130] - 2026-07-14
 
 ### Changed

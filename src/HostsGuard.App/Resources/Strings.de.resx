@@ -14,6 +14,9 @@
   </resheader>
   <data name="Status.Connecting" xml:space="preserve"><value>Verbindung zum Dienst wird hergestellt…</value></data>
   <data name="Status.Connected" xml:space="preserve"><value>Verbunden — Dienst v{0}</value></data>
+  <data name="Status.ConnectedPartial" xml:space="preserve"><value>Verbunden — Dienst v{0}; mindestens eine Ansicht erfordert Aufmerksamkeit</value></data>
+  <data name="Shell_LoadingTab" xml:space="preserve"><value>{0} wird geladen…</value></data>
+  <data name="Shell_TabLoadFailed" xml:space="preserve"><value>{0} konnte nicht vollständig geladen werden. Verwenden Sie Aktualisieren, um es erneut zu versuchen. Details: {1}</value></data>
   <data name="Status.Unavailable" xml:space="preserve"><value>Dienst nicht verfügbar: HostsGuardSvc starten oder neu starten und erneut verbinden. Details: {0}</value></data>
   <data name="Status.Ready" xml:space="preserve"><value>Bereit</value></data>
   <data name="Tab_HostsActivity" xml:space="preserve"><value>Hosts-Aktivität</value></data>

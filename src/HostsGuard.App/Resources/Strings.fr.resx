@@ -14,6 +14,9 @@
   </resheader>
   <data name="Status.Connecting" xml:space="preserve"><value>Connexion au service…</value></data>
   <data name="Status.Connected" xml:space="preserve"><value>Connecté — service v{0}</value></data>
+  <data name="Status.ConnectedPartial" xml:space="preserve"><value>Connecté — service v{0} ; une ou plusieurs vues nécessitent une attention</value></data>
+  <data name="Shell_LoadingTab" xml:space="preserve"><value>Chargement de {0}…</value></data>
+  <data name="Shell_TabLoadFailed" xml:space="preserve"><value>Le chargement de {0} n’a pas pu se terminer. Utilisez Actualiser pour réessayer. Détails : {1}</value></data>
   <data name="Status.Unavailable" xml:space="preserve"><value>Service indisponible : démarrez ou redémarrez HostsGuardSvc puis reconnectez-vous. Détails : {0}</value></data>
   <data name="Status.Ready" xml:space="preserve"><value>Prêt</value></data>
   <data name="Tab_HostsActivity" xml:space="preserve"><value>Activité hosts</value></data>

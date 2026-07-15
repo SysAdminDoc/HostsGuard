@@ -603,6 +603,7 @@
             <TabControl x:Name="MainTabs"
                         Style="{StaticResource Hg.PrimaryTabs}"
                         ItemContainerStyle="{StaticResource Hg.PrimaryTabItem}"
+                        SelectedIndex="{Binding SelectedMainTabIndex, Mode=TwoWay}"
                         Margin="0"
                         IsEnabled="{Binding IsConnected}">
                 <TabItem>

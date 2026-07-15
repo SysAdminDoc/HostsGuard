@@ -18,8 +18,17 @@
   <data name="Status.Connected" xml:space="preserve">
     <value>Connected - service v{0}</value>
   </data>
+  <data name="Status.ConnectedPartial" xml:space="preserve">
+    <value>Connected - service v{0}; one or more views need attention</value>
+  </data>
   <data name="Status.ConnectedLoading" xml:space="preserve">
     <value>Connected - loading views...</value>
+  </data>
+  <data name="Shell_LoadingTab" xml:space="preserve">
+    <value>Loading {0}…</value>
+  </data>
+  <data name="Shell_TabLoadFailed" xml:space="preserve">
+    <value>{0} could not finish loading. Use Refresh to retry. Details: {1}</value>
   </data>
   <data name="Status.Unavailable" xml:space="preserve">
     <value>Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}</value>
