@@ -4545,6 +4545,17 @@
                                     <TextBlock Text="{Binding CurrentNetworkText}" Style="{StaticResource Hg.DimText}"
                                                TextWrapping="Wrap" Margin="0,0,0,8"
                                                AutomationProperties.LiveSetting="Polite" />
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,0,0,10"
+                                            Visibility="{Binding HasCurrentNetworkGatewayDrift, Converter={StaticResource BoolToVis}}"
+                                            AutomationProperties.Name="{svc:Loc Key=ProfileMatch_GatewayDriftTitle}">
+                                        <StackPanel>
+                                            <TextBlock Text="{svc:Loc Key=ProfileMatch_GatewayDriftTitle}"
+                                                       FontWeight="SemiBold" Foreground="{DynamicResource Hg.Peach}" />
+                                            <TextBlock Text="{Binding CurrentNetworkGatewayDriftText}"
+                                                       Style="{StaticResource Hg.HelperText}" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
                                     <WrapPanel>
                                         <TextBox Width="170" Margin="0,0,8,8" Text="{Binding NetworkRuleLabel, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=ProfileMatch_Label}"

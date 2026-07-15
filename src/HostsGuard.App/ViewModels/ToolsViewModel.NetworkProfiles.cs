@@ -25,6 +25,12 @@ public sealed partial class ToolsViewModel
         "ProfileMatch_CurrentOffline", "Current network is offline or unavailable");
 
     [ObservableProperty]
+    private bool _hasCurrentNetworkGatewayDrift;
+
+    [ObservableProperty]
+    private string _currentNetworkGatewayDriftText = string.Empty;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteNetworkProfileRuleCommand))]
     private NetworkProfileRuleViewModel? _selectedNetworkProfileRule;
 
@@ -83,6 +89,10 @@ public sealed partial class ToolsViewModel
             {
                 _currentNetwork = await _client.Policy.GetCurrentNetworkAsync(new Empty());
                 CurrentNetworkText = DescribeCurrentNetwork(_currentNetwork);
+                HasCurrentNetworkGatewayDrift = _currentNetwork.GatewayDriftStatus == "changed";
+                CurrentNetworkGatewayDriftText = HasCurrentNetworkGatewayDrift
+                    ? DescribeGatewayDrift(_currentNetwork)
+                    : string.Empty;
 
                 var map = await _client.Policy.GetNetworkProfilesAsync(new Empty());
                 NetworkProfileRules.Clear();
@@ -238,6 +248,12 @@ public sealed partial class ToolsViewModel
         return I18n.T("ProfileMatch_Current", "Current network: {0}",
             string.Join(" | ", details));
     }
+
+    internal static string DescribeGatewayDrift(CurrentNetwork current) => I18n.T(
+        "ProfileMatch_GatewayDriftDetails",
+        "Saved gateway {0}; current gateway {1}. Possible network impersonation or router replacement. Verify the router or access point, then update the saved mapping if the replacement is expected.",
+        current.SavedGatewayId,
+        current.CurrentGatewayId);
 
     private static void Add(List<string> values, string label, string value)
     {

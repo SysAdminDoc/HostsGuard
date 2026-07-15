@@ -169,9 +169,9 @@ public sealed class I18nTests
     }
 
     [Theory]
-    [InlineData("Strings.es.resx", 724, 2026)]
-    [InlineData("Strings.de.resx", 718, 2026)]
-    [InlineData("Strings.fr.resx", 720, 2026)]
+    [InlineData("Strings.es.resx", 726, 2028)]
+    [InlineData("Strings.de.resx", 720, 2028)]
+    [InlineData("Strings.fr.resx", 722, 2028)]
     public void Overall_used_string_coverage_is_measured_and_cannot_regress(
         string resourceFile,
         int minimumCovered,

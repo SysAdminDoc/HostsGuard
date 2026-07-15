@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.146] - 2026-07-14
+
+### Added
+- Known Wi-Fi SSIDs now raise a deduplicated, report-only warning when their
+  saved gateway identity changes, with short SHA-256-derived old/current IDs
+  and router-replacement or impersonation remediation in Alerts, Tools, and CLI.
+
+### Changed
+- Exact saved network identities still auto-switch profiles, while unrelated
+  unknown networks retain the generic unknown-LAN alert; gateway drift never
+  switches a profile or blocks traffic automatically.
+
 ## [0.12.145] - 2026-07-14
 
 ### Added

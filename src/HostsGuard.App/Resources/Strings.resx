@@ -1869,6 +1869,8 @@
   <data name="ProfileMatch_Help" xml:space="preserve"><value>Match saved profiles by SSID, interface, DNS suffix, gateway MAC, and VPN presence. More-specific rules win deterministically.</value></data>
   <data name="ProfileMatch_Current" xml:space="preserve"><value>Current network: {0}</value></data>
   <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>Current network is offline or unavailable</value></data>
+  <data name="ProfileMatch_GatewayDriftTitle" xml:space="preserve"><value>Gateway changed on this known Wi-Fi network</value></data>
+  <data name="ProfileMatch_GatewayDriftDetails" xml:space="preserve"><value>Saved gateway {0}; current gateway {1}. Possible network impersonation or router replacement. Verify the router or access point, then update the saved mapping if the replacement is expected.</value></data>
   <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Use current network</value></data>
   <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Fill match criteria from the current network</value></data>
   <data name="ProfileMatch_Label" xml:space="preserve"><value>Rule label</value></data>

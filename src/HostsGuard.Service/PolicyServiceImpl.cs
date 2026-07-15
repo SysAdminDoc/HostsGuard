@@ -328,7 +328,7 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
     public override Task<CurrentNetwork> GetCurrentNetwork(Empty request, ServerCallContext context)
     {
         var net = _state.NetworkIdentity?.Current();
-        return Task.FromResult(new CurrentNetwork
+        var response = new CurrentNetwork
         {
             Fingerprint = net?.Fingerprint ?? string.Empty,
             Label = net?.Label ?? string.Empty,
@@ -338,7 +338,20 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             InterfaceName = net?.InterfaceName ?? string.Empty,
             DnsSuffix = net?.DnsSuffix ?? string.Empty,
             VpnPresent = net?.VpnPresent ?? false,
-        });
+        };
+        if (net is not null)
+        {
+            var identity = NetworkProfileWatcher.ToIdentity(net);
+            var rules = NetworkProfileWatcher.LoadRules(_state);
+            if (NetworkProfileWatcher.DescribeGatewayDrift(identity, rules) is { } drift)
+            {
+                response.GatewayDriftStatus = "changed";
+                response.SavedGatewayId = drift.SavedGatewayId;
+                response.CurrentGatewayId = drift.CurrentGatewayId;
+            }
+        }
+
+        return Task.FromResult(response);
     }
 
     public override Task<NetworkProfileMap> GetNetworkProfiles(Empty request, ServerCallContext context)

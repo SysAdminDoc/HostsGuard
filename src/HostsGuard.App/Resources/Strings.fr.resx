@@ -524,6 +524,8 @@
   <data name="ProfileMatch_Help" xml:space="preserve"><value>Associez les profils enregistres par SSID, interface, suffixe DNS, MAC de passerelle et presence d'un VPN. Les regles les plus precises gagnent de maniere deterministe.</value></data>
   <data name="ProfileMatch_Current" xml:space="preserve"><value>Reseau actuel : {0}</value></data>
   <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>Le reseau actuel est hors ligne ou indisponible</value></data>
+  <data name="ProfileMatch_GatewayDriftTitle" xml:space="preserve"><value>La passerelle de ce reseau Wi-Fi connu a change</value></data>
+  <data name="ProfileMatch_GatewayDriftDetails" xml:space="preserve"><value>Passerelle enregistree {0} ; passerelle actuelle {1}. Usurpation de reseau ou remplacement du routeur possible. Verifiez le routeur ou le point d'acces, puis actualisez l'association si le remplacement etait attendu.</value></data>
   <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Utiliser le reseau actuel</value></data>
   <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Remplir les criteres depuis le reseau actuel</value></data>
   <data name="ProfileMatch_Label" xml:space="preserve"><value>Libelle de regle</value></data>

@@ -37,6 +37,7 @@ public sealed partial class HostsDatabase
         ("wfp_external_filter", "External WFP blocks", true),
         ("wfp_filter_drift", "Persistent WFP filter drift", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
+        ("network_gateway_drift", "Known Wi-Fi gateway changes", true),
         ("remote_session", "Remote Desktop sessions", true),
         ("usage_budget", "Usage budget alerts", true),
         ("dns_rebind", "DNS rebinding / out-of-scope answers", true),

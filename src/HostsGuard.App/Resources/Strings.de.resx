@@ -524,6 +524,8 @@
   <data name="ProfileMatch_Help" xml:space="preserve"><value>Gespeicherte Profile nach SSID, Schnittstelle, DNS-Suffix, Gateway-MAC und VPN-Status zuordnen. Spezifischere Regeln gewinnen deterministisch.</value></data>
   <data name="ProfileMatch_Current" xml:space="preserve"><value>Aktuelles Netzwerk: {0}</value></data>
   <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>Das aktuelle Netzwerk ist offline oder nicht verfuegbar</value></data>
+  <data name="ProfileMatch_GatewayDriftTitle" xml:space="preserve"><value>Gateway dieses bekannten WLANs hat sich geaendert</value></data>
+  <data name="ProfileMatch_GatewayDriftDetails" xml:space="preserve"><value>Gespeichertes Gateway {0}; aktuelles Gateway {1}. Moegliche Netzwerk-Imitation oder Router-Austausch. Router oder Access Point pruefen und bei erwartetem Austausch die gespeicherte Zuordnung aktualisieren.</value></data>
   <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Aktuelles Netzwerk verwenden</value></data>
   <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Kriterien aus dem aktuellen Netzwerk uebernehmen</value></data>
   <data name="ProfileMatch_Label" xml:space="preserve"><value>Regelbezeichnung</value></data>

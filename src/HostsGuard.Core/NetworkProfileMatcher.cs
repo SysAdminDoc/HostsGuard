@@ -71,7 +71,53 @@ public static class NetworkProfileMatcher
             && (!rule.VpnPresent.HasValue || rule.VpnPresent.Value == identity.VpnPresent);
     }
 
+    /// <summary>
+    /// Finds a saved rule for the current SSID whose gateway identity differs
+    /// from the current gateway. A matching saved gateway suppresses drift so
+    /// one SSID can intentionally have multiple known access points. Rules
+    /// without a comparable gateway signal are ignored.
+    /// </summary>
+    public static NetworkProfileMatchRule? FindSameSsidGatewayDrift(
+        NetworkProfileIdentity identity,
+        IEnumerable<NetworkProfileMatchRule> rules)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(rules);
+
+        if (!Present(identity.Ssid))
+        {
+            return null;
+        }
+
+        var candidates = rules
+            .Where(rule => Present(rule.Ssid)
+                && string.Equals(NormalizeText(rule.Ssid), NormalizeText(identity.Ssid), StringComparison.Ordinal))
+            .Where(rule => HasComparableGateway(identity, rule))
+            .OrderByDescending(rule => rule.PredicateCount)
+            .ThenByDescending(rule => Present(rule.GatewayMac))
+            .ThenBy(rule => rule.Profile, StringComparer.Ordinal)
+            .ThenBy(rule => rule.Label, StringComparer.Ordinal)
+            .ToArray();
+
+        if (candidates.Length == 0 || candidates.Any(rule => GatewayMatches(identity, rule)))
+        {
+            return null;
+        }
+
+        return candidates[0];
+    }
+
     private static bool HasPredicate(NetworkProfileMatchRule rule) => rule.PredicateCount > 0;
+
+    private static bool HasComparableGateway(NetworkProfileIdentity identity, NetworkProfileMatchRule rule) =>
+        (Present(identity.GatewayMac) && Present(rule.GatewayMac))
+        || (Present(identity.Fingerprint) && Present(rule.Fingerprint));
+
+    private static bool GatewayMatches(NetworkProfileIdentity identity, NetworkProfileMatchRule rule) =>
+        (Present(identity.GatewayMac) && Present(rule.GatewayMac)
+            && string.Equals(NormalizeMac(identity.GatewayMac), NormalizeMac(rule.GatewayMac), StringComparison.Ordinal))
+        || (Present(identity.Fingerprint) && Present(rule.Fingerprint)
+            && string.Equals(NormalizeOpaque(identity.Fingerprint), NormalizeOpaque(rule.Fingerprint), StringComparison.Ordinal));
 
     private static bool EqualIfSet(string expected, string actual, Func<string, string> normalize) =>
         !Present(expected) || string.Equals(normalize(expected), normalize(actual), StringComparison.Ordinal);

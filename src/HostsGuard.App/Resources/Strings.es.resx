@@ -525,6 +525,8 @@
   <data name="ProfileMatch_Help" xml:space="preserve"><value>Asocia perfiles guardados por SSID, interfaz, sufijo DNS, MAC de puerta de enlace y presencia de VPN. Las reglas mas especificas ganan de forma determinista.</value></data>
   <data name="ProfileMatch_Current" xml:space="preserve"><value>Red actual: {0}</value></data>
   <data name="ProfileMatch_CurrentOffline" xml:space="preserve"><value>La red actual esta sin conexion o no disponible</value></data>
+  <data name="ProfileMatch_GatewayDriftTitle" xml:space="preserve"><value>La puerta de enlace de esta red Wi-Fi conocida ha cambiado</value></data>
+  <data name="ProfileMatch_GatewayDriftDetails" xml:space="preserve"><value>Puerta guardada {0}; puerta actual {1}. Posible suplantacion de red o sustitucion del router. Verifica el router o punto de acceso y actualiza la asignacion guardada si el cambio era esperado.</value></data>
   <data name="ProfileMatch_UseCurrent" xml:space="preserve"><value>Usar red actual</value></data>
   <data name="ProfileMatch_UseCurrentName" xml:space="preserve"><value>Rellenar criterios con la red actual</value></data>
   <data name="ProfileMatch_Label" xml:space="preserve"><value>Etiqueta de regla</value></data>

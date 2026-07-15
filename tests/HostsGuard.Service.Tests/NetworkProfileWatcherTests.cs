@@ -168,4 +168,58 @@ public sealed class NetworkProfileWatcherTests : IDisposable
 
         _applied.Should().ContainSingle().Which.Should().Be("Home");
     }
+
+    [Fact]
+    public void Evaluate_reports_same_ssid_gateway_drift_once_with_sanitized_evidence()
+    {
+        const string savedMac = "11:22:33:44:55:66";
+        const string currentMac = "AA:BB:CC:DD:EE:FF";
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Home", "Home Wi-Fi", GatewayMac: savedMac, Ssid: "HomeNet")),
+            "Home",
+            "Home Wi-Fi");
+        _identity.Value = new NetworkFingerprint("current-fingerprint", "Wi-Fi")
+        {
+            GatewayMac = currentMac,
+            Ssid = "HomeNet",
+            InterfaceName = "Wi-Fi",
+        };
+
+        _watcher.Evaluate();
+        _identity.Value = _identity.Value with { InterfaceName = "Wireless" };
+        _watcher.Evaluate();
+
+        _applied.Should().BeEmpty();
+        var alert = _db.GetAlerts(new AlertFilter(Type: "network_gateway_drift"))
+            .Rows.Should().ContainSingle().Subject;
+        alert.Title.Should().Be("Gateway changed on a known Wi-Fi network");
+        alert.Action.Should().Be("gateway_changed");
+        alert.Subject.Should().Contain("HomeNet").And.Contain("current gateway");
+        alert.Details.Should()
+            .Contain("saved gateway")
+            .And.Contain("current gateway")
+            .And.Contain("network impersonation or a router replacement")
+            .And.Contain("update the saved network profile mapping")
+            .And.NotContain(savedMac)
+            .And.NotContain(currentMac);
+    }
+
+    [Fact]
+    public void Evaluate_keeps_generic_alert_for_an_ordinary_unknown_ssid()
+    {
+        _db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Home", "Home", GatewayMac: "11:22:33:44:55:66", Ssid: "HomeNet")),
+            "Home",
+            "Home");
+        _identity.Value = new NetworkFingerprint("other", "Wi-Fi")
+        {
+            GatewayMac = "AA:BB:CC:DD:EE:FF",
+            Ssid = "CafeNet",
+        };
+
+        _watcher.Evaluate();
+
+        _db.GetAlerts(new AlertFilter(Type: "network_gateway_drift")).Rows.Should().BeEmpty();
+        _db.GetAlerts(new AlertFilter(Type: "unknown_lan")).Rows.Should().ContainSingle();
+    }
 }

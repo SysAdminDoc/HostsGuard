@@ -1711,6 +1711,13 @@ static void PrintCurrentNetwork(CurrentNetwork current, bool json)
     Console.WriteLine(current.Online
         ? $"current: {current.Label}; {DescribeCurrentNetworkCriteria(current)}"
         : "current: offline or unavailable");
+    if (current.GatewayDriftStatus == "changed")
+    {
+        Console.WriteLine(
+            $"gateway drift: saved {current.SavedGatewayId}; current {current.CurrentGatewayId}. " +
+            "Possible network impersonation or router replacement; verify the router or access point, " +
+            "then update the saved mapping if the replacement is expected.");
+    }
 }
 
 static object CurrentNetworkExport(CurrentNetwork current) => new
@@ -1723,6 +1730,9 @@ static object CurrentNetworkExport(CurrentNetwork current) => new
     interface_name = current.InterfaceName,
     dns_suffix = current.DnsSuffix,
     vpn_present = current.VpnPresent,
+    gateway_drift = current.GatewayDriftStatus,
+    saved_gateway_id = current.SavedGatewayId,
+    current_gateway_id = current.CurrentGatewayId,
 };
 
 static object NetworkProfileExport(NetworkProfileEntry entry, int index) => new

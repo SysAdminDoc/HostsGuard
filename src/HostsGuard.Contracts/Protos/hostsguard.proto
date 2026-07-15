@@ -2189,6 +2189,9 @@ message CurrentNetwork {
   string interface_name = 6;
   string dns_suffix = 7;
   bool vpn_present = 8;
+  string gateway_drift_status = 9;      // empty or "changed"
+  string saved_gateway_id = 10;         // SHA-256-derived, never a raw MAC/fingerprint
+  string current_gateway_id = 11;       // SHA-256-derived, never a raw MAC/fingerprint
 }
 
 message NetworkProfileEntry {

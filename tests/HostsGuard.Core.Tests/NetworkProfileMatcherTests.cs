@@ -66,6 +66,53 @@ public sealed class NetworkProfileMatcherTests
     }
 
     [Fact]
+    public void Same_ssid_with_a_new_gateway_is_detected_deterministically()
+    {
+        var first = new NetworkProfileMatchRule(
+            "Work", "Primary", GatewayMac: "11:22:33:44:55:66", Ssid: "Office Wi-Fi");
+        var second = new NetworkProfileMatchRule(
+            "Guest", "Fallback", GatewayMac: "22:33:44:55:66:77", Ssid: "Office Wi-Fi");
+
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(Identity, new[] { second, first })
+            .Should().Be(second);
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(Identity, new[] { first, second })
+            .Should().Be(second);
+    }
+
+    [Fact]
+    public void Any_known_gateway_for_the_same_ssid_suppresses_drift()
+    {
+        var rules = new[]
+        {
+            new NetworkProfileMatchRule("Old", "", GatewayMac: "11:22:33:44:55:66", Ssid: "Office Wi-Fi"),
+            new NetworkProfileMatchRule("Current", "", GatewayMac: "AA-BB-CC-DD-EE-FF", Ssid: "Office Wi-Fi"),
+        };
+
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(Identity, rules).Should().BeNull();
+    }
+
+    [Fact]
+    public void Same_gateway_with_other_predicate_mismatch_is_not_gateway_drift()
+    {
+        var rule = new NetworkProfileMatchRule(
+            "Work", "", GatewayMac: "AA:BB:CC:DD:EE:FF", Ssid: "Office Wi-Fi",
+            DnsSuffix: "different.example");
+
+        NetworkProfileMatcher.Match(Identity, new[] { rule }).Should().BeNull();
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(Identity, new[] { rule }).Should().BeNull();
+    }
+
+    [Fact]
+    public void Drift_requires_ssid_and_a_comparable_gateway_signal()
+    {
+        var ssidOnly = new NetworkProfileMatchRule("Work", "", Ssid: "Office Wi-Fi");
+        var noSsid = Identity with { Ssid = string.Empty };
+
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(Identity, new[] { ssidOnly }).Should().BeNull();
+        NetworkProfileMatcher.FindSameSsidGatewayDrift(noSsid, new[] { ssidOnly }).Should().BeNull();
+    }
+
+    [Fact]
     public void Codec_preserves_additive_selectors_and_legacy_fingerprints()
     {
         var rule = new NetworkProfileMatchRule(

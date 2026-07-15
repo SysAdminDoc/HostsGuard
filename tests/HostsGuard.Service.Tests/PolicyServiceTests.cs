@@ -145,6 +145,29 @@ public sealed class PolicyServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetCurrentNetwork_reports_only_sanitized_gateway_drift_ids()
+    {
+        const string savedMac = "11:22:33:44:55:66";
+        const string currentMac = "AA:BB:CC:DD:EE:FF";
+        _state.Db.SaveProfile("Home");
+        _state.Db.SetNetworkProfile(
+            NetworkProfileSelectorCodec.Encode(new("Home", "Home", GatewayMac: savedMac, Ssid: "HomeNet")),
+            "Home",
+            "Home");
+        _state.NetworkIdentity = new FixedNetworkIdentity(new NetworkFingerprint("current", "Wi-Fi")
+        {
+            GatewayMac = currentMac,
+            Ssid = "HomeNet",
+        });
+
+        var current = await _policy.GetCurrentNetwork(new Empty(), Ctx);
+
+        current.GatewayDriftStatus.Should().Be("changed");
+        current.SavedGatewayId.Should().MatchRegex("^[0-9A-F]{12}$").And.NotBe(savedMac);
+        current.CurrentGatewayId.Should().MatchRegex("^[0-9A-F]{12}$").And.NotBe(currentMac);
+    }
+
+    [Fact]
     public async Task ExportPolicy_round_trips_through_preview_and_bad_json_is_rejected()
     {
         var doc = await _policy.ExportPolicy(new Empty(), Ctx);
@@ -197,4 +220,9 @@ public sealed class PolicyServiceTests : IDisposable
         _state.Dispose();
         try { Directory.Delete(_dir, true); } catch (IOException) { /* best effort */ }
     }
+}
+
+internal sealed class FixedNetworkIdentity(NetworkFingerprint value) : INetworkIdentity
+{
+    public NetworkFingerprint? Current() => value;
 }

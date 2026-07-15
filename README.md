@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.145-blue)
+![Version](https://img.shields.io/badge/version-0.12.146-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -150,7 +150,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | DNS-tunneling burst alerts | Opt-in, alert-only rolling detection scores per-root/process/PID subdomain length and entropy, unique-query ratio, rate, and DNS record-type mix; 60-second state, five-minute cooldowns, 2,048 aggregate/256 observation caps, and CDN/telemetry regression fixtures keep it bounded and conservative |
 | DoH intelligence | Refreshable, SHA-256-verified DoH resolver list merged with Windows known servers, plus ECH visibility posture that explains when SNI is hidden or not observable |
 | Scheduled blocking | Block a domain, service, or **firewall rule** (`fw:` target) on a recurring weekly schedule (windows may cross midnight) |
-| Network profiles | Save/switch named rule sets and auto-activate them with conjunctive gateway MAC, Wi-Fi SSID, interface, DNS suffix, VPN-presence, or legacy fingerprint rules; deterministic specificity precedence and portable-policy round trips preserve existing mappings |
+| Network profiles | Save/switch named rule sets and auto-activate them with conjunctive gateway MAC, Wi-Fi SSID, interface, DNS suffix, VPN-presence, or legacy fingerprint rules; deterministic specificity precedence and portable-policy round trips preserve existing mappings; a known SSID with a changed gateway raises one report-only warning with hashed old/new IDs and router-verification guidance without switching or blocking automatically |
 | Captive portal recovery | Run a bounded read-only Windows NCSI check with redirects disabled and sanitized evidence; a suspected portal explicitly enables the existing 5/15/60-minute enforcement pause, which auto-resumes and is never activated by detection alone |
 | Settings lock | Password-lock mode/posture/rule changes with an optional timed unlock; an armed password cannot be replaced without first proving it to disarm; 600,000-iteration PBKDF2-SHA256 verification uses a bounded, non-blocking retry throttle with one deduplicated security alert; unreadable state fails closed with an explicit administrator recovery path |
 | Global outbound | Tray Block-all / Allow-all outbound posture selector plus timed 5/15/60 minute enforcement pause with auto-resume (no restart) |

@@ -61,6 +61,22 @@ public sealed class NetworkProfileSurfaceTests
     }
 
     [Fact]
+    public void Gateway_drift_copy_exposes_only_the_sanitized_contract_ids_and_remediation()
+    {
+        var text = ToolsViewModel.DescribeGatewayDrift(new CurrentNetwork
+        {
+            GatewayDriftStatus = "changed",
+            SavedGatewayId = "112233AABBCC",
+            CurrentGatewayId = "FFEEDD445566",
+        });
+
+        text.Should().Contain("112233AABBCC")
+            .And.Contain("FFEEDD445566")
+            .And.Contain("Verify")
+            .And.Contain("update the saved mapping");
+    }
+
+    [Fact]
     public void Captive_portal_recovery_starts_read_only_and_unavailable_until_a_suspected_probe()
     {
         var vm = CreateVm();
