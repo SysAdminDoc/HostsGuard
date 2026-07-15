@@ -101,6 +101,12 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     /// <summary>Undecided domain the reference lists would block — a candidate.</summary>
     public bool IsBlockCandidate => Blocklists.Count > 0 && Status.Length == 0;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasResolutionChain))]
+    private IReadOnlyList<ResolutionHopViewModel> _resolutionChain = Array.Empty<ResolutionHopViewModel>();
+
+    public bool HasResolutionChain => ResolutionChain.Count != 0;
+
     /// <summary>Human status label for the dense activity grid.</summary>
     public string StatusText => Status.ToLowerInvariant() switch
     {
@@ -124,5 +130,43 @@ public sealed partial class ActivityRowViewModel : ObservableObject
         Blocklists = r.Blocklists.ToList(),
         Bytes = r.Bytes,
         IsNew = r.IsNew,
+        ResolutionChain = r.ResolutionChain.Select(ResolutionHopViewModel.From).ToList(),
+    };
+}
+
+public sealed class ResolutionHopViewModel
+{
+    public string Value { get; init; } = string.Empty;
+
+    public string Kind { get; init; } = string.Empty;
+
+    public string Verdict { get; init; } = string.Empty;
+
+    public IReadOnlyList<string> Blocklists { get; init; } = Array.Empty<string>();
+
+    public string KindText => Kind switch
+    {
+        "query" => Services.I18n.T("CnameChain_Query", "Query"),
+        "cname" => "CNAME",
+        _ => Kind,
+    };
+
+    public string VerdictText => Verdict switch
+    {
+        "blocked" => Services.I18n.T("Common_Blocked", "Blocked"),
+        "whitelisted" => Services.I18n.T("Hosts_Whitelisted", "Whitelisted"),
+        "listed" => Services.I18n.T("CnameChain_Listed", "Listed"),
+        "resolved" => Services.I18n.T("CnameChain_Resolved", "Resolved"),
+        _ => Services.I18n.T("Activity_Observed", "Observed"),
+    };
+
+    public string BlocklistsText => Blocklists.Count == 0 ? string.Empty : string.Join(", ", Blocklists);
+
+    public static ResolutionHopViewModel From(ResolutionHop hop) => new()
+    {
+        Value = hop.Value,
+        Kind = hop.Kind,
+        Verdict = hop.Verdict,
+        Blocklists = hop.Blocklists.ToList(),
     };
 }

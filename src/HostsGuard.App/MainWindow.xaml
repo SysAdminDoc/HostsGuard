@@ -998,6 +998,43 @@
                                         <TextBlock Text="{Binding Purpose, TargetNullValue={svc:Loc Key=Xaml_NotClassifiedYetTargetNull}}"
                                                    Style="{StaticResource Hg.InspectorValue}" />
 
+                                        <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0"
+                                                Visibility="{Binding HasResolutionChain, Converter={StaticResource BoolToVis}}">
+                                            <StackPanel>
+                                                <TextBlock Text="{svc:Loc Key=CnameChain_Title, Default=Resolution chain}"
+                                                           Style="{StaticResource Hg.InspectorLabel}" Margin="0,0,0,2" />
+                                                <TextBlock Text="{svc:Loc Key=CnameChain_Help, Default=Latest observed query → CNAME aliases → resolved addresses. Verdicts reflect current managed and reference-list state.}"
+                                                           Style="{StaticResource Hg.HelperText}" Margin="0,0,0,7"
+                                                           TextWrapping="Wrap" />
+                                                <ItemsControl x:Name="ResolutionChainItems" ItemsSource="{Binding ResolutionChain}"
+                                                              AutomationProperties.Name="{svc:Loc Key=CnameChain_AutomationName, Default=DNS resolution chain}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="0,2">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="50" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="75" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <TextBlock Grid.Column="0" Text="{Binding KindText}"
+                                                                           Style="{StaticResource Hg.Kicker}" />
+                                                                <StackPanel Grid.Column="1" Margin="6,0">
+                                                                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap"
+                                                                               FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding BlocklistsText}"
+                                                                               Style="{StaticResource Hg.DimText}"
+                                                                               TextWrapping="Wrap" />
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="2" Text="{Binding VerdictText}"
+                                                                           Foreground="{DynamicResource Hg.Peach}"
+                                                                           HorizontalAlignment="Right" />
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+
                                         <UniformGrid Columns="2" Margin="0,12,0,0">
                                             <Border Style="{StaticResource Hg.MetricTile}">
                                                 <StackPanel>

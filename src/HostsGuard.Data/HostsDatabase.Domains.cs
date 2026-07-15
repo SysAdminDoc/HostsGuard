@@ -79,6 +79,31 @@ public sealed partial class HostsDatabase
         }
     }
 
+    /// <summary>Managed status for a bounded set of domain keys.</summary>
+    public IReadOnlyDictionary<string, string> GetDomainStatuses(IEnumerable<string> domains)
+    {
+        ArgumentNullException.ThrowIfNull(domains);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var chunk in domains
+                .Select(Domains.ToAscii)
+                .Where(Domains.LooksLikeDomain)
+                .Distinct(StringComparer.Ordinal)
+                .Chunk(500))
+            {
+                foreach (var row in _conn.Query<(string Domain, string Status)>(
+                    "SELECT domain, status FROM domains WHERE domain IN @chunk",
+                    new { chunk }))
+                {
+                    result[row.Domain] = row.Status;
+                }
+            }
+        }
+
+        return result;
+    }
+
     // ─── Persistent resolved-host store (IP → domain, remembered forever) ─────
 
     /// <summary>Remember an IP→host mapping (source: "dns" forward, "ptr" reverse).</summary>

@@ -563,9 +563,16 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         var limit = request.Limit is > 0 and <= 5000 ? request.Limit : 500;
         var hiddenRoots = _state.Db.GetHiddenRoots();
         var feed = _state.Db.GetFeed(limit);
+        var resolutionChains = _state.Db.GetDnsResolutionChains(feed.Select(row => row.Domain));
+        var resolutionDomains = resolutionChains.Values
+            .SelectMany(chain => chain)
+            .Where(hop => hop.Kind is "query" or "cname")
+            .Select(hop => hop.Value)
+            .ToList();
         // Reference-list membership + learned purposes for the whole page in
         // two batched queries (empty stores simply match nothing).
-        var membership = _state.Db.GetListMembership(feed.Select(r => r.Domain));
+        var membership = _state.Db.GetListMembership(feed.Select(r => r.Domain).Concat(resolutionDomains));
+        var resolutionStatuses = _state.Db.GetDomainStatuses(resolutionDomains);
         var learnedPurposes = _state.Db.GetAiKnowledge("purpose", feed.Select(r => r.Domain));
         // User overrides beat both the curated table and the AI (NET-107).
         var overriddenPurposes = _state.Db.GetUserOverrides("purpose", feed.Select(r => r.Domain));
@@ -615,6 +622,25 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
                 activityRow.Blocklists.AddRange(lists);
             }
 
+            if (resolutionChains.TryGetValue(row.Domain, out var chain))
+            {
+                foreach (var hop in chain)
+                {
+                    var item = new ResolutionHop
+                    {
+                        Value = hop.Value,
+                        Kind = hop.Kind,
+                        Verdict = ResolutionVerdict(hop, resolutionStatuses, membership),
+                    };
+                    if (membership.TryGetValue(hop.Value, out var hopLists))
+                    {
+                        item.Blocklists.AddRange(hopLists);
+                    }
+
+                    activityRow.ResolutionChain.Add(item);
+                }
+            }
+
             activityRow.Bytes = usage.GetValueOrDefault(row.Domain, 0);
 
             // Precedence: user override → curated table → AI-researched knowledge.
@@ -634,6 +660,26 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         return list;
+    }
+
+    private static string ResolutionVerdict(
+        HostsGuard.Data.DnsResolutionHopRow hop,
+        IReadOnlyDictionary<string, string> statuses,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> membership)
+    {
+        if (hop.Kind is "A" or "AAAA")
+        {
+            return "resolved";
+        }
+
+        if (statuses.TryGetValue(hop.Value, out var status) && status.Length != 0)
+        {
+            return status;
+        }
+
+        return membership.TryGetValue(hop.Value, out var lists) && lists.Count != 0
+            ? "listed"
+            : "observed";
     }
 
     /// <summary>The newly-observed cue window; meta-configurable, default 24h, clamped 1h..30d.</summary>

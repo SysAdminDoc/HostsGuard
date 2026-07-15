@@ -81,6 +81,27 @@ public sealed class ActivityPersistenceQueue : IDisposable
         }
     }
 
+    public void EnqueueResolutionChain(
+        string queryName,
+        IEnumerable<string> cnames,
+        IEnumerable<string> addresses)
+    {
+        ArgumentNullException.ThrowIfNull(cnames);
+        ArgumentNullException.ThrowIfNull(addresses);
+        if (string.IsNullOrWhiteSpace(queryName))
+        {
+            return;
+        }
+
+        if (!_queue.Writer.TryWrite(new ResolutionChainItem(
+                queryName,
+                cnames.Where(value => !string.IsNullOrWhiteSpace(value)).Take(30).ToArray(),
+                addresses.Where(value => !string.IsNullOrWhiteSpace(value)).Take(16).ToArray())))
+        {
+            Interlocked.Increment(ref _droppedWrites);
+        }
+    }
+
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -142,6 +163,7 @@ public sealed class ActivityPersistenceQueue : IDisposable
     {
         var sightings = new List<DnsSightingWrite>();
         var resolved = new Dictionary<string, List<(string Ip, string Host)>>(StringComparer.Ordinal);
+        var chains = new Dictionary<string, ResolutionChainItem>(StringComparer.Ordinal);
         var flushes = new List<TaskCompletionSource>();
 
         foreach (var item in batch)
@@ -159,6 +181,9 @@ public sealed class ActivityPersistenceQueue : IDisposable
                     }
 
                     list.AddRange(hosts.Pairs);
+                    break;
+                case ResolutionChainItem chain:
+                    chains[chain.QueryName] = chain;
                     break;
                 case FlushItem flush:
                     flushes.Add(flush.Completion);
@@ -179,6 +204,12 @@ public sealed class ActivityPersistenceQueue : IDisposable
             foreach (var (source, pairs) in resolved)
             {
                 _db.UpsertResolvedHosts(pairs, source);
+                wrote = true;
+            }
+
+            foreach (var chain in chains.Values)
+            {
+                _db.ReplaceDnsResolutionChain(chain.QueryName, chain.Cnames, chain.Addresses);
                 wrote = true;
             }
 
@@ -263,6 +294,11 @@ public sealed class ActivityPersistenceQueue : IDisposable
     private sealed record DnsItem(string Domain, string Process, string? Reason, DateTime SeenAt) : WorkItem;
 
     private sealed record ResolvedHostsItem(IReadOnlyList<(string Ip, string Host)> Pairs, string Source) : WorkItem;
+
+    private sealed record ResolutionChainItem(
+        string QueryName,
+        IReadOnlyList<string> Cnames,
+        IReadOnlyList<string> Addresses) : WorkItem;
 
     private sealed record FlushItem(TaskCompletionSource Completion) : WorkItem;
 }

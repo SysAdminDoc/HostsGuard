@@ -287,7 +287,7 @@ dnsMonitor.DnsResolved += (_, e) =>
     // Remember which site each IP belongs to (in-memory cache + persistent
     // store) so the live-connections view shows the domain next to the raw
     // remote address, now and after a restart.
-    state.RememberResolution(e.QueryName, e.Addresses);
+    state.RememberResolution(e.QueryName, e.Addresses, e.Cnames);
 };
 var dnsStatus = dnsMonitor.Start();
 state.DnsMonitorActive = dnsStatus == DnsMonitorStatus.Started;

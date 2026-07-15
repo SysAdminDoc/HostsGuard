@@ -108,6 +108,25 @@ public sealed class HostsActivityGroupingTests
         vm.Rows[0].Process.Should().Be("again.exe");
     }
 
+    [Fact]
+    public void Activity_row_maps_resolution_hops_for_the_inspector()
+    {
+        var contract = new ActivityRow { Domain = "shop.example.com" };
+        contract.ResolutionChain.Add(new[]
+        {
+            new ResolutionHop { Value = "shop.example.com", Kind = "query", Verdict = "observed" },
+            new ResolutionHop { Value = "tracker.example.net", Kind = "cname", Verdict = "listed", Blocklists = { "Tracker list" } },
+            new ResolutionHop { Value = "203.0.113.10", Kind = "A", Verdict = "resolved" },
+        });
+
+        var row = ActivityRowViewModel.From(contract);
+
+        row.HasResolutionChain.Should().BeTrue();
+        row.ResolutionChain.Select(hop => hop.KindText).Should().Equal("Query", "CNAME", "A");
+        row.ResolutionChain[1].VerdictText.Should().Be("Listed");
+        row.ResolutionChain[1].BlocklistsText.Should().Be("Tracker list");
+    }
+
     private static void UpsertDns(
         HostsActivityViewModel vm,
         string domain,

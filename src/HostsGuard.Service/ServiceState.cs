@@ -706,20 +706,38 @@ public sealed class ServiceState : IDisposable
     /// in-memory cache AND persist each mapping so it survives restarts and
     /// auto-populates future connections to the same IP.
     /// </summary>
-    public void RememberResolution(string domain, IReadOnlyList<string> addresses)
+    public void RememberResolution(
+        string domain,
+        IReadOnlyList<string> addresses,
+        IReadOnlyList<string>? cnames = null)
     {
         ArgumentNullException.ThrowIfNull(addresses);
         var d = (domain ?? string.Empty).ToLowerInvariant().Trim();
-        if (d.Length == 0 || addresses.Count == 0)
+        if (d.Length == 0 || addresses.Count == 0 && (cnames is null || cnames.Count == 0))
         {
             return;
         }
 
         var now = Clock.Now;
-        ResolvedIps.Record(d, addresses, now);
+        if (addresses.Count != 0)
+        {
+            ResolvedIps.Record(d, addresses, now);
+        }
+
         if (!Db.IsHistoryPersistenceExcluded(null, d))
-            ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
-        DomainFirewall.ObserveResolution(d, addresses);
+        {
+            if (addresses.Count != 0)
+            {
+                ActivityPersistence.EnqueueResolvedHosts(addresses.Select(a => (a, d)), "dns");
+            }
+
+            ActivityPersistence.EnqueueResolutionChain(d, cnames ?? Array.Empty<string>(), addresses);
+        }
+
+        if (addresses.Count != 0)
+        {
+            DomainFirewall.ObserveResolution(d, addresses);
+        }
 
         // NET-199: a public registrable domain answering with a private-LAN
         // address is the DNS-rebinding signature. Alert-only (split-horizon DNS

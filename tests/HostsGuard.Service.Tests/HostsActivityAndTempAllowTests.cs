@@ -73,6 +73,32 @@ public sealed class HostsActivityAndTempAllowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Activity_rows_include_ordered_cname_chain_with_per_hop_verdicts()
+    {
+        _state.Db.ReplaceListIndex("Tracker reference", new[] { "tracker.alias.example" });
+        _state.Hosts.Block("blocked.alias.example");
+        _state.Db.AddDomain("blocked.alias.example", "blocked", "manual");
+        _state.RecordDns("shop.example.com");
+        _state.RememberResolution(
+            "shop.example.com",
+            new[] { "203.0.113.10" },
+            new[] { "edge.alias.example", "tracker.alias.example", "blocked.alias.example" });
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+
+        var list = await Hosts(channel).GetActivityAsync(new ActivityRequest());
+
+        var chain = list.Rows.Single(row => row.Domain == "shop.example.com").ResolutionChain;
+        chain.Select(hop => $"{hop.Kind}:{hop.Value}:{hop.Verdict}").Should().Equal(
+            "query:shop.example.com:observed",
+            "cname:edge.alias.example:observed",
+            "cname:tracker.alias.example:listed",
+            "cname:blocked.alias.example:blocked",
+            "A:203.0.113.10:resolved");
+        chain.Single(hop => hop.Value == "tracker.alias.example").Blocklists
+            .Should().Equal("Tracker reference");
+    }
+
+    [Fact]
     public async Task Activity_rows_prefer_curated_purposes_and_fall_back_to_learned_ones()
     {
         // pagead2.googlesyndication.com is in the curated purpose table; the

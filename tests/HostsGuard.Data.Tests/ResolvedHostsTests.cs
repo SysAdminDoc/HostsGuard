@@ -65,4 +65,25 @@ public sealed class ResolvedHostsTests : IDisposable
         using var reopened = new HostsDatabase(path);
         reopened.GetResolvedHost("203.0.113.9").Should().Be("remembered.example.com");
     }
+
+    [Fact]
+    public void Resolution_chain_is_ordered_deduped_and_replaced_per_query()
+    {
+        _db.ReplaceDnsResolutionChain(
+            "Shop.Example.com",
+            new[] { "edge.example.net", "tracker.example.net", "edge.example.net" },
+            new[] { "203.0.113.10", "2001:db8::10" });
+
+        var chain = _db.GetDnsResolutionChains(new[] { "shop.example.com" })["shop.example.com"];
+        chain.Select(row => $"{row.Kind}:{row.Value}").Should().Equal(
+            "query:shop.example.com",
+            "cname:edge.example.net",
+            "cname:tracker.example.net",
+            "A:203.0.113.10",
+            "AAAA:2001:db8::10");
+
+        _db.ReplaceDnsResolutionChain("shop.example.com", Array.Empty<string>(), new[] { "198.51.100.5" });
+        _db.GetDnsResolutionChains(new[] { "shop.example.com" })["shop.example.com"]
+            .Select(row => row.Value).Should().Equal("shop.example.com", "198.51.100.5");
+    }
 }

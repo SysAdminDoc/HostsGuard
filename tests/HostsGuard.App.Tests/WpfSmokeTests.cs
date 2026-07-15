@@ -447,6 +447,9 @@ public sealed class WpfSmokeTests
                 var localSummary = (TextBlock)window.FindName("LocalBlocklistPreviewSummary");
                 BindingOperations.GetBinding(localSummary, TextBlock.TextProperty)?.Path.Path
                     .Should().Be(nameof(BlocklistsViewModel.LocalPreviewSummary));
+                var resolutionChain = (ItemsControl)window.FindName("ResolutionChainItems");
+                BindingOperations.GetBinding(resolutionChain, ItemsControl.ItemsSourceProperty)?.Path.Path
+                    .Should().Be(nameof(ActivityRowViewModel.ResolutionChain));
                 var redirectDomain = (TextBox)window.FindName("RedirectDomainInput");
                 BindingOperations.GetBinding(redirectDomain, TextBox.TextProperty)?.Path.Path
                     .Should().Be(nameof(HostsViewModel.NewRedirectDomain));

@@ -681,4 +681,10 @@
   <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Domänenzuordnung entfernen</value></data>
   <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>Die verwaltete Zuordnung {0} → {1} aus der Windows-Hosts-Datei entfernen?</value></data>
   <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Domänenzuordnung entfernen</value></data>
+  <data name="CnameChain_Title" xml:space="preserve"><value>Auflösungskette</value></data>
+  <data name="CnameChain_Help" xml:space="preserve"><value>Zuletzt beobachtete Abfrage → CNAME-Aliase → aufgelöste Adressen. Bewertungen spiegeln den aktuellen verwalteten Zustand und die Referenzlisten wider.</value></data>
+  <data name="CnameChain_AutomationName" xml:space="preserve"><value>DNS-Auflösungskette</value></data>
+  <data name="CnameChain_Query" xml:space="preserve"><value>Abfrage</value></data>
+  <data name="CnameChain_Listed" xml:space="preserve"><value>Gelistet</value></data>
+  <data name="CnameChain_Resolved" xml:space="preserve"><value>Aufgelöst</value></data>
 </root>

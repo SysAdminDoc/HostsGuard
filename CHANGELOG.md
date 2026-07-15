@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.137] - 2026-07-14
+
+### Added
+- The Hosts Activity inspector now shows the latest observed DNS resolution
+  path from the original query through ordered CNAME aliases to A/AAAA answers.
+- Each domain hop shows its current managed verdict and reference-blocklist
+  memberships, making CNAME-cloak decisions directly explainable.
+
+### Changed
+- Resolution chains persist through the existing bounded asynchronous activity
+  writer, so ETW callbacks stay non-blocking and the latest chain survives a
+  service restart.
+
 ## [0.12.136] - 2026-07-14
 
 ### Added

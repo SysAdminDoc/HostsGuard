@@ -2005,4 +2005,10 @@
   <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Remove domain pin</value></data>
   <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>Remove the managed {0} → {1} mapping from the Windows hosts file?</value></data>
   <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Remove domain pin</value></data>
+  <data name="CnameChain_Title" xml:space="preserve"><value>Resolution chain</value></data>
+  <data name="CnameChain_Help" xml:space="preserve"><value>Latest observed query → CNAME aliases → resolved addresses. Verdicts reflect current managed and reference-list state.</value></data>
+  <data name="CnameChain_AutomationName" xml:space="preserve"><value>DNS resolution chain</value></data>
+  <data name="CnameChain_Query" xml:space="preserve"><value>Query</value></data>
+  <data name="CnameChain_Listed" xml:space="preserve"><value>Listed</value></data>
+  <data name="CnameChain_Resolved" xml:space="preserve"><value>Resolved</value></data>
 </root>

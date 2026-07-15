@@ -353,7 +353,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 36;
+    public const int SchemaVersion = 37;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -589,6 +589,11 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE INDEX IF NOT EXISTS idx_resolved_hosts_updated ON resolved_hosts(updated);
             CREATE TABLE IF NOT EXISTS hosts_redirects(
                 domain TEXT PRIMARY KEY, ip TEXT NOT NULL, created TEXT, modified TEXT) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS dns_resolution_hops(
+                query_name TEXT NOT NULL, position INTEGER NOT NULL, value TEXT NOT NULL,
+                kind TEXT NOT NULL, updated TEXT,
+                PRIMARY KEY(query_name, position)) WITHOUT ROWID;
+            CREATE INDEX IF NOT EXISTS idx_dns_resolution_hops_value ON dns_resolution_hops(value);
             CREATE TABLE IF NOT EXISTS user_overrides(
                 kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT, created TEXT,
                 PRIMARY KEY(kind, key)) WITHOUT ROWID;

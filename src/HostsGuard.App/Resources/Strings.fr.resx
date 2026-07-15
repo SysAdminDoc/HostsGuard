@@ -681,4 +681,10 @@
   <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Supprimer l’association du domaine</value></data>
   <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>Supprimer l’association gérée {0} → {1} du fichier hosts Windows ?</value></data>
   <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Supprimer l’association du domaine</value></data>
+  <data name="CnameChain_Title" xml:space="preserve"><value>Chaîne de résolution</value></data>
+  <data name="CnameChain_Help" xml:space="preserve"><value>Dernière requête observée → alias CNAME → adresses résolues. Les verdicts reflètent l’état géré et les listes de référence actuels.</value></data>
+  <data name="CnameChain_AutomationName" xml:space="preserve"><value>Chaîne de résolution DNS</value></data>
+  <data name="CnameChain_Query" xml:space="preserve"><value>Requête</value></data>
+  <data name="CnameChain_Listed" xml:space="preserve"><value>Répertorié</value></data>
+  <data name="CnameChain_Resolved" xml:space="preserve"><value>Résolu</value></data>
 </root>

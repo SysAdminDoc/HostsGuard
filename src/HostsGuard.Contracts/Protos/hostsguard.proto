@@ -690,6 +690,15 @@ message ActivityRow {
   // True when first_seen falls within the newly-observed window (default 24h) —
   // a purely local "never seen before on this machine until recently" cue.
   bool is_new = 13;
+  // Latest observed DNS resolution path: query → ordered CNAME hops → A/AAAA.
+  repeated ResolutionHop resolution_chain = 14;
+}
+
+message ResolutionHop {
+  string value = 1;
+  string kind = 2;       // query | cname | A | AAAA
+  string verdict = 3;    // blocked | whitelisted | listed | observed | resolved
+  repeated string blocklists = 4;
 }
 
 message ActivityList {
