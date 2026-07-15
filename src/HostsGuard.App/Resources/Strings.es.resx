@@ -795,4 +795,11 @@
   <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Inteligencia</value></data>
   <data name="ToolsNav_Automation" xml:space="preserve"><value>Política y automatización</value></data>
   <data name="ToolsNav_Trust" xml:space="preserve"><value>Confianza y recuperación</value></data>
+  <data name="FwRules_DescriptionLabel" xml:space="preserve"><value>Descripción</value></data>
+  <data name="FwRules_DescriptionOptional" xml:space="preserve"><value>Descripción (opcional)</value></data>
+  <data name="FwRules_DescriptionName" xml:space="preserve"><value>Descripción de la regla de firewall</value></data>
+  <data name="FwRules_DescriptionTip" xml:space="preserve"><value>Nota de intención opcional, de hasta 1.024 caracteres visibles</value></data>
+  <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | descripción {0}</value></data>
+  <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>La descripción no puede superar los {0} caracteres.</value></data>
+  <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>La descripción debe ser una sola línea de texto visible.</value></data>
 </root>

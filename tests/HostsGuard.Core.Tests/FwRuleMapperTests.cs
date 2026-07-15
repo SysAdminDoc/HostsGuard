@@ -94,7 +94,8 @@ public class FwRuleMapperTests
             packageFullName: " Contoso.Reader_1.0.0.0_x64__123abc ",
             packageBinaries: new[] { @"C:\Packages\reader.exe" },
             profiles: 5,
-            localAddresses: " 10.0.0.5 ");
+            localAddresses: " 10.0.0.5 ",
+            description: " Browser policy ");
         hg.Should().Be(new FwRule("HG_Block_x", "Out", "Block", true, "1.1.1.1,8.8.8.8", "TCP", @"C:\a.exe", "hostsguard",
             Interfaces: "Ethernet",
             PackageFamilyName: "Contoso.Reader_123abc",
@@ -103,7 +104,8 @@ public class FwRuleMapperTests
             PackageFullName: "Contoso.Reader_1.0.0.0_x64__123abc",
             PackageBinaries: @"C:\Packages\reader.exe",
             Profiles: "Domain,Public",
-            LocalAddresses: "10.0.0.5"));
+            LocalAddresses: "10.0.0.5",
+            Description: "Browser policy"));
 
         var sys = FwRuleMapper.FromValues("SomeSystemRule", 1, 1, 0, "Any", 256, "");
         sys.Direction.Should().Be("In");

@@ -85,6 +85,15 @@ internal static class VisualSmokeRunner
             window.UpdateLayout();
             await WaitForLayoutAsync(window, settleMs, cancellationToken).ConfigureAwait(true);
 
+            if (i == 4
+                && FindNamedElement(window, "FwRulesGrid") is DataGrid { Items.Count: > 0 } rulesGrid)
+            {
+                rulesGrid.SelectedIndex = 0;
+                rulesGrid.UpdateLayout();
+                window.UpdateLayout();
+                await WaitForLayoutAsync(window, settleMs, cancellationToken).ConfigureAwait(true);
+            }
+
             foreach (var failure in FindUnexpectedHorizontalScrollbars(window, page.Tab))
             {
                 result.Failures.Add(failure);

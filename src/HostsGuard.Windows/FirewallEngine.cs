@@ -96,7 +96,8 @@ public sealed class FirewallEngine : IFirewallEngine
                     package?.PackageFullName,
                     package?.Binaries,
                     SafeProfiles(comRule),
-                    SafeLocalAddresses(comRule)));
+                    SafeLocalAddresses(comRule),
+                    SafeDescription(comRule)));
             }
             catch (COMException)
             {
@@ -175,6 +176,10 @@ public sealed class FirewallEngine : IFirewallEngine
             ?? throw new InvalidOperationException("HNetCfg.FWRule COM is unavailable.");
         dynamic com = Activator.CreateInstance(type)!;
         com.Name = rule.Name;
+        if (rule.Description.Length != 0)
+        {
+            com.Description = rule.Description;
+        }
         com.Direction = rule.Direction == "In" ? DirIn : DirOut;
         com.Action = rule.Action == "Allow" ? ActionAllow : ActionBlock;
         com.Enabled = rule.Enabled;
@@ -476,6 +481,18 @@ public sealed class FirewallEngine : IFirewallEngine
             return (string?)comRule.ApplicationName ?? string.Empty;
         }
         catch (COMException)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string SafeDescription(dynamic comRule)
+    {
+        try
+        {
+            return (string?)comRule.Description ?? string.Empty;
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
             return string.Empty;
         }

@@ -2117,4 +2117,11 @@
   <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Intelligence</value></data>
   <data name="ToolsNav_Automation" xml:space="preserve"><value>Policy &amp; automation</value></data>
   <data name="ToolsNav_Trust" xml:space="preserve"><value>Trust &amp; recovery</value></data>
+  <data name="FwRules_DescriptionLabel" xml:space="preserve"><value>Description</value></data>
+  <data name="FwRules_DescriptionOptional" xml:space="preserve"><value>Description (optional)</value></data>
+  <data name="FwRules_DescriptionName" xml:space="preserve"><value>Firewall rule description</value></data>
+  <data name="FwRules_DescriptionTip" xml:space="preserve"><value>Optional intent note, up to 1,024 visible characters</value></data>
+  <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | description {0}</value></data>
+  <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>Description cannot exceed {0} characters.</value></data>
+  <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>Description must be a single line of visible text.</value></data>
 </root>

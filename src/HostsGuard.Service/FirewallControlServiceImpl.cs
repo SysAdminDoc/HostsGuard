@@ -385,6 +385,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             FwRuleMapper.MapPorts(request.LocalPorts), FwRuleMapper.MapInterfaces(request.Interfaces),
             package?.PackageFamilyName ?? string.Empty, package?.PackageSid ?? string.Empty,
             package?.DisplayName ?? string.Empty, package?.PackageFullName ?? string.Empty, package?.Binaries ?? string.Empty);
+        candidate = candidate with { Description = FwRuleMapper.MapDescription(request.Description) };
         if (!FirewallRuleAuthoring.TryNormalize(candidate, out rule, out var validation,
                 fw.ListInterfaceAliases().Select(static item => item.Alias)))
         {
@@ -850,6 +851,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             PackageDisplayName = rule.PackageDisplayName,
             PackageFullName = rule.PackageFullName,
             PackageBinaries = rule.PackageBinaries,
+            Description = rule.Description,
             Adopted = adopted,
             DriftStatus = driftStatus,
             DriftDetail = DriftDetail(snapshot),

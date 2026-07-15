@@ -99,6 +99,7 @@ public sealed class PolicyPortabilityTests : IDisposable
             RemoteAddr = "Any",
             Protocol = "Any",
             Program = @"C:\evil\evil.exe",
+            Description = "Block the retired downloader",
         }, TestContext());
         new FirewallControlServiceImpl(src).BlockQuicForProgram(new FirewallProgramRequest
         {
@@ -154,6 +155,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         policy.Lock.LegacyHash.Should().BeNull();
         policy.FirewallRules.Should().NotContain(r => r.Name.StartsWith("HG_Domain_", StringComparison.Ordinal));
         policy.FirewallRules.Should().ContainSingle(r =>
+            r.Name == "HG_BlockApp_evil_Out" && r.Description == "Block the retired downloader");
+        policy.FirewallRules.Should().ContainSingle(r =>
             r.Name == "HG_Package_Block_Contoso_Reader_Out" &&
             r.PackageFamilyName == "Contoso.Reader_123abc" &&
             r.PackageSid == "S-1-15-2-123" &&
@@ -177,6 +180,7 @@ public sealed class PolicyPortabilityTests : IDisposable
 
         dstFw.Rules.Should().ContainKey("HG_BlockApp_evil_Out");
         dstFw.Rules["HG_BlockApp_evil_Out"].Program.Should().Be(@"C:\evil\evil.exe");
+        dstFw.Rules["HG_BlockApp_evil_Out"].Description.Should().Be("Block the retired downloader");
         dstFw.Rules.Values.Should().ContainSingle(r =>
             r.Name.StartsWith("HG_QuicSteer_browser_", StringComparison.Ordinal) &&
             r.Direction == "Out" && r.Action == "Block" && r.Protocol == "UDP" &&

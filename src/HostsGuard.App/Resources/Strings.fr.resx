@@ -794,4 +794,11 @@
   <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Analyse</value></data>
   <data name="ToolsNav_Automation" xml:space="preserve"><value>Stratégies et automatisation</value></data>
   <data name="ToolsNav_Trust" xml:space="preserve"><value>Confiance et récupération</value></data>
+  <data name="FwRules_DescriptionLabel" xml:space="preserve"><value>Description</value></data>
+  <data name="FwRules_DescriptionOptional" xml:space="preserve"><value>Description (facultative)</value></data>
+  <data name="FwRules_DescriptionName" xml:space="preserve"><value>Description de la règle de pare-feu</value></data>
+  <data name="FwRules_DescriptionTip" xml:space="preserve"><value>Note d’intention facultative, limitée à 1 024 caractères visibles</value></data>
+  <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | description {0}</value></data>
+  <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>La description ne peut pas dépasser {0} caractères.</value></data>
+  <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>La description doit tenir sur une seule ligne de texte visible.</value></data>
 </root>

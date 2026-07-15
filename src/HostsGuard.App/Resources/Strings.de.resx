@@ -794,4 +794,11 @@
   <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Analyse</value></data>
   <data name="ToolsNav_Automation" xml:space="preserve"><value>Richtlinien und Automatisierung</value></data>
   <data name="ToolsNav_Trust" xml:space="preserve"><value>Vertrauen und Wiederherstellung</value></data>
+  <data name="FwRules_DescriptionLabel" xml:space="preserve"><value>Beschreibung</value></data>
+  <data name="FwRules_DescriptionOptional" xml:space="preserve"><value>Beschreibung (optional)</value></data>
+  <data name="FwRules_DescriptionName" xml:space="preserve"><value>Firewallregelbeschreibung</value></data>
+  <data name="FwRules_DescriptionTip" xml:space="preserve"><value>Optionaler Zweckhinweis mit bis zu 1.024 sichtbaren Zeichen</value></data>
+  <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | Beschreibung {0}</value></data>
+  <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>Die Beschreibung darf höchstens {0} Zeichen lang sein.</value></data>
+  <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>Die Beschreibung muss aus einer Zeile sichtbaren Textes bestehen.</value></data>
 </root>

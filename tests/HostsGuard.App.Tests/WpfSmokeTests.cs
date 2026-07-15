@@ -939,6 +939,19 @@ public sealed class WpfSmokeTests
                             }
                         }
 
+                        if (item.State == "populated" && tab == 4)
+                        {
+                            var rules = FindNamed<DataGrid>(window, "FwRulesGrid");
+                            rules.SelectedIndex = 0;
+                            window.UpdateLayout();
+                            var description = Descendants<TextBlock>(rules).Single(text =>
+                                text.IsVisible && text.Text == "Block the retired browser integration");
+                            var descriptionBrush = description.Foreground.Should().BeOfType<SolidColorBrush>().Subject;
+                            var expectedBrush = app.Resources["Hg.Text"].Should().BeOfType<SolidColorBrush>().Subject;
+                            descriptionBrush.Color.Should().Be(expectedBrush.Color,
+                                "selected rule descriptions must use the theme text color instead of inheriting the selected-row color");
+                        }
+
                         foreach (var nested in Descendants<TabControl>(window)
                                      .Where(control => control != tabs && control.IsVisible))
                         {
@@ -1035,6 +1048,17 @@ public sealed class WpfSmokeTests
                 RemotePort = 443,
             });
             vm.FwActivity.GroupByApp = true;
+            vm.FwRules!.Rules.Add(new FwRuleViewModel
+            {
+                Name = "HG_Matrix",
+                Direction = "Out",
+                Action = "Block",
+                Enabled = true,
+                RemoteAddr = "203.0.113.10",
+                Protocol = "TCP",
+                Source = "hostsguard",
+                Description = "Block the retired browser integration",
+            });
             vm.Alerts!.AllowlistRecommendations.Add(new AllowlistRecommendationViewModel(
                 "assets.example.test",
                 25,

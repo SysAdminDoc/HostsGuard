@@ -3,6 +3,8 @@ namespace HostsGuard.Core;
 /// <summary>Strict, pure normalization for first-party firewall rule authoring.</summary>
 public static class FirewallRuleAuthoring
 {
+    public const int MaxDescriptionLength = 1024;
+
     public static bool TryNormalize(
         FwRule input,
         out FwRule normalized,
@@ -31,7 +33,40 @@ public static class FirewallRuleAuthoring
             return false;
         }
 
-        normalized = input with { LocalPorts = localPorts, RemotePorts = remotePorts, Interfaces = interfaces };
+        if (!TryNormalizeDescription(input.Description, out var description, out error))
+        {
+            normalized = input;
+            return false;
+        }
+
+        normalized = input with
+        {
+            LocalPorts = localPorts,
+            RemotePorts = remotePorts,
+            Interfaces = interfaces,
+            Description = description,
+        };
+        return true;
+    }
+
+    public static bool TryNormalizeDescription(string? value, out string normalized, out string error)
+    {
+        normalized = (value ?? string.Empty).Trim();
+        error = string.Empty;
+        if (normalized.Length > MaxDescriptionLength)
+        {
+            error = $"description cannot exceed {MaxDescriptionLength} characters";
+            normalized = string.Empty;
+            return false;
+        }
+
+        if (normalized.Any(char.IsControl))
+        {
+            error = "description must be a single line of visible text";
+            normalized = string.Empty;
+            return false;
+        }
+
         return true;
     }
 

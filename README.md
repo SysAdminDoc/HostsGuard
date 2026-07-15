@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.153-blue)
+![Version](https://img.shields.io/badge/version-0.12.154-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -133,7 +133,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back; after three restores in ten minutes, only that rule is durably quarantined with live/tracked evidence until the operator accepts the foreign state or re-arms recovery (non-HostsGuard rules are never touched) |
 | Orphan detection + rebind | Flags program rules whose executable moved and suggests signed identity matches with a preview before re-bind |
 | Rule groups | Assign `HG_` rules to a named group and toggle the whole group on/off atomically; groups round-trip through the portable policy |
-| Rule authoring | Create and edit `HG_` rules with direction, action, TCP/UDP local and remote port ranges, remote addresses, program/package target, enabled state, and live-validated interface aliases; the form previews the effective scope and portable policy preserves it |
+| Rule authoring | Create and edit `HG_` rules with direction, action, TCP/UDP local and remote port ranges, remote addresses, program/package target, enabled state, an optional bounded single-line description, and live-validated interface aliases; descriptions are searchable, portable-policy-safe, and displayed read-only for foreign rules |
 
 ### Tools
 
@@ -240,7 +240,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1838 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1841 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

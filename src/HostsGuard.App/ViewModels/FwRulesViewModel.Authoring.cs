@@ -80,7 +80,7 @@ public sealed partial class FwRulesViewModel
                 : NewRuleProgram.Length != 0
                     ? I18n.T("FwRules_PreviewProgram", "program {0}", NewRuleProgram)
                     : I18n.T("FwRules_PreviewAllPrograms", "all programs");
-            return I18n.T("FwRules_ScopePreview",
+            var preview = I18n.T("FwRules_ScopePreview",
                 "Preview: {0} {1} | {2} | {3} | local ports {4} | remote ports {5} | interfaces {6} | {7}",
                 NewRuleDirection, NewRuleAction, NewRuleProtocol,
                 NewRuleEnabled ? I18n.T("FwRules_Enabled", "enabled") : I18n.T("FwRules_Disabled", "disabled"),
@@ -88,6 +88,10 @@ public sealed partial class FwRulesViewModel
                 remote.Length == 0 ? "?" : remote,
                 interfaces.Length == 0 ? I18n.T("FwRules_AnyInterface", "Any") : interfaces,
                 target);
+            return string.IsNullOrWhiteSpace(NewRuleDescription)
+                ? preview
+                : preview + I18n.T(
+                    "FwRules_PreviewDescription", " | description {0}", NewRuleDescription.Trim());
         }
     }
 
@@ -107,6 +111,18 @@ public sealed partial class FwRulesViewModel
         {
             return I18n.T("FwRules_InterfaceFormatError",
                 "Interface aliases must be comma-separated visible names (maximum 64, 256 characters each).");
+        }
+
+        if (!FirewallRuleAuthoring.TryNormalizeDescription(NewRuleDescription, out _, out _))
+        {
+            return NewRuleDescription.Trim().Length > FirewallRuleAuthoring.MaxDescriptionLength
+                ? I18n.T(
+                    "FwRules_DescriptionTooLong",
+                    "Description cannot exceed {0} characters.",
+                    FirewallRuleAuthoring.MaxDescriptionLength)
+                : I18n.T(
+                    "FwRules_DescriptionSingleLine",
+                    "Description must be a single line of visible text.");
         }
 
         return null;
@@ -152,6 +168,7 @@ public sealed partial class FwRulesViewModel
         NewRuleProtocol = row.Protocol;
         NewRuleRemoteAddr = row.RemoteAddr is "Any" ? string.Empty : row.RemoteAddr;
         NewRuleProgram = row.Program;
+        NewRuleDescription = row.Description;
         NewRulePackageFamily = row.PackageFamilyName;
         NewRuleLocalPorts = row.LocalPorts;
         NewRuleRemotePorts = row.RemotePortsForDisplay;
@@ -204,6 +221,7 @@ public sealed partial class FwRulesViewModel
         NewRuleName = string.Empty;
         NewRuleRemoteAddr = string.Empty;
         NewRuleProgram = string.Empty;
+        NewRuleDescription = string.Empty;
         NewRulePackageFamily = string.Empty;
         NewRuleLocalPorts = "Any";
         NewRuleRemotePorts = "Any";
@@ -249,4 +267,5 @@ public sealed partial class FwRulesViewModel
     partial void OnNewRuleActionChanged(string value) => NotifyAuthoringChanged();
     partial void OnNewRuleProtocolChanged(string value) => NotifyAuthoringChanged();
     partial void OnNewRuleRemoteAddrChanged(string value) => NotifyAuthoringChanged();
+    partial void OnNewRuleDescriptionChanged(string value) => NotifyAuthoringChanged();
 }

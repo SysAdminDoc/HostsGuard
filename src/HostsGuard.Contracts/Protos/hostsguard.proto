@@ -1158,6 +1158,7 @@ message FirewallRule {
   string package_display_name = 23;
   string package_full_name = 24;
   string package_binaries = 25;    // semicolon-separated binary paths returned by NetworkIsolation
+  string description = 26;         // optional operator intent; foreign rules are read-only
 }
 
 message FirewallRuleList {

@@ -111,11 +111,14 @@ public class FirewallEngineTests
         {
             var selectedInterface = engine.ListInterfaceAliases().FirstOrDefault()?.Alias ?? "Any";
             var rule = new FwRule(name, "In", "Allow", true, "Any", "TCP", string.Empty, "hostsguard",
-                RemotePorts: "443", LocalPorts: "8000-8010", Interfaces: selectedInterface);
+                RemotePorts: "443", LocalPorts: "8000-8010", Interfaces: selectedInterface,
+                Description: "HostsGuard elevated round-trip");
             engine.CreateRule(rule).Should().BeTrue();
             engine.RuleExists(name).Should().BeTrue();
             engine.ListRules().Should().Contain(r => r.Name == name && r.Action == "Allow" && r.Direction == "In" &&
                 r.RemotePorts == "443" && r.LocalPorts == "8000-8010" && r.Interfaces == selectedInterface);
+            engine.ListRules().Should().Contain(r =>
+                r.Name == name && r.Description == "HostsGuard elevated round-trip");
             engine.ReplaceRule(rule with { LocalPorts = "9000" }).Should().BeTrue();
             engine.ListRules().Should().Contain(r => r.Name == name && r.LocalPorts == "9000");
             engine.DeleteRule(name).Should().BeTrue();

@@ -472,6 +472,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RemoteAddr = "203.0.113.20",
             Protocol = "TCP",
             Program = @"C:\Program Files\Browser\browser.exe",
+            Description = "Block the retired browser integration",
             Source = "hostsguard",
             RemotePortsForDisplay = "443",
         });

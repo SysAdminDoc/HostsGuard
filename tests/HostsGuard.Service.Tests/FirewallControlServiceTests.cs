@@ -647,6 +647,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
             RemotePorts = "443",
             Interfaces = "wi-fi, Ethernet,WI-FI",
             RemoteAddr = "Any",
+            Description = "  Publish the local dashboard  ",
             Enabled = true,
         });
 
@@ -655,6 +656,7 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
         rule.LocalPorts.Should().Be("8000-8010");
         rule.RemotePorts.Should().Be("443");
         rule.Interfaces.Should().Be("Ethernet,Wi-Fi");
+        rule.Description.Should().Be("Publish the local dashboard");
 
         var updated = await client.UpdateRuleAsync(new FirewallRule
         {
@@ -666,15 +668,41 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
             RemotePorts = "443",
             Interfaces = "Ethernet",
             RemoteAddr = "Any",
+            Description = "Dashboard restricted to Ethernet",
             Enabled = true,
         });
 
         updated.Ok.Should().BeTrue();
         _fw.Rules["HG_ScopedWeb"].LocalPorts.Should().Be("8000-8010");
         _fw.Rules["HG_ScopedWeb"].Interfaces.Should().Be("Ethernet");
+        _fw.Rules["HG_ScopedWeb"].Description.Should().Be("Dashboard restricted to Ethernet");
+        (await client.ListRulesAsync(new Empty())).Rules.Should().ContainSingle(row =>
+            row.Name == "HG_ScopedWeb" && row.Description == "Dashboard restricted to Ethernet");
         _state.Db.GetFwState().Should().ContainSingle(row =>
             row.Name == "HG_ScopedWeb" && row.LocalPorts == "8000-8010" &&
             row.RemotePorts == "443" && row.Interfaces == "Ethernet");
+    }
+
+    [Fact]
+    public async Task Rule_authoring_rejects_unbounded_or_multiline_descriptions()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = Client(channel);
+        var request = new FirewallRule
+        {
+            Name = "Documented",
+            Direction = "Out",
+            Action = "Block",
+            RemoteAddr = "Any",
+            Protocol = "Any",
+            Enabled = true,
+        };
+
+        request.Description = new string('x', FirewallRuleAuthoring.MaxDescriptionLength + 1);
+        (await client.CreateRuleAsync(request)).ErrorCode.Should().Be("hostsguard.error.v1/invalid_rule");
+        request.Description = "line one\nline two";
+        (await client.CreateRuleAsync(request)).ErrorCode.Should().Be("hostsguard.error.v1/invalid_rule");
+        _fw.Rules.Should().NotContainKey("HG_Documented");
     }
 
     [Fact]

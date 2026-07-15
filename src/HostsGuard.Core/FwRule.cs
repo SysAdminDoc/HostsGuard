@@ -22,7 +22,8 @@ public sealed record FwRule(
     string PackageFullName = "",
     string PackageBinaries = "",
     string Profiles = "Any",
-    string LocalAddresses = "Any");
+    string LocalAddresses = "Any",
+    string Description = "");
 
 /// <summary>Installed app-container/MSIX package identity for firewall rule authoring.</summary>
 public sealed record FwAppPackage(
@@ -63,7 +64,8 @@ public static class FwRuleMapper
         string? packageFullName = null,
         object? packageBinaries = null,
         object? profiles = null,
-        object? localAddresses = null)
+        object? localAddresses = null,
+        string? description = null)
     {
         var n = name ?? string.Empty;
         return new FwRule(
@@ -85,7 +87,8 @@ public static class FwRuleMapper
             PackageFullName: MapPackage(packageFullName),
             PackageBinaries: MapPackageList(packageBinaries),
             Profiles: MapProfiles(profiles),
-            LocalAddresses: MapRemote(localAddresses));
+            LocalAddresses: MapRemote(localAddresses),
+            Description: MapDescription(description));
     }
 
     /// <summary>Normalize the COM serviceName value ("*" means any/none for our model).</summary>
@@ -171,6 +174,8 @@ public static class FwRuleMapper
 
     public static string MapPackage(string? v)
         => (v ?? string.Empty).Trim();
+
+    public static string MapDescription(string? value) => (value ?? string.Empty).Trim();
 
     public static string MapPackageList(object? v)
     {

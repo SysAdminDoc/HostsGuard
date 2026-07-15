@@ -38,6 +38,12 @@ public sealed partial class FwRuleViewModel : ObservableObject
     private string _program = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDescription))]
+    private string _description = string.Empty;
+
+    public bool HasDescription => Description.Length != 0;
+
+    [ObservableProperty]
     private string _packageFamilyName = string.Empty;
 
     [ObservableProperty]
@@ -165,6 +171,7 @@ public sealed partial class FwRuleViewModel : ObservableObject
         RemoteAddr = r.RemoteAddr,
         Protocol = r.Protocol,
         Program = r.Program,
+        Description = r.Description,
         PackageFamilyName = r.PackageFamilyName,
         PackageSid = r.PackageSid,
         PackageDisplayName = r.PackageDisplayName,
@@ -291,6 +298,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CreateRuleHelpText))]
     private string _newRulePackageFamily = string.Empty;
 
+    [ObservableProperty]
+    private string _newRuleDescription = string.Empty;
+
     public string CreateRuleHelpText => AuthoringValidationError() is { } validationError
         ? validationError
         : string.IsNullOrWhiteSpace(NewRuleName)
@@ -390,6 +400,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 !r.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.RemoteAddr.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.Program.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !r.Description.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.PackageFamilyName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.PackageSid.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
                 !r.PackageDisplayName.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
@@ -658,6 +669,7 @@ public sealed partial class FwRulesViewModel : ObservableObject
                 LocalPorts = localPorts,
                 RemotePorts = remotePorts,
                 Interfaces = SelectedInterfaceValue(),
+                Description = NewRuleDescription,
                 Enabled = NewRuleEnabled,
             };
             var ack = IsEditingRule

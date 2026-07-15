@@ -74,6 +74,7 @@ public static class PolicyPortability
                     LocalPorts = r.LocalPorts,
                     ServiceName = r.ServiceName,
                     Interfaces = r.Interfaces,
+                    Description = r.Description,
                 });
             }
         }
@@ -326,7 +327,8 @@ public static class PolicyPortability
                  !string.Equals(current.RemoteAddr, string.IsNullOrWhiteSpace(kv.Value.RemoteAddr) ? "Any" : kv.Value.RemoteAddr, StringComparison.Ordinal) ||
                  !string.Equals(current.Program, kv.Value.Program ?? string.Empty, StringComparison.Ordinal) ||
                  !string.Equals(current.PackageFamilyName, kv.Value.PackageFamilyName ?? string.Empty, StringComparison.Ordinal) ||
-                 !string.Equals(current.PackageSid, kv.Value.PackageSid ?? string.Empty, StringComparison.Ordinal)));
+                 !string.Equals(current.PackageSid, kv.Value.PackageSid ?? string.Empty, StringComparison.Ordinal) ||
+                 !string.Equals(current.Description, kv.Value.Description ?? string.Empty, StringComparison.Ordinal)));
             added += ruleAdded;
             changed += ruleChanged;
             summary.Add($"firewall rules: +{ruleAdded}, ~{ruleChanged}, -0 (merge)");
@@ -1218,7 +1220,8 @@ public static class PolicyPortability
         r.PackageSid ?? string.Empty,
         r.PackageDisplayName ?? string.Empty,
         r.PackageFullName ?? string.Empty,
-        r.PackageBinaries ?? string.Empty);
+        r.PackageBinaries ?? string.Empty,
+        Description: r.Description ?? string.Empty);
 
     private static void AddSetDiff(
         string label,

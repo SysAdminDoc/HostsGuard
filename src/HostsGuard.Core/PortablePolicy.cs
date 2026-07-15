@@ -439,6 +439,8 @@ public sealed class PolicyFirewallRule
     public string ServiceName { get; set; } = string.Empty;
 
     public string Interfaces { get; set; } = "Any";
+
+    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>A scheduled block window (domain or fw:HG_ rule target).</summary>

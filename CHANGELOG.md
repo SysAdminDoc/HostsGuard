@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.154] - 2026-07-14
+
+### Added
+- Managed firewall rules can now create, edit, search, display, export, and
+  import an optional description of up to 1,024 visible single-line
+  characters; foreign-rule descriptions are shown read-only and empty values
+  add no row detail.
+
+### Changed
+- Windows Firewall COM, gRPC, and portable-policy round trips now preserve
+  descriptions, with localized authoring and validation in English, Spanish,
+  German, and French.
+
 ## [0.12.153] - 2026-07-14
 
 ### Changed

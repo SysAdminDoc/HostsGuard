@@ -101,6 +101,7 @@ public sealed class FirewallRuleAuthoringTests
                     ServiceName = validated.ServiceName,
                     LocalPorts = validated.LocalPorts,
                     Interfaces = validated.Interfaces,
+                    Description = "Required by the local web service",
                 },
             ],
         };
@@ -110,6 +111,24 @@ public sealed class FirewallRuleAuthoringTests
         restored.LocalPorts.Should().Be("8000-8010");
         restored.RemotePorts.Should().Be("443");
         restored.Interfaces.Should().Be("Ethernet,Wi-Fi");
+        restored.Description.Should().Be("Required by the local web service");
+    }
+
+    [Fact]
+    public void Description_is_trimmed_bounded_and_single_line()
+    {
+        FirewallRuleAuthoring.TryNormalizeDescription("  Local API access  ", out var normalized, out var error)
+            .Should().BeTrue(error);
+        normalized.Should().Be("Local API access");
+
+        FirewallRuleAuthoring.TryNormalizeDescription(
+                new string('x', FirewallRuleAuthoring.MaxDescriptionLength + 1), out _, out error)
+            .Should().BeFalse();
+        error.Should().Contain(FirewallRuleAuthoring.MaxDescriptionLength.ToString());
+
+        FirewallRuleAuthoring.TryNormalizeDescription("line one\nline two", out _, out error)
+            .Should().BeFalse();
+        error.Should().Contain("single line");
     }
 
     private static FwRule Rule(
