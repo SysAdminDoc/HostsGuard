@@ -18,6 +18,8 @@ public sealed class PortablePolicyValidationTests
         """{ "Version": 1, "Profiles": [ { "Name": "Home" }, { "Name": "home" } ] }""",
         """{ "Version": 1, "Profiles": [ { "Name": "Home", "Rules": [ { "Domain": "Example.com" }, { "Domain": "example.com" } ] } ] }""",
         """{ "Version": 1, "BlocklistSubs": [ { "Name": "Primary" }, { "Name": "primary" } ] }""",
+        """{ "Version": 1, "HostsRedirects": [ { "Domain": "Router.Example", "Ip": "10.0.0.1" }, { "Domain": "router.example", "Ip": "10.0.0.2" } ] }""",
+        """{ "Version": 1, "Domains": [ { "Domain": "router.example" } ], "HostsRedirects": [ { "Domain": "router.example", "Ip": "10.0.0.1" } ] }""",
     };
 
     [Theory]
@@ -56,5 +58,18 @@ public sealed class PortablePolicyValidationTests
         reparsed.Version.Should().Be(1);
         reparsed.Domains.Should().ContainSingle(row => row.Domain == "ads.example");
         reparsed.Lock.Enabled.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("not-an-ip")]
+    [InlineData("0.0.0.0")]
+    [InlineData("224.0.0.1")]
+    public void Invalid_or_non_unicast_redirect_addresses_are_rejected(string ip)
+    {
+        var json = $$"""{ "Version": 1, "HostsRedirects": [ { "Domain": "router.example", "Ip": "{{ip}}" } ] }""";
+
+        var act = () => PortablePolicy.FromJson(json);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*hosts redirect*");
     }
 }

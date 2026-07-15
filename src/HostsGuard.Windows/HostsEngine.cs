@@ -13,6 +13,8 @@ namespace HostsGuard.Windows;
 /// </summary>
 public sealed class HostsEngine
 {
+    public const string ManagedRedirectMarker = "# HostsGuard pin";
+
     /// <summary>
     /// Blocked-entry count past which a hosts file measurably slows system-wide
     /// DNS resolution (Windows reads the file linearly), so the UI/CLI warns and
@@ -97,16 +99,22 @@ public sealed class HostsEngine
 
         lock (_gate)
         {
-            if (_blocked.Contains(d))
+            var alreadyBlocked = _blocked.Contains(d);
+            var newLines = _lines.Where(line => !IsManagedRedirect(line, d)).ToList();
+            if (!alreadyBlocked)
+            {
+                newLines.Add($"0.0.0.0 {d}");
+            }
+
+            if (newLines.Count == _lines.Count && alreadyBlocked)
             {
                 return false;
             }
 
-            var newLines = new List<string>(_lines) { $"0.0.0.0 {d}" };
             AtomicWrite(Join(newLines));
             _blocked.Add(d);
             _lines = newLines;
-            return true;
+            return !alreadyBlocked;
         }
     }
 
@@ -118,21 +126,27 @@ public sealed class HostsEngine
         {
             var toAdd = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
+            var valid = new HashSet<string>(StringComparer.Ordinal);
             foreach (var raw in domains)
             {
                 var d = Domains.ToAscii(raw);
-                if (!_blocked.Contains(d) && seen.Add(d) && Domains.LooksLikeDomain(d))
+                if (Domains.LooksLikeDomain(d))
                 {
-                    toAdd.Add(d);
+                    valid.Add(d);
+                    if (!_blocked.Contains(d) && seen.Add(d))
+                    {
+                        toAdd.Add(d);
+                    }
                 }
             }
 
-            if (toAdd.Count == 0)
+            var newLines = _lines.Where(line =>
+                !TryGetManagedRedirectDomain(line, out var redirectDomain) || !valid.Contains(redirectDomain)).ToList();
+            if (toAdd.Count == 0 && newLines.Count == _lines.Count)
             {
                 return 0;
             }
 
-            var newLines = new List<string>(_lines);
             newLines.AddRange(toAdd.Select(d => $"0.0.0.0 {d}"));
             AtomicWrite(Join(newLines));
             foreach (var d in toAdd)
@@ -185,6 +199,115 @@ public sealed class HostsEngine
     }
 
     /// <summary>
+    /// Replace a domain's sink block or prior managed pin with one intentional
+    /// domain-to-IP mapping. Foreign custom mappings are never removed.
+    /// </summary>
+    public bool PinRedirect(string domain, string address)
+    {
+        if (!HostRedirect.TryNormalize(domain, address, out var d, out var ip, out _))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            var kept = _lines.Where(line => !IsManagedRedirect(line, d) && !IsSinkMapping(line, d)).ToList();
+            var mapping = $"{ip} {d} {ManagedRedirectMarker}";
+            kept.Add(mapping);
+            var updated = Join(kept);
+            if (string.Equals(updated, Join(_lines), StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            AtomicWrite(updated);
+            Read();
+            return true;
+        }
+    }
+
+    /// <summary>Remove only HostsGuard-authored pins for a domain.</summary>
+    public bool RemoveRedirect(string domain)
+    {
+        var d = Domains.ToAscii(domain);
+        lock (_gate)
+        {
+            var kept = _lines.Where(line => !IsManagedRedirect(line, d)).ToList();
+            if (kept.Count == _lines.Count)
+            {
+                return false;
+            }
+
+            AtomicWrite(Join(kept));
+            Read();
+            return true;
+        }
+    }
+
+    /// <summary>Make the managed pin lines exactly match the persisted redirect set.</summary>
+    public int ReconcileRedirects(IEnumerable<(string Domain, string Ip)> redirects)
+    {
+        ArgumentNullException.ThrowIfNull(redirects);
+        var target = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (domain, ip) in redirects)
+        {
+            if (HostRedirect.TryNormalize(domain, ip, out var d, out var address, out _))
+            {
+                target[d] = address;
+            }
+        }
+
+        lock (_gate)
+        {
+            var kept = _lines.Where(line => !IsManagedRedirect(line, domain: null)).ToList();
+            kept.AddRange(target.Select(pair => $"{pair.Value} {pair.Key} {ManagedRedirectMarker}"));
+            var updated = Join(kept);
+            if (string.Equals(updated, Join(_lines), StringComparison.Ordinal))
+            {
+                return 0;
+            }
+
+            var prior = _lines.Count(line => IsManagedRedirect(line, domain: null));
+            AtomicWrite(updated);
+            Read();
+            return Math.Max(prior, target.Count);
+        }
+    }
+
+    private static bool IsManagedRedirect(string raw, string? domain)
+    {
+        return TryGetManagedRedirectDomain(raw, out var redirectDomain) &&
+            (domain is null || redirectDomain == domain);
+    }
+
+    private static bool TryGetManagedRedirectDomain(string raw, out string domain)
+    {
+        domain = string.Empty;
+        var halves = raw.Split('#', 2);
+        if (halves.Length != 2 || !string.Equals($"#{halves[1]}".Trim(), ManagedRedirectMarker, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var parts = halves[0].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        domain = Domains.ToAscii(parts[1]);
+        return Domains.LooksLikeDomain(domain);
+    }
+
+    private static bool IsSinkMapping(string raw, string domain)
+    {
+        var parts = raw.Split('#', 2)[0].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 &&
+            parts[0] is "0.0.0.0" or "127.0.0.1" or "::" or "::1" &&
+            parts.Skip(1).Any(host => Domains.ToAscii(host) == domain);
+    }
+
+    /// <summary>
     /// Rewrite so exactly <paramref name="targetBlocked"/> are 0.0.0.0-blocked,
     /// preserving comments and non-block lines. Returns (added, targetTotal).
     /// </summary>
@@ -229,6 +352,11 @@ public sealed class HostsEngine
                         // else: drop — no longer in the target set
                         continue;
                     }
+                }
+
+                if (TryGetManagedRedirectDomain(l, out var redirectDomain) && target.Contains(redirectDomain))
+                {
+                    continue;
                 }
 
                 kept.Add(l);

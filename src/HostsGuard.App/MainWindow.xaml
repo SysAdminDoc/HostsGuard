@@ -1438,6 +1438,83 @@
                             </Grid>
                         </TabItem>
 
+                        <TabItem Header="{svc:Loc Key=HostsRedirect_Tab, Default=Local redirects}">
+                            <Grid Margin="4" DataContext="{Binding Hosts}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" Style="{StaticResource Hg.Card}" Margin="0,0,0,8">
+                                    <StackPanel>
+                                        <TextBlock Text="{svc:Loc Key=HostsRedirect_Title, Default=Intentional local redirects}"
+                                                   Style="{StaticResource Hg.SectionTitle}" />
+                                        <TextBlock Text="{svc:Loc Key=HostsRedirect_Help, Default=Pin a domain to a unicast IPv4 or IPv6 address. HostsGuard writes and tracks the exact mapping so it is not mistaken for hosts-file hijacking.}"
+                                                   Style="{StaticResource Hg.HelperText}" Margin="0,3,0,0"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="1" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
+                                    <DockPanel>
+                                        <Button x:Name="PinRedirectButton" DockPanel.Dock="Right"
+                                                Content="{svc:Loc Key=HostsRedirect_Pin, Default=Pin domain}"
+                                                Style="{StaticResource Hg.AccentButton}"
+                                                Command="{Binding PinRedirectCommand}" Margin="8,0,0,0"
+                                                AutomationProperties.Name="{svc:Loc Key=HostsRedirect_Pin, Default=Pin domain}" />
+                                        <TextBox x:Name="RedirectIpInput" DockPanel.Dock="Right" Width="190" Margin="8,0,0,0"
+                                                 Text="{Binding NewRedirectIp, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=HostsRedirect_IpHint, Default=IP address}"
+                                                 AutomationProperties.Name="{svc:Loc Key=HostsRedirect_IpHint, Default=IP address}" />
+                                        <TextBox x:Name="RedirectDomainInput" Text="{Binding NewRedirectDomain, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=HostsRedirect_DomainHint, Default=Domain to pin}"
+                                                 AutomationProperties.Name="{svc:Loc Key=HostsRedirect_DomainHint, Default=Domain to pin}" />
+                                    </DockPanel>
+                                </Border>
+
+                                <DataGrid Grid.Row="2" x:Name="HostsRedirectsGrid" ItemsSource="{Binding Redirects}"
+                                          AutomationProperties.Name="{svc:Loc Key=HostsRedirect_GridName, Default=Managed local redirects}">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="{svc:Loc Key=HostsRedirect_Domain, Default=Domain}"
+                                                            Binding="{Binding Domain}" Width="2*" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=HostsRedirect_Ip, Default=IP address}"
+                                                            Binding="{Binding Ip}" Width="*" />
+                                        <DataGridTextColumn Header="{svc:Loc Key=HostsRedirect_Modified, Default=Modified}"
+                                                            Binding="{Binding Modified}" Width="150" />
+                                        <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_Actions_c3cd636a}" Width="100">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{svc:Loc Key=HostsRedirect_Remove, Default=Remove}"
+                                                            Padding="8,2" Style="{StaticResource Hg.DangerButton}"
+                                                            Command="{Binding DataContext.RemoveRedirectCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <Border Grid.Row="2" Style="{StaticResource Hg.EmptyState}"
+                                        Visibility="{Binding Redirects.Count, Converter={StaticResource EmptyStateVis}}">
+                                    <StackPanel>
+                                        <TextBlock Text="{svc:Loc Key=HostsRedirect_NoRows, Default=No local redirects}"
+                                                   Style="{StaticResource Hg.SectionTitle}"
+                                                   HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                        <TextBlock Text="{svc:Loc Key=HostsRedirect_EmptyHelp, Default=Add a domain and IP above to create an intentional hosts-file mapping.}"
+                                                   Style="{StaticResource Hg.EmptyText}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Grid.Row="3" Margin="2,6,0,0" Text="{Binding StatusText}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           AutomationProperties.LiveSetting="Polite" />
+                            </Grid>
+                        </TabItem>
+
                         <TabItem Header="{svc:Loc Key=Tab_Blocklists, Default=Blocklists}">
                             <Grid Margin="4" DataContext="{Binding Blocklists}">
                                 <Grid.RowDefinitions>

@@ -49,6 +49,46 @@ public sealed class HostsEngineTests : IDisposable
     }
 
     [Fact]
+    public void Managed_redirect_replaces_a_sink_block_and_preserves_foreign_mappings()
+    {
+        File.WriteAllText(_hosts,
+            "192.168.1.5 intranet.example.com\n0.0.0.0 pinned.example.com\n");
+        var engine = New();
+
+        engine.PinRedirect("pinned.example.com", "192.168.1.20").Should().BeTrue();
+        engine.PinRedirect("pinned.example.com", "192.168.1.20").Should().BeFalse("the exact pin is idempotent");
+
+        var lines = File.ReadAllLines(_hosts);
+        lines.Should().Contain("192.168.1.5 intranet.example.com");
+        lines.Should().Contain($"192.168.1.20 pinned.example.com {HostsEngine.ManagedRedirectMarker}");
+        lines.Should().NotContain("0.0.0.0 pinned.example.com");
+        engine.GetBlocked().Should().NotContain("pinned.example.com");
+
+        engine.Block("pinned.example.com").Should().BeTrue();
+        File.ReadAllText(_hosts).Should().NotContain(HostsEngine.ManagedRedirectMarker)
+            .And.Contain("0.0.0.0 pinned.example.com");
+
+        engine.PinRedirect("pinned.example.com", "192.168.1.20").Should().BeTrue();
+        engine.RemoveRedirect("pinned.example.com").Should().BeTrue();
+        File.ReadAllText(_hosts).Should().NotContain("pinned.example.com");
+    }
+
+    [Fact]
+    public void Redirect_reconcile_replaces_only_managed_pin_lines()
+    {
+        File.WriteAllText(_hosts,
+            $"10.0.0.2 old.example.com {HostsEngine.ManagedRedirectMarker}\n10.0.0.9 foreign.example.com\n");
+        var engine = New();
+
+        engine.ReconcileRedirects(new[] { ("new.example.com", "10.0.0.3") }).Should().BeGreaterThan(0);
+
+        var text = File.ReadAllText(_hosts);
+        text.Should().NotContain("old.example.com");
+        text.Should().Contain($"10.0.0.3 new.example.com {HostsEngine.ManagedRedirectMarker}");
+        text.Should().Contain("10.0.0.9 foreign.example.com");
+    }
+
+    [Fact]
     public void Unblock_removes_a_trailing_dot_fqdn_line()
     {
         // NET-177: a manually-added "0.0.0.0 example.com." line must be removable

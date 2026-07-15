@@ -112,6 +112,23 @@ public sealed class HostsAdoptionCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public void Exact_intentional_pin_is_exempt_but_address_drift_is_suspicious()
+    {
+        _db.UpsertHostsRedirect("router.example.com", "192.168.1.1");
+        WriteHosts($"192.168.1.1 router.example.com {HostsEngine.ManagedRedirectMarker}");
+
+        var expected = _adopt.AdoptNow("test");
+        expected.HasSuspiciousRedirect.Should().BeFalse();
+        File.ReadAllText(_hostsPath).Should().Contain("192.168.1.1 router.example.com");
+
+        WriteHosts($"192.168.1.99 router.example.com {HostsEngine.ManagedRedirectMarker}");
+        var drifted = _adopt.AdoptNow("tamper");
+        drifted.HasSuspiciousRedirect.Should().BeTrue("only the persisted domain/IP pair is intentional");
+        File.ReadAllText(_hostsPath).Should().Contain("192.168.1.1 router.example.com",
+            "reconciliation restores the persisted pin");
+    }
+
+    [Fact]
     public void Sink_and_broadcast_prefixes_are_never_treated_as_redirects()
     {
         var lines = new[]

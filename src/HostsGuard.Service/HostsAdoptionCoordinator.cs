@@ -90,7 +90,9 @@ public sealed class HostsAdoptionCoordinator
             // engine's in-memory view matches what the editor wrote.
             _hosts.Read();
             var lines = _hosts.GetLines();
-            var suspicious = CountSuspiciousRedirects(lines);
+            var redirects = _db.GetHostsRedirects();
+            var intentional = redirects.ToDictionary(row => row.Domain, row => row.Ip, StringComparer.Ordinal);
+            var suspicious = CountSuspiciousRedirects(lines, intentional);
 
             var blocked = _hosts.GetBlocked();
             var managed = _db.GetDomains().Select(r => r.Domain).ToHashSet(StringComparer.Ordinal);
@@ -117,6 +119,7 @@ public sealed class HostsAdoptionCoordinator
                 DomainCategories.Canonicalize,
                 DomainCategories.Lookup,
                 DomainCategories.Canonical);
+            organized += _hosts.ReconcileRedirects(redirects.Select(row => (row.Domain, row.Ip)));
 
             var outcome = new AdoptionOutcome(newDomains.Count, organized, suspicious, blocked.Count, newDomains);
             Record(reason, outcome);
@@ -125,7 +128,9 @@ public sealed class HostsAdoptionCoordinator
     }
 
     /// <summary>Count hand-edit lines that map a domain to a real routable IP (a hosts hijack signal).</summary>
-    public static int CountSuspiciousRedirects(IReadOnlyList<string> lines)
+    public static int CountSuspiciousRedirects(
+        IReadOnlyList<string> lines,
+        IReadOnlyDictionary<string, string>? intentionalRedirects = null)
     {
         ArgumentNullException.ThrowIfNull(lines);
         var count = 0;
@@ -148,8 +153,22 @@ public sealed class HostsAdoptionCoordinator
                 continue;
             }
 
-            // A real IP mapped to something domain-shaped = a redirect, not a block.
-            if (parts.Skip(1).Any(p => Domains.LooksLikeDomain(Domains.ToAscii(p))))
+            var address = ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4().ToString() : ip.ToString();
+            // A real IP mapped to something domain-shaped = a redirect, not a block,
+            // unless the exact domain+address pair is an explicit HostsGuard pin.
+            if (parts.Skip(1).Any(p =>
+                {
+                    var domain = Domains.ToAscii(p);
+                    if (!Domains.LooksLikeDomain(domain))
+                    {
+                        return false;
+                    }
+
+                    return intentionalRedirects is null ||
+                        !intentionalRedirects.TryGetValue(domain, out var expected) ||
+                        !HostRedirect.TryNormalize(domain, expected, out _, out var expectedAddress, out _) ||
+                        !string.Equals(expectedAddress, address, StringComparison.Ordinal);
+                }))
             {
                 count++;
             }

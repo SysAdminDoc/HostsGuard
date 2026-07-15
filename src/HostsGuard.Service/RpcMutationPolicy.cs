@@ -45,7 +45,7 @@ public static class RpcMutationPolicy
         Add(policies, "Recovery", RpcMutationKind.LockProtectedMutation, "RestoreFullStateSnapshot");
 
         Add(policies, "HostsControl", RpcMutationKind.ReadOnly,
-            "ListDomains", "ListTempAllows", "ListTempBlocks", "GetHostsText", "GetActivity", "GetSparkline", "ListBackups",
+            "ListDomains", "ListRedirects", "ListTempAllows", "ListTempBlocks", "GetHostsText", "GetActivity", "GetSparkline", "ListBackups",
             "GetAiStatus", "GetHostsAdoptionStatus", "ExportAiKnowledge", "ListAiKnowledge");
         Add(policies, "HostsControl", RpcMutationKind.ProtectiveMutation,
             "Block", "BlockRoot", "BlockMany", "TempBlock", "HideRoot", "UnhideRoot", "HideDomains",
@@ -54,7 +54,7 @@ public static class RpcMutationPolicy
         Add(policies, "HostsControl", RpcMutationKind.LockProtectedMutation,
             "Allow", "Unblock", "AllowMany", "Reconcile", "EmergencyReset", "TempAllow", "SetHostsText",
             "SetAiConfig", "CategorizeDomains", "AdoptHostsEntries", "SetHostsAdoption", "RestoreBackup",
-            "AddDefenderExclusion");
+            "AddDefenderExclusion", "PinRedirect", "RemoveRedirect");
 
         Add(policies, "ListControl", RpcMutationKind.ReadOnly,
             "ListBlocklistSources", "PreviewBlocklist", "PreviewBlocklistContent", "GetAllowlists",

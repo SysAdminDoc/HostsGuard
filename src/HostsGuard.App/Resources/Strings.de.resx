@@ -661,4 +661,24 @@
   <data name="LocalList_Failed" xml:space="preserve"><value>Lokale Blocklistenoperation fehlgeschlagen: {0}</value></data>
   <data name="LocalList_Bytes" xml:space="preserve"><value>{0} B</value></data>
   <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
+  <data name="HostsRedirect_Tab" xml:space="preserve"><value>Lokale Umleitungen</value></data>
+  <data name="HostsRedirect_Title" xml:space="preserve"><value>Beabsichtigte lokale Umleitungen</value></data>
+  <data name="HostsRedirect_Help" xml:space="preserve"><value>Ordnen Sie eine Domäne einer Unicast-IPv4- oder IPv6-Adresse zu. HostsGuard schreibt und erfasst die genaue Zuordnung, damit sie nicht als Manipulation der Hosts-Datei gilt.</value></data>
+  <data name="HostsRedirect_Pin" xml:space="preserve"><value>Domäne zuordnen</value></data>
+  <data name="HostsRedirect_IpHint" xml:space="preserve"><value>IP-Adresse</value></data>
+  <data name="HostsRedirect_DomainHint" xml:space="preserve"><value>Zuzuordnende Domäne</value></data>
+  <data name="HostsRedirect_GridName" xml:space="preserve"><value>Verwaltete lokale Umleitungen</value></data>
+  <data name="HostsRedirect_Domain" xml:space="preserve"><value>Domäne</value></data>
+  <data name="HostsRedirect_Ip" xml:space="preserve"><value>IP-Adresse</value></data>
+  <data name="HostsRedirect_Modified" xml:space="preserve"><value>Geändert</value></data>
+  <data name="HostsRedirect_Remove" xml:space="preserve"><value>Entfernen</value></data>
+  <data name="HostsRedirect_NoRows" xml:space="preserve"><value>Keine lokalen Umleitungen</value></data>
+  <data name="HostsRedirect_EmptyHelp" xml:space="preserve"><value>Fügen Sie oben eine Domäne und IP-Adresse hinzu, um eine beabsichtigte Hosts-Datei-Zuordnung zu erstellen.</value></data>
+  <data name="HostsRedirect_PinTitle" xml:space="preserve"><value>Domäne einer IP zuordnen</value></data>
+  <data name="HostsRedirect_PinConfirm" xml:space="preserve"><value>{0} in der Windows-Hosts-Datei {1} zuordnen? Eine verwaltete Sperre dieser Domäne wird entfernt und die genaue Zuordnung als beabsichtigt erfasst.</value></data>
+  <data name="HostsRedirect_PinCancelled" xml:space="preserve"><value>Domänenzuordnung abgebrochen; es wurden keine Änderungen vorgenommen.</value></data>
+  <data name="HostsRedirect_PinAction" xml:space="preserve"><value>Domäne zuordnen</value></data>
+  <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Domänenzuordnung entfernen</value></data>
+  <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>Die verwaltete Zuordnung {0} → {1} aus der Windows-Hosts-Datei entfernen?</value></data>
+  <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Domänenzuordnung entfernen</value></data>
 </root>

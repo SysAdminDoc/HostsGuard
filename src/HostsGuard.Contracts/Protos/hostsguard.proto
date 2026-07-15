@@ -245,6 +245,11 @@ service HostsControl {
   rpc BlockMany(BulkDomainsRequest) returns (BulkResult);
   rpc AllowMany(BulkDomainsRequest) returns (BulkResult);
   rpc ListDomains(ListDomainsRequest) returns (DomainList);
+  // Intentional local hosts-file redirects. Pins are tracked separately from
+  // sink blocks so tamper classification can exempt only the exact domain/IP pair.
+  rpc ListRedirects(Empty) returns (RedirectList);
+  rpc PinRedirect(RedirectRequest) returns (Ack);
+  rpc RemoveRedirect(DomainRequest) returns (Ack);
   rpc Reconcile(ReconcileRequest) returns (Ack);
   rpc EmergencyReset(Empty) returns (Ack);
   // Temporarily allow a blocked domain; the service re-blocks it when the
@@ -721,6 +726,22 @@ message ManagedDomain {
 
 message DomainList {
   repeated ManagedDomain domains = 1;
+}
+
+message RedirectRequest {
+  string domain = 1;
+  string ip = 2;
+}
+
+message ManagedRedirect {
+  string domain = 1;
+  string ip = 2;
+  google.protobuf.Timestamp created = 3;
+  google.protobuf.Timestamp modified = 4;
+}
+
+message RedirectList {
+  repeated ManagedRedirect redirects = 1;
 }
 
 message ReconcileRequest {

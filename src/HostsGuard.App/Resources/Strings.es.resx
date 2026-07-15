@@ -662,4 +662,24 @@
   <data name="LocalList_Failed" xml:space="preserve"><value>Error en la operación de lista local: {0}</value></data>
   <data name="LocalList_Bytes" xml:space="preserve"><value>{0} B</value></data>
   <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
+  <data name="HostsRedirect_Tab" xml:space="preserve"><value>Redirecciones locales</value></data>
+  <data name="HostsRedirect_Title" xml:space="preserve"><value>Redirecciones locales intencionales</value></data>
+  <data name="HostsRedirect_Help" xml:space="preserve"><value>Fija un dominio a una dirección IPv4 o IPv6 unicast. HostsGuard escribe y registra la asignación exacta para que no se confunda con un secuestro del archivo hosts.</value></data>
+  <data name="HostsRedirect_Pin" xml:space="preserve"><value>Fijar dominio</value></data>
+  <data name="HostsRedirect_IpHint" xml:space="preserve"><value>Dirección IP</value></data>
+  <data name="HostsRedirect_DomainHint" xml:space="preserve"><value>Dominio para fijar</value></data>
+  <data name="HostsRedirect_GridName" xml:space="preserve"><value>Redirecciones locales administradas</value></data>
+  <data name="HostsRedirect_Domain" xml:space="preserve"><value>Dominio</value></data>
+  <data name="HostsRedirect_Ip" xml:space="preserve"><value>Dirección IP</value></data>
+  <data name="HostsRedirect_Modified" xml:space="preserve"><value>Modificado</value></data>
+  <data name="HostsRedirect_Remove" xml:space="preserve"><value>Quitar</value></data>
+  <data name="HostsRedirect_NoRows" xml:space="preserve"><value>No hay redirecciones locales</value></data>
+  <data name="HostsRedirect_EmptyHelp" xml:space="preserve"><value>Añade arriba un dominio y una IP para crear una asignación intencional en el archivo hosts.</value></data>
+  <data name="HostsRedirect_PinTitle" xml:space="preserve"><value>Fijar dominio a IP</value></data>
+  <data name="HostsRedirect_PinConfirm" xml:space="preserve"><value>¿Fijar {0} a {1} en el archivo hosts de Windows? Se quitará cualquier bloqueo administrado de este dominio y la fijación exacta se registrará como intencional.</value></data>
+  <data name="HostsRedirect_PinCancelled" xml:space="preserve"><value>Fijación de dominio cancelada; no se realizaron cambios.</value></data>
+  <data name="HostsRedirect_PinAction" xml:space="preserve"><value>Fijar dominio</value></data>
+  <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Quitar fijación de dominio</value></data>
+  <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>¿Quitar la asignación administrada {0} → {1} del archivo hosts de Windows?</value></data>
+  <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Quitar fijación de dominio</value></data>
 </root>

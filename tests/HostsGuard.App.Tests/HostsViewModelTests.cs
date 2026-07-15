@@ -107,4 +107,28 @@ public sealed class HostsViewModelTests : IAsyncLifetime
         vm.Domains.Should().NotContain(d => d.Domain == "gone.example.com");
         _state.Hosts.GetBlocked().Should().NotContain("gone.example.com");
     }
+
+    [Fact]
+    public async Task Pin_redirect_replaces_a_block_and_remove_clears_the_managed_mapping()
+    {
+        await new HostsViewModel(_client, new FakeConfirm(true))
+            { NewDomain = "router.example.com" }.BlockCommand.ExecuteAsync(null);
+        var vm = new HostsViewModel(_client, new FakeConfirm(true))
+        {
+            NewRedirectDomain = "router.example.com",
+            NewRedirectIp = "192.168.1.1",
+        };
+
+        await vm.PinRedirectCommand.ExecuteAsync(null);
+
+        vm.Redirects.Should().ContainSingle(row =>
+            row.Domain == "router.example.com" && row.Ip == "192.168.1.1");
+        vm.Domains.Should().NotContain(row => row.Domain == "router.example.com");
+        _state.Hosts.GetBlocked().Should().NotContain("router.example.com");
+        File.ReadAllText(_state.Hosts.HostsPath).Should().Contain(HostsEngine.ManagedRedirectMarker);
+
+        await vm.RemoveRedirectCommand.ExecuteAsync(vm.Redirects.Single());
+        vm.Redirects.Should().BeEmpty();
+        File.ReadAllText(_state.Hosts.HostsPath).Should().NotContain(HostsEngine.ManagedRedirectMarker);
+    }
 }

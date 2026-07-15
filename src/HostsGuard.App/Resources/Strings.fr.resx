@@ -661,4 +661,24 @@
   <data name="LocalList_Failed" xml:space="preserve"><value>Échec de l’opération sur la liste locale : {0}</value></data>
   <data name="LocalList_Bytes" xml:space="preserve"><value>{0} o</value></data>
   <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} Ko</value></data>
+  <data name="HostsRedirect_Tab" xml:space="preserve"><value>Redirections locales</value></data>
+  <data name="HostsRedirect_Title" xml:space="preserve"><value>Redirections locales intentionnelles</value></data>
+  <data name="HostsRedirect_Help" xml:space="preserve"><value>Associez un domaine à une adresse IPv4 ou IPv6 unicast. HostsGuard écrit et suit l’association exacte afin qu’elle ne soit pas confondue avec un détournement du fichier hosts.</value></data>
+  <data name="HostsRedirect_Pin" xml:space="preserve"><value>Associer le domaine</value></data>
+  <data name="HostsRedirect_IpHint" xml:space="preserve"><value>Adresse IP</value></data>
+  <data name="HostsRedirect_DomainHint" xml:space="preserve"><value>Domaine à associer</value></data>
+  <data name="HostsRedirect_GridName" xml:space="preserve"><value>Redirections locales gérées</value></data>
+  <data name="HostsRedirect_Domain" xml:space="preserve"><value>Domaine</value></data>
+  <data name="HostsRedirect_Ip" xml:space="preserve"><value>Adresse IP</value></data>
+  <data name="HostsRedirect_Modified" xml:space="preserve"><value>Modifié</value></data>
+  <data name="HostsRedirect_Remove" xml:space="preserve"><value>Supprimer</value></data>
+  <data name="HostsRedirect_NoRows" xml:space="preserve"><value>Aucune redirection locale</value></data>
+  <data name="HostsRedirect_EmptyHelp" xml:space="preserve"><value>Ajoutez ci-dessus un domaine et une IP pour créer une association intentionnelle dans le fichier hosts.</value></data>
+  <data name="HostsRedirect_PinTitle" xml:space="preserve"><value>Associer un domaine à une IP</value></data>
+  <data name="HostsRedirect_PinConfirm" xml:space="preserve"><value>Associer {0} à {1} dans le fichier hosts Windows ? Tout blocage géré de ce domaine sera supprimé et l’association exacte sera suivie comme intentionnelle.</value></data>
+  <data name="HostsRedirect_PinCancelled" xml:space="preserve"><value>Association de domaine annulée ; aucune modification n’a été effectuée.</value></data>
+  <data name="HostsRedirect_PinAction" xml:space="preserve"><value>Associer le domaine</value></data>
+  <data name="HostsRedirect_RemoveTitle" xml:space="preserve"><value>Supprimer l’association du domaine</value></data>
+  <data name="HostsRedirect_RemoveConfirm" xml:space="preserve"><value>Supprimer l’association gérée {0} → {1} du fichier hosts Windows ?</value></data>
+  <data name="HostsRedirect_RemoveAction" xml:space="preserve"><value>Supprimer l’association du domaine</value></data>
 </root>

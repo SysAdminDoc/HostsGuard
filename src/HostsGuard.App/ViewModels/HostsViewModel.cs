@@ -106,6 +106,8 @@ public sealed partial class HostsViewModel : ObservableObject
             Domains.Add(ManagedDomainViewModel.From(d));
         }
 
+        await RefreshRedirectsCoreAsync();
+
         StatusText = I18n.T("Hosts_DomainCount", "{0} domain(s)", Domains.Count);
     }
 

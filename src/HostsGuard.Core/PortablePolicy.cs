@@ -26,6 +26,8 @@ public sealed class PortablePolicy
 
     public List<PolicyDomain> Domains { get; set; } = new();
 
+    public List<PolicyHostsRedirect> HostsRedirects { get; set; } = new();
+
     public List<PolicyFirewallRule> FirewallRules { get; set; } = new();
 
     public List<PolicyDomainFirewallRule> DomainFirewallRules { get; set; } = new();
@@ -102,6 +104,7 @@ public sealed class PortablePolicy
         // Defensive: deserialization can leave collections null if the JSON omits
         // a section AND the property had no initializer path taken.
         policy.Domains ??= new();
+        policy.HostsRedirects ??= new();
         policy.FirewallRules ??= new();
         policy.DomainFirewallRules ??= new();
         policy.Schedules ??= new();
@@ -136,6 +139,22 @@ public sealed class PortablePolicy
         policy.LanAttackSurface ??= new();
         policy.LanAttackSurface.Toggles ??= new();
         policy.Settings ??= new(StringComparer.Ordinal);
+        foreach (var redirect in policy.HostsRedirects)
+        {
+            if (redirect is null)
+            {
+                throw new JsonException("HostsRedirects must not contain null rows");
+            }
+
+            if (!HostRedirect.TryNormalize(redirect.Domain, redirect.Ip, out var domain, out var ip, out var error))
+            {
+                throw new ArgumentException($"invalid hosts redirect: {error}", nameof(json));
+            }
+
+            redirect.Domain = domain;
+            redirect.Ip = ip;
+        }
+
         RejectDuplicateIdentities(policy);
         return policy;
     }
@@ -173,6 +192,15 @@ public sealed class PortablePolicy
     private static void RejectDuplicateIdentities(PortablePolicy policy)
     {
         RejectDuplicates(policy.Domains, static row => NormalizeDomainIdentity(row.Domain), "Domains");
+        RejectDuplicates(policy.HostsRedirects, static row => NormalizeDomainIdentity(row.Domain), "HostsRedirects");
+        var managedDomains = policy.Domains
+            .Select(row => NormalizeDomainIdentity(row.Domain))
+            .Where(domain => domain.Length != 0)
+            .ToHashSet(StringComparer.Ordinal);
+        if (policy.HostsRedirects.Any(row => managedDomains.Contains(NormalizeDomainIdentity(row.Domain))))
+        {
+            throw new JsonException("a domain cannot be both managed and pinned in HostsRedirects");
+        }
         RejectDuplicates(policy.FirewallRules, static row => row.Name, "FirewallRules");
         RejectDuplicates(policy.DomainFirewallRules, static row => row.RuleName, "DomainFirewallRules.RuleName");
         RejectDuplicates(policy.DomainFirewallRules,
@@ -308,6 +336,14 @@ public sealed class PolicyDomain
     public string Category { get; set; } = string.Empty;
 
     public string Notes { get; set; } = string.Empty;
+}
+
+/// <summary>An intentional hosts-file domain-to-IP mapping.</summary>
+public sealed class PolicyHostsRedirect
+{
+    public string Domain { get; set; } = string.Empty;
+
+    public string Ip { get; set; } = string.Empty;
 }
 
 /// <summary>A domain-scoped firewall rule intent whose live IPs refresh from DNS.</summary>

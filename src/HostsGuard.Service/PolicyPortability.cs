@@ -38,6 +38,15 @@ public static class PolicyPortability
             });
         }
 
+        foreach (var redirect in state.Db.GetHostsRedirects())
+        {
+            policy.HostsRedirects.Add(new PolicyHostsRedirect
+            {
+                Domain = redirect.Domain,
+                Ip = redirect.Ip,
+            });
+        }
+
         // Only HostsGuard-authored rules travel; system rules stay on their host.
         // Drifted (tracked-but-missing) rows are skipped — nothing to recreate.
         if (state.Firewall is { } fw)
@@ -277,6 +286,18 @@ public static class PolicyPortability
         changed += domainChanged;
         summary.Add($"domains: +{domainAdded}, ~{domainChanged}, -0 (merge)");
 
+        var currentRedirects = state.Db.GetHostsRedirects()
+            .ToDictionary(row => row.Domain, row => row.Ip, StringComparer.Ordinal);
+        var desiredRedirects = ValidRedirects(policy)
+            .ToDictionary(row => row.Domain, row => row.Ip, StringComparer.Ordinal);
+        var redirectAdded = desiredRedirects.Keys.Count(domain => !currentRedirects.ContainsKey(domain));
+        var redirectChanged = desiredRedirects.Count(pair =>
+            currentRedirects.TryGetValue(pair.Key, out var current) &&
+            !string.Equals(current, pair.Value, StringComparison.Ordinal));
+        added += redirectAdded;
+        changed += redirectChanged;
+        summary.Add($"hosts redirects: +{redirectAdded}, ~{redirectChanged}, -0 (merge)");
+
         if (state.Firewall is { } fw)
         {
             var currentRules = fw.ListRules().Where(r => r.Name.StartsWith(FwRuleMapper.HostsGuardPrefix, StringComparison.Ordinal))
@@ -395,6 +416,7 @@ public static class PolicyPortability
                 continue;
             }
 
+            state.Db.RemoveHostsRedirect(Domains.ToAscii(d.Domain));
             state.Db.AddDomain(d.Domain, d.Status, d.Source ?? string.Empty, d.Category ?? string.Empty, d.Reason);
             if (!string.IsNullOrEmpty(d.Notes))
             {
@@ -402,9 +424,18 @@ public static class PolicyPortability
             }
         }
 
+        foreach (var redirect in ValidRedirects(policy))
+        {
+            state.Db.RemoveDomain(redirect.Domain);
+            state.Db.UpsertHostsRedirect(redirect.Domain, redirect.Ip);
+        }
+
         var blocked = state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
         var (added, target) = state.Hosts.Reconcile(blocked);
         summary.Add($"{policy.Domains.Count} domains ({target} blocked, +{added} new to hosts)");
+        var redirectChanges = state.Hosts.ReconcileRedirects(
+            state.Db.GetHostsRedirects().Select(row => (row.Domain, row.Ip)));
+        summary.Add($"{state.Db.GetHostsRedirects().Count} hosts redirects ({redirectChanges} reconciled)");
 
         // ── HG_ firewall rules ──
         var rulesCreated = 0;
@@ -605,6 +636,8 @@ public static class PolicyPortability
         state.Db.ReplaceDomains(policy.Domains
             .Where(d => !string.IsNullOrWhiteSpace(d.Domain))
             .Select(d => (d.Domain, d.Status, (string?)d.Source)));
+        var restoredRedirects = ValidRedirects(policy).ToList();
+        state.Db.ReplaceHostsRedirects(restoredRedirects.Select(row => (row.Domain, row.Ip)));
         foreach (var d in policy.Domains)
         {
             if (string.IsNullOrWhiteSpace(d.Domain))
@@ -626,6 +659,8 @@ public static class PolicyPortability
         var blocked = state.Db.GetDomains(status: "blocked").Select(r => r.Domain).ToList();
         var (added, target) = state.Hosts.Reconcile(blocked);
         summary.Add($"{policy.Domains.Count} domains restored ({target} blocked, +{added} hosts reconcile)");
+        var redirectChanges = state.Hosts.ReconcileRedirects(restoredRedirects.Select(row => (row.Domain, row.Ip)));
+        summary.Add($"{restoredRedirects.Count} hosts redirects restored ({redirectChanges} reconciled)");
 
         state.Db.SetSchedules(policy.Schedules.Select(s => (s.Target, s.Days, s.Start, s.End)));
         state.Schedules.Kick();
@@ -764,6 +799,17 @@ public static class PolicyPortability
     private static string LockIntentSummary(PolicyLock policyLock) => policyLock.Enabled
         ? "settings lock: source intended armed; credential omitted — set a new local password; current lock unchanged"
         : "settings lock: source intended disarmed; credentials are never portable; current lock unchanged";
+
+    private static IEnumerable<(string Domain, string Ip)> ValidRedirects(PortablePolicy policy)
+    {
+        foreach (var row in policy.HostsRedirects)
+        {
+            if (HostRedirect.TryNormalize(row.Domain, row.Ip, out var domain, out var ip, out _))
+            {
+                yield return (domain, ip);
+            }
+        }
+    }
 
     private static void ApplyConsent(ServiceState state, PortablePolicy policy, List<string> summary)
     {

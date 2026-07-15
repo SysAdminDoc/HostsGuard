@@ -567,6 +567,30 @@ public sealed class PolicyPortabilityTests : IDisposable
             .Should().BeEquivalentTo("app:private.exe", "domain:example.com");
     }
 
+    [Fact]
+    public void Hosts_redirects_round_trip_and_restore_exactly()
+    {
+        var (source, _) = NewMachine();
+        source.Db.UpsertHostsRedirect("router.example.com", "192.168.1.1");
+        source.Hosts.ReconcileRedirects(new[] { ("router.example.com", "192.168.1.1") });
+
+        var policy = PortablePolicy.FromJson(PolicyPortability.Export(source).ToJson());
+        policy.HostsRedirects.Should().ContainSingle(row =>
+            row.Domain == "router.example.com" && row.Ip == "192.168.1.1");
+
+        var (target, _) = NewMachine();
+        PolicyPortability.Import(target, policy);
+        target.Db.GetHostsRedirects().Should().ContainSingle(row => row.Domain == "router.example.com");
+        File.ReadAllText(target.Hosts.HostsPath).Should().Contain(
+            $"192.168.1.1 router.example.com {HostsEngine.ManagedRedirectMarker}");
+
+        target.Db.UpsertHostsRedirect("stale.example.com", "10.0.0.2");
+        target.Hosts.ReconcileRedirects(target.Db.GetHostsRedirects().Select(row => (row.Domain, row.Ip)));
+        PolicyPortability.Restore(target, policy);
+        target.Db.GetHostsRedirects().Should().ContainSingle(row => row.Domain == "router.example.com");
+        File.ReadAllText(target.Hosts.HostsPath).Should().NotContain("stale.example.com");
+    }
+
     private static Grpc.Core.ServerCallContext TestContext() => null!;
 
     public void Dispose()

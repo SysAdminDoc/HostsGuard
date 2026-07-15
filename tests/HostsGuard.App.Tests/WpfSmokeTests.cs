@@ -447,6 +447,18 @@ public sealed class WpfSmokeTests
                 var localSummary = (TextBlock)window.FindName("LocalBlocklistPreviewSummary");
                 BindingOperations.GetBinding(localSummary, TextBlock.TextProperty)?.Path.Path
                     .Should().Be(nameof(BlocklistsViewModel.LocalPreviewSummary));
+                var redirectDomain = (TextBox)window.FindName("RedirectDomainInput");
+                BindingOperations.GetBinding(redirectDomain, TextBox.TextProperty)?.Path.Path
+                    .Should().Be(nameof(HostsViewModel.NewRedirectDomain));
+                var redirectIp = (TextBox)window.FindName("RedirectIpInput");
+                BindingOperations.GetBinding(redirectIp, TextBox.TextProperty)?.Path.Path
+                    .Should().Be(nameof(HostsViewModel.NewRedirectIp));
+                var pinRedirect = (Button)window.FindName("PinRedirectButton");
+                BindingOperations.GetBinding(pinRedirect, Button.CommandProperty)?.Path.Path
+                    .Should().Be("PinRedirectCommand");
+                var redirectsGrid = (DataGrid)window.FindName("HostsRedirectsGrid");
+                BindingOperations.GetBinding(redirectsGrid, ItemsControl.ItemsSourceProperty)?.Path.Path
+                    .Should().Be(nameof(HostsViewModel.Redirects));
 
                 var trayProfiles = (MenuItem)window.FindName("TrayProfiles");
                 vm.Tools.Profiles.Add("Home");

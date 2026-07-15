@@ -25,6 +25,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return GuardHostsWrite(() =>
         {
             var wrote = _state.Hosts.Block(d);
+            _state.Db.RemoveHostsRedirect(d);
             _state.Db.AddDomain(d, "blocked", string.IsNullOrEmpty(request.Source) ? "manual" : request.Source, reason: request.Reason);
             _state.Db.SetCategoryIfEmpty(d, DomainCategories.Lookup(d)); // curated defaults — no AI needed
             _state.Db.LogEvent(d, "blocked", details: "hosts file", reason: request.Reason);
@@ -133,6 +134,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         return GuardHostsWrite(() =>
         {
             _state.Hosts.Block(root);
+            _state.Db.RemoveHostsRedirect(root);
             _state.Db.AddDomain(root, "blocked", source, reason: request.Reason);
             _state.Db.SetCategoryIfEmpty(root, DomainCategories.Lookup(root));
             return Ok($"blocked root {root}");
@@ -182,6 +184,7 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         _state.Db.AddDomainsBulk(valid.Select(d => (d, "blocked", source)));
         foreach (var d in valid)
         {
+            _state.Db.RemoveHostsRedirect(d);
             _state.Db.SetCategoryIfEmpty(d, DomainCategories.Lookup(d));
         }
 
@@ -291,6 +294,78 @@ public sealed class HostsControlServiceImpl : HostsControl.HostsControlBase
         }
 
         return Task.FromResult(list);
+    }
+
+    public override Task<RedirectList> ListRedirects(Empty request, ServerCallContext context)
+    {
+        var list = new RedirectList();
+        foreach (var row in _state.Db.GetHostsRedirects())
+        {
+            var item = new ManagedRedirect { Domain = row.Domain, Ip = row.Ip };
+            if (DateTime.TryParse(row.Created, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var created))
+            {
+                item.Created = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(created.ToUniversalTime());
+            }
+
+            if (DateTime.TryParse(row.Modified, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var modified))
+            {
+                item.Modified = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(modified.ToUniversalTime());
+            }
+
+            list.Redirects.Add(item);
+        }
+
+        return Task.FromResult(list);
+    }
+
+    public override Task<Ack> PinRedirect(RedirectRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        if (!HostRedirect.TryNormalize(request.Domain, request.Ip, out var domain, out var ip, out var error))
+        {
+            return Task.FromResult(Error("invalid_redirect", error));
+        }
+
+        return GuardHostsWrite(() =>
+        {
+            var changed = _state.Hosts.PinRedirect(domain, ip);
+            _state.Db.RemoveDomain(domain);
+            _state.Db.UpsertHostsRedirect(domain, ip);
+            _state.Db.LogEvent(domain, "redirect_pinned", details: ip, reason: "manual");
+            return Ok(changed ? $"pinned {domain} to {ip}" : $"{domain} is already pinned to {ip}");
+        });
+    }
+
+    public override Task<Ack> RemoveRedirect(DomainRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked("HostsControl") is { } gate)
+        {
+            return Task.FromResult(gate);
+        }
+
+        var domain = Domains.ToAscii(request.Domain);
+        if (!Domains.LooksLikeDomain(domain))
+        {
+            return Task.FromResult(Error("invalid_domain", $"'{request.Domain}' is not a valid domain"));
+        }
+
+        return GuardHostsWrite(() =>
+        {
+            var changed = _state.Hosts.RemoveRedirect(domain);
+            var removed = _state.Db.RemoveHostsRedirect(domain);
+            if (changed || removed)
+            {
+                _state.Db.LogEvent(domain, "redirect_removed", reason: "manual");
+            }
+
+            return Ok(changed || removed ? $"removed pin for {domain}" : $"{domain} has no managed pin");
+        });
     }
 
     public override Task<Ack> Reconcile(ReconcileRequest request, ServerCallContext context)

@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.136] - 2026-07-14
+
+### Added
+- The Hosts File workspace now has a Local redirects page for pinning a domain
+  to a unicast IPv4/IPv6 address, reviewing managed pins, and removing them.
+- Intentional pins persist in their own schema, round-trip through portable
+  policy, and carry an exact HostsGuard marker in the Windows hosts file.
+
+### Changed
+- Hosts-file adoption exempts only the persisted domain/address pair from
+  redirect-tamper alerts, restores a drifted managed pin, and continues to flag
+  untracked or address-changed redirects. Blocking a pinned domain removes the
+  pin so block and redirect intent cannot conflict.
+
 ## [0.12.135] - 2026-07-14
 
 ### Added

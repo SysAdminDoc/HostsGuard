@@ -37,6 +37,24 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Hosts_redirects_upsert_replace_and_remove()
+    {
+        using var db = new HostsDatabase(DbPath("redirects.db"));
+        db.UpsertHostsRedirect("one.example.com", "10.0.0.1");
+        db.UpsertHostsRedirect("one.example.com", "10.0.0.2");
+
+        db.GetHostsRedirects().Should().ContainSingle()
+            .Which.Should().Match<HostsRedirectRow>(row =>
+                row.Domain == "one.example.com" && row.Ip == "10.0.0.2" && row.Created.Length != 0);
+
+        db.ReplaceHostsRedirects(new[] { ("two.example.com", "2001:db8::2") });
+        db.GetHostsRedirects().Should().ContainSingle(row =>
+            row.Domain == "two.example.com" && row.Ip == "2001:db8::2");
+        db.RemoveHostsRedirect("two.example.com").Should().BeTrue();
+        db.GetHostsRedirects().Should().BeEmpty();
+    }
+
+    [Fact]
     public void Hourly_rollup_buckets_by_hour_and_zero_fills_the_window()
     {
         using var db = new HostsDatabase(DbPath("hourly.db"));
