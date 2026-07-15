@@ -2201,61 +2201,109 @@
 
                         <!-- Per-app activity timeline (new connections per minute) -->
                         <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
-                            <StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{svc:Loc Key=Xaml_Per_app_activity_217dcab5}"
-                                               FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,12,0" />
-                                    <TextBlock Grid.Column="1" Text="{Binding TimelineStatus}"
-                                               Style="{StaticResource Hg.DimText}" TextWrapping="Wrap"
-                                               TextAlignment="Right" />
-                                </Grid>
-                                <Grid Height="86" Margin="0,6,0,0" ClipToBounds="True">
-                                    <ItemsControl ItemsSource="{Binding Timeline}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{svc:Loc Key=Xaml_Per_app_activity_217dcab5}"
+                                                   FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Column="1" Text="{Binding TimelineStatus}"
+                                                   Style="{StaticResource Hg.DimText}" TextWrapping="Wrap"
+                                                   TextAlignment="Right" />
+                                    </Grid>
+                                    <Grid Height="86" Margin="0,6,0,0" ClipToBounds="True">
+                                        <ItemsControl ItemsSource="{Binding Timeline}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <Grid />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Viewbox Stretch="Fill">
+                                                        <Canvas Width="600" Height="100">
+                                                            <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
+                                                                      Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                                      StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
+                                                                      StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                                        </Canvas>
+                                                    </Viewbox>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding Timeline}" Margin="0,4,0,0">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Grid />
+                                                <WrapPanel Orientation="Horizontal" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Viewbox Stretch="Fill">
-                                                    <Canvas Width="600" Height="100">
-                                                        <Polyline Points="{Binding PointsText, Converter={StaticResource PointsConverter}}"
-                                                                  Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
-                                                                  StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
-                                                                  StrokeThickness="1.6" StrokeLineJoin="Round" />
-                                                    </Canvas>
-                                                </Viewbox>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
+                                                    <Line X1="0" X2="12" Y1="2" Y2="2" VerticalAlignment="Center" Margin="0,0,5,0"
+                                                          Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
+                                                          StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
+                                                          StrokeThickness="3" />
+                                                    <TextBlock Text="{Binding Name}"
+                                                               ToolTip="{Binding Name}"
+                                                               Style="{StaticResource Hg.DimText}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                </Grid>
-                                <ItemsControl ItemsSource="{Binding Timeline}" Margin="0,4,0,0">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,14,0">
-                                                <Line X1="0" X2="12" Y1="2" Y2="2" VerticalAlignment="Center" Margin="0,0,5,0"
-                                                      Stroke="{Binding ColorIndex, Converter={StaticResource SeriesBrush}}"
-                                                      StrokeDashArray="{Binding ColorIndex, Converter={StaticResource SeriesDash}}"
-                                                      StrokeThickness="3" />
-                                                <TextBlock Text="{Binding Name}"
-                                                           ToolTip="{Binding Name}"
-                                                           Style="{StaticResource Hg.DimText}"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                </StackPanel>
+
+                                <Border Grid.Column="1" BorderBrush="{DynamicResource Hg.S0}" BorderThickness="1,0,0,0" Padding="12,0,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{svc:Loc Key=QuicPosture_Title, Default=QUIC / HTTP-3 by process}"
+                                                   FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        <TextBlock Text="{svc:Loc Key=QuicPosture_Description, Default=Observed outbound UDP/443 connections. Steering blocks QUIC only for the selected executable; TCP remains available.}"
+                                                   Style="{StaticResource Hg.DimText}" TextWrapping="Wrap" Margin="0,2,0,4" />
+                                        <Grid>
+                                            <DataGrid ItemsSource="{Binding QuicProcesses}" MaxHeight="120" IsReadOnly="True"
+                                                      AutomationProperties.Name="{svc:Loc Key=QuicPosture_TableName, Default=Processes using QUIC or HTTP-3}">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="*">
+                                                        <DataGridTextColumn.ElementStyle>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="ToolTip" Value="{Binding ProgramPathText}" />
+                                                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                                            </Style>
+                                                        </DataGridTextColumn.ElementStyle>
+                                                    </DataGridTextColumn>
+                                                    <DataGridTextColumn Header="{svc:Loc Key=QuicPosture_Connections, Default=Flows}" Binding="{Binding ConnectionCount}" Width="60" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=QuicPosture_Endpoints, Default=Dest.}" Binding="{Binding EndpointCount}" Width="55" />
+                                                    <DataGridTemplateColumn Header="{svc:Loc Key=QuicPosture_ActionHeader, Default=Action}" Width="112">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Button Content="{Binding SteerActionText}" Padding="7,2"
+                                                                        Command="{Binding DataContext.BlockQuicForProcessCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        IsEnabled="{Binding CanSteer}"
+                                                                        AutomationProperties.Name="{svc:Loc Key=QuicPosture_SteerName, Default=Block QUIC for this process}"
+                                                                        ToolTip="{svc:Loc Key=QuicPosture_SteerTip, Default=Create an outbound UDP/443 block for this executable without changing the global posture}" />
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                            <TextBlock Text="{svc:Loc Key=QuicPosture_Empty, Default=No outbound UDP/443 process observations in this session.}"
+                                                       Style="{StaticResource Hg.EmptyText}" TextWrapping="Wrap"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Center" Margin="12"
+                                                       Visibility="{Binding QuicProcesses.Count, Converter={StaticResource EmptyStateVis}}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Border>
 
                         <!-- Recent consent decisions with re-decide (WFCP-021) + learning review (NET-074) -->

@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.145] - 2026-07-14
+
+### Added
+- FW Activity now rolls up observed outbound UDP/443 connections by executable,
+  including connection and distinct-endpoint counts plus explicit unavailable
+  path state.
+- A one-click per-app action creates a deterministic `HG_QuicSteer_*` outbound
+  UDP/443 block, restores its managed state after reconnect, and round-trips it
+  through portable policy without changing the global QUIC posture.
+
+### Changed
+- The deterministic WPF fixture and localization/accessibility gates now cover
+  the QUIC/HTTP-3 reporter and its TCP-steering action in English, German,
+  Spanish, and French.
+
 ## [0.12.144] - 2026-07-14
 
 ### Added

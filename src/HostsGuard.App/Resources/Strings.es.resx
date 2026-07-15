@@ -747,4 +747,19 @@
   <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Direcciones</value></data>
   <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Referencia</value></data>
   <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Detalle</value></data>
+  <data name="QuicPosture_Title" xml:space="preserve"><value>QUIC / HTTP-3 por proceso</value></data>
+  <data name="QuicPosture_Description" xml:space="preserve"><value>Conexiones UDP/443 salientes observadas. La redirección bloquea QUIC solo para el ejecutable seleccionado; TCP sigue disponible.</value></data>
+  <data name="QuicPosture_TableName" xml:space="preserve"><value>Procesos que usan QUIC o HTTP-3</value></data>
+  <data name="QuicPosture_Connections" xml:space="preserve"><value>Flujos</value></data>
+  <data name="QuicPosture_Endpoints" xml:space="preserve"><value>Sitios</value></data>
+  <data name="QuicPosture_ActionHeader" xml:space="preserve"><value>Acción</value></data>
+  <data name="QuicPosture_SteerName" xml:space="preserve"><value>Bloquear QUIC para este proceso</value></data>
+  <data name="QuicPosture_SteerTip" xml:space="preserve"><value>Crear un bloqueo UDP/443 saliente para este ejecutable sin cambiar la postura global</value></data>
+  <data name="QuicPosture_Empty" xml:space="preserve"><value>No se observaron procesos con UDP/443 saliente en esta sesión.</value></data>
+  <data name="QuicPosture_PathUnavailable" xml:space="preserve"><value>Ruta del programa no disponible</value></data>
+  <data name="QuicPosture_Steered" xml:space="preserve"><value>Redirigido</value></data>
+  <data name="QuicPosture_Steer" xml:space="preserve"><value>Redirigir a TCP</value></data>
+  <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Selecciona primero un proceso QUIC</value></data>
+  <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>No se puede resolver la ruta del ejecutable para {0}</value></data>
+  <data name="QuicPosture_Action" xml:space="preserve"><value>Redirigir aplicación QUIC a TCP</value></data>
 </root>

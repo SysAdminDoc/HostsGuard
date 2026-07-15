@@ -746,4 +746,19 @@
   <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Adresses</value></data>
   <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Référence</value></data>
   <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Détail</value></data>
+  <data name="QuicPosture_Title" xml:space="preserve"><value>QUIC / HTTP-3 par processus</value></data>
+  <data name="QuicPosture_Description" xml:space="preserve"><value>Connexions UDP/443 sortantes observées. Le basculement bloque QUIC uniquement pour l’exécutable sélectionné ; TCP reste disponible.</value></data>
+  <data name="QuicPosture_TableName" xml:space="preserve"><value>Processus utilisant QUIC ou HTTP-3</value></data>
+  <data name="QuicPosture_Connections" xml:space="preserve"><value>Flux</value></data>
+  <data name="QuicPosture_Endpoints" xml:space="preserve"><value>Cibles</value></data>
+  <data name="QuicPosture_ActionHeader" xml:space="preserve"><value>Action</value></data>
+  <data name="QuicPosture_SteerName" xml:space="preserve"><value>Bloquer QUIC pour ce processus</value></data>
+  <data name="QuicPosture_SteerTip" xml:space="preserve"><value>Créer un blocage UDP/443 sortant pour cet exécutable sans modifier la posture globale</value></data>
+  <data name="QuicPosture_Empty" xml:space="preserve"><value>Aucun processus UDP/443 sortant observé pendant cette session.</value></data>
+  <data name="QuicPosture_PathUnavailable" xml:space="preserve"><value>Chemin du programme indisponible</value></data>
+  <data name="QuicPosture_Steered" xml:space="preserve"><value>Basculé</value></data>
+  <data name="QuicPosture_Steer" xml:space="preserve"><value>Basculer vers TCP</value></data>
+  <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Sélectionnez d’abord un processus QUIC</value></data>
+  <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Impossible de déterminer le chemin de l’exécutable pour {0}</value></data>
+  <data name="QuicPosture_Action" xml:space="preserve"><value>Basculer l’application QUIC vers TCP</value></data>
 </root>

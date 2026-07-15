@@ -74,7 +74,7 @@ public static class RpcMutationPolicy
             "ListDomainFirewallRules", "GetFlowTeardown", "GetLanAttackSurface", "GetKillSwitch",
             "GetAppVpnBindings");
         Add(policies, "FirewallControl", RpcMutationKind.ProtectiveMutation,
-            "BlockIp", "BlockProgram", "BlockEncryptedDns", "BlockQuic", "BlockAppScope",
+            "BlockIp", "BlockProgram", "BlockEncryptedDns", "BlockQuic", "BlockQuicForProgram", "BlockAppScope",
             "CreateDomainFirewallRule", "RefreshDomainFirewallRules", "CloseConnection");
         Add(policies, "FirewallControl", RpcMutationKind.LockProtectedMutation,
             "AdoptFirewallRules", "AssignRuleGroup", "ToggleRuleGroup", "CreateRule", "DeleteRule",

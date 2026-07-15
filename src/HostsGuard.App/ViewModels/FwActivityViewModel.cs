@@ -23,6 +23,7 @@ namespace HostsGuard.App.ViewModels;
 public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 {
     private const int MaxRows = 2000;
+    private const int MaxQuicProcesses = 100;
 
     // Timeline geometry + window (canvas coordinates are normalized by a Viewbox).
     public const int TimelineMinutes = 30;
@@ -42,6 +43,9 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     private bool _suppressPostureWrite;
     private bool _suppressModeWrite;
     private bool _liveStatusOwnsText = true;
+    private readonly Dictionary<string, HashSet<string>> _quicEndpoints = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, QuicProcessRowViewModel> _quicProcessByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _quicSteeredPrograms = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private string _filter = string.Empty;
@@ -106,6 +110,8 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
     }
 
     public ObservableCollection<ConnectionRowViewModel> Rows { get; } = new();
+
+    public ObservableCollection<QuicProcessRowViewModel> QuicProcesses { get; } = new();
 
     public ObservableCollection<TimelineSeriesViewModel> Timeline { get; } = new();
 
@@ -436,6 +442,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         var cts = new CancellationTokenSource();
         _watchCts = cts;
+        _ = RefreshQuicSteerStateAsync(cts.Token);
         _ = IntegrityLoopAsync(cts.Token);
         _ = WatchLoopAsync(cts);
     }
@@ -579,6 +586,7 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
 
         Rows.Insert(0, row);
         _rowByKey[key] = row;
+        RecordQuicObservation(row, ResolveProgramPath(row.Pid));
         if (ResolveIps && row.Host.Length == 0)
         {
             _ = ResolvePendingHostsAsync();
@@ -594,6 +602,105 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
             ? I18n.T("FwActivity_ConnectionCount", "{0} connection", Rows.Count)
             : I18n.T("FwActivity_ConnectionCountPlural", "{0} connections", Rows.Count));
         RecordConnectionEvent(DateTime.Now, ev.Process);
+    }
+
+    /// <summary>
+    /// Record one newly observed UDP/443 connection tuple. The optional path is
+    /// resolved by the live stream and injectable for deterministic tests.
+    /// </summary>
+    public void RecordQuicObservation(ConnectionRowViewModel row, string programPath = "")
+    {
+        ArgumentNullException.ThrowIfNull(row);
+        if (!row.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase) || row.RemotePort != 443)
+        {
+            return;
+        }
+
+        var path = programPath.Trim();
+        var process = string.IsNullOrWhiteSpace(row.Process)
+            ? I18n.T("Common_UnknownParenthesized", "(unknown)")
+            : row.Process.Trim();
+        var key = path.Length != 0 ? path : $"{process}|{row.Pid}";
+        if (!_quicProcessByKey.TryGetValue(key, out var rollup))
+        {
+            rollup = new QuicProcessRowViewModel
+            {
+                Process = process,
+                ProgramPath = path,
+                Pid = row.Pid,
+                IsSteered = path.Length != 0 && _quicSteeredPrograms.Contains(path),
+            };
+            _quicProcessByKey[key] = rollup;
+            _quicEndpoints[key] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            QuicProcesses.Add(rollup);
+        }
+
+        rollup.ConnectionCount++;
+        rollup.Pid = row.Pid;
+        rollup.LastEndpoint = FormatEndpoint(row.RemoteAddr, row.RemotePort);
+        _quicEndpoints[key].Add(rollup.LastEndpoint);
+        rollup.EndpointCount = _quicEndpoints[key].Count;
+        ReorderQuicProcess(rollup);
+
+        while (QuicProcesses.Count > MaxQuicProcesses)
+        {
+            var removed = QuicProcesses[^1];
+            QuicProcesses.RemoveAt(QuicProcesses.Count - 1);
+            var removedKey = _quicProcessByKey.First(pair => ReferenceEquals(pair.Value, removed)).Key;
+            _quicProcessByKey.Remove(removedKey);
+            _quicEndpoints.Remove(removedKey);
+        }
+    }
+
+    private static string FormatEndpoint(string address, int port)
+        => address.Contains(':', StringComparison.Ordinal) ? $"[{address}]:{port}" : $"{address}:{port}";
+
+    private void ReorderQuicProcess(QuicProcessRowViewModel row)
+    {
+        QuicProcesses.Remove(row);
+        var index = 0;
+        while (index < QuicProcesses.Count &&
+               (QuicProcesses[index].ConnectionCount > row.ConnectionCount ||
+                (QuicProcesses[index].ConnectionCount == row.ConnectionCount &&
+                 string.Compare(QuicProcesses[index].Process, row.Process, StringComparison.OrdinalIgnoreCase) <= 0)))
+        {
+            index++;
+        }
+
+        QuicProcesses.Insert(index, row);
+    }
+
+    private async Task RefreshQuicSteerStateAsync(CancellationToken ct)
+    {
+        try
+        {
+            var rules = await _client.Firewall.ListRulesAsync(new Empty(), cancellationToken: ct);
+            var paths = rules.Rules
+                .Where(static rule => rule.Enabled &&
+                    rule.Name.StartsWith("HG_QuicSteer_", StringComparison.Ordinal) &&
+                    rule.Protocol.Equals("UDP", StringComparison.OrdinalIgnoreCase) &&
+                    rule.RemotePorts.Equals("443", StringComparison.Ordinal))
+                .Select(static rule => rule.Program)
+                .Where(static path => path.Length != 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            OnUi(() =>
+            {
+                _quicSteeredPrograms.Clear();
+                _quicSteeredPrograms.UnionWith(paths);
+                foreach (var row in QuicProcesses)
+                {
+                    row.IsSteered = row.ProgramPath.Length != 0 && _quicSteeredPrograms.Contains(row.ProgramPath);
+                }
+            });
+        }
+        catch (Exception ex) when (WatchRetry.IsStreamFailure(ex))
+        {
+            // The live stream owns connectivity messaging; keep observed rows.
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Normal shutdown while the initial posture read is in flight.
+        }
     }
 
     // ─── Per-app activity timeline ────────────────────────────────────────────
@@ -785,6 +892,38 @@ public sealed partial class FwActivityViewModel : ObservableObject, IDisposable
         await RunServiceActionAsync(I18n.T("FwActivity_ActionBlockProcess", "Block process"), async () =>
         {
             var ack = await _client.Firewall.BlockProgramAsync(new FirewallProgramRequest { ProgramPath = path, Direction = "Outbound" });
+            SetOperatorStatus(ack.Message);
+        });
+    }
+
+    [RelayCommand]
+    public async Task BlockQuicForProcessAsync(QuicProcessRowViewModel? row)
+    {
+        if (row is null)
+        {
+            SetOperatorStatus(I18n.T("QuicPosture_SelectProcess", "Select a QUIC process first"));
+            return;
+        }
+
+        if (row.ProgramPath.Length == 0)
+        {
+            SetOperatorStatus(I18n.T("QuicPosture_CannotResolveProgram", "Cannot resolve the executable path for {0}", row.Process));
+            return;
+        }
+
+        await RunServiceActionAsync(I18n.T("QuicPosture_Action", "Steer QUIC app to TCP"), async () =>
+        {
+            var ack = await _client.Firewall.BlockQuicForProgramAsync(new FirewallProgramRequest
+            {
+                ProgramPath = row.ProgramPath,
+                Direction = "Outbound",
+            });
+            if (ack.Ok)
+            {
+                _quicSteeredPrograms.Add(row.ProgramPath);
+                row.IsSteered = true;
+            }
+
             SetOperatorStatus(ack.Message);
         });
     }

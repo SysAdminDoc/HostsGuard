@@ -2069,4 +2069,19 @@
   <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Addresses</value></data>
   <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Baseline</value></data>
   <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Detail</value></data>
+  <data name="QuicPosture_Title" xml:space="preserve"><value>QUIC / HTTP-3 by process</value></data>
+  <data name="QuicPosture_Description" xml:space="preserve"><value>Observed outbound UDP/443 connections. Steering blocks QUIC only for the selected executable; TCP remains available.</value></data>
+  <data name="QuicPosture_TableName" xml:space="preserve"><value>Processes using QUIC or HTTP-3</value></data>
+  <data name="QuicPosture_Connections" xml:space="preserve"><value>Flows</value></data>
+  <data name="QuicPosture_Endpoints" xml:space="preserve"><value>Dest.</value></data>
+  <data name="QuicPosture_ActionHeader" xml:space="preserve"><value>Action</value></data>
+  <data name="QuicPosture_SteerName" xml:space="preserve"><value>Block QUIC for this process</value></data>
+  <data name="QuicPosture_SteerTip" xml:space="preserve"><value>Create an outbound UDP/443 block for this executable without changing the global posture</value></data>
+  <data name="QuicPosture_Empty" xml:space="preserve"><value>No outbound UDP/443 process observations in this session.</value></data>
+  <data name="QuicPosture_PathUnavailable" xml:space="preserve"><value>Program path unavailable</value></data>
+  <data name="QuicPosture_Steered" xml:space="preserve"><value>Steered</value></data>
+  <data name="QuicPosture_Steer" xml:space="preserve"><value>Steer to TCP</value></data>
+  <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Select a QUIC process first</value></data>
+  <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Cannot resolve the executable path for {0}</value></data>
+  <data name="QuicPosture_Action" xml:space="preserve"><value>Steer QUIC app to TCP</value></data>
 </root>

@@ -746,4 +746,19 @@
   <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Adressen</value></data>
   <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Basis</value></data>
   <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Details</value></data>
+  <data name="QuicPosture_Title" xml:space="preserve"><value>QUIC / HTTP-3 nach Prozess</value></data>
+  <data name="QuicPosture_Description" xml:space="preserve"><value>Beobachtete ausgehende UDP/443-Verbindungen. Die Umleitung blockiert QUIC nur für die ausgewählte ausführbare Datei; TCP bleibt verfügbar.</value></data>
+  <data name="QuicPosture_TableName" xml:space="preserve"><value>Prozesse mit QUIC oder HTTP-3</value></data>
+  <data name="QuicPosture_Connections" xml:space="preserve"><value>Anzahl</value></data>
+  <data name="QuicPosture_Endpoints" xml:space="preserve"><value>Ziele</value></data>
+  <data name="QuicPosture_ActionHeader" xml:space="preserve"><value>Aktion</value></data>
+  <data name="QuicPosture_SteerName" xml:space="preserve"><value>QUIC für diesen Prozess blockieren</value></data>
+  <data name="QuicPosture_SteerTip" xml:space="preserve"><value>Eine ausgehende UDP/443-Sperre für diese ausführbare Datei erstellen, ohne die globale Haltung zu ändern</value></data>
+  <data name="QuicPosture_Empty" xml:space="preserve"><value>In dieser Sitzung wurden keine ausgehenden UDP/443-Prozesse beobachtet.</value></data>
+  <data name="QuicPosture_PathUnavailable" xml:space="preserve"><value>Programmpfad nicht verfügbar</value></data>
+  <data name="QuicPosture_Steered" xml:space="preserve"><value>Umgeleitet</value></data>
+  <data name="QuicPosture_Steer" xml:space="preserve"><value>Zu TCP umleiten</value></data>
+  <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Zuerst einen QUIC-Prozess auswählen</value></data>
+  <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Der Pfad der ausführbaren Datei für {0} kann nicht ermittelt werden</value></data>
+  <data name="QuicPosture_Action" xml:space="preserve"><value>QUIC-App zu TCP umleiten</value></data>
 </root>

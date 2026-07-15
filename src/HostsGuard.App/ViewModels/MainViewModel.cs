@@ -430,6 +430,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Country = "US",
             FwStatus = "Monitored",
         });
+        FwActivity.RecordQuicObservation(new ConnectionRowViewModel
+        {
+            Protocol = "UDP",
+            RemoteAddr = "203.0.113.44",
+            RemotePort = 443,
+            Process = "browser.exe",
+            Pid = 4711,
+        }, @"C:\Program Files\Browser\browser.exe");
+        FwActivity.RecordQuicObservation(new ConnectionRowViewModel
+        {
+            Protocol = "UDP",
+            RemoteAddr = "198.51.100.88",
+            RemotePort = 443,
+            Process = "sync.exe",
+            Pid = 2810,
+        }, @"C:\Program Files\Sync\sync.exe");
+        FwActivity.QuicProcesses.Single(row => row.Process == "sync.exe").IsSteered = true;
         FwActivity.StatusText = "2 deterministic live connections";
         FwActivity.IntegrityStatusText = "Evidence is incomplete — Security log degraded since 14:00 (lost 1, gaps 25, restarts 1): rollover detected";
 

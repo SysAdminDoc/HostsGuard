@@ -426,6 +426,44 @@ public sealed class FirewallControlServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Per_program_quic_steering_is_scoped_idempotent_and_tracked()
+    {
+        var program = Path.Combine(_dir, "browser.exe");
+        File.WriteAllText(program, "test");
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var fw = Client(channel);
+
+        var first = await fw.BlockQuicForProgramAsync(new FirewallProgramRequest
+        {
+            ProgramPath = program,
+            Direction = "Outbound",
+        });
+        var second = await fw.BlockQuicForProgramAsync(new FirewallProgramRequest
+        {
+            ProgramPath = program,
+            Direction = "Inbound",
+        });
+
+        first.Ok.Should().BeTrue();
+        second.Ok.Should().BeTrue();
+        var match = _fw.Rules.Should().ContainSingle(pair =>
+            pair.Key.StartsWith("HG_QuicSteer_browser_", StringComparison.Ordinal)).Which;
+        match.Value.Direction.Should().Be("Out");
+        match.Value.Action.Should().Be("Block");
+        match.Value.Protocol.Should().Be("UDP");
+        match.Value.RemotePorts.Should().Be("443");
+        match.Value.Program.Should().Be(Path.GetFullPath(program));
+        _fw.Rules.Should().NotContainKey(FirewallControlServiceImpl.QuicRuleName,
+            "per-program steering must not change the global QUIC posture");
+        _state.Db.GetFwStateNames().Should().Contain(match.Key);
+        _state.Identity!.Get(match.Key).Should().Contain(item => item.Path == Path.GetFullPath(program));
+        _state.Db.GetEvents(new EventLogFilter(Action: EventTaxonomy.FwQuicSteerBlocked)).Rows
+            .Should().ContainSingle(item => item.Domain == Path.GetFullPath(program) && item.MatchedSource == match.Key);
+        (await fw.BlockQuicForProgramAsync(new FirewallProgramRequest { ProgramPath = "browser.exe" }))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_program");
+    }
+
+    [Fact]
     public async Task Close_connection_terminates_ipv4_tcp_tuple_and_logs()
     {
         using var channel = NamedPipeChannel.Create(_token, _pipe);

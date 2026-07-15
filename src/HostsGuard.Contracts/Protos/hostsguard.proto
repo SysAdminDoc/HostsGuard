@@ -845,6 +845,9 @@ service FirewallControl {
   rpc ToggleRuleGroup(RuleGroupToggle) returns (Ack);
   rpc BlockIp(FirewallIpRequest) returns (Ack);
   rpc BlockProgram(FirewallProgramRequest) returns (Ack);
+  // Opt-in per-program QUIC steering: block outbound UDP/443 for one binary
+  // without changing the machine-wide QUIC posture.
+  rpc BlockQuicForProgram(FirewallProgramRequest) returns (Ack);
   rpc CreateRule(FirewallRule) returns (Ack);
   rpc DeleteRule(RuleNameRequest) returns (Ack);
   // Rule/hosts/posture explainer (NET-140): simulate the ordered local

@@ -74,6 +74,7 @@ public class SchemaLockTests
           BlockIp(FirewallIpRequest) returns (Ack)
           BlockProgram(FirewallProgramRequest) returns (Ack)
           BlockQuic(Empty) returns (Ack)
+          BlockQuicForProgram(FirewallProgramRequest) returns (Ack)
           CloseConnection(FlowCloseRequest) returns (Ack)
           CreateDomainFirewallRule(DomainFirewallRuleRequest) returns (Ack)
           CreateRule(FirewallRule) returns (Ack)

@@ -197,6 +197,65 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         return Task.FromResult(Ok((created ? $"created {name}" : $"{name} already exists") + suffix));
     }
 
+    public override Task<Ack> BlockQuicForProgram(FirewallProgramRequest request, ServerCallContext context)
+    {
+        if (_state.Firewall is not { } fw)
+        {
+            return Task.FromResult(Unavailable());
+        }
+
+        var path = (request.ProgramPath ?? string.Empty).Trim();
+        if (!TryNormalizeProgramPath(path, out var normalizedPath))
+        {
+            return Task.FromResult(Error("invalid_program", "program path is empty, relative, or invalid"));
+        }
+
+        var fileName = Path.GetFileNameWithoutExtension(normalizedPath);
+        var safeName = new string(fileName
+            .Where(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_')
+            .Take(40)
+            .ToArray());
+        if (safeName.Length == 0)
+        {
+            safeName = "App";
+        }
+
+        var identity = normalizedPath.ToUpperInvariant();
+        var suffix = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..12];
+        var name = $"{FwRuleMapper.HostsGuardPrefix}QuicSteer_{safeName}_{suffix}";
+        var rule = new FwRule(name, "Out", "Block", Enabled: true, "Any", "UDP", normalizedPath,
+            "hostsguard", RemotePorts: "443");
+        var created = fw.CreateRule(rule);
+        if (created)
+        {
+            _state.Db.UpsertFwState(name, "Out", "Block", "Any", "UDP", normalizedPath, "443");
+            _state.Identity?.Remember(name, normalizedPath);
+            _state.Db.LogEvent(normalizedPath, EventTaxonomy.FwQuicSteerBlocked, process: normalizedPath,
+                details: name, reason: "manual", matchedSource: name);
+        }
+
+        return Task.FromResult(Ok(created ? $"steering {fileName} to TCP" : $"{fileName} is already steered to TCP"));
+    }
+
+    private static bool TryNormalizeProgramPath(string path, out string normalizedPath)
+    {
+        normalizedPath = string.Empty;
+        if (path.Length == 0 || path.IndexOfAny(Path.GetInvalidPathChars()) >= 0 || !Path.IsPathFullyQualified(path))
+        {
+            return false;
+        }
+
+        try
+        {
+            normalizedPath = Path.GetFullPath(path);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+    }
+
     public override Task<Ack> CreateRule(FirewallRule request, ServerCallContext context)
     {
         if (_state.Firewall is not { } fw)

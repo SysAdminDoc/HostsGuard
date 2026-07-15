@@ -100,6 +100,11 @@ public sealed class PolicyPortabilityTests : IDisposable
             Protocol = "Any",
             Program = @"C:\evil\evil.exe",
         }, TestContext());
+        new FirewallControlServiceImpl(src).BlockQuicForProgram(new FirewallProgramRequest
+        {
+            ProgramPath = @"C:\Browser\browser.exe",
+            Direction = "Outbound",
+        }, TestContext());
         srcFw.Packages.Add(new FwAppPackage(
             "Contoso.Reader_123abc",
             "S-1-15-2-123",
@@ -153,6 +158,10 @@ public sealed class PolicyPortabilityTests : IDisposable
             r.PackageFamilyName == "Contoso.Reader_123abc" &&
             r.PackageSid == "S-1-15-2-123" &&
             r.PackageDisplayName == "Contoso Reader");
+        policy.FirewallRules.Should().ContainSingle(r =>
+            r.Name.StartsWith("HG_QuicSteer_browser_", StringComparison.Ordinal) &&
+            r.Direction == "Out" && r.Action == "Block" && r.Protocol == "UDP" &&
+            r.RemotePorts == "443" && r.Program == @"C:\Browser\browser.exe");
         policy.DomainFirewallRules.Should().ContainSingle(r => r.Domain == "api.example.com");
 
         // Import onto a fresh, empty machine.
@@ -168,6 +177,10 @@ public sealed class PolicyPortabilityTests : IDisposable
 
         dstFw.Rules.Should().ContainKey("HG_BlockApp_evil_Out");
         dstFw.Rules["HG_BlockApp_evil_Out"].Program.Should().Be(@"C:\evil\evil.exe");
+        dstFw.Rules.Values.Should().ContainSingle(r =>
+            r.Name.StartsWith("HG_QuicSteer_browser_", StringComparison.Ordinal) &&
+            r.Direction == "Out" && r.Action == "Block" && r.Protocol == "UDP" &&
+            r.RemotePorts == "443" && r.Program == @"C:\Browser\browser.exe");
         dstFw.Rules.Should().ContainKey("HG_Package_Block_Contoso_Reader_Out");
         dstFw.Rules["HG_Package_Block_Contoso_Reader_Out"].Program.Should().BeEmpty();
         dstFw.Rules["HG_Package_Block_Contoso_Reader_Out"].PackageSid.Should().Be("S-1-15-2-123");

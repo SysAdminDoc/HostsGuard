@@ -65,6 +65,45 @@ public sealed partial class ConnectionRowViewModel : ObservableObject
     public string Key => $"{Protocol}|{LocalAddr}:{LocalPort}|{RemoteAddr}:{RemotePort}|{Pid}";
 }
 
+/// <summary>Session rollup of observed outbound QUIC/HTTP-3 endpoints for one executable.</summary>
+public sealed partial class QuicProcessRowViewModel : ObservableObject
+{
+    [ObservableProperty]
+    private string _process = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgramPathText))]
+    [NotifyPropertyChangedFor(nameof(CanSteer))]
+    private string _programPath = string.Empty;
+
+    [ObservableProperty]
+    private int _pid;
+
+    [ObservableProperty]
+    private int _connectionCount;
+
+    [ObservableProperty]
+    private int _endpointCount;
+
+    [ObservableProperty]
+    private string _lastEndpoint = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSteer))]
+    [NotifyPropertyChangedFor(nameof(SteerActionText))]
+    private bool _isSteered;
+
+    public string ProgramPathText => ProgramPath.Length == 0
+        ? I18n.T("QuicPosture_PathUnavailable", "Program path unavailable")
+        : ProgramPath;
+
+    public bool CanSteer => ProgramPath.Length != 0 && !IsSteered;
+
+    public string SteerActionText => IsSteered
+        ? I18n.T("QuicPosture_Steered", "Steered")
+        : I18n.T("QuicPosture_Steer", "Steer to TCP");
+}
+
 /// <summary>A local listening endpoint and the effective firewall coverage observed for it.</summary>
 public sealed partial class ListenerExposureRowViewModel : ObservableObject
 {
