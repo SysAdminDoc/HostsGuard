@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -155,6 +156,32 @@ public sealed class PortablePolicy
             redirect.Ip = ip;
         }
 
+        if (policy.DnsPrivacy?.ResolverAdapters is { } resolverAdapters)
+        {
+            for (var index = 0; index < resolverAdapters.Count; index++)
+            {
+                var resolver = resolverAdapters[index]
+                    ?? throw new JsonException($"DnsPrivacy.ResolverAdapters[{index}] must not be null");
+                resolver.Adapter = (resolver.Adapter ?? string.Empty).Trim();
+                resolver.Servers ??= new();
+                var normalized = new List<string>();
+                foreach (var server in resolver.Servers)
+                {
+                    if (!IPAddress.TryParse(server?.Trim(), out var address))
+                    {
+                        throw new JsonException($"DnsPrivacy.ResolverAdapters[{index}].Servers contains a non-IP address");
+                    }
+
+                    if (!normalized.Contains(address.ToString(), StringComparer.OrdinalIgnoreCase))
+                    {
+                        normalized.Add(address.ToString());
+                    }
+                }
+
+                resolver.Servers = normalized;
+            }
+        }
+
         RejectDuplicateIdentities(policy);
         return policy;
     }
@@ -238,6 +265,12 @@ public sealed class PortablePolicy
         RejectDuplicates(policy.IpBlocklists, static row => row.Name, "IpBlocklists");
         RejectDuplicateStrings(policy.AllowlistSubs, "AllowlistSubs", StringComparer.Ordinal);
         RejectDuplicates(policy.AppVpnBindings, static row => row.Program, "AppVpnBindings");
+        if (policy.DnsPrivacy?.ResolverAdapters is { } resolverAdapters)
+        {
+            RejectDuplicates(resolverAdapters,
+                static row => $"{CleanIdentity(row.Adapter)}\u001f{row.IsVpn}",
+                "DnsPrivacy.ResolverAdapters");
+        }
         if (policy.UsageQuotas is { } quotas)
         {
             RejectDuplicates(quotas, static row => $"{CleanIdentity(row.Scope)}\u001f{CleanIdentity(row.Match)}", "UsageQuotas");
@@ -551,6 +584,13 @@ public sealed class PolicyDnsPrivacy
     public bool? SniCapture { get; set; }
 
     public PolicyDohState? DohIntelligence { get; set; }
+
+    /// <summary>
+    /// Per-adapter resolver intent. Null means a legacy document that did not
+    /// carry resolver state; an empty list is an explicit snapshot with no
+    /// eligible adapters. Adapter IDs are intentionally excluded as machine-local.
+    /// </summary>
+    public List<PolicyDnsResolver>? ResolverAdapters { get; set; }
 }
 
 public sealed class PolicyDohState
@@ -562,6 +602,16 @@ public sealed class PolicyDohState
     public string Sha256 { get; set; } = string.Empty;
 
     public List<string> Ips { get; set; } = new();
+}
+
+public sealed class PolicyDnsResolver
+{
+    public string Adapter { get; set; } = string.Empty;
+
+    public bool IsVpn { get; set; }
+
+    /// <summary>Empty restores DHCP; otherwise contains literal IPv4/IPv6 resolver addresses.</summary>
+    public List<string> Servers { get; set; } = new();
 }
 
 /// <summary>VPN-presence kill-switch policy. Prior engaged posture is machine-local and not portable.</summary>

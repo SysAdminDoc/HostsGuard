@@ -22,7 +22,7 @@ public sealed class PolicyPortabilityTests : IDisposable
     private readonly List<string> _dirs = new();
     private readonly List<ServiceState> _states = new();
 
-    private (ServiceState State, FakeFirewallEngine Fw) NewMachine()
+    private (ServiceState State, FakeFirewallEngine Fw) NewMachine(IDnsConfig? dns = null)
     {
         var dir = Path.Combine(Path.GetTempPath(), "hg_pol_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
@@ -34,6 +34,7 @@ public sealed class PolicyPortabilityTests : IDisposable
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(dir, "hostsguard.db")),
             firewall: fw,
+            dns: dns,
             dataDir: dir);
         _states.Add(state);
         return (state, fw);
@@ -544,6 +545,41 @@ public sealed class PolicyPortabilityTests : IDisposable
         var stored = dst.Db.GetNetworkProfiles().Should().ContainSingle().Which;
         NetworkProfileSelectorCodec.Decode(stored.Fingerprint, stored.Profile, stored.Label)
             .Should().Be(rule);
+    }
+
+    [Fact]
+    public void Per_adapter_resolver_and_doh_intent_round_trips_through_portable_policy()
+    {
+        var sourceDns = new FakeDnsConfig();
+        sourceDns.ResolverAdapters.Clear();
+        sourceDns.ResolverAdapters.AddRange(
+        [
+            new DnsAdapterState("ethernet-id", "Ethernet0", "Ethernet", true, false, false,
+                ["1.1.1.1", "1.0.0.1"], ["1.1.1.1", "1.0.0.1"]),
+            new DnsAdapterState("vpn-id", "Work VPN", "WireGuard tunnel", true, true, true,
+                [], ["10.0.0.53"]),
+        ]);
+        var (source, _) = NewMachine(sourceDns);
+
+        var policy = PortablePolicy.FromJson(PolicyPortability.Export(source).ToJson());
+
+        policy.DnsPrivacy!.ResolverAdapters.Should().BeEquivalentTo(
+        [
+            new PolicyDnsResolver { Adapter = "Ethernet0", IsVpn = false, Servers = ["1.1.1.1", "1.0.0.1"] },
+            new PolicyDnsResolver { Adapter = "Work VPN", IsVpn = true, Servers = [] },
+        ]);
+
+        var targetDns = new FakeDnsConfig();
+        var (target, _) = NewMachine(targetDns);
+        var summary = PolicyPortability.Import(target, policy);
+
+        targetDns.ResolverSets.Should().HaveCount(2);
+        targetDns.ResolverSets[0].Should().Equal("1.1.1.1", "1.0.0.1");
+        targetDns.ResolverAdapterSets[0].Should().Equal("ethernet-id");
+        targetDns.ResolverSets[1].Should().BeEmpty("the portable VPN snapshot restores DHCP");
+        targetDns.ResolverAdapterSets[1].Should().Equal("vpn-id");
+        summary.Should().Contain(line => line.Contains("2 applied, 0 unmatched", StringComparison.Ordinal));
+        summary.Should().Contain(line => line.Contains("2 DoH auto-upgraded", StringComparison.Ordinal));
     }
 
     [Fact]

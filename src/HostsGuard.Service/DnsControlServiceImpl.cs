@@ -245,7 +245,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         {
             change = dns.SetResolvers(servers, adapterIds);
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException or AggregateException)
         {
             _state.Db.LogEvent("dns", "resolver_apply_rollback",
                 details: $"{ex.GetType().Name}: {ex.Message}", reason: "transaction");
@@ -285,10 +285,42 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         var names = string.Join(", ", change.ChangedAdapters.Select(adapter => adapter.Name));
         var prior = string.Join("; ", change.Prior.Adapters.Select(adapter =>
             $"{adapter.Name}={(adapter.UsesDhcp ? "DHCP" : string.Join(",", adapter.ConfiguredResolvers))}"));
+        var dohSummary = FormatDohTemplateSummary(change.DohTemplates ?? []);
         _state.Db.LogEvent("dns", "resolver_switch",
             details: $"{(servers.Count == 0 ? "DHCP" : string.Join(",", servers))}; adapters={names}; prior={prior}; " +
-                     $"probe={probeHost} {probe.RoundTrip.TotalMilliseconds:F0}ms A={probe.Ipv4Count} AAAA={probe.Ipv6Count}");
-        return Ok($"DNS updated on {names}; {probeHost} A+AAAA probe passed in {probe.RoundTrip.TotalMilliseconds:F0} ms");
+                     $"probe={probeHost} {probe.RoundTrip.TotalMilliseconds:F0}ms A={probe.Ipv4Count} AAAA={probe.Ipv6Count}; {dohSummary.Log}");
+        return Ok($"DNS updated on {names}; {probeHost} A+AAAA probe passed in {probe.RoundTrip.TotalMilliseconds:F0} ms{dohSummary.Message}");
+    }
+
+    private static (string Message, string Log) FormatDohTemplateSummary(
+        IReadOnlyList<Windows.DnsDohTemplateStatus> statuses)
+    {
+        if (statuses.Count == 0)
+        {
+            return (string.Empty, "doh=dhcp_or_not_requested");
+        }
+
+        var encrypted = statuses.Where(status => status.Encrypted).Select(status => status.Server).ToArray();
+        var missing = statuses.Where(status => status.Detail == "template_missing").Select(status => status.Server).ToArray();
+        var unavailable = statuses.Where(status => status.Detail == "registration_unavailable").Select(status => status.Server).ToArray();
+        var parts = new List<string>();
+        if (encrypted.Length != 0)
+        {
+            parts.Add($"DoH auto-upgrade enabled for {string.Join(", ", encrypted)} (plaintext fallback allowed)");
+        }
+
+        if (missing.Length != 0)
+        {
+            parts.Add($"WARNING: no OS DoH template for {string.Join(", ", missing)}; Windows may use plaintext DNS");
+        }
+
+        if (unavailable.Length != 0)
+        {
+            parts.Add($"WARNING: DoH template registration unavailable for {string.Join(", ", unavailable)}; Windows may use plaintext DNS");
+        }
+
+        return ("; " + string.Join("; ", parts),
+            $"doh_encrypted={string.Join(',', encrypted)}; doh_missing={string.Join(',', missing)}; doh_unavailable={string.Join(',', unavailable)}");
     }
 
     private static ResolverHealthReport ToResolverHealthReport(

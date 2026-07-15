@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.142] - 2026-07-14
+
+### Added
+- Resolver switching now registers documented per-interface Windows DoH
+  properties for built-in or curated Cloudflare, Google, and Quad9 templates.
+- Successful resolver changes report encrypted auto-upgrade status; resolvers
+  without an OS template raise an explicit plaintext-fallback warning.
+
+### Changed
+- Exact resolver rollback now restores prior DoH properties as well as static
+  adapter values, and portable policy carries per-adapter DNS/DHCP intent.
+
 ## [0.12.141] - 2026-07-14
 
 ### Added

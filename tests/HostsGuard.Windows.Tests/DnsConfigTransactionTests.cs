@@ -62,6 +62,32 @@ public sealed class DnsConfigTransactionTests
     }
 
     [Fact]
+    public void SetResolvers_RegistersKnownDohTemplatesAndReportsMissingTemplates()
+    {
+        var adapters = new FakeAdapterSource(
+            Adapter("one", "One", NetworkInterfaceType.Ethernet, ["192.0.2.1"]));
+        var registry = new FakeRegistryStore();
+        var doh = new FakeDohTemplateManager();
+        var config = new DnsConfig(adapters, registry, dohTemplates: doh);
+
+        var change = config.SetResolvers(["1.1.1.1", "192.0.2.53"], ["one"]);
+
+        doh.ApplyCalls.Should().ContainSingle().Which.Servers.Should().Equal("1.1.1.1", "192.0.2.53");
+        change.DohTemplates.Should().Contain(status =>
+            status.Server == "1.1.1.1" && status.Encrypted &&
+            status.Template == "https://cloudflare-dns.com/dns-query");
+        change.DohTemplates.Should().Contain(status =>
+            status.Server == "192.0.2.53" && !status.Encrypted && status.Detail == "template_missing");
+    }
+
+    [Theory]
+    [InlineData("8.8.8.8", "https://dns.google/dns-query")]
+    [InlineData("2620:fe::fe", "https://dns.quad9.net/dns-query")]
+    [InlineData("2606:4700:4700::1111", "https://cloudflare-dns.com/dns-query")]
+    public void CuratedDohTemplates_CoverEveryShippedResolverFamily(string server, string template)
+        => DohTemplateCatalog.FindCurated(server).Should().Be(template);
+
+    [Fact]
     public void Legacy_all_adapter_overload_never_changes_vpn_implicitly()
     {
         var adapters = new FakeAdapterSource(
@@ -237,5 +263,24 @@ public sealed class DnsConfigTransactionTests
         }
 
         public void Delete(string adapterId) => _values.Remove(adapterId);
+    }
+
+    private sealed class FakeDohTemplateManager : IDohTemplateManager
+    {
+        public List<(string AdapterId, IReadOnlyList<string> Servers)> ApplyCalls { get; } = new();
+        public List<DnsDohAdapterSnapshot> Restores { get; } = new();
+
+        public DnsDohAdapterSnapshot Capture(string adapterId) => new(adapterId, true, []);
+
+        public IReadOnlyList<DnsDohTemplateStatus> Apply(string adapterId, IReadOnlyList<string> servers)
+        {
+            ApplyCalls.Add((adapterId, servers));
+            return servers.Select(server => DohTemplateCatalog.FindCurated(server) is { } template
+                ? new DnsDohTemplateStatus(server, template, true, true, "auto_upgrade_enabled")
+                : new DnsDohTemplateStatus(server, string.Empty, false, true, "template_missing"))
+                .ToArray();
+        }
+
+        public void Restore(DnsDohAdapterSnapshot snapshot) => Restores.Add(snapshot);
     }
 }

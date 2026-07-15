@@ -75,7 +75,11 @@ internal sealed class FakeDnsConfig : IDnsConfig
         ResolverSets.Add(servers);
         ResolverAdapterSets.Add(adapterIds);
         var selected = ResolverAdapters.Where(adapter => adapterIds.Contains(adapter.Id)).ToList();
-        return new DnsResolverChange(new DnsResolverSnapshot(selected), selected);
+        var templates = servers.Select(server => DohTemplateCatalog.FindCurated(server) is { } template
+            ? new DnsDohTemplateStatus(server, template, true, true, "auto_upgrade_enabled")
+            : new DnsDohTemplateStatus(server, string.Empty, false, true, "template_missing"))
+            .ToArray();
+        return new DnsResolverChange(new DnsResolverSnapshot(selected), selected, templates);
     }
 
     public void RestoreResolvers(DnsResolverSnapshot snapshot) => RestoredSnapshots.Add(snapshot);
@@ -172,10 +176,29 @@ public sealed class ToolsServiceTests : IAsyncLifetime
         _dns.ResolverSets.Should().ContainSingle().Which.Should().Equal("1.1.1.1", "1.0.0.1");
         _dns.ResolverAdapterSets.Should().ContainSingle().Which.Should().Equal("ethernet-id");
         ack.Message.Should().Contain("12 ms");
+        ack.Message.Should().Contain("DoH auto-upgrade enabled");
 
         var bad = new ResolverRequest();
         bad.Servers.Add("dns.example.com");
         (await dns.SetResolverAsync(bad)).ErrorCode.Should().Be("hostsguard.error.v1/invalid_resolver");
+    }
+
+    [Fact]
+    public async Task Resolver_switch_warns_when_no_os_doh_template_exists()
+    {
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var dns = new DnsControl.DnsControlClient(channel);
+        var request = new ResolverRequest();
+        request.Servers.Add("192.0.2.53");
+        request.AdapterIds.Add("ethernet-id");
+
+        var ack = await dns.SetResolverAsync(request);
+
+        ack.Ok.Should().BeTrue();
+        ack.Message.Should().Contain("WARNING: no OS DoH template for 192.0.2.53");
+        ack.Message.Should().Contain("plaintext DNS");
+        _state.Db.GetLog().Should().Contain(entry =>
+            entry.Action == "resolver_switch" && entry.Details.Contains("doh_missing=192.0.2.53", StringComparison.Ordinal));
     }
 
     [Fact]

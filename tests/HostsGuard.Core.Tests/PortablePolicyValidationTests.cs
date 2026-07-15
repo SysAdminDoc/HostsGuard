@@ -20,6 +20,7 @@ public sealed class PortablePolicyValidationTests
         """{ "Version": 1, "BlocklistSubs": [ { "Name": "Primary" }, { "Name": "primary" } ] }""",
         """{ "Version": 1, "HostsRedirects": [ { "Domain": "Router.Example", "Ip": "10.0.0.1" }, { "Domain": "router.example", "Ip": "10.0.0.2" } ] }""",
         """{ "Version": 1, "Domains": [ { "Domain": "router.example" } ], "HostsRedirects": [ { "Domain": "router.example", "Ip": "10.0.0.1" } ] }""",
+        """{ "Version": 1, "DnsPrivacy": { "ResolverAdapters": [ { "Adapter": "Ethernet", "IsVpn": false }, { "Adapter": "ethernet", "IsVpn": false } ] } }""",
     };
 
     [Theory]
@@ -71,5 +72,17 @@ public sealed class PortablePolicyValidationTests
         var act = () => PortablePolicy.FromJson(json);
 
         act.Should().Throw<ArgumentException>().WithMessage("*hosts redirect*");
+    }
+
+    [Fact]
+    public void Non_ip_portable_resolver_address_is_rejected_before_import()
+    {
+        var act = () => PortablePolicy.FromJson("""
+            { "Version": 1, "DnsPrivacy": { "ResolverAdapters": [
+              { "Adapter": "Ethernet", "Servers": [ "resolver.example" ] }
+            ] } }
+            """);
+
+        act.Should().Throw<JsonException>().WithMessage("*non-IP address*");
     }
 }

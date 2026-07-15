@@ -170,6 +170,14 @@ public static class PolicyPortability
                 Sha256 = doh.Sha256,
                 Ips = doh.Ips.ToList(),
             },
+            ResolverAdapters = state.Dns?.ListResolverAdapters()
+                .Select(adapter => new PolicyDnsResolver
+                {
+                    Adapter = adapter.Name,
+                    IsVpn = adapter.IsVpn,
+                    Servers = adapter.ConfiguredResolvers.ToList(),
+                })
+                .ToList(),
         };
 
         if (state.KillSwitch is { } killSwitch)
@@ -890,6 +898,8 @@ public static class PolicyPortability
             }
         }
 
+        ApplyResolverPolicy(state, dns, summary);
+
         if (state.Firewall is not null)
         {
             var fw = new FirewallControlServiceImpl(state);
@@ -909,6 +919,40 @@ public static class PolicyPortability
         }
 
         summary.Add("DNS privacy posture");
+    }
+
+    private static void ApplyResolverPolicy(ServiceState state, PolicyDnsPrivacy policy, List<string> summary)
+    {
+        if (policy.ResolverAdapters is not { } desired || state.Dns is not { } dns)
+        {
+            return;
+        }
+
+        var available = dns.ListResolverAdapters();
+        var applied = 0;
+        var skipped = 0;
+        var encrypted = 0;
+        var plaintextWarnings = 0;
+        foreach (var resolver in desired)
+        {
+            var matches = available.Where(adapter =>
+                    adapter.IsVpn == resolver.IsVpn &&
+                    string.Equals(adapter.Name, resolver.Adapter, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (matches.Length != 1)
+            {
+                skipped++;
+                continue;
+            }
+
+            var change = dns.SetResolvers(resolver.Servers, [matches[0].Id]);
+            applied++;
+            encrypted += change.DohTemplates?.Count(status => status.Encrypted) ?? 0;
+            plaintextWarnings += change.DohTemplates?.Count(status => !status.Encrypted) ?? 0;
+        }
+
+        summary.Add($"DNS resolver adapters: {applied} applied, {skipped} unmatched; " +
+                    $"{encrypted} DoH auto-upgraded, {plaintextWarnings} plaintext warnings");
     }
 
     private static void ApplyKillSwitch(ServiceState state, PortablePolicy policy, List<string> summary)

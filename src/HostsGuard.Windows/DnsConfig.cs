@@ -26,26 +26,33 @@ public sealed record DnsAdapterState(
 public sealed class DnsResolverSnapshot
 {
     public DnsResolverSnapshot(IReadOnlyList<DnsAdapterState> adapters)
-        : this(adapters, new Dictionary<string, DnsRegistryValue>(StringComparer.OrdinalIgnoreCase))
+        : this(
+            adapters,
+            new Dictionary<string, DnsRegistryValue>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, DnsDohAdapterSnapshot>(StringComparer.OrdinalIgnoreCase))
     {
     }
 
     internal DnsResolverSnapshot(
         IReadOnlyList<DnsAdapterState> adapters,
-        IReadOnlyDictionary<string, DnsRegistryValue> registryValues)
+        IReadOnlyDictionary<string, DnsRegistryValue> registryValues,
+        IReadOnlyDictionary<string, DnsDohAdapterSnapshot> dohSettings)
     {
         Adapters = adapters;
         RegistryValues = registryValues;
+        DohSettings = dohSettings;
     }
 
     public IReadOnlyList<DnsAdapterState> Adapters { get; }
     internal IReadOnlyDictionary<string, DnsRegistryValue> RegistryValues { get; }
+    internal IReadOnlyDictionary<string, DnsDohAdapterSnapshot> DohSettings { get; }
 }
 
 /// <summary>The adapters changed by a resolver mutation and their exact prior state.</summary>
 public sealed record DnsResolverChange(
     DnsResolverSnapshot Prior,
-    IReadOnlyList<DnsAdapterState> ChangedAdapters);
+    IReadOnlyList<DnsAdapterState> ChangedAdapters,
+    IReadOnlyList<DnsDohTemplateStatus>? DohTemplates = null);
 
 /// <summary>Result of a bounded A+AAAA resolver-health probe.</summary>
 public sealed record DnsProbeResult(
@@ -133,13 +140,15 @@ public sealed class DnsConfig : IDnsConfig
     private readonly Func<bool> _flushCache;
     private readonly Func<string, CancellationToken, Task<IPAddress[]>> _resolve;
     private readonly DnsResolverHealthProbe _healthProbe;
+    private readonly IDohTemplateManager _dohTemplates;
 
     public DnsConfig()
         : this(
             new SystemDnsAdapterSource(),
             new SystemDnsRegistryStore(),
             () => DnsFlushResolverCache() != 0,
-            (host, cancellationToken) => Dns.GetHostAddressesAsync(host, cancellationToken))
+            (host, cancellationToken) => Dns.GetHostAddressesAsync(host, cancellationToken),
+            dohTemplates: new WindowsDohTemplateManager())
     {
     }
 
@@ -149,7 +158,8 @@ public sealed class DnsConfig : IDnsConfig
         Func<bool>? flushCache = null,
         Func<string, CancellationToken, Task<IPAddress[]>>? resolve = null,
         IDnsResolverHealthTargetSource? healthTargets = null,
-        IDnsResolverHealthTransport? healthTransport = null)
+        IDnsResolverHealthTransport? healthTransport = null,
+        IDohTemplateManager? dohTemplates = null)
     {
         _adapters = adapters;
         _registry = registry;
@@ -158,6 +168,7 @@ public sealed class DnsConfig : IDnsConfig
         _healthProbe = new DnsResolverHealthProbe(
             healthTargets ?? new WindowsDnsResolverHealthTargetSource(),
             healthTransport ?? new SystemDnsResolverHealthTransport());
+        _dohTemplates = dohTemplates ?? new NullDohTemplateManager();
     }
 
     [DllImport("dnsapi.dll", SetLastError = false)]
@@ -291,6 +302,7 @@ public sealed class DnsConfig : IDnsConfig
         var prior = Capture(selected);
         var value = string.Join(",", normalizedServers);
 
+        var dohStatus = new Dictionary<string, DnsDohTemplateStatus>(StringComparer.OrdinalIgnoreCase);
         ApplyTransaction(
             selected.Select(a => a.Id),
             adapterId =>
@@ -302,6 +314,11 @@ public sealed class DnsConfig : IDnsConfig
                 else
                 {
                     _registry.Write(adapterId, value, RegistryValueKind.String);
+                }
+
+                foreach (var status in _dohTemplates.Apply(adapterId, normalizedServers))
+                {
+                    dohStatus[status.Server] = status;
                 }
             },
             prior);
@@ -317,7 +334,9 @@ public sealed class DnsConfig : IDnsConfig
                 normalizedServers.Length == 0,
                 normalizedServers,
                 a.EffectiveResolvers)).ToArray();
-        return new DnsResolverChange(prior, changed);
+        return new DnsResolverChange(prior, changed, dohStatus.Values
+            .OrderBy(status => status.Server, StringComparer.OrdinalIgnoreCase)
+            .ToArray());
     }
 
     public void RestoreResolvers(DnsResolverSnapshot snapshot)
@@ -328,8 +347,20 @@ public sealed class DnsConfig : IDnsConfig
             id => id,
             id => CloneRegistryValue(_registry.Read(id)),
             StringComparer.OrdinalIgnoreCase);
-        var current = new DnsResolverSnapshot(snapshot.Adapters, currentValues);
-        ApplyTransaction(ids, id => RestoreValue(id, snapshot.RegistryValues[id]), current);
+        var currentDoh = ids.ToDictionary(
+            id => id,
+            id => _dohTemplates.Capture(id),
+            StringComparer.OrdinalIgnoreCase);
+        var current = new DnsResolverSnapshot(snapshot.Adapters, currentValues, currentDoh);
+        ApplyTransaction(ids, id =>
+        {
+            if (snapshot.DohSettings.TryGetValue(id, out var doh))
+            {
+                _dohTemplates.Restore(doh);
+            }
+
+            RestoreValue(id, snapshot.RegistryValues[id]);
+        }, current);
         FlushCache();
     }
 
@@ -411,7 +442,11 @@ public sealed class DnsConfig : IDnsConfig
             a => a.Id,
             a => CloneRegistryValue(_registry.Read(a.Id)),
             StringComparer.OrdinalIgnoreCase);
-        return new DnsResolverSnapshot(adapters.Select(ToState).ToArray(), values);
+        var doh = adapters.ToDictionary(
+            a => a.Id,
+            a => _dohTemplates.Capture(a.Id),
+            StringComparer.OrdinalIgnoreCase);
+        return new DnsResolverSnapshot(adapters.Select(ToState).ToArray(), values, doh);
     }
 
     private DnsAdapterState ToState(DnsAdapterCandidate adapter)
@@ -447,6 +482,11 @@ public sealed class DnsConfig : IDnsConfig
             {
                 try
                 {
+                    if (rollback.DohSettings.TryGetValue(prior.Key, out var doh))
+                    {
+                        _dohTemplates.Restore(doh);
+                    }
+
                     RestoreValue(prior.Key, prior.Value);
                 }
                 catch (Exception rollbackError)
