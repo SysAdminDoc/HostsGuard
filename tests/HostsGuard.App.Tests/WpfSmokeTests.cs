@@ -438,6 +438,15 @@ public sealed class WpfSmokeTests
                 var aiKeyStatus = (TextBlock)window.FindName("AiKeyStorageStatus");
                 BindingOperations.GetBinding(aiKeyStatus, TextBlock.TextProperty)?.Path.Path
                     .Should().Be(nameof(ToolsViewModel.AiKeyStorageText));
+                var localPreview = (Button)window.FindName("LocalBlocklistPreviewButton");
+                BindingOperations.GetBinding(localPreview, Button.CommandProperty)?.Path.Path
+                    .Should().Be("PreviewLocalFileCommand");
+                var localImport = (Button)window.FindName("LocalBlocklistImportButton");
+                BindingOperations.GetBinding(localImport, Button.CommandProperty)?.Path.Path
+                    .Should().Be("ImportLocalPreviewCommand");
+                var localSummary = (TextBlock)window.FindName("LocalBlocklistPreviewSummary");
+                BindingOperations.GetBinding(localSummary, TextBlock.TextProperty)?.Path.Path
+                    .Should().Be(nameof(BlocklistsViewModel.LocalPreviewSummary));
 
                 var trayProfiles = (MenuItem)window.FindName("TrayProfiles");
                 vm.Tools.Profiles.Add("Home");

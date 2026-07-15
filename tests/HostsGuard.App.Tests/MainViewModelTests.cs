@@ -48,6 +48,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
             _fw,
             new FirewallIdentity(Path.Combine(_dir, "fw_identities.json")),
             dataDir: _dir,
+            listFetcher: new EmptyListFetcher(),
             flowTerminator: _flows,
             connectionSnapshot: () => Array.Empty<ConnectionInfo>());
         _killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => false, _dir);
@@ -459,6 +460,71 @@ public sealed class MainViewModelTests : IAsyncLifetime
         tools.AiApiKey.Should().BeEmpty("the service never returns the write-only secret");
     }
 
+    [Fact]
+    public async Task Local_blocklist_preview_is_non_mutating_and_confirmed_import_uses_previewed_bytes()
+    {
+        var path = Path.Combine(_dir, "my-local.hosts");
+        await File.WriteAllTextAsync(path, string.Join('\n',
+            "0.0.0.0 ads.local.example",
+            "tracker.local.example",
+            "not a domain !!!"));
+        var picker = new FakePicker { OpenPath = path };
+
+        var declined = new BlocklistsViewModel(_client, new FakeConfirm(false), picker);
+        await declined.PreviewLocalFileCommand.ExecuteAsync(null);
+
+        declined.HasLocalPreview.Should().BeTrue();
+        declined.LocalPreviewTotal.Should().Be(2);
+        declined.LocalPreviewAdded.Should().Be(2);
+        declined.LocalPreviewInvalid.Should().Be(1);
+        declined.LocalPreviewSummary.Should().Contain("2 parsed").And.Contain("2 new").And.Contain("1 invalid");
+        _state.Hosts.GetBlocked().Should().NotContain(new[] { "ads.local.example", "tracker.local.example" });
+
+        await declined.ImportLocalPreviewCommand.ExecuteAsync(null);
+        _state.Hosts.GetBlocked().Should().NotContain("ads.local.example", "declining confirmation cannot mutate");
+
+        var accepted = new BlocklistsViewModel(_client, new FakeConfirm(true), picker);
+        await accepted.PreviewLocalFileCommand.ExecuteAsync(null);
+        await File.WriteAllTextAsync(path, "0.0.0.0 changed-after-preview.example\n");
+        await accepted.ImportLocalPreviewCommand.ExecuteAsync(null);
+
+        _state.Hosts.GetBlocked().Should().Contain(new[] { "ads.local.example", "tracker.local.example" })
+            .And.NotContain("changed-after-preview.example", "import applies the exact previewed bytes");
+        accepted.Sources.Should().ContainSingle(source =>
+            source.Name == "my-local" && source.Url == "local:my-local" && source.Subscribed);
+        accepted.HasLocalPreview.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Local_blocklist_picker_reports_encoding_size_and_cancel_without_mutation()
+    {
+        var picker = new FakePicker();
+        var vm = new BlocklistsViewModel(_client, new FakeConfirm(true), picker);
+
+        await vm.PreviewLocalFileCommand.ExecuteAsync(null);
+        vm.HasLocalPreview.Should().BeFalse();
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+
+        var invalidPath = Path.Combine(_dir, "invalid-utf8.list");
+        await File.WriteAllBytesAsync(invalidPath, [0xC3, 0x28]);
+        picker.OpenPath = invalidPath;
+        await vm.PreviewLocalFileCommand.ExecuteAsync(null);
+        vm.HasLocalPreview.Should().BeFalse();
+        vm.LocalPreviewSummary.Should().Contain("not valid UTF-8");
+
+        var hugePath = Path.Combine(_dir, "too-large.list");
+        await using (var huge = new FileStream(hugePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            huge.SetLength(BlocklistCatalog.MaxBlocklistBytes + 1L);
+        }
+
+        picker.OpenPath = hugePath;
+        await vm.PreviewLocalFileCommand.ExecuteAsync(null);
+        vm.HasLocalPreview.Should().BeFalse();
+        vm.LocalPreviewSummary.Should().Contain("exceeds the 25 MB");
+        _state.Hosts.GetBlocked().Should().BeEmpty();
+    }
+
     private sealed class FakeReleaseUpdateChecker(ReleaseUpdateResult result) : IReleaseUpdateChecker
     {
         public string? InstalledVersion { get; private set; }
@@ -624,5 +690,14 @@ public sealed class MainViewModelTests : IAsyncLifetime
     {
         public FlowTerminationResult CloseTcp4(FlowTuple flow) =>
             new(true, "closed IPv4 TCP flow");
+    }
+
+    private sealed class EmptyListFetcher : IListFetcher
+    {
+        public Task<string> FetchAsync(string url, int maxBytes, CancellationToken ct) =>
+            Task.FromResult(string.Empty);
+
+        public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct) =>
+            Task.FromResult(Array.Empty<byte>());
     }
 }

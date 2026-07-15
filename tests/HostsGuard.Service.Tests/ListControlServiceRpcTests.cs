@@ -138,6 +138,14 @@ public sealed class ListControlServiceRpcTests : IDisposable
         (await _lists.ImportBlocklistContent(Content("empty", ""), Ctx))
             .ErrorCode.Should().Be("hostsguard.error.v1/invalid_source");
 
+        var invalidUtf8 = new BlocklistContentRequest
+        {
+            Name = "invalid-encoding",
+            Content = Google.Protobuf.ByteString.CopyFrom([0xC3, 0x28]),
+        };
+        (await _lists.ImportBlocklistContent(invalidUtf8, Ctx))
+            .ErrorCode.Should().Be("hostsguard.error.v1/invalid_encoding");
+
         var huge = new BlocklistContentRequest
         {
             Name = "huge",
@@ -156,6 +164,12 @@ public sealed class ListControlServiceRpcTests : IDisposable
         var refresh = await _lists.RefreshBlocklists(new Empty(), Ctx);
         refresh.Ok.Should().BeTrue();
         _state.Hosts.GetBlocked().Should().Contain("keep.example");
+
+        var portable = PolicyPortability.Export(_state);
+        portable.BlocklistSubs.Should().ContainSingle(source =>
+            source.Name == "local-only" && source.Url == "local:local-only");
+        portable.Domains.Should().Contain(domain =>
+            domain.Domain == "keep.example" && domain.Source == "list:local-only");
     }
 
     public void Dispose()

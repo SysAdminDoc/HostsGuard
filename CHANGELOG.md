@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.135] - 2026-07-14
+
+### Added
+- The Blocklists page can now select a bounded UTF-8 hosts/adblock file, preview
+  parsed/new/invalid counts without mutation, and import the exact confirmed
+  bytes as a durable, non-refreshable `local:` source through the existing RPC.
+
+### Changed
+- Local-content RPCs now reject malformed UTF-8 explicitly instead of replacing
+  invalid bytes; the app reports empty, unreadable, over-25-MB, and encoding
+  failures before any hosts-file mutation.
+
 ## [0.12.134] - 2026-07-14
 
 ### Changed

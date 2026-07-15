@@ -2794,7 +2794,7 @@ static async Task<int> BlocklistsAsync(string[] args)
 
                 if (content.Length > BlocklistCatalog.MaxBlocklistBytes)
                 {
-                    Console.Error.WriteLine($"'{args[3]}' exceeds the {BlocklistCatalog.MaxBlocklistBytes / (1024 * 1024)} MB import cap");
+                    Console.Error.WriteLine($"'{args[3]}' exceeds the {BlocklistCatalog.MaxBlocklistBytes / 1_000_000} MB import cap");
                     return 1;
                 }
 

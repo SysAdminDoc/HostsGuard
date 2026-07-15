@@ -638,4 +638,27 @@
   <data name="Ai_KeyChecking" xml:space="preserve"><value>Vérification de la présence d’une clé enregistrée…</value></data>
   <data name="Ai_KeyStored" xml:space="preserve"><value>Clé API enregistrée — laissez le champ vide pour la conserver ou saisissez une nouvelle clé pour la remplacer.</value></data>
   <data name="Ai_KeyNotStored" xml:space="preserve"><value>Aucune clé API enregistrée — saisissez-en une avant d’activer la catégorisation par IA.</value></data>
+  <data name="LocalList_Title" xml:space="preserve"><value>Importer une liste de blocage locale</value></data>
+  <data name="LocalList_Help" xml:space="preserve"><value>Prévisualisez localement un fichier hosts ou adblock UTF-8, puis confirmez avant d’appliquer ses domaines. Le service analyse le contenu borné ; la prévisualisation et l’annulation ne modifient rien.</value></data>
+  <data name="LocalList_PreviewAction" xml:space="preserve"><value>Prévisualiser le fichier local</value></data>
+  <data name="LocalList_ImportAction" xml:space="preserve"><value>Importer la prévisualisation</value></data>
+  <data name="LocalList_NoFile" xml:space="preserve"><value>Aucun fichier local sélectionné.</value></data>
+  <data name="LocalList_NoPreview" xml:space="preserve"><value>Choisissez un fichier à prévisualiser ; la prévisualisation ne modifie jamais le fichier hosts.</value></data>
+  <data name="LocalList_PickTitle" xml:space="preserve"><value>Choisir un fichier hosts ou adblock local</value></data>
+  <data name="LocalList_FileFilter" xml:space="preserve"><value>Fichiers hosts et adblock (*.txt;*.hosts;*.list)|*.txt;*.hosts;*.list|Tous les fichiers (*.*)|*.*</value></data>
+  <data name="LocalList_Selected" xml:space="preserve"><value>{0} · {1} · source local:{2}</value></data>
+  <data name="LocalList_TooLarge" xml:space="preserve"><value>Ce fichier dépasse la limite d’importation locale de {0} Mo.</value></data>
+  <data name="LocalList_ReadFailed" xml:space="preserve"><value>Impossible de lire le fichier local : {0}</value></data>
+  <data name="LocalList_Empty" xml:space="preserve"><value>Le fichier sélectionné est vide.</value></data>
+  <data name="LocalList_PreviewReady" xml:space="preserve"><value>Prévisualisation prête : {0:N0} analysés, {1:N0} nouveaux et {2:N0} non valides. Confirmez l’importation pour appliquer exactement les octets prévisualisés.</value></data>
+  <data name="LocalList_ImportTitle" xml:space="preserve"><value>Importer la liste de blocage locale</value></data>
+  <data name="LocalList_ImportTarget" xml:space="preserve"><value>local:{0} ({1:N0} domaines analysés)</value></data>
+  <data name="LocalList_ImportConsequence" xml:space="preserve"><value>Applique le fichier prévisualisé comme source locale non actualisable : {0:N0} nouveaux et {1:N0} non valides. Les décisions manuelles et autorisées sont conservées.</value></data>
+  <data name="LocalList_ImportCancelled" xml:space="preserve"><value>Importation de la liste locale annulée ; la prévisualisation n’a pas été appliquée.</value></data>
+  <data name="LocalList_Importing" xml:space="preserve"><value>Importation du contenu prévisualisé sous local:{0}...</value></data>
+  <data name="LocalList_Imported" xml:space="preserve"><value>local:{0} importé : {1:N0} analysés, {2:N0} nouvellement bloqués.</value></data>
+  <data name="LocalList_Encoding" xml:space="preserve"><value>Le fichier sélectionné n’est pas un fichier UTF-8 valide.</value></data>
+  <data name="LocalList_Failed" xml:space="preserve"><value>Échec de l’opération sur la liste locale : {0}</value></data>
+  <data name="LocalList_Bytes" xml:space="preserve"><value>{0} o</value></data>
+  <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} Ko</value></data>
 </root>

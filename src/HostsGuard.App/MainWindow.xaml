@@ -1445,6 +1445,7 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
                                 <DataGrid Grid.Row="0" ItemsSource="{Binding Sources}"
@@ -1583,7 +1584,33 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+                                <Border Grid.Row="2" Style="{StaticResource Hg.Card}" Margin="0,8,0,0"
+                                        AutomationProperties.Name="{svc:Loc Key=LocalList_Title}">
+                                    <StackPanel>
+                                        <DockPanel LastChildFill="False">
+                                            <Button x:Name="LocalBlocklistImportButton" DockPanel.Dock="Right"
+                                                    Content="{svc:Loc Key=LocalList_ImportAction}"
+                                                    Command="{Binding ImportLocalPreviewCommand}"
+                                                    Style="{StaticResource Hg.AccentButton}" Margin="8,0,0,0" />
+                                            <Button x:Name="LocalBlocklistPreviewButton" DockPanel.Dock="Right"
+                                                    Content="{svc:Loc Key=LocalList_PreviewAction}"
+                                                    Command="{Binding PreviewLocalFileCommand}" Margin="8,0,0,0" />
+                                            <StackPanel>
+                                                <TextBlock Text="{svc:Loc Key=LocalList_Title}" Style="{StaticResource Hg.SectionTitle}" />
+                                                <TextBlock Text="{svc:Loc Key=LocalList_Help}" Style="{StaticResource Hg.HelperText}"
+                                                           Margin="0,3,0,0" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding LocalFileLabel}" Style="{StaticResource Hg.SubText}"
+                                                   Margin="0,7,0,0" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock x:Name="LocalBlocklistPreviewSummary"
+                                                   Text="{Binding LocalPreviewSummary}" Style="{StaticResource Hg.DimText}"
+                                                   Margin="0,3,0,0" TextWrapping="Wrap"
+                                                   AutomationProperties.LiveSetting="Polite" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Save_apply_allowlists_c3ce8fa2}"
                                                 Style="{StaticResource Hg.AccentButton}"
@@ -1603,7 +1630,7 @@
                                     </DockPanel>
                                 </Border>
 
-                                <TextBlock Grid.Row="3" Margin="2,6,0,0"
+                                <TextBlock Grid.Row="4" Margin="2,6,0,0"
                                            Text="{Binding StatusText}"
                                            Style="{StaticResource Hg.DimText}"
                                            AutomationProperties.LiveSetting="Polite" />

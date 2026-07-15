@@ -639,4 +639,27 @@
   <data name="Ai_KeyChecking" xml:space="preserve"><value>Comprobando si hay una clave guardada…</value></data>
   <data name="Ai_KeyStored" xml:space="preserve"><value>Clave API guardada — deje el campo en blanco para conservarla o escriba una nueva para reemplazarla.</value></data>
   <data name="Ai_KeyNotStored" xml:space="preserve"><value>No hay ninguna clave API guardada — introduzca una antes de activar la categorización con IA.</value></data>
+  <data name="LocalList_Title" xml:space="preserve"><value>Importar una lista de bloqueo local</value></data>
+  <data name="LocalList_Help" xml:space="preserve"><value>Previsualice localmente un archivo hosts o adblock UTF-8 y confirme antes de aplicar sus dominios. El servicio analiza el contenido limitado; la vista previa y la cancelación nunca modifican datos.</value></data>
+  <data name="LocalList_PreviewAction" xml:space="preserve"><value>Previsualizar archivo local</value></data>
+  <data name="LocalList_ImportAction" xml:space="preserve"><value>Importar vista previa</value></data>
+  <data name="LocalList_NoFile" xml:space="preserve"><value>No se ha seleccionado ningún archivo local.</value></data>
+  <data name="LocalList_NoPreview" xml:space="preserve"><value>Elija un archivo para previsualizarlo; la vista previa nunca cambia el archivo hosts.</value></data>
+  <data name="LocalList_PickTitle" xml:space="preserve"><value>Elegir un archivo hosts o adblock local</value></data>
+  <data name="LocalList_FileFilter" xml:space="preserve"><value>Archivos hosts y adblock (*.txt;*.hosts;*.list)|*.txt;*.hosts;*.list|Todos los archivos (*.*)|*.*</value></data>
+  <data name="LocalList_Selected" xml:space="preserve"><value>{0} · {1} · origen local:{2}</value></data>
+  <data name="LocalList_TooLarge" xml:space="preserve"><value>Este archivo supera el límite de importación local de {0} MB.</value></data>
+  <data name="LocalList_ReadFailed" xml:space="preserve"><value>No se pudo leer el archivo local: {0}</value></data>
+  <data name="LocalList_Empty" xml:space="preserve"><value>El archivo seleccionado está vacío.</value></data>
+  <data name="LocalList_PreviewReady" xml:space="preserve"><value>Vista previa lista: {0:N0} analizados, {1:N0} nuevos y {2:N0} no válidos. Confirme la importación para aplicar exactamente los bytes previsualizados.</value></data>
+  <data name="LocalList_ImportTitle" xml:space="preserve"><value>Importar lista de bloqueo local</value></data>
+  <data name="LocalList_ImportTarget" xml:space="preserve"><value>local:{0} ({1:N0} dominios analizados)</value></data>
+  <data name="LocalList_ImportConsequence" xml:space="preserve"><value>Aplique el archivo previsualizado como origen local no actualizable: {0:N0} nuevos y {1:N0} no válidos. Se conservan las decisiones manuales y de la lista de permitidos.</value></data>
+  <data name="LocalList_ImportCancelled" xml:space="preserve"><value>Importación de la lista local cancelada; no se aplicó la vista previa.</value></data>
+  <data name="LocalList_Importing" xml:space="preserve"><value>Importando el contenido previsualizado como local:{0}...</value></data>
+  <data name="LocalList_Imported" xml:space="preserve"><value>Se importó local:{0}: {1:N0} analizados y {2:N0} recién bloqueados.</value></data>
+  <data name="LocalList_Encoding" xml:space="preserve"><value>El archivo seleccionado no es UTF-8 válido.</value></data>
+  <data name="LocalList_Failed" xml:space="preserve"><value>Error en la operación de lista local: {0}</value></data>
+  <data name="LocalList_Bytes" xml:space="preserve"><value>{0} B</value></data>
+  <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
 </root>

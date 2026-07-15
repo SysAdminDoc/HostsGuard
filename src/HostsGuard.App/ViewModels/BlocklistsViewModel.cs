@@ -185,6 +185,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
 {
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
+    private readonly IFilePicker _filePicker;
 
     [ObservableProperty]
     private string _statusText = I18n.T("Status.Ready", "Ready");
@@ -192,10 +193,11 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [ObservableProperty]
     private string _allowlistUrlsText = string.Empty;
 
-    public BlocklistsViewModel(HostsServiceClient client, IConfirm confirm)
+    public BlocklistsViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
+        _filePicker = filePicker ?? new DialogFilePicker();
     }
 
     public ObservableCollection<BlocklistSourceViewModel> Sources { get; } = new();

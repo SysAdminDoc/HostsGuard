@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Runtime.Versioning;
+using System.Text;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
@@ -10,6 +11,7 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed class ListControlServiceImpl : ListControl.ListControlBase
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
     private readonly ServiceState _state;
 
     public ListControlServiceImpl(ServiceState state) => _state = state;
@@ -213,12 +215,25 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             return (name, string.Empty, new BlocklistResult
             {
                 Ok = false,
-                Message = $"list content exceeds the {BlocklistCatalog.MaxBlocklistBytes / (1024 * 1024)} MB import cap",
+                Message = $"list content exceeds the {BlocklistCatalog.MaxBlocklistBytes / 1_000_000} MB import cap",
                 ErrorCode = "hostsguard.error.v1/content_too_large",
             });
         }
 
-        return (name, bytes.ToStringUtf8(), null);
+        try
+        {
+            var content = StrictUtf8.GetString(bytes.Span);
+            return (name, content.Length > 0 && content[0] == '\uFEFF' ? content[1..] : content, null);
+        }
+        catch (DecoderFallbackException)
+        {
+            return (name, string.Empty, new BlocklistResult
+            {
+                Ok = false,
+                Message = "list content is not valid UTF-8",
+                ErrorCode = "hostsguard.error.v1/invalid_encoding",
+            });
+        }
     }
 
     public override Task<Ack> SetBlocklistEnabled(BlocklistToggleRequest request, ServerCallContext context)

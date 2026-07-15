@@ -1962,4 +1962,27 @@
   <data name="Ai_KeyChecking" xml:space="preserve"><value>Checking whether a key is stored…</value></data>
   <data name="Ai_KeyStored" xml:space="preserve"><value>API key stored — leave the field blank to keep it, or enter a new key to replace it.</value></data>
   <data name="Ai_KeyNotStored" xml:space="preserve"><value>No API key stored — enter one before enabling AI categorization.</value></data>
+  <data name="LocalList_Title" xml:space="preserve"><value>Import a local blocklist</value></data>
+  <data name="LocalList_Help" xml:space="preserve"><value>Preview a UTF-8 hosts or adblock file locally, then confirm before its domains are applied. The service parses the bounded content; preview and cancel never mutate.</value></data>
+  <data name="LocalList_PreviewAction" xml:space="preserve"><value>Preview local file</value></data>
+  <data name="LocalList_ImportAction" xml:space="preserve"><value>Import preview</value></data>
+  <data name="LocalList_NoFile" xml:space="preserve"><value>No local file selected.</value></data>
+  <data name="LocalList_NoPreview" xml:space="preserve"><value>Choose a file to preview; preview never changes the hosts file.</value></data>
+  <data name="LocalList_PickTitle" xml:space="preserve"><value>Choose a local hosts or adblock file</value></data>
+  <data name="LocalList_FileFilter" xml:space="preserve"><value>Hosts and adblock files (*.txt;*.hosts;*.list)|*.txt;*.hosts;*.list|All files (*.*)|*.*</value></data>
+  <data name="LocalList_Selected" xml:space="preserve"><value>{0} · {1} · source local:{2}</value></data>
+  <data name="LocalList_TooLarge" xml:space="preserve"><value>This file exceeds the {0} MB local-import cap.</value></data>
+  <data name="LocalList_ReadFailed" xml:space="preserve"><value>Could not read the local file: {0}</value></data>
+  <data name="LocalList_Empty" xml:space="preserve"><value>The selected file is empty.</value></data>
+  <data name="LocalList_PreviewReady" xml:space="preserve"><value>Preview ready: {0:N0} parsed, {1:N0} new, {2:N0} invalid. Confirm import to apply the exact previewed bytes.</value></data>
+  <data name="LocalList_ImportTitle" xml:space="preserve"><value>Import local blocklist</value></data>
+  <data name="LocalList_ImportTarget" xml:space="preserve"><value>local:{0} ({1:N0} parsed domains)</value></data>
+  <data name="LocalList_ImportConsequence" xml:space="preserve"><value>Apply the previewed file as a non-refreshable local source: {0:N0} new and {1:N0} invalid. Existing manual and allowlisted decisions are preserved.</value></data>
+  <data name="LocalList_ImportCancelled" xml:space="preserve"><value>Local blocklist import cancelled; the preview was not applied.</value></data>
+  <data name="LocalList_Importing" xml:space="preserve"><value>Importing previewed content as local:{0}...</value></data>
+  <data name="LocalList_Imported" xml:space="preserve"><value>Imported local:{0}: {1:N0} parsed, {2:N0} newly blocked.</value></data>
+  <data name="LocalList_Encoding" xml:space="preserve"><value>The selected file is not valid UTF-8.</value></data>
+  <data name="LocalList_Failed" xml:space="preserve"><value>Local blocklist operation failed: {0}</value></data>
+  <data name="LocalList_Bytes" xml:space="preserve"><value>{0} B</value></data>
+  <data name="LocalList_Kilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
 </root>
