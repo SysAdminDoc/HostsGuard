@@ -244,6 +244,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         try
         {
             change = dns.SetResolvers(servers, adapterIds);
+            _state.InvalidateEncryptedResolverObservationCache();
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException or AggregateException)
         {
@@ -267,6 +268,7 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             try
             {
                 dns.RestoreResolvers(change.Prior);
+                _state.InvalidateEncryptedResolverObservationCache();
                 _state.Db.LogEvent("dns", "resolver_rollback",
                     details: $"probe {probeHost} failed ({probe.Error}; A={probe.Ipv4Count}, AAAA={probe.Ipv6Count}); restored {change.Prior.Adapters.Count} adapters",
                     reason: "health_probe");
@@ -575,6 +577,12 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
         extras.ExceptWith(Core.DohResolvers.NormalizeIpSet(Core.DohResolvers.BuiltIn));
         var counts = CountServiceBindings(ServiceBindingCacheRows(MaxDnsCacheLimit, null));
         var posture = BuildPosture(counts);
+        var fallback = _state.Db.GetAlerts(new HostsGuard.Data.AlertFilter(
+            Limit: 1,
+            IncludeRead: true,
+            SurfaceOnly: false,
+            Type: "dns_plaintext_fallback"));
+        var latestFallback = fallback.Rows.FirstOrDefault();
         return Task.FromResult(new DohStatus
         {
             ResolverIps = _state.Doh.CurrentIps().Count,
@@ -596,6 +604,10 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
             EchRemediation = posture.Remediation,
             ServiceBindingObserved = posture.ServiceBindingObserved,
             EchUnobservable = posture.EchUnobservable,
+            ConfiguredEncryptedResolvers = _state.Dns?.EncryptedResolvers().Count ?? 0,
+            PlaintextFallbackFindings = fallback.Total,
+            PlaintextFallbackLastSeen = latestFallback?.Updated ?? string.Empty,
+            PlaintextFallbackLastResolver = latestFallback?.Subject ?? string.Empty,
         });
     }
 

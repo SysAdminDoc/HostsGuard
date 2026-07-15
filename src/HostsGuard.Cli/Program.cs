@@ -272,6 +272,7 @@ static async Task<int> StatusAsync()
     {
         var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
         var status = await diagnostics.GetStatusAsync(new Empty());
+        var encryptedDns = await new DnsControl.DnsControlClient(channel).GetDohStatusAsync(new Empty());
         Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
         Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
         if (status.HostsOverScaleThreshold)
@@ -280,6 +281,10 @@ static async Task<int> StatusAsync()
         }
         Console.WriteLine($"database:     {status.DbBlocked} blocked, {status.DbAllowed} allowed, {status.FeedTotal} feed rows");
         Console.WriteLine($"monitors:     dns={(status.DnsMonitorActive ? "on" : "off")} connections={(status.ConnectionMonitorActive ? "on" : "off")} sni={(status.SniMonitorActive ? "on" : "off")} bandwidth={(status.BandwidthMonitorActive ? "on" : "off")}");
+        Console.WriteLine($"encrypted dns: {encryptedDns.ConfiguredEncryptedResolvers} configured resolver(s), {encryptedDns.PlaintextFallbackFindings} plaintext fallback finding(s)" +
+                          (encryptedDns.PlaintextFallbackFindings == 0
+                              ? string.Empty
+                              : $"; latest {encryptedDns.PlaintextFallbackLastResolver} at {encryptedDns.PlaintextFallbackLastSeen}"));
         foreach (var source in status.ObservationSources)
         {
             var interval = source.IncompleteSince.Length == 0 ? "complete" : $"incomplete-since={source.IncompleteSince}";

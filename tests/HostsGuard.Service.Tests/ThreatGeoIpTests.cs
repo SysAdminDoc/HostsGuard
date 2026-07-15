@@ -24,6 +24,7 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
     private WebApplication _app = null!;
     private ServiceState _state = null!;
     private FakeListFetcher _fetcher = null!;
+    private FakeDnsConfig _dns = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -35,11 +36,13 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
         File.WriteAllText(hostsPath, "# hosts\n");
 
         _fetcher = new FakeListFetcher();
+        _dns = new FakeDnsConfig();
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             dataDir: _dir,
-            listFetcher: _fetcher);
+            listFetcher: _fetcher,
+            dns: _dns);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.ThreatTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -202,6 +205,54 @@ public sealed class ThreatGeoIpTests : IAsyncLifetime
             "1.1.1.1", 53, "STATELESS", 4321, "curl.exe", "inbound"));
 
         _state.Db.GetAlerts(new AlertFilter(Type: "dns_bypass")).Rows.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Encrypted_dns_plaintext_fallback_is_alert_only_and_excludes_false_positives()
+    {
+        _dns.EncryptedResolverAddresses.Add("1.1.1.1");
+        _dns.EncryptedResolverAddresses.Add("192.168.1.1");
+        using var connectionEvents = _state.Bus.Subscribe<ConnectionEvent>();
+
+        // Windows DNS Client traffic to a configured public DoH resolver on port 53 is fallback evidence.
+        _state.PublishConnection(new ConnectionInfo("udp", "10.0.0.5", 55000,
+            "1.1.1.1", 53, "STATELESS", 900, "svchost.exe"));
+        connectionEvents.Reader.TryRead(out var fallbackEvent).Should().BeTrue();
+        fallbackEvent!.Category.Should().Be("DNS plaintext fallback");
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55001,
+            "1.1.1.1", 53, "STATELESS", 900, "svchost.exe"));
+
+        // An intentional plaintext resolver, private resolver, direct app, and inbound reply are not fallback.
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55002,
+            "8.8.8.8", 53, "STATELESS", 900, "svchost.exe"));
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55003,
+            "192.168.1.1", 53, "STATELESS", 900, "svchost.exe"));
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55004,
+            "1.1.1.1", 53, "STATELESS", 4321, "curl.exe"));
+        _state.PublishConnection(new ConnectionInfo("UDP", "10.0.0.5", 55005,
+            "1.1.1.1", 53, "STATELESS", 900, "svchost.exe", "inbound"));
+
+        var alerts = _state.Db.GetAlerts(new AlertFilter(
+            IncludeRead: true,
+            SurfaceOnly: false,
+            Type: "dns_plaintext_fallback")).Rows;
+        alerts.Should().ContainSingle();
+        alerts[0].Subject.Should().Be("1.1.1.1");
+        alerts[0].Process.Should().Be("svchost.exe");
+        alerts[0].Surfaced.Should().BeTrue();
+        alerts[0].Details.Should().Contain("interface-specific DoH template")
+            .And.Contain("alert only")
+            .And.Contain("did not change DNS or firewall policy");
+        _dns.EncryptedResolverReads.Should().Be(1, "high-volume DNS observations reuse a bounded posture snapshot");
+        _state.Db.GetFwState().Should().BeEmpty();
+        File.ReadAllText(Path.Combine(_dir, "hosts")).Should().Be("# hosts\n");
+
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var status = await new DnsControl.DnsControlClient(channel).GetDohStatusAsync(new Empty());
+        status.ConfiguredEncryptedResolvers.Should().Be(2);
+        status.PlaintextFallbackFindings.Should().Be(1);
+        status.PlaintextFallbackLastResolver.Should().Be("1.1.1.1");
+        status.PlaintextFallbackLastSeen.Should().NotBeEmpty();
     }
 
     [Fact]

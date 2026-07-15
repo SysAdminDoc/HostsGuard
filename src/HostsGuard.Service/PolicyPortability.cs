@@ -951,6 +951,11 @@ public static class PolicyPortability
             plaintextWarnings += change.DohTemplates?.Count(status => !status.Encrypted) ?? 0;
         }
 
+        if (applied != 0)
+        {
+            state.InvalidateEncryptedResolverObservationCache();
+        }
+
         summary.Add($"DNS resolver adapters: {applied} applied, {skipped} unmatched; " +
                     $"{encrypted} DoH auto-upgraded, {plaintextWarnings} plaintext warnings");
     }

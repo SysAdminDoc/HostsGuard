@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.143] - 2026-07-14
+
+### Added
+- Configured per-interface DoH resolver addresses are now correlated with
+  outbound Windows DNS Client UDP/TCP port-53 traffic; a match raises a
+  deduplicated, retained plaintext-fallback alert.
+- Tools, `HostsGuard.Cli status`, and the encrypted-DNS RPC report configured
+  encrypted resolver count, retained fallback findings, and the latest resolver.
+
+### Changed
+- Plaintext-fallback detection is explicitly alert-only and excludes inbound,
+  loopback/LAN, direct-app, and intentionally plaintext resolver traffic.
+
 ## [0.12.142] - 2026-07-14
 
 ### Added

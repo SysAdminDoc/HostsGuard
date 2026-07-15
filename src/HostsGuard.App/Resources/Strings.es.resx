@@ -714,4 +714,6 @@
   <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0}: {1} · {2} · capa {3} · subcapa {4} · acción {5}</value></data>
   <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} filtro(s) persistentes/de arranque coinciden con la referencia · comprobado {1}. {2}</value></data>
   <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} cambio(s) · {1}. {2}</value></data>
+  <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} resolvedores cifrados configurados; no se observó recuperación a texto sin cifrar</value></data>
+  <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; ADVERTENCIA: {0} hallazgo(s) de recuperación a texto sin cifrar entre {1} resolvedores cifrados; último {2} a las {3}</value></data>
 </root>

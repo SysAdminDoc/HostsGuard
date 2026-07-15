@@ -659,9 +659,14 @@ public sealed partial class ToolsViewModel : ObservableObject
             DnrEnabled = status.DnrEnabled;
             var serviceBindings = I18n.T("EncryptedDns_CacheRows", "{0} HTTPS / {1} SVCB cache rows", status.HttpsRecords, status.SvcbRecords);
             var dnrNote = status.DnrEnabled ? I18n.T("EncryptedDns_DnrSuffix", "; DNR on (network may auto-provision an encrypted resolver)") : string.Empty;
+            var fallbackNote = status.PlaintextFallbackFindings == 0
+                ? I18n.T("EncryptedDns_NoPlaintextFallback", "; {0} encrypted resolver(s) configured; no plaintext fallback observed", status.ConfiguredEncryptedResolvers)
+                : I18n.T("EncryptedDns_PlaintextFallback", "; WARNING: {0} plaintext fallback finding(s) across {1} encrypted resolver(s); latest {2} at {3}",
+                    status.PlaintextFallbackFindings, status.ConfiguredEncryptedResolvers,
+                    status.PlaintextFallbackLastResolver, status.PlaintextFallbackLastSeen);
             DohStatusText = (status.Updated.Length != 0
                 ? I18n.T("EncryptedDns_IntelUpdated", "DoH intelligence: {0} resolver IPs; {1}; updated {2}; {3}", status.ResolverIps, status.Source, status.Updated, serviceBindings)
-                : I18n.T("EncryptedDns_IntelBuiltin", "DoH intelligence: {0} built-in resolver IPs; no refresh yet; {1}", status.ResolverIps, serviceBindings)) + dnrNote;
+                : I18n.T("EncryptedDns_IntelBuiltin", "DoH intelligence: {0} built-in resolver IPs; no refresh yet; {1}", status.ResolverIps, serviceBindings)) + dnrNote + fallbackNote;
             EchPostureText = string.IsNullOrWhiteSpace(status.EchSummary)
                 ? I18n.T("Ech_Unavailable", "ECH posture unavailable.")
                 : I18n.T("Ech_Posture", "{0} {1}", status.EchSummary, status.EchRemediation);

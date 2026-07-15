@@ -88,6 +88,23 @@ public sealed class DnsConfigTransactionTests
         => DohTemplateCatalog.FindCurated(server).Should().Be(template);
 
     [Fact]
+    public void EncryptedResolvers_ReturnsOnlyInterfaceBindings()
+    {
+        var adapters = new FakeAdapterSource(
+            Adapter("one", "One", NetworkInterfaceType.Ethernet, ["1.1.1.1"]),
+            Adapter("two", "Two", NetworkInterfaceType.Ethernet, ["192.0.2.53"]));
+        var doh = new FakeDohTemplateManager();
+        doh.Snapshots["one"] = new DnsDohAdapterSnapshot("one", true,
+            [new DnsDohBinding("1.1.1.1", "https://cloudflare-dns.com/dns-query", 14)]);
+        doh.Snapshots["two"] = new DnsDohAdapterSnapshot("two", true, []);
+
+        var resolvers = new DnsConfig(adapters, new FakeRegistryStore(), dohTemplates: doh)
+            .EncryptedResolvers();
+
+        resolvers.Should().BeEquivalentTo("1.1.1.1");
+    }
+
+    [Fact]
     public void Legacy_all_adapter_overload_never_changes_vpn_implicitly()
     {
         var adapters = new FakeAdapterSource(
@@ -269,8 +286,11 @@ public sealed class DnsConfigTransactionTests
     {
         public List<(string AdapterId, IReadOnlyList<string> Servers)> ApplyCalls { get; } = new();
         public List<DnsDohAdapterSnapshot> Restores { get; } = new();
+        public Dictionary<string, DnsDohAdapterSnapshot> Snapshots { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
 
-        public DnsDohAdapterSnapshot Capture(string adapterId) => new(adapterId, true, []);
+        public DnsDohAdapterSnapshot Capture(string adapterId) =>
+            Snapshots.TryGetValue(adapterId, out var snapshot) ? snapshot : new(adapterId, true, []);
 
         public IReadOnlyList<DnsDohTemplateStatus> Apply(string adapterId, IReadOnlyList<string> servers)
         {

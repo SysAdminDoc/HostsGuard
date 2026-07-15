@@ -713,4 +713,6 @@
   <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0} : {1} · {2} · couche {3} · sous-couche {4} · action {5}</value></data>
   <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} filtre(s) persistant(s)/de démarrage correspondent à la référence · vérifié {1}. {2}</value></data>
   <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} modification(s) · {1}. {2}</value></data>
+  <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} résolveur(s) chiffré(s) configuré(s) ; aucun repli en clair observé</value></data>
+  <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; AVERTISSEMENT : {0} repli(s) en clair détecté(s) parmi {1} résolveur(s) chiffré(s) ; dernier {2} à {3}</value></data>
 </root>

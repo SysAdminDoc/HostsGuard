@@ -15,6 +15,9 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.143: configured per-interface DoH resolvers are correlated with
+         observed Windows DNS Client port-53 traffic; fallback alerts are
+         retained and surfaced without changing DNS or firewall policy. -->
     <!-- 0.12.142: resolver switching now registers per-interface Windows DoH
          templates for known providers, warns on plaintext fallback, and carries
          per-adapter resolver intent through portable policy. -->
@@ -271,7 +274,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.142</Version>
+    <Version>0.12.143</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

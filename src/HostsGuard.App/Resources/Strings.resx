@@ -2036,4 +2036,6 @@
   <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
   <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>Ordered HTTPS fallback URLs (separate with semicolons). Leave empty to clear custom mirrors.</value></data>
   <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Save mirrors for {0}</value></data>
+  <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} encrypted resolver(s) configured; no plaintext fallback observed</value></data>
+  <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; WARNING: {0} plaintext fallback finding(s) across {1} encrypted resolver(s); latest {2} at {3}</value></data>
 </root>

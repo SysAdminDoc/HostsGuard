@@ -713,4 +713,6 @@
   <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0}: {1} · {2} · Ebene {3} · Unterebene {4} · Aktion {5}</value></data>
   <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} persistente/Startfilter entsprechen der Baseline · geprüft {1}. {2}</value></data>
   <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} Änderung(en) · {1}. {2}</value></data>
+  <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} verschlüsselte Resolver konfiguriert; kein Klartext-Fallback beobachtet</value></data>
+  <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; WARNUNG: {0} Klartext-Fallback-Fund(e) bei {1} verschlüsselten Resolvern; zuletzt {2} um {3}</value></data>
 </root>

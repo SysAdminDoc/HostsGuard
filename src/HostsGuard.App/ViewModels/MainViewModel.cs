@@ -501,6 +501,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Healthy = true,
         });
         Tools.HealthStatusText = "1 health check needs attention — evidence is incomplete.";
+        Tools.DohStatusText = "DoH intelligence: deterministic fixture; WARNING: 1 plaintext fallback finding across 2 encrypted resolvers; latest 1.1.1.1 at 2026-07-14T14:02:00Z";
         Tools.StatusText = "Deterministic diagnostics ready";
 
     }

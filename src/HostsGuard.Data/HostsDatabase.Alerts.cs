@@ -54,6 +54,7 @@ public sealed partial class HostsDatabase
         // Opt-in (off by default): a process talking DNS directly (port 53 to a
         // public resolver, or a known DoH endpoint) bypasses the system resolver.
         ("dns_bypass", "Apps bypassing system DNS", false),
+        ("dns_plaintext_fallback", "Encrypted DNS plaintext fallback", true),
         // Opt-in (off by default): high-volume unique subdomain bursts can be
         // legitimate CDN/telemetry traffic and require operator review.
         ("dns_tunnel", "DNS-tunneling bursts", false),

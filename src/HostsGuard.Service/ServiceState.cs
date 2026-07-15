@@ -523,6 +523,13 @@ public sealed class ServiceState : IDisposable
     }
 
     private readonly BoundedDedupSet _dnsBypassAlerted = new(comparer: StringComparer.OrdinalIgnoreCase);
+    private readonly BoundedDedupSet _dnsPlaintextFallbackAlerted = new(
+        capacity: 512,
+        ttl: TimeSpan.FromMinutes(30),
+        comparer: StringComparer.OrdinalIgnoreCase);
+    private readonly object _encryptedResolverCacheGate = new();
+    private IReadOnlySet<string> _encryptedResolverCache = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private DateTime _encryptedResolverCacheExpiresUtc = DateTime.MinValue;
 
     // The Windows DNS Client (dnscache) legitimately owns the system resolver's
     // port-53 egress; those processes are not "bypassing" anything.
@@ -582,6 +589,73 @@ public sealed class ServiceState : IDisposable
         }
     }
 
+    private bool IsEncryptedDnsPlaintextFallback(ConnectionInfo info)
+    {
+        if (!string.Equals(info.Direction, "outbound", StringComparison.OrdinalIgnoreCase) ||
+            info.RemotePort != 53 ||
+            (!string.Equals(info.Protocol, "UDP", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(info.Protocol, "TCP", StringComparison.OrdinalIgnoreCase)) ||
+            !SystemResolverProcesses.Contains((info.Process ?? string.Empty).Trim()) ||
+            !System.Net.IPAddress.TryParse(info.RemoteAddress, out var address) ||
+            !SsrfGuard.IsPublic(address) ||
+            Dns is null)
+        {
+            return false;
+        }
+
+        return EncryptedResolversForObservation().Contains(address.ToString());
+    }
+
+    private IReadOnlySet<string> EncryptedResolversForObservation()
+    {
+        lock (_encryptedResolverCacheGate)
+        {
+            var now = Clock.UtcNow;
+            if (now < _encryptedResolverCacheExpiresUtc)
+            {
+                return _encryptedResolverCache;
+            }
+
+            IEnumerable<string> resolvers = Dns is null
+                ? Array.Empty<string>()
+                : Dns.EncryptedResolvers();
+            _encryptedResolverCache = new HashSet<string>(resolvers, StringComparer.OrdinalIgnoreCase);
+            _encryptedResolverCacheExpiresUtc = now.AddSeconds(30);
+            return _encryptedResolverCache;
+        }
+    }
+
+    internal void InvalidateEncryptedResolverObservationCache()
+    {
+        lock (_encryptedResolverCacheGate)
+        {
+            _encryptedResolverCacheExpiresUtc = DateTime.MinValue;
+        }
+    }
+
+    private void MaybeAlertEncryptedDnsPlaintextFallback(ConnectionInfo info, bool observed)
+    {
+        if (!observed || !Db.IsAlertTypeSurfaced("dns_plaintext_fallback"))
+        {
+            return;
+        }
+
+        var process = string.IsNullOrWhiteSpace(info.Process) ? "Windows DNS Client" : info.Process.Trim();
+        if (!_dnsPlaintextFallbackAlerted.Add($"{info.Protocol}|{info.RemoteAddress}", Clock.UtcNow))
+        {
+            return;
+        }
+
+        Db.AddAlert(
+            "dns_plaintext_fallback",
+            "warning",
+            "Encrypted DNS fell back to plaintext",
+            info.RemoteAddress,
+            $"{info.RemoteAddress} is configured with an interface-specific DoH template, but {process} emitted an outbound {info.Protocol} DNS flow to port 53. This is evidence of plaintext fallback; alert only — HostsGuard did not change DNS or firewall policy.",
+            action: "dns_plaintext_fallback",
+            process: process);
+    }
+
     /// <summary>
     /// Publish a live connection sighting to WatchConnections streams; first
     /// sightings also land in the retention-bounded connection history (NET-070).
@@ -595,6 +669,13 @@ public sealed class ServiceState : IDisposable
             category = "DoH/DoT"; // browser/app DNS tunneling detection
         }
 
+        var plaintextFallback = IsEncryptedDnsPlaintextFallback(info);
+        if (plaintextFallback)
+        {
+            category = "DNS plaintext fallback";
+        }
+
+        MaybeAlertEncryptedDnsPlaintextFallback(info, plaintextFallback);
         MaybeAlertDnsBypass(info, category);
 
         var country = GeoIp.Lookup(info.RemoteAddress);

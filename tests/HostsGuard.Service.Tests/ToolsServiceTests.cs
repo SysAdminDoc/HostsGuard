@@ -25,6 +25,10 @@ internal sealed class FakeDnsConfig : IDnsConfig
 
     public List<DnsResolverSnapshot> RestoredSnapshots { get; } = new();
 
+    public HashSet<string> EncryptedResolverAddresses { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public int EncryptedResolverReads { get; private set; }
+
     public List<DnsAdapterState> ResolverAdapters { get; } =
     [
         new("ethernet-id", "Ethernet0", "Ethernet", true, false, true, [], ["192.168.1.1"]),
@@ -96,6 +100,12 @@ internal sealed class FakeDnsConfig : IDnsConfig
         return ResolverHealthCheck is null
             ? Task.FromResult(ResolverHealthResults)
             : ResolverHealthCheck(host, perProbeTimeout, cancellationToken);
+    }
+
+    public IReadOnlySet<string> EncryptedResolvers()
+    {
+        EncryptedResolverReads++;
+        return EncryptedResolverAddresses;
     }
 }
 

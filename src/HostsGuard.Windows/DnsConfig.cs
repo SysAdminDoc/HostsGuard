@@ -98,6 +98,9 @@ public interface IDnsConfig
         string host,
         TimeSpan perProbeTimeout,
         CancellationToken cancellationToken);
+
+    /// <summary>Resolver IPs currently carrying an interface-specific DoH property.</summary>
+    IReadOnlySet<string> EncryptedResolvers();
 }
 
 internal sealed record DnsAdapterCandidate(
@@ -409,6 +412,29 @@ public sealed class DnsConfig : IDnsConfig
         TimeSpan perProbeTimeout,
         CancellationToken cancellationToken)
         => _healthProbe.CheckAsync(ListResolverAdapters(), host, perProbeTimeout, cancellationToken);
+
+    public IReadOnlySet<string> EncryptedResolvers()
+    {
+        var resolvers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var adapter in ListResolverAdapters())
+        {
+            var snapshot = _dohTemplates.Capture(adapter.Id);
+            if (!snapshot.Available)
+            {
+                continue;
+            }
+
+            foreach (var binding in snapshot.Bindings)
+            {
+                if (IPAddress.TryParse(binding.Server, out var address))
+                {
+                    resolvers.Add(address.ToString());
+                }
+            }
+        }
+
+        return resolvers;
+    }
 
     private IReadOnlyList<DnsAdapterCandidate> EligibleAdapters()
         => _adapters.GetAdapters()
