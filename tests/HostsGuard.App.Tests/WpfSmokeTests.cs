@@ -850,17 +850,29 @@ public sealed class WpfSmokeTests
                     {
                         tabs.SelectedIndex = 5;
                         window.UpdateLayout();
-                        var tools = (StackPanel)window.FindName("ToolsSurface");
-                        var cards = LogicalTreeHelper.GetChildren(tools).OfType<Border>().ToArray();
-                        cards.Length.Should().BeGreaterThan(10, "all major Tools cards must be part of the realized matrix");
-                        for (var cardIndex = 0; cardIndex < cards.Length; cardIndex++)
+                        var toolsTabs = (TabControl)window.FindName("ToolsTabs");
+                        toolsTabs.Items.Count.Should().Be(5);
+                        var cardCount = 0;
+                        for (var toolsTab = 0; toolsTab < toolsTabs.Items.Count; toolsTab++)
                         {
-                            cards[cardIndex].BringIntoView();
+                            toolsTabs.SelectedIndex = toolsTab;
                             window.UpdateLayout();
-                            var toolsId = $"{item.Theme}-tools-card-{cardIndex}";
-                            nestedCaptureIds.Add(toolsId).Should().BeTrue();
-                            AssertRenderedPixels((FrameworkElement)window.Content, item, toolsId);
+                            var cards = Descendants<Border>(toolsTabs)
+                                .Where(border => border.IsVisible && Equals(border.Style, app.Resources["Hg.Card"]))
+                                .ToArray();
+                            cards.Should().NotBeEmpty("every Tools section must expose at least one card");
+                            cardCount += cards.Length;
+                            for (var cardIndex = 0; cardIndex < cards.Length; cardIndex++)
+                            {
+                                cards[cardIndex].BringIntoView();
+                                window.UpdateLayout();
+                                var toolsId = $"{item.Theme}-tools-tab-{toolsTab}-card-{cardIndex}";
+                                nestedCaptureIds.Add(toolsId).Should().BeTrue();
+                                AssertRenderedPixels((FrameworkElement)window.Content, item, toolsId);
+                            }
                         }
+
+                        cardCount.Should().BeGreaterThan(20, "all major Tools cards must be part of the section matrix");
                     }
 
                     var baseBrush = ((SolidColorBrush)app.Resources["Hg.Base"]).Color;

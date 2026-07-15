@@ -3409,8 +3409,14 @@
                             <TextBlock Text="{svc:Loc Key=Tab_Tools, Default=Tools}" />
                         </StackPanel>
                     </TabItem.Header>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="ToolsSurface" Margin="8" DataContext="{Binding Tools}">
+                    <Grid x:Name="ToolsSurface" Margin="8" DataContext="{Binding Tools}">
+                        <TabControl x:Name="ToolsTabs"
+                                    Style="{StaticResource Hg.PrimaryTabs}"
+                                    ItemContainerStyle="{StaticResource Hg.SecondaryTabItem}"
+                                    AutomationProperties.Name="{svc:Loc Key=ToolsNav_Name}">
+                            <TabItem Header="{svc:Loc Key=ToolsNav_Overview}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
 
                             <!-- Service-health glance (NET-186) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
@@ -3589,6 +3595,12 @@
                                 </StackPanel>
                             </Border>
 
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="{svc:Loc Key=ToolsNav_Network}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="{svc:Loc Key=Xaml_DNS_3ddc21b1}" FontWeight="SemiBold" Margin="0,0,0,8" />
@@ -4174,6 +4186,12 @@
                                 </StackPanel>
                             </Border>
 
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="{svc:Loc Key=ToolsNav_Intelligence}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
                             <!-- Manual-edit adoption (NET-188) -->
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
@@ -4321,6 +4339,12 @@
                                 </StackPanel>
                             </Border>
 
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="{svc:Loc Key=ToolsNav_Automation}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="{svc:Loc Key=Xaml_Scheduled_blocking_5a4effa0}" FontWeight="SemiBold" Margin="0,0,0,4" />
@@ -4700,6 +4724,12 @@
                                 </StackPanel>
                             </Border>
 
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="{svc:Loc Key=ToolsNav_Trust}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="4">
                             <Border Style="{StaticResource Hg.Card}" Margin="0,0,0,10">
                                 <StackPanel>
                                     <TextBlock Text="{svc:Loc Key=Xaml_Maintenance_94de303b}" FontWeight="SemiBold" Margin="0,0,0,4" />
@@ -5004,8 +5034,11 @@
                                            Style="{StaticResource Hg.SubText}"
                                            AutomationProperties.LiveSetting="Polite" />
                             </Border>
-                        </StackPanel>
-                    </ScrollViewer>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
                 </TabItem>
             </TabControl>
 

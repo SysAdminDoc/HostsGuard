@@ -2107,4 +2107,10 @@
   <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Cannot resolve the executable path for {0}</value></data>
   <data name="QuicPosture_Action" xml:space="preserve"><value>Steer QUIC app to TCP</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="ToolsNav_Name" xml:space="preserve"><value>Tools sections</value></data>
+  <data name="ToolsNav_Overview" xml:space="preserve"><value>Overview</value></data>
+  <data name="ToolsNav_Network" xml:space="preserve"><value>Network &amp; DNS</value></data>
+  <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Intelligence</value></data>
+  <data name="ToolsNav_Automation" xml:space="preserve"><value>Policy &amp; automation</value></data>
+  <data name="ToolsNav_Trust" xml:space="preserve"><value>Trust &amp; recovery</value></data>
 </root>

@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.148-blue)
+![Version](https://img.shields.io/badge/version-0.12.149-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -138,6 +138,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 
 | Feature | Description |
 |---------|-------------|
+| Section navigation | Five localized secondary tabs—Overview, Network &amp; DNS, Intelligence, Policy &amp; automation, and Trust &amp; recovery—replace the former 20-plus-card single scroll surface while preserving every command and status readout |
 | DNS-bypass defenses | Block QUIC/UDP-443, block known DoH bootstrap resolvers, and DoT/DoQ port 853 (your own resolver exempt) so apps can't tunnel DNS past hosts blocking |
 | LAN attack-surface hardening | One-click reversible cards block LLMNR, mDNS, NetBIOS-NS, SSDP/UPnP discovery, WPAD, and inbound SMB using registry-backed posture where Windows exposes it plus auditable `HG_LAN_*` firewall rules. Each card shows what may break before you turn it on. |
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |

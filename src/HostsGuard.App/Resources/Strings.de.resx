@@ -784,4 +784,10 @@
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Empfohlene Domain erlauben</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>{0} wurde erlaubt; die Empfehlung wurde entfernt</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="ToolsNav_Name" xml:space="preserve"><value>Werkzeugbereiche</value></data>
+  <data name="ToolsNav_Overview" xml:space="preserve"><value>Übersicht</value></data>
+  <data name="ToolsNav_Network" xml:space="preserve"><value>Netzwerk und DNS</value></data>
+  <data name="ToolsNav_Intelligence" xml:space="preserve"><value>Analyse</value></data>
+  <data name="ToolsNav_Automation" xml:space="preserve"><value>Richtlinien und Automatisierung</value></data>
+  <data name="ToolsNav_Trust" xml:space="preserve"><value>Vertrauen und Wiederherstellung</value></data>
 </root>

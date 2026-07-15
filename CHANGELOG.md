@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.149] - 2026-07-14
+
+### Changed
+- Tools is now organized into five localized secondary sections—Overview,
+  Network & DNS, Intelligence, Policy & automation, and Trust & recovery—each
+  with independent scrolling. The complete 22-card surface remains available,
+  and every section/card is exercised by the offscreen render matrix.
+
 ## [0.12.148] - 2026-07-14
 
 ### Changed
