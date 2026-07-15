@@ -62,6 +62,18 @@ public sealed class TrustedPublisherTests : IDisposable
     }
 
     [Fact]
+    public void Review_trust_evidence_uses_current_explicit_publisher_without_mutating_rules()
+    {
+        _state.Consent.LookupSigner = _ => "CN=Trusted Corp, O=Trusted Corp, C=US";
+        _state.Consent.SetTrustedPublishers(["Trusted Corp"]);
+
+        var evidence = _state.Consent.GetTrustEvidence(@"C:\apps\trusted.exe");
+
+        evidence.Should().Be(new TrustedApplicationEvidence("publisher", "Trusted Corp"));
+        _fw.Rules.Should().BeEmpty("review evidence must never auto-allow");
+    }
+
+    [Fact]
     public void Trusted_set_persists_across_restart()
     {
         _state.Consent.SetTrustedPublishers(new[] { "Acme", "Acme", "  " }); // dedup + blanks dropped

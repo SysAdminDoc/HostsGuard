@@ -272,6 +272,97 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
         return Task.FromResult(list);
     }
 
+    public override Task<AllowlistRecommendationList> ListAllowlistRecommendations(
+        Empty request,
+        ServerCallContext context)
+    {
+        var candidates = _state.Db.GetAllowlistCandidates();
+        var chains = _state.Db.GetDnsResolutionChains(candidates.Select(candidate => candidate.Domain));
+        var scored = new List<AllowlistRecommendationEntry>();
+        var trustByParent = new Dictionary<string, TrustedApplicationEvidence?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in candidates)
+        {
+            var cdnEvidence = DescribeCdnEvidence(
+                candidate,
+                chains.GetValueOrDefault(candidate.Domain) ?? Array.Empty<DnsResolutionHopRow>());
+            if (!trustByParent.TryGetValue(candidate.ParentPath, out var trust))
+            {
+                trust = _state.Consent.GetTrustEvidence(candidate.ParentPath);
+                trustByParent[candidate.ParentPath] = trust;
+            }
+
+            if (cdnEvidence.Length == 0 || trust is null)
+            {
+                continue;
+            }
+
+            var score = AllowlistRecommendationScorer.Score(
+                candidate.Hits,
+                resolvesToCdn: true,
+                parentTrusted: true);
+            if (score == 0)
+            {
+                continue;
+            }
+
+            scored.Add(new AllowlistRecommendationEntry
+            {
+                Domain = candidate.Domain,
+                Hits = candidate.Hits,
+                Score = score,
+                Process = candidate.Process,
+                ParentApp = Path.GetFileName(candidate.ParentPath),
+                CdnEvidence = cdnEvidence,
+                TrustEvidence = DescribeTrustEvidence(trust),
+            });
+        }
+
+        var response = new AllowlistRecommendationList();
+        response.Entries.AddRange(scored
+            .OrderByDescending(entry => entry.Score)
+            .ThenByDescending(entry => entry.Hits)
+            .ThenBy(entry => entry.Domain, StringComparer.Ordinal)
+            .Take(100));
+        return Task.FromResult(response);
+    }
+
+    private static string DescribeCdnEvidence(
+        AllowlistCandidateRow candidate,
+        IReadOnlyList<DnsResolutionHopRow> chain)
+    {
+        if (DomainCategories.Canonicalize(candidate.Category) == "CDN")
+        {
+            return $"{candidate.Domain} (saved CDN category)";
+        }
+
+        foreach (var domain in chain
+                     .Where(hop => hop.Kind is "query" or "cname")
+                     .Select(hop => hop.Value)
+                     .Prepend(candidate.Domain)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var category = DomainCategories.Lookup(domain);
+            var purpose = DomainPurpose.Lookup(domain);
+            if (category == "CDN" || purpose.Contains("CDN", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{domain} ({(purpose.Length != 0 ? purpose : category)})";
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string DescribeTrustEvidence(TrustedApplicationEvidence evidence)
+    {
+        if (evidence.Kind == "publisher")
+        {
+            return $"trusted publisher: {evidence.Value}";
+        }
+
+        var folder = Path.GetFileName(evidence.Value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return folder.Length == 0 ? "trusted folder" : $"trusted folder: {folder}";
+    }
+
     internal static DgaEvidence ToDgaEvidence(Core.DgaScoreBreakdown score) => new()
     {
         Version = score.Version,

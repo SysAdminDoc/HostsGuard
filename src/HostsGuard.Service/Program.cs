@@ -342,7 +342,8 @@ state.LookupSoleService = serviceAttribution.SoleOwner;
 state.Consent.LookupSoleService = serviceAttribution.SoleOwner;
 // Child-process auto-allow (NET-093): resolve a PID's parent so a trusted
 // parent's verdict can inherit to its direct children.
-state.Consent.LookupParent = ProcessTree.GetParent;
+state.LookupParent = ProcessTree.GetParent;
+state.Consent.LookupParent = state.LookupParent;
 state.Consent.LookupCommandLine = ProcessCommandLine.Read;
 
 // Read-only WTS inventory protects remote operators from accidental lockout.

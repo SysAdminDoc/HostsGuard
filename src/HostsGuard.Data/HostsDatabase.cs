@@ -15,10 +15,25 @@ public sealed record DomainStats(int Blocked, int Whitelisted, int FeedTotal, in
 /// <summary>A DNS activity feed row, joined with the managed-domain status.</summary>
 public sealed record FeedRow(
     string Domain, string? FirstSeen, string? LastSeen, long Hits,
-    string? Process, long Hidden, string? Reason, string? Status);
+    string? Process, long Hidden, string? Reason, string? Status,
+    long Pid = 0, string ParentPath = "");
 
 /// <summary>A DNS sighting queued for batched feed/hourly persistence.</summary>
-public sealed record DnsSightingWrite(string Domain, string Process, string? Reason, DateTime SeenAt);
+public sealed record DnsSightingWrite(
+    string Domain,
+    string Process,
+    string? Reason,
+    DateTime SeenAt,
+    long Pid = 0,
+    string ParentPath = "");
+
+/// <summary>Persisted inputs for a review-only allowlist recommendation.</summary>
+public sealed record AllowlistCandidateRow(
+    string Domain,
+    long Hits,
+    string Process,
+    string ParentPath,
+    string Category);
 
 /// <summary>A tracked HostsGuard firewall rule, for the Secure-Rules reconcile.</summary>
 public sealed record FwStateRow(
@@ -359,7 +374,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 39;
+    public const int SchemaVersion = 40;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -507,7 +522,8 @@ public sealed partial class HostsDatabase : IDisposable
                 added TEXT, modified TEXT, hits INTEGER DEFAULT 0, notes TEXT, reason TEXT);
             CREATE TABLE IF NOT EXISTS feed(
                 domain TEXT PRIMARY KEY, first_seen TEXT, last_seen TEXT, hits INTEGER DEFAULT 1,
-                process TEXT, hidden INTEGER DEFAULT 0, reason TEXT);
+                process TEXT, hidden INTEGER DEFAULT 0, reason TEXT,
+                pid INTEGER DEFAULT 0, parent_path TEXT DEFAULT '');
             CREATE TABLE IF NOT EXISTS log(
                 id INTEGER PRIMARY KEY, ts TEXT, domain TEXT, action TEXT, process TEXT, details TEXT, reason TEXT,
                 filter_runtime_id TEXT DEFAULT '', filter_origin TEXT DEFAULT '', layer_name TEXT DEFAULT '',
@@ -684,6 +700,8 @@ public sealed partial class HostsDatabase : IDisposable
         // Add reason columns to tables that predate schema v7 but survived the rename.
         AddColumnIfMissing("domains", "reason", "TEXT");
         AddColumnIfMissing("feed", "reason", "TEXT");
+        AddColumnIfMissing("feed", "pid", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("feed", "parent_path", "TEXT DEFAULT ''");
         AddColumnIfMissing("log", "reason", "TEXT");
         AddColumnIfMissing("log", "filter_runtime_id", "TEXT DEFAULT ''");
         AddColumnIfMissing("log", "filter_origin", "TEXT DEFAULT ''");

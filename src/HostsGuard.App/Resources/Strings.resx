@@ -1232,6 +1232,26 @@
   <data name="Alerts_ActionAck" xml:space="preserve"><value>Acknowledge alert</value></data>
   <data name="Alerts_ActionAckAll" xml:space="preserve"><value>Acknowledge alerts</value></data>
   <data name="Alerts_ActionSurface" xml:space="preserve"><value>Set alert surface</value></data>
+  <data name="AllowlistReview_InboxTab" xml:space="preserve"><value>Alert inbox</value></data>
+  <data name="AllowlistReview_Tab" xml:space="preserve"><value>Allowlist review</value></data>
+  <data name="AllowlistReview_Title" xml:space="preserve"><value>Likely false-positive blocks</value></data>
+  <data name="AllowlistReview_Help" xml:space="preserve"><value>Review only: every row is a frequently blocked domain with CDN evidence and an observed direct parent app covered by an explicit trusted folder or publisher. HostsGuard never allows these automatically.</value></data>
+  <data name="AllowlistReview_TableName" xml:space="preserve"><value>Ranked allowlist recommendations</value></data>
+  <data name="AllowlistReview_Score" xml:space="preserve"><value>Score</value></data>
+  <data name="AllowlistReview_Domain" xml:space="preserve"><value>Domain</value></data>
+  <data name="AllowlistReview_Hits" xml:space="preserve"><value>Hits</value></data>
+  <data name="AllowlistReview_Process" xml:space="preserve"><value>Process</value></data>
+  <data name="AllowlistReview_Parent" xml:space="preserve"><value>Direct parent</value></data>
+  <data name="AllowlistReview_CdnEvidence" xml:space="preserve"><value>CDN evidence</value></data>
+  <data name="AllowlistReview_TrustEvidence" xml:space="preserve"><value>Trust evidence</value></data>
+  <data name="AllowlistReview_Action" xml:space="preserve"><value>Action</value></data>
+  <data name="AllowlistReview_Allow" xml:space="preserve"><value>Allow</value></data>
+  <data name="AllowlistReview_AllowName" xml:space="preserve"><value>Allow this recommended domain</value></data>
+  <data name="AllowlistReview_EmptyTitle" xml:space="preserve"><value>No review candidates</value></data>
+  <data name="AllowlistReview_EmptyHelp" xml:space="preserve"><value>No blocked domain currently has all three required signals: repeated hits, CDN resolution, and an explicitly trusted direct parent app.</value></data>
+  <data name="AllowlistReview_Select" xml:space="preserve"><value>Select a recommendation first</value></data>
+  <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Allow recommended domain</value></data>
+  <data name="AllowlistReview_Allowed" xml:space="preserve"><value>Allowed {0}; the recommendation was removed</value></data>
   <data name="RawHosts_ActionLoad" xml:space="preserve"><value>Load raw hosts file</value></data>
   <data name="RawHosts_ActionSave" xml:space="preserve"><value>Save raw hosts file</value></data>
   <data name="RawHosts_ActionCategorize" xml:space="preserve"><value>Categorize raw hosts file</value></data>

@@ -668,6 +668,40 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     }
 
     [Fact]
+    public async Task Allowlist_recommendations_require_cdn_and_explicitly_trusted_direct_parent()
+    {
+        const string candidate = "assets.example.test";
+        _state.LookupParent = pid => pid == 42 ? (7, @"C:\TrustedApps\launcher.exe") : null;
+        _state.Consent.SetTrustedFolders([@"C:\TrustedApps"]);
+        _db.AddDomain(candidate, "blocked", source: "list:test");
+        _db.AddDomain("ordinary.example.test", "blocked", source: "list:test");
+        _db.AddDomain("untrusted.example.test", "blocked", source: "list:test");
+        for (var i = 0; i < 25; i++)
+        {
+            _state.RecordDns(candidate, "child.exe", pid: 42);
+            _state.RecordDns("ordinary.example.test", "child.exe", pid: 42);
+            _state.RecordDns("untrusted.example.test", "child.exe", pid: 99);
+        }
+
+        await _state.FlushActivityPersistenceAsync();
+        _db.ReplaceDnsResolutionChain(candidate, ["edge.cloudfront.net"], ["203.0.113.20"]);
+        _db.ReplaceDnsResolutionChain("untrusted.example.test", ["other.cloudfront.net"], ["203.0.113.21"]);
+
+        var response = await new MonitoringServiceImpl(_state)
+            .ListAllowlistRecommendations(new Empty(), null!);
+
+        var row = response.Entries.Should().ContainSingle().Subject;
+        row.Domain.Should().Be(candidate);
+        row.Hits.Should().Be(25);
+        row.Score.Should().Be(85);
+        row.ParentApp.Should().Be("launcher.exe");
+        row.CdnEvidence.Should().Contain("cloudfront.net").And.Contain("CDN");
+        row.TrustEvidence.Should().Be("trusted folder: TrustedApps");
+        row.TrustEvidence.Should().NotContain(@"C:\");
+        _db.GetDomainStatus(candidate).Should().Be("blocked", "listing is review-only");
+    }
+
+    [Fact]
     public async Task Alert_type_surface_controls_default_inbox_visibility()
     {
         _db.AddAlert("firewall_drift", "warning", "Rule changed", "Steam Inbound", "enabled changed");

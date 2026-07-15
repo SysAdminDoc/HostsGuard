@@ -527,7 +527,9 @@ public sealed partial class HostsDatabase
                 s.Domain.ToLowerInvariant().Trim(),
                 s.Process ?? string.Empty,
                 s.Reason,
-                s.SeenAt))
+                s.SeenAt,
+                s.Pid,
+                s.ParentPath ?? string.Empty))
             .ToList();
         if (rows.Count == 0)
         {
@@ -543,17 +545,22 @@ public sealed partial class HostsDatabase
                     .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
                 var last = group.Max(r => r.SeenAt)
                     .ToString("o", System.Globalization.CultureInfo.InvariantCulture);
-                var process = group.LastOrDefault(r => !string.IsNullOrWhiteSpace(r.Process))?.Process ?? string.Empty;
+                var identity = group.Last();
+                var process = identity.Process.Length != 0
+                    ? identity.Process
+                    : group.LastOrDefault(r => !string.IsNullOrWhiteSpace(r.Process))?.Process ?? string.Empty;
                 var reason = group.LastOrDefault(r => !string.IsNullOrWhiteSpace(r.Reason))?.Reason;
                 _conn.Execute(
                     """
-                    INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason)
-                    VALUES(@domain,@first,@last,@hits,@process,0,@reason)
+                    INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason,pid,parent_path)
+                    VALUES(@domain,@first,@last,@hits,@process,0,@reason,@pid,@parentPath)
                     ON CONFLICT(domain) DO UPDATE SET
                         last_seen=excluded.last_seen,
                         hits=feed.hits+excluded.hits,
                         process=CASE WHEN excluded.process!='' THEN excluded.process ELSE feed.process END,
-                        reason=CASE WHEN excluded.reason IS NOT NULL AND excluded.reason!='' THEN excluded.reason ELSE feed.reason END
+                        reason=CASE WHEN excluded.reason IS NOT NULL AND excluded.reason!='' THEN excluded.reason ELSE feed.reason END,
+                        pid=excluded.pid,
+                        parent_path=excluded.parent_path
                     """,
                     new
                     {
@@ -563,6 +570,13 @@ public sealed partial class HostsDatabase
                         hits = group.Count(),
                         process,
                         reason,
+                        pid = identity.Pid,
+                        parentPath = new DbString
+                        {
+                            Value = identity.ParentPath,
+                            IsAnsi = false,
+                            Length = -1,
+                        },
                     },
                     tx);
             }
@@ -684,11 +698,53 @@ public sealed partial class HostsDatabase
                 """
                 SELECT f.domain AS Domain, f.first_seen AS FirstSeen, f.last_seen AS LastSeen,
                        f.hits AS Hits, f.process AS Process, f.hidden AS Hidden, f.reason AS Reason,
-                       d.status AS Status
+                       d.status AS Status, f.pid AS Pid, f.parent_path AS ParentPath
                 FROM feed f LEFT JOIN domains d ON d.domain = f.domain
                 ORDER BY f.last_seen DESC LIMIT @limit
                 """,
                 new { limit }).ToList();
+        }
+    }
+
+    /// <summary>
+    /// Frequently observed blocked domains with persisted direct-parent
+    /// identity. CDN and trust evidence are evaluated by the service against
+    /// current curated knowledge and explicit trust settings.
+    /// </summary>
+    public IReadOnlyList<AllowlistCandidateRow> GetAllowlistCandidates(int limit = 500)
+    {
+        lock (_gate)
+        {
+            return _conn.Query(
+                """
+                SELECT f.domain AS Domain, f.hits AS Hits,
+                       COALESCE(f.process,'') AS Process,
+                       COALESCE(f.parent_path,'') AS ParentPath,
+                       COALESCE(d.category,'') AS Category
+                FROM feed f
+                JOIN domains d ON d.domain=f.domain
+                WHERE d.status='blocked' AND f.hits>=@minimumHits
+                      AND length(hex(f.parent_path))>0
+                ORDER BY f.hits DESC, f.domain ASC
+                LIMIT @limit
+                """,
+                new
+                {
+                    minimumHits = HostsGuard.Core.AllowlistRecommendationScorer.MinimumHits,
+                    limit = Math.Clamp(limit, 1, 2000),
+                })
+                .Select(row =>
+                {
+                    var values = (IDictionary<string, object?>)row;
+                    return new AllowlistCandidateRow(
+                        ReadText(values["Domain"] ?? DBNull.Value),
+                        ReadLong(values["Hits"] ?? DBNull.Value),
+                        ReadText(values["Process"] ?? DBNull.Value).TrimEnd('\0'),
+                        ReadText(values["ParentPath"] ?? DBNull.Value).TrimEnd('\0'),
+                        ReadText(values["Category"] ?? DBNull.Value).TrimEnd('\0'));
+                })
+                .Where(row => row.ParentPath.Length != 0)
+                .ToList();
         }
     }
 

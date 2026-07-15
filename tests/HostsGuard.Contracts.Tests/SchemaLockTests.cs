@@ -192,6 +192,7 @@ public class SchemaLockTests
           GetUsageRollups(UsageRollupRequest) returns (UsageRollupList)
           ListAlertTypes(Empty) returns (AlertTypeList)
           ListAlerts(AlertRequest) returns (AlertList)
+          ListAllowlistRecommendations(Empty) returns (AllowlistRecommendationList)
           ListEvents(EventLogRequest) returns (EventLogList)
           ListHistoryPrivacyExclusions(Empty) returns (HistoryPrivacyExclusionList)
           ListListeners(Empty) returns (ListenerExposureList)

@@ -855,6 +855,44 @@ public sealed partial class ConsentBroker : IDisposable
         }
     }
 
+    /// <summary>
+    /// Current explicit trust evidence for an application path. Used only to
+    /// rank operator-review suggestions; it never creates an allow decision.
+    /// </summary>
+    public TrustedApplicationEvidence? GetTrustEvidence(string application)
+    {
+        var path = (application ?? string.Empty).Trim();
+        if (path.Length == 0)
+        {
+            return null;
+        }
+
+        List<string> folders;
+        List<string> publishers;
+        lock (_gate)
+        {
+            folders = _state.TrustedFolders.ToList();
+            publishers = _state.TrustedPublishers.ToList();
+        }
+
+        var folder = folders.FirstOrDefault(candidate => Core.PathScope.IsUnder(path, candidate));
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            return new TrustedApplicationEvidence("folder", folder);
+        }
+
+        if (publishers.Count == 0)
+        {
+            return null;
+        }
+
+        var publisher = Core.PublisherName.Of(SafeSigner(path));
+        return publisher.Length != 0 && publishers.Any(
+            candidate => string.Equals(candidate, publisher, StringComparison.OrdinalIgnoreCase))
+            ? new TrustedApplicationEvidence("publisher", publisher)
+            : null;
+    }
+
     /// <summary>Replace the trusted-folder set.</summary>
     public Ack SetTrustedFolders(IEnumerable<string> folders)
     {
@@ -1336,3 +1374,5 @@ public sealed partial class ConsentBroker : IDisposable
         }
     }
 }
+
+public sealed record TrustedApplicationEvidence(string Kind, string Value);

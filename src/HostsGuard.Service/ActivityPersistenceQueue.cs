@@ -20,14 +20,20 @@ public sealed class ActivityPersistenceQueue : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _worker;
     private readonly int _maxBatch;
+    private readonly Func<int, string> _parentPathResolver;
     private long _writeBatches;
     private long _largestDnsBatch;
     private long _droppedWrites;
 
-    public ActivityPersistenceQueue(HostsDatabase db, int capacity = DefaultCapacity, int maxBatch = DefaultMaxBatch)
+    public ActivityPersistenceQueue(
+        HostsDatabase db,
+        int capacity = DefaultCapacity,
+        int maxBatch = DefaultMaxBatch,
+        Func<int, string>? parentPathResolver = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _maxBatch = Math.Clamp(maxBatch, 1, 4096);
+        _parentPathResolver = parentPathResolver ?? (_ => string.Empty);
 
         // Wait mode (not DropOldest): TryWrite returns false when saturated so a
         // shed sighting is countable rather than silently evicted, and — crucially
@@ -50,14 +56,14 @@ public sealed class ActivityPersistenceQueue : IDisposable
     /// <summary>DNS sightings/resolved-host writes shed because the queue was saturated (NET-168).</summary>
     public long DroppedWriteCount => Interlocked.Read(ref _droppedWrites);
 
-    public void EnqueueDnsSighting(string domain, string process, string? reason, DateTime seenAt)
+    public void EnqueueDnsSighting(string domain, string process, string? reason, DateTime seenAt, int pid = 0)
     {
         if (string.IsNullOrWhiteSpace(domain))
         {
             return;
         }
 
-        if (!_queue.Writer.TryWrite(new DnsItem(domain, process ?? string.Empty, reason, seenAt)))
+        if (!_queue.Writer.TryWrite(new DnsItem(domain, process ?? string.Empty, reason, seenAt, pid)))
         {
             Interlocked.Increment(ref _droppedWrites);
         }
@@ -162,6 +168,7 @@ public sealed class ActivityPersistenceQueue : IDisposable
     private void ProcessBatch(IReadOnlyList<WorkItem> batch)
     {
         var sightings = new List<DnsSightingWrite>();
+        var parentPaths = new Dictionary<int, string>();
         var resolved = new Dictionary<string, List<(string Ip, string Host)>>(StringComparer.Ordinal);
         var chains = new Dictionary<string, ResolutionChainItem>(StringComparer.Ordinal);
         var flushes = new List<TaskCompletionSource>();
@@ -171,7 +178,23 @@ public sealed class ActivityPersistenceQueue : IDisposable
             switch (item)
             {
                 case DnsItem dns:
-                    sightings.Add(new DnsSightingWrite(dns.Domain, dns.Process, dns.Reason, dns.SeenAt));
+                    var parentPath = string.Empty;
+                    if (dns.Pid > 0 && !parentPaths.TryGetValue(dns.Pid, out parentPath))
+                    {
+                        try
+                        {
+                            parentPath = _parentPathResolver(dns.Pid) ?? string.Empty;
+                        }
+                        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+                        {
+                            parentPath = string.Empty;
+                        }
+
+                        parentPaths[dns.Pid] = parentPath;
+                    }
+
+                    sightings.Add(new DnsSightingWrite(
+                        dns.Domain, dns.Process, dns.Reason, dns.SeenAt, dns.Pid, parentPath));
                     break;
                 case ResolvedHostsItem hosts:
                     if (!resolved.TryGetValue(hosts.Source, out var list))
@@ -291,7 +314,7 @@ public sealed class ActivityPersistenceQueue : IDisposable
 
     private abstract record WorkItem;
 
-    private sealed record DnsItem(string Domain, string Process, string? Reason, DateTime SeenAt) : WorkItem;
+    private sealed record DnsItem(string Domain, string Process, string? Reason, DateTime SeenAt, int Pid) : WorkItem;
 
     private sealed record ResolvedHostsItem(IReadOnlyList<(string Ip, string Host)> Pairs, string Source) : WorkItem;
 

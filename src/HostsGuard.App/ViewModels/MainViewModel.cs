@@ -378,6 +378,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Alerts.UnreadCount = 1;
         Alerts.SelectedAlert = Alerts.Alerts[0];
         Alerts.StatusText = "1 deterministic alert";
+        Alerts.AllowlistRecommendations.Add(new AllowlistRecommendationViewModel(
+            "assets.example.test",
+            250,
+            95,
+            "browser.exe",
+            "launcher.exe",
+            "edge.cloudfront.net (CDN)",
+            "trusted publisher: Example Software"));
 
         Hosts!.Domains.Add(new ManagedDomainViewModel
         {

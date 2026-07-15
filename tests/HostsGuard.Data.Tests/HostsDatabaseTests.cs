@@ -116,6 +116,34 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Allowlist_candidate_query_requires_blocked_frequency_and_parent_identity()
+    {
+        using var db = new HostsDatabase(DbPath("allowlist-candidates.db"));
+        var now = DateTime.Now;
+        db.AddDomain("assets.example.com", "blocked", category: "CDN");
+        db.AddDomain("allowed.example.com", "whitelisted", category: "CDN");
+        db.RecordDnsSightings(Enumerable.Range(0, 5).Select(index => new DnsSightingWrite(
+            "assets.example.com", "child.exe", null, now.AddSeconds(index), 42, @"C:\TrustedApps\parent.exe")));
+        db.RecordDnsSightings(Enumerable.Range(0, 20).Select(index => new DnsSightingWrite(
+            "allowed.example.com", "child.exe", null, now.AddSeconds(index), 42, @"C:\TrustedApps\parent.exe")));
+        db.RecordDnsSightings(Enumerable.Range(0, 20).Select(index => new DnsSightingWrite(
+            "missing-parent.example.com", "child.exe", null, now.AddSeconds(index))));
+
+        var row = db.GetAllowlistCandidates().Should().ContainSingle().Subject;
+
+        row.Domain.Should().Be("assets.example.com");
+        row.Hits.Should().Be(5);
+        row.ParentPath.Should().Be(@"C:\TrustedApps\parent.exe");
+        db.GetFeed().Single(feed => feed.Domain == row.Domain).Pid.Should().Be(42);
+
+        db.RecordDnsSightings([new DnsSightingWrite(
+            "assets.example.com", "new.exe", null, now.AddMinutes(1), 99, string.Empty)]);
+        db.GetFeed().Single(feed => feed.Domain == row.Domain).ParentPath.Should().BeEmpty();
+        db.GetAllowlistCandidates().Should().BeEmpty(
+            "a newer observation without direct-parent evidence must clear stale trust evidence");
+    }
+
+    [Fact]
     public void Blocklist_mirrors_and_selected_endpoint_round_trip_in_order()
     {
         using var db = new HostsDatabase(DbPath("source-mirrors.db"));

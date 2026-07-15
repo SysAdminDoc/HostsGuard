@@ -402,6 +402,32 @@ public sealed class ConnectionHistoryTests : IDisposable
     }
 
     [Fact]
+    public void Existing_feed_table_gains_parent_identity_columns_without_data_loss()
+    {
+        var path = Path.Combine(_dir, "existing-feed.db");
+        using (var conn = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            conn.Open();
+            conn.Execute(
+                "CREATE TABLE feed(domain TEXT PRIMARY KEY, first_seen TEXT, last_seen TEXT, hits INTEGER, process TEXT, hidden INTEGER, reason TEXT)");
+            conn.Execute(
+                "INSERT INTO feed(domain,first_seen,last_seen,hits,process,hidden,reason) VALUES('legacy.example','a','b',7,'old.exe',0,'legacy')");
+        }
+
+        using (var db = new HostsDatabase(path))
+        {
+            db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);
+            db.GetFeed().Should().ContainSingle(row =>
+                row.Domain == "legacy.example" && row.Hits == 7 && row.Pid == 0 && row.ParentPath == string.Empty);
+        }
+
+        using var verify = new SqliteConnection($"Data Source={path};Pooling=False");
+        verify.Open();
+        verify.Query<string>("SELECT name FROM pragma_table_info('feed')")
+            .Should().Contain(["pid", "parent_path"]);
+    }
+
+    [Fact]
     public void Schema_version_is_current()
     {
         _db.SchemaVersionOnDisk().Should().Be(HostsDatabase.SchemaVersion);

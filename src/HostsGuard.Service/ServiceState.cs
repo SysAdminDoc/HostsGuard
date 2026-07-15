@@ -69,7 +69,9 @@ public sealed class ServiceState : IDisposable
         // forward tamper/detector notifications, not just DNS/connection activity.
         // Log-only (unsurfaced) alert types are not forwarded.
         Db.AlertRaised += OnAlertRaised;
-        ActivityPersistence = new ActivityPersistenceQueue(db);
+        ActivityPersistence = new ActivityPersistenceQueue(
+            db,
+            parentPathResolver: pid => LookupParent?.Invoke(pid)?.ParentPath ?? string.Empty);
         TempAllows = new TempAllowScheduler(hosts, db, Bus, Clock);
         TempAllows.Resume();
         TempBlocks = new TempBlockScheduler(hosts, db, Bus, Clock);
@@ -162,6 +164,9 @@ public sealed class ServiceState : IDisposable
     public DnsTunnelDetector DnsTunnels { get; }
 
     public IFirewallEngine? Firewall { get; }
+
+    /// <summary>Best-effort direct-parent identity seam shared by consent and DNS persistence.</summary>
+    public Func<int, (int ParentPid, string ParentPath)?>? LookupParent { get; set; }
 
     public FirewallIdentity? Identity { get; }
 
@@ -404,7 +409,7 @@ public sealed class ServiceState : IDisposable
         var firstContact = !Db.FeedContains(d);
         IdnHomographs.Observe(d, process);
         if (!Db.IsHistoryPersistenceExcluded(process, d))
-            ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, Clock.Now);
+            ActivityPersistence.EnqueueDnsSighting(d, process, reason: null, Clock.Now, pid);
         // The live ETW event can't know a domain's managed status, so the feed's
         // "blocked" signal must come from the DB — the same source the snapshot
         // uses. Without this the live stream re-adds blocked domains as normal

@@ -95,7 +95,7 @@ public static class RpcMutationPolicy
 
         Add(policies, "Monitoring", RpcMutationKind.ReadOnly,
             "WatchDns", "WatchConnections", "WatchEvents", "GetConnectionHistory", "ListEvents", "ListListeners",
-            "ListAlerts", "ListAlertTypes", "GetAppBandwidth", "GetHistorySettings", "GetUsageRollups",
+            "ListAlerts", "ListAlertTypes", "ListAllowlistRecommendations", "GetAppBandwidth", "GetHistorySettings", "GetUsageRollups",
             "GetUsageQuotaRules", "ExportUsageQuotaHistory", "ListHistoryPrivacyExclusions", "ExportTrafficProfile");
         Add(policies, "Monitoring", RpcMutationKind.ProtectiveMutation,
             "ClearConnectionHistory", "AckAlert", "ResetUsageQuotaHistory");

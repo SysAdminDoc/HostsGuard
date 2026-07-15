@@ -763,4 +763,24 @@
   <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Zuerst einen QUIC-Prozess auswählen</value></data>
   <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Der Pfad der ausführbaren Datei für {0} kann nicht ermittelt werden</value></data>
   <data name="QuicPosture_Action" xml:space="preserve"><value>QUIC-App zu TCP umleiten</value></data>
+  <data name="AllowlistReview_InboxTab" xml:space="preserve"><value>Warnungs-Posteingang</value></data>
+  <data name="AllowlistReview_Tab" xml:space="preserve"><value>Zulassungsliste pruefen</value></data>
+  <data name="AllowlistReview_Title" xml:space="preserve"><value>Wahrscheinliche Fehlalarme</value></data>
+  <data name="AllowlistReview_Help" xml:space="preserve"><value>Nur zur Pruefung: Jede Zeile ist eine haeufig blockierte Domain mit CDN-Nachweis und einer beobachteten direkten Eltern-App aus einem explizit vertrauenswuerdigen Ordner oder Herausgeber. HostsGuard erlaubt sie nie automatisch.</value></data>
+  <data name="AllowlistReview_TableName" xml:space="preserve"><value>Priorisierte Zulassungsempfehlungen</value></data>
+  <data name="AllowlistReview_Score" xml:space="preserve"><value>Wertung</value></data>
+  <data name="AllowlistReview_Domain" xml:space="preserve"><value>Domain</value></data>
+  <data name="AllowlistReview_Hits" xml:space="preserve"><value>Treffer</value></data>
+  <data name="AllowlistReview_Process" xml:space="preserve"><value>Prozess</value></data>
+  <data name="AllowlistReview_Parent" xml:space="preserve"><value>Direkte Eltern-App</value></data>
+  <data name="AllowlistReview_CdnEvidence" xml:space="preserve"><value>CDN-Nachweis</value></data>
+  <data name="AllowlistReview_TrustEvidence" xml:space="preserve"><value>Vertrauensnachweis</value></data>
+  <data name="AllowlistReview_Action" xml:space="preserve"><value>Aktion</value></data>
+  <data name="AllowlistReview_Allow" xml:space="preserve"><value>Erlauben</value></data>
+  <data name="AllowlistReview_AllowName" xml:space="preserve"><value>Diese empfohlene Domain erlauben</value></data>
+  <data name="AllowlistReview_EmptyTitle" xml:space="preserve"><value>Keine Pruefkandidaten</value></data>
+  <data name="AllowlistReview_EmptyHelp" xml:space="preserve"><value>Keine blockierte Domain hat derzeit alle drei Signale: wiederholte Treffer, CDN-Aufloesung und eine explizit vertrauenswuerdige direkte Eltern-App.</value></data>
+  <data name="AllowlistReview_Select" xml:space="preserve"><value>Zuerst eine Empfehlung auswaehlen</value></data>
+  <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Empfohlene Domain erlauben</value></data>
+  <data name="AllowlistReview_Allowed" xml:space="preserve"><value>{0} wurde erlaubt; die Empfehlung wurde entfernt</value></data>
 </root>

@@ -43,6 +43,8 @@ public sealed partial class AlertsViewModel : ObservableObject
 
     public ObservableCollection<AlertTypeRowViewModel> AlertTypes { get; } = new();
 
+    public ObservableCollection<AllowlistRecommendationViewModel> AllowlistRecommendations { get; } = new();
+
     public string UnreadTitle => UnreadCount == 0
         ? I18n.T("Alerts_Clear", "Clear")
         : I18n.T("Alerts_UnreadTitle", "{0} unread", UnreadCount);
@@ -55,13 +57,21 @@ public sealed partial class AlertsViewModel : ObservableObject
     {
         await RunServiceActionAsync(I18n.T("Alerts_ActionLoad", "Load alerts"), async () =>
         {
-            var list = await _client.Monitoring.ListAlertsAsync(new AlertRequest
+            var listCall = _client.Monitoring.ListAlertsAsync(new AlertRequest
             {
                 Limit = 500,
                 IncludeRead = IncludeRead,
                 IncludeLogOnly = !SurfaceOnly,
                 Type = TypeFilter,
             });
+            var recommendationsCall = _client.Monitoring.ListAllowlistRecommendationsAsync(new Empty());
+            var typesCall = _client.Monitoring.ListAlertTypesAsync(new Empty());
+            await Task.WhenAll(
+                listCall.ResponseAsync,
+                recommendationsCall.ResponseAsync,
+                typesCall.ResponseAsync);
+
+            var list = await listCall.ResponseAsync;
 
             var selectedId = SelectedAlert?.Id;
             Alerts.Clear();
@@ -76,7 +86,8 @@ public sealed partial class AlertsViewModel : ObservableObject
 
             UnreadCount = list.Unread;
             StatusText = I18n.T("Alerts_Loaded", "Loaded {0} of {1} alerts", list.Entries.Count, list.Total);
-            await LoadTypesAsync();
+            ApplyAllowlistRecommendations(await recommendationsCall.ResponseAsync);
+            ApplyTypes(await typesCall.ResponseAsync);
         });
     }
 
@@ -117,9 +128,50 @@ public sealed partial class AlertsViewModel : ObservableObject
         });
     }
 
-    private async Task LoadTypesAsync()
+    [RelayCommand]
+    public async Task AllowRecommendationAsync(AllowlistRecommendationViewModel? row)
     {
-        var types = await _client.Monitoring.ListAlertTypesAsync(new Empty());
+        if (row is null)
+        {
+            StatusText = I18n.T("AllowlistReview_Select", "Select a recommendation first");
+            return;
+        }
+
+        await RunServiceActionAsync(I18n.T("AllowlistReview_ActionAllow", "Allow recommended domain"), async () =>
+        {
+            var ack = await _client.Hosts.AllowAsync(new DomainRequest
+            {
+                Domain = row.Domain,
+                Source = "allowlist-review",
+                Reason = "false-positive-review",
+            });
+            StatusText = ack.Ok
+                ? I18n.T("AllowlistReview_Allowed", "Allowed {0}; the recommendation was removed", row.Domain)
+                : ack.Message;
+            if (ack.Ok)
+            {
+                await LoadAllowlistRecommendationsAsync();
+            }
+        });
+    }
+
+    private async Task LoadAllowlistRecommendationsAsync()
+    {
+        var response = await _client.Monitoring.ListAllowlistRecommendationsAsync(new Empty());
+        ApplyAllowlistRecommendations(response);
+    }
+
+    private void ApplyAllowlistRecommendations(AllowlistRecommendationList response)
+    {
+        AllowlistRecommendations.Clear();
+        foreach (var entry in response.Entries)
+        {
+            AllowlistRecommendations.Add(AllowlistRecommendationViewModel.From(entry));
+        }
+    }
+
+    private void ApplyTypes(AlertTypeList types)
+    {
         AlertTypes.Clear();
         foreach (var row in types.Types_)
         {
@@ -149,6 +201,25 @@ public sealed partial class AlertsViewModel : ObservableObject
 
     private Task RunServiceActionAsync(string action, Func<Task> work) =>
         ServiceActionGuard.RunAsync(action, s => StatusText = s, work);
+}
+
+public sealed record AllowlistRecommendationViewModel(
+    string Domain,
+    long Hits,
+    int Score,
+    string Process,
+    string ParentApp,
+    string CdnEvidence,
+    string TrustEvidence)
+{
+    public static AllowlistRecommendationViewModel From(AllowlistRecommendationEntry entry) => new(
+        entry.Domain,
+        entry.Hits,
+        entry.Score,
+        entry.Process,
+        entry.ParentApp,
+        entry.CdnEvidence,
+        entry.TrustEvidence);
 }
 
 public sealed partial class AlertRowViewModel : ObservableObject

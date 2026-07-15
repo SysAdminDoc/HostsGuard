@@ -763,4 +763,24 @@
   <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Sélectionnez d’abord un processus QUIC</value></data>
   <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Impossible de déterminer le chemin de l’exécutable pour {0}</value></data>
   <data name="QuicPosture_Action" xml:space="preserve"><value>Basculer l’application QUIC vers TCP</value></data>
+  <data name="AllowlistReview_InboxTab" xml:space="preserve"><value>Boite d'alertes</value></data>
+  <data name="AllowlistReview_Tab" xml:space="preserve"><value>Reviser les autorisations</value></data>
+  <data name="AllowlistReview_Title" xml:space="preserve"><value>Blocages probablement faux positifs</value></data>
+  <data name="AllowlistReview_Help" xml:space="preserve"><value>Revue uniquement : chaque ligne est un domaine souvent bloque avec preuve CDN et application parente directe observee couverte par un dossier ou editeur explicitement approuve. HostsGuard ne les autorise jamais automatiquement.</value></data>
+  <data name="AllowlistReview_TableName" xml:space="preserve"><value>Recommandations d'autorisation classees</value></data>
+  <data name="AllowlistReview_Score" xml:space="preserve"><value>Score</value></data>
+  <data name="AllowlistReview_Domain" xml:space="preserve"><value>Domaine</value></data>
+  <data name="AllowlistReview_Hits" xml:space="preserve"><value>Occurrences</value></data>
+  <data name="AllowlistReview_Process" xml:space="preserve"><value>Processus</value></data>
+  <data name="AllowlistReview_Parent" xml:space="preserve"><value>Parent direct</value></data>
+  <data name="AllowlistReview_CdnEvidence" xml:space="preserve"><value>Preuve CDN</value></data>
+  <data name="AllowlistReview_TrustEvidence" xml:space="preserve"><value>Preuve de confiance</value></data>
+  <data name="AllowlistReview_Action" xml:space="preserve"><value>Action</value></data>
+  <data name="AllowlistReview_Allow" xml:space="preserve"><value>Autoriser</value></data>
+  <data name="AllowlistReview_AllowName" xml:space="preserve"><value>Autoriser ce domaine recommande</value></data>
+  <data name="AllowlistReview_EmptyTitle" xml:space="preserve"><value>Aucun candidat a reviser</value></data>
+  <data name="AllowlistReview_EmptyHelp" xml:space="preserve"><value>Aucun domaine bloque ne possede actuellement les trois signaux requis : occurrences repetees, resolution CDN et application parente directe explicitement approuvee.</value></data>
+  <data name="AllowlistReview_Select" xml:space="preserve"><value>Selectionnez d'abord une recommandation</value></data>
+  <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Autoriser le domaine recommande</value></data>
+  <data name="AllowlistReview_Allowed" xml:space="preserve"><value>{0} a ete autorise ; la recommandation a ete retiree</value></data>
 </root>

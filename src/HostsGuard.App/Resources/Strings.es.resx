@@ -764,4 +764,24 @@
   <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Selecciona primero un proceso QUIC</value></data>
   <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>No se puede resolver la ruta del ejecutable para {0}</value></data>
   <data name="QuicPosture_Action" xml:space="preserve"><value>Redirigir aplicación QUIC a TCP</value></data>
+  <data name="AllowlistReview_InboxTab" xml:space="preserve"><value>Bandeja de alertas</value></data>
+  <data name="AllowlistReview_Tab" xml:space="preserve"><value>Revisar permitidos</value></data>
+  <data name="AllowlistReview_Title" xml:space="preserve"><value>Bloqueos probablemente falsos positivos</value></data>
+  <data name="AllowlistReview_Help" xml:space="preserve"><value>Solo revision: cada fila es un dominio bloqueado con frecuencia, evidencia CDN y una aplicacion principal directa observada cubierta por una carpeta o editor de confianza explicito. HostsGuard nunca los permite automaticamente.</value></data>
+  <data name="AllowlistReview_TableName" xml:space="preserve"><value>Recomendaciones de permitidos priorizadas</value></data>
+  <data name="AllowlistReview_Score" xml:space="preserve"><value>Puntuacion</value></data>
+  <data name="AllowlistReview_Domain" xml:space="preserve"><value>Dominio</value></data>
+  <data name="AllowlistReview_Hits" xml:space="preserve"><value>Impactos</value></data>
+  <data name="AllowlistReview_Process" xml:space="preserve"><value>Proceso</value></data>
+  <data name="AllowlistReview_Parent" xml:space="preserve"><value>Principal directo</value></data>
+  <data name="AllowlistReview_CdnEvidence" xml:space="preserve"><value>Evidencia CDN</value></data>
+  <data name="AllowlistReview_TrustEvidence" xml:space="preserve"><value>Evidencia de confianza</value></data>
+  <data name="AllowlistReview_Action" xml:space="preserve"><value>Accion</value></data>
+  <data name="AllowlistReview_Allow" xml:space="preserve"><value>Permitir</value></data>
+  <data name="AllowlistReview_AllowName" xml:space="preserve"><value>Permitir este dominio recomendado</value></data>
+  <data name="AllowlistReview_EmptyTitle" xml:space="preserve"><value>Sin candidatos para revisar</value></data>
+  <data name="AllowlistReview_EmptyHelp" xml:space="preserve"><value>Ningun dominio bloqueado tiene ahora las tres senales requeridas: impactos repetidos, resolucion CDN y una aplicacion principal directa explicitamente confiable.</value></data>
+  <data name="AllowlistReview_Select" xml:space="preserve"><value>Selecciona primero una recomendacion</value></data>
+  <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Permitir dominio recomendado</value></data>
+  <data name="AllowlistReview_Allowed" xml:space="preserve"><value>Se permitio {0}; se elimino la recomendacion</value></data>
 </root>

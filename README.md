@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.146-blue)
+![Version](https://img.shields.io/badge/version-0.12.147-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -80,6 +80,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Hide / hide root | Suppress domains from the activity feed, persistent across restarts |
 | Advanced search | `field:value`, `!term`, and `field!=value` filters across all tables |
 | Research links | Right-click any domain to open Google, VirusTotal, who.is, and more |
+| Allowlist review | Alerts ranks repeated blocked domains only when their current resolution chain has CDN evidence and the observed direct parent app matches an explicitly trusted publisher or folder; the evidence-rich queue is review-only until the operator chooses **Allow** |
 
 ### FW Activity
 

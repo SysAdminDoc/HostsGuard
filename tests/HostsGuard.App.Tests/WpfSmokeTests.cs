@@ -388,6 +388,7 @@ public sealed class WpfSmokeTests
                 vm.Activity = new HostsActivityViewModel(client);
                 vm.RawHosts = new RawHostsViewModel(client);
                 vm.FwActivity = new FwActivityViewModel(client, new FakeConfirm(true), config);
+                vm.Alerts = new AlertsViewModel(client);
                 vm.FwRules = new FwRulesViewModel(client, new FakeConfirm(true));
                 vm.Tools = new ToolsViewModel(client, new FakeConfirm(true));
                 vm.Blocklists = new BlocklistsViewModel(client, new FakeConfirm(true));
@@ -416,6 +417,19 @@ public sealed class WpfSmokeTests
                     AssertLiveStatusReadouts(window, tab, theme);
                     AssertVisibleEmptyStatesExplainAction(window, tab, theme);
                 }
+
+                mainTabs.SelectedIndex = 1; // Alerts.
+                var alertsTabs = (TabControl)window.FindName("AlertsTabs");
+                alertsTabs.SelectedIndex = 1; // Allowlist review.
+                window.UpdateLayout();
+                var allowlistReviewGrid = (DataGrid)window.FindName("AllowlistReviewGrid");
+                allowlistReviewGrid.CanUserSortColumns.Should().BeTrue();
+                BindingOperations.GetBinding(allowlistReviewGrid, ItemsControl.ItemsSourceProperty)?.Path.Path
+                    .Should().Be(nameof(AlertsViewModel.AllowlistRecommendations));
+                var actionColumn = allowlistReviewGrid.Columns.OfType<DataGridTemplateColumn>().Single();
+                var allowButton = (Button)actionColumn.CellTemplate.LoadContent();
+                BindingOperations.GetBinding(allowButton, Button.CommandProperty)?.Path.Path
+                    .Should().Be("DataContext.AllowRecommendationCommand");
 
                 mainTabs.SelectedIndex = 4; // FW Rules.
                 window.UpdateLayout();
@@ -878,6 +892,14 @@ public sealed class WpfSmokeTests
             vm.DbBlocked = 40;
             vm.DbAllowed = 2;
             vm.Activity!.Rows.Add(new ActivityRowViewModel { Domain = "matrix.example", Root = "matrix.example" });
+            vm.Alerts!.AllowlistRecommendations.Add(new AllowlistRecommendationViewModel(
+                "assets.example.test",
+                25,
+                85,
+                "child.exe",
+                "launcher.exe",
+                "edge.cloudfront.net (CDN)",
+                "trusted folder: TrustedApps"));
         }
     }
 

@@ -2,6 +2,20 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.147] - 2026-07-14
+
+### Added
+- Alerts now includes a sortable allowlist-review queue for repeated blocked
+  domains that both resolve through a recognized CDN and originate under an
+  explicitly trusted direct parent app. Each recommendation shows its stable
+  score, hit count, CDN and trust evidence, remains review-only by default, and
+  can be allowed with one operator action.
+
+### Changed
+- Batched DNS activity persistence now records the observed PID and bounded
+  direct-parent path evidence needed to evaluate recommendations. Existing
+  activity databases migrate in place without losing feed rows.
+
 ## [0.12.146] - 2026-07-14
 
 ### Added
