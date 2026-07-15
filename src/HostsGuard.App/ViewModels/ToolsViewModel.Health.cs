@@ -36,9 +36,18 @@ public sealed partial class ToolsViewModel
             var status = await _client.Diagnostics.GetStatusAsync(new Empty());
             var lastListRefresh = string.Empty;
             HyperVFirewallCoverage? hyperVFirewall = null;
+            WfpFilterDriftReport? wfpFilterDrift = null;
             try
             {
                 hyperVFirewall = await _client.Diagnostics.GetHyperVFirewallCoverageAsync(new Empty());
+            }
+            catch (Grpc.Core.RpcException)
+            {
+                // Backward-compatible with a service that predates this additive RPC.
+            }
+            try
+            {
+                wfpFilterDrift = await _client.Diagnostics.GetWfpFilterDriftAsync(new Empty());
             }
             catch (Grpc.Core.RpcException)
             {
@@ -140,6 +149,10 @@ public sealed partial class ToolsViewModel
             if (hyperVFirewall is not null)
             {
                 AddHyperVFirewallRows(hyperVFirewall);
+            }
+            if (wfpFilterDrift is not null)
+            {
+                AddWfpFilterDriftRow(wfpFilterDrift);
             }
             HealthRows.Add(new HealthRowViewModel
             {
@@ -296,6 +309,73 @@ public sealed partial class ToolsViewModel
     private static string OnOff(bool value) => value
         ? I18n.T("Common_OnLower", "on")
         : I18n.T("Common_OffLower", "off");
+
+    private void AddWfpFilterDriftRow(WfpFilterDriftReport report)
+    {
+        var alertOnly = I18n.T(
+            "Health_WfpAlertOnly",
+            "Alert-only inventory; HostsGuard never changes WFP policy from this check.");
+        if (!report.Available)
+        {
+            HealthRows.Add(new HealthRowViewModel
+            {
+                Aspect = I18n.T("Health_WfpFilters", "Persistent WFP filters"),
+                State = I18n.T("Health_HyperVUnavailable", "Unavailable"),
+                Detail = I18n.T("Health_HyperVUnavailableDetail", "{0}. {1}", report.ErrorCode, alertOnly),
+                Healthy = true,
+            });
+            return;
+        }
+
+        if (!report.BaselineExists)
+        {
+            HealthRows.Add(new HealthRowViewModel
+            {
+                Aspect = I18n.T("Health_WfpFilters", "Persistent WFP filters"),
+                State = I18n.T("Health_WfpBaselinePending", "Baseline pending"),
+                Detail = I18n.T(
+                    "Health_WfpBaselinePendingDetail",
+                    "The first successful service check seeds the baseline. {0}",
+                    alertOnly),
+                Healthy = true,
+            });
+            return;
+        }
+
+        var first = report.Changes.FirstOrDefault();
+        var firstDetail = first is null
+            ? string.Empty
+            : I18n.T(
+                "Health_WfpChangeDetail",
+                "{0}: {1} · {2} · layer {3} · sublayer {4} · action {5}",
+                first.ChangeKind,
+                first.Name,
+                first.Lifetime,
+                first.LayerName,
+                first.SublayerName,
+                first.Action);
+        HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = I18n.T("Health_WfpFilters", "Persistent WFP filters"),
+            State = report.Changes.Count == 0
+                ? I18n.T("Health_WfpNoDrift", "No drift")
+                : I18n.T("Health_WfpDrift", "Drift detected"),
+            Detail = report.Changes.Count == 0
+                ? I18n.T(
+                    "Health_WfpNoDriftDetail",
+                    "{0} persistent/boot-time filter(s) match the baseline · checked {1}. {2}",
+                    report.CurrentFilterCount,
+                    TimeText.Compact(report.CheckedAt),
+                    alertOnly)
+                : I18n.T(
+                    "Health_WfpDriftDetail",
+                    "{0} change(s) · {1}. {2}",
+                    report.Changes.Count,
+                    firstDetail,
+                    alertOnly),
+            Healthy = report.Changes.Count == 0,
+        });
+    }
 
     // ─── SHA-256-verified self-update (NET-187) ──────────────────────────────
 

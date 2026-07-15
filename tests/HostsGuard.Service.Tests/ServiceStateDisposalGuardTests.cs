@@ -30,6 +30,7 @@ public sealed class ServiceStateDisposalGuardTests
         "Consent",
         "SecureRules",
         "FirewallDrift",
+        "WfpFilterDrift",
         "ProxyBaseline",
         "TempAllows",
         "TempBlocks",

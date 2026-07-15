@@ -984,6 +984,15 @@
   <data name="Health_HyperVMerged" xml:space="preserve"><value>Merged</value></data>
   <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isolated</value></data>
   <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Creator {0} · VM defaults inbound {1}, outbound {2} · host-rule merge {3} · loopback {4} · profiles {5}</value></data>
+  <data name="Health_WfpFilters" xml:space="preserve"><value>Persistent WFP filters</value></data>
+  <data name="Health_WfpAlertOnly" xml:space="preserve"><value>Alert-only inventory; HostsGuard never changes WFP policy from this check.</value></data>
+  <data name="Health_WfpBaselinePending" xml:space="preserve"><value>Baseline pending</value></data>
+  <data name="Health_WfpBaselinePendingDetail" xml:space="preserve"><value>The first successful service check seeds the baseline. {0}</value></data>
+  <data name="Health_WfpNoDrift" xml:space="preserve"><value>No drift</value></data>
+  <data name="Health_WfpDrift" xml:space="preserve"><value>Drift detected</value></data>
+  <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0}: {1} · {2} · layer {3} · sublayer {4} · action {5}</value></data>
+  <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} persistent/boot-time filter(s) match the baseline · checked {1}. {2}</value></data>
+  <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} change(s) · {1}. {2}</value></data>
   <data name="Health_AllOk" xml:space="preserve"><value>All health checks OK.</value></data>
   <data name="Health_SomeBad" xml:space="preserve"><value>{0} health check(s) need attention.</value></data>
   <data name="Update_Title" xml:space="preserve"><value>Service self-update</value></data>

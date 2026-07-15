@@ -270,7 +270,8 @@ static async Task<int> StatusAsync()
 {
     return await RunCommandAsync(async channel =>
     {
-        var status = await new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel).GetStatusAsync(new Empty());
+        var diagnostics = new HostsGuard.Contracts.Diagnostics.DiagnosticsClient(channel);
+        var status = await diagnostics.GetStatusAsync(new Empty());
         Console.WriteLine($"service:      v{status.Version} (elevated: {status.Elevated}, uptime {status.UptimeSeconds}s)");
         Console.WriteLine($"hosts:        {status.HostsBlocked} blocked entries");
         if (status.HostsOverScaleThreshold)
@@ -307,6 +308,23 @@ static async Task<int> StatusAsync()
                     : session.ClientName.Length != 0 ? session.ClientName : "source unavailable";
                 var observedAt = session.Active ? session.ConnectedAt : session.DisconnectedAt;
                 Console.WriteLine($"  session {session.SessionId}: {session.State} from {source}{(observedAt.Length == 0 ? string.Empty : $" at {observedAt}")}");
+            }
+        }
+        var wfp = await diagnostics.GetWfpFilterDriftAsync(new Empty());
+        if (!wfp.Available)
+        {
+            Console.WriteLine($"wfp baseline: unavailable ({wfp.ErrorCode}) - alert-only; no policy changes");
+        }
+        else if (!wfp.BaselineExists)
+        {
+            Console.WriteLine("wfp baseline: pending first successful service capture - alert-only; no policy changes");
+        }
+        else
+        {
+            Console.WriteLine($"wfp baseline: {wfp.CurrentFilterCount} persistent/boot-time filters, {wfp.Changes.Count} drift change(s) - alert-only");
+            foreach (var change in wfp.Changes.Take(20))
+            {
+                Console.WriteLine($"  {change.ChangeKind}: {change.Name} [{change.FilterKey}] lifetime={change.Lifetime} layer={change.LayerName} sublayer={change.SublayerName} action={change.Action}{(change.CalloutKey.Length == 0 ? string.Empty : $" callout={change.CalloutKey}")}");
             }
         }
         var mode = await new Consent.ConsentClient(channel).GetModeAsync(new Empty());

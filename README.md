@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.140-blue)
+![Version](https://img.shields.io/badge/version-0.12.141-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -124,6 +124,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | `HG_` prefix tracking | HostsGuard-created rules are identifiable and bulk-manageable, including DNS-following `HG_Domain_` per-app rules, `HG_LAN_*` attack-surface hardening rules, and `HG_VPNBind_*` interface-scoped app rules |
 | UWP/MSIX package rules | Lists installed app-container packages and creates package-scoped allow/block rules by package family name or package SID, without changing hosts-file blocking defaults |
 | Full-firewall drift baseline | Snapshots every Windows Firewall rule and ledgers when foreign rules appear, change, or vanish without auto-reverting non-HostsGuard rules |
+| Persistent WFP filter drift | The LocalSystem service uses the read-only WFP management API to baseline persistent and boot-time filter objects, then raises alert-only findings when a filter appears, changes, or vanishes with exact layer, sublayer, action, lifetime, and callout evidence; Tools and CLI never mutate WFP from this check |
 | Hyper-V / WSL coverage | Read-only `ActiveStore` diagnostics list each Windows VM creator ID, effective inbound/outbound defaults by network profile, host-rule merge, and loopback state; the UI explicitly stops at the guest boundary and never claims inner-Linux process attribution |
 | Rule effectiveness analysis | Read-only grouping of exact/semantic duplicates, allow/block overlaps, shadowed allows, inactive/disabled rules, and local-policy overrides; only selected exact-duplicate `HG_` rules can be removed after an unchanged analysis plus preview-hash guard, while foreign/policy rules remain review-only |
 | Secure Rules guard | Opt-in tamper-guard: the service recreates or re-enables any `HG_` rule deleted or disabled behind its back; after three restores in ten minutes, only that rule is durably quarantined with live/tracked evidence until the operator accepts the foreign state or re-arms recovery (non-HostsGuard rules are never touched) |

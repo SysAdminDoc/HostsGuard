@@ -493,6 +493,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Detail = "Creator boundary only; no inner-guest process attribution. Creator {40E0AC32-46A5-438A-A0B2-2B479E8F2E90} · VM defaults inbound Block, outbound Allow · profiles Domain/Private/Public",
             Healthy = true,
         });
+        Tools.HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = "Persistent WFP filters",
+            State = "No drift",
+            Detail = "84 persistent/boot-time filters match the baseline · alert-only; no WFP policy changes",
+            Healthy = true,
+        });
         Tools.HealthStatusText = "1 health check needs attention — evidence is incomplete.";
         Tools.StatusText = "Deterministic diagnostics ready";
 

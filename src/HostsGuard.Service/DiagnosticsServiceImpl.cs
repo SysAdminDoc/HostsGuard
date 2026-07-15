@@ -132,6 +132,46 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         return response;
     }
 
+    public override Task<WfpFilterDriftReport> GetWfpFilterDrift(Empty request, ServerCallContext context)
+    {
+        if (_state.WfpFilterDrift is not { } monitor)
+        {
+            return Task.FromResult(new WfpFilterDriftReport
+            {
+                Available = false,
+                ErrorCode = "not_configured",
+                CheckedAt = _state.Clock.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                AlertOnly = true,
+            });
+        }
+
+        var inspection = monitor.Inspect();
+        var report = new WfpFilterDriftReport
+        {
+            Available = inspection.Available,
+            ErrorCode = inspection.ErrorCode,
+            CheckedAt = inspection.CheckedAtUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            BaselineExists = inspection.BaselineExists,
+            CurrentFilterCount = inspection.CurrentFilterCount,
+            AlertOnly = true,
+        };
+        report.Changes.AddRange(inspection.Changes.Select(change => new Contracts.WfpFilterDriftChange
+        {
+            ChangeKind = change.ChangeKind,
+            FilterKey = change.FilterKey.ToString("D"),
+            Name = change.Name,
+            Lifetime = change.Lifetime,
+            LayerKey = change.LayerKey.ToString("D"),
+            LayerName = change.LayerName,
+            SublayerKey = change.SubLayerKey.ToString("D"),
+            SublayerName = change.SubLayerName,
+            Action = change.Action,
+            CalloutKey = change.CalloutKey?.ToString("D") ?? string.Empty,
+            Disabled = change.Disabled,
+        }));
+        return Task.FromResult(report);
+    }
+
     private RemoteSessionSnapshot CaptureRemoteSessions()
     {
         try

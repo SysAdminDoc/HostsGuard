@@ -704,4 +704,13 @@
   <data name="Health_HyperVMerged" xml:space="preserve"><value>Fusionnées</value></data>
   <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isolée</value></data>
   <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Créateur {0} · valeurs VM par défaut : entrant {1}, sortant {2} · fusion des règles de l’hôte {3} · bouclage {4} · profils {5}</value></data>
+  <data name="Health_WfpFilters" xml:space="preserve"><value>Filtres WFP persistants</value></data>
+  <data name="Health_WfpAlertOnly" xml:space="preserve"><value>Inventaire d’alerte uniquement ; HostsGuard ne modifie jamais la stratégie WFP depuis cette vérification.</value></data>
+  <data name="Health_WfpBaselinePending" xml:space="preserve"><value>Référence en attente</value></data>
+  <data name="Health_WfpBaselinePendingDetail" xml:space="preserve"><value>La première vérification réussie du service crée la référence. {0}</value></data>
+  <data name="Health_WfpNoDrift" xml:space="preserve"><value>Aucune dérive</value></data>
+  <data name="Health_WfpDrift" xml:space="preserve"><value>Dérive détectée</value></data>
+  <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0} : {1} · {2} · couche {3} · sous-couche {4} · action {5}</value></data>
+  <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} filtre(s) persistant(s)/de démarrage correspondent à la référence · vérifié {1}. {2}</value></data>
+  <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} modification(s) · {1}. {2}</value></data>
 </root>

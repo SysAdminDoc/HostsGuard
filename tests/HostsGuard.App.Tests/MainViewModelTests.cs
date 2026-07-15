@@ -42,6 +42,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         _fw = new ShellFirewallEngine();
         _flows = new ShellFlowTerminator();
+        var wfpInventory = new FixedWfpFilterInventory();
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "db.sqlite")),
@@ -51,7 +52,9 @@ public sealed class MainViewModelTests : IAsyncLifetime
             listFetcher: new EmptyListFetcher(),
             flowTerminator: _flows,
             connectionSnapshot: () => Array.Empty<ConnectionInfo>(),
-            hyperVFirewallInventory: new FixedHyperVFirewall());
+            hyperVFirewallInventory: new FixedHyperVFirewall(),
+            wfpFilterInventory: wfpInventory);
+        _state.WfpFilterDrift!.CheckNow();
         _killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => false, _dir);
         _state.KillSwitch = _killSwitch;
         _token = SessionToken.Generate();
@@ -144,8 +147,14 @@ public sealed class MainViewModelTests : IAsyncLifetime
         row.Detail.Should().Contain("{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}")
             .And.Contain("inbound Block")
             .And.Contain("outbound Allow")
-            .And.Contain("inner-guest processes are not attributed");
+            .And.Contain("no inner-guest process attribution");
         row.Healthy.Should().BeTrue();
+
+        var wfp = vm.HealthRows.Should().ContainSingle(entry => entry.Aspect == "Persistent WFP filters").Subject;
+        wfp.State.Should().Be("No drift");
+        wfp.Detail.Should().Contain("1 persistent/boot-time filter(s)")
+            .And.Contain("never changes WFP policy");
+        wfp.Healthy.Should().BeTrue();
     }
 
     [Fact]
@@ -751,6 +760,26 @@ public sealed class MainViewModelTests : IAsyncLifetime
                     true,
                     false,
                     [new HostsGuard.Windows.HyperVFirewallProfile("Public", true, "Block", "Allow", true)])]));
+    }
+
+    private sealed class FixedWfpFilterInventory : IWfpFilterInventory
+    {
+        public WfpFilterSnapshot Snapshot() => new(
+            true,
+            string.Empty,
+            new DateTime(2026, 7, 15, 2, 0, 0, DateTimeKind.Utc),
+            [new WfpPersistentFilter(
+                42,
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                "Windows persistent filter",
+                "persistent",
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                "ALE connect",
+                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                "Windows Firewall",
+                "permit",
+                null,
+                false)]);
     }
 
     private sealed class FixedPrompt(string? value) : IPrompt

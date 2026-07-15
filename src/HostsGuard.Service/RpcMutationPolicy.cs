@@ -37,7 +37,7 @@ public static class RpcMutationPolicy
 
         Add(policies, "Diagnostics", RpcMutationKind.ReadOnly,
             "GetStatus", "CheckCaptivePortal", "GetDefenderStatus", "GetUpdateStatus", "InspectProxyBaseline",
-            "GetHyperVFirewallCoverage");
+            "GetHyperVFirewallCoverage", "GetWfpFilterDrift");
         Add(policies, "Diagnostics", RpcMutationKind.ProtectiveMutation, "ExportSupportBundle");
         Add(policies, "Diagnostics", RpcMutationKind.LockProtectedMutation, "StageUpdate", "AcceptProxyBaseline");
 

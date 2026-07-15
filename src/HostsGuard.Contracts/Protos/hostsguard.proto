@@ -43,6 +43,9 @@ service Diagnostics {
   // Read-only effective Hyper-V firewall policy by Windows VM creator ID.
   // This cannot attribute processes inside WSL or another guest.
   rpc GetHyperVFirewallCoverage(Empty) returns (HyperVFirewallCoverage);
+  // Alert-only comparison of persistent/boot-time WFP objects against the
+  // first successful service baseline. This RPC never changes WFP state.
+  rpc GetWfpFilterDrift(Empty) returns (WfpFilterDriftReport);
 }
 
 message HyperVFirewallCoverage {
@@ -71,6 +74,30 @@ message HyperVFirewallProfile {
   string default_inbound_action = 3;
   string default_outbound_action = 4;
   bool allow_local_firewall_rules = 5;
+}
+
+message WfpFilterDriftReport {
+  bool available = 1;
+  string error_code = 2;
+  string checked_at = 3;
+  bool baseline_exists = 4;
+  int32 current_filter_count = 5;
+  repeated WfpFilterDriftChange changes = 6;
+  bool alert_only = 7;
+}
+
+message WfpFilterDriftChange {
+  string change_kind = 1;
+  string filter_key = 2;
+  string name = 3;
+  string lifetime = 4;
+  string layer_key = 5;
+  string layer_name = 6;
+  string sublayer_key = 7;
+  string sublayer_name = 8;
+  string action = 9;
+  string callout_key = 10;
+  bool disabled = 11;
 }
 
 message CaptivePortalStatus {

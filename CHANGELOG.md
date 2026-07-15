@@ -2,6 +2,21 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.141] - 2026-07-14
+
+### Added
+- The LocalSystem service now seeds a read-only baseline of persistent and
+  boot-time WFP filters and raises an alert when one appears, changes, or
+  vanishes, including filter key, lifetime, layer, sublayer, action, and
+  callout evidence.
+- Tools health, `HostsGuard.Cli status`, and the diagnostics RPC expose WFP
+  baseline availability, filter count, and current drift findings.
+
+### Changed
+- WFP object inspection is explicitly alert-only: the new native inventory has
+  no add/delete API, never advances its baseline automatically, and never
+  changes filtering policy.
+
 ## [0.12.140] - 2026-07-14
 
 ### Added

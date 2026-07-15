@@ -704,4 +704,13 @@
   <data name="Health_HyperVMerged" xml:space="preserve"><value>Zusammengeführt</value></data>
   <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isoliert</value></data>
   <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Ersteller {0} · VM-Standardwerte eingehend {1}, ausgehend {2} · Hostregelzusammenführung {3} · Loopback {4} · Profile {5}</value></data>
+  <data name="Health_WfpFilters" xml:space="preserve"><value>Persistente WFP-Filter</value></data>
+  <data name="Health_WfpAlertOnly" xml:space="preserve"><value>Reine Warninventur; HostsGuard ändert bei dieser Prüfung keine WFP-Richtlinie.</value></data>
+  <data name="Health_WfpBaselinePending" xml:space="preserve"><value>Baseline ausstehend</value></data>
+  <data name="Health_WfpBaselinePendingDetail" xml:space="preserve"><value>Die erste erfolgreiche Dienstprüfung legt die Baseline an. {0}</value></data>
+  <data name="Health_WfpNoDrift" xml:space="preserve"><value>Keine Abweichung</value></data>
+  <data name="Health_WfpDrift" xml:space="preserve"><value>Abweichung erkannt</value></data>
+  <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0}: {1} · {2} · Ebene {3} · Unterebene {4} · Aktion {5}</value></data>
+  <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} persistente/Startfilter entsprechen der Baseline · geprüft {1}. {2}</value></data>
+  <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} Änderung(en) · {1}. {2}</value></data>
 </root>

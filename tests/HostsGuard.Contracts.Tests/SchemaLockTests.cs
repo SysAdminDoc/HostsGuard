@@ -41,6 +41,7 @@ public class SchemaLockTests
           GetHyperVFirewallCoverage(Empty) returns (HyperVFirewallCoverage)
           GetStatus(Empty) returns (ServiceStatus)
           GetUpdateStatus(Empty) returns (UpdateStatus)
+          GetWfpFilterDrift(Empty) returns (WfpFilterDriftReport)
           InspectProxyBaseline(Empty) returns (ProxyBaselineReport)
           StageUpdate(StageUpdateRequest) returns (Ack)
         service DnsControl

@@ -705,4 +705,13 @@
   <data name="Health_HyperVMerged" xml:space="preserve"><value>Combinadas</value></data>
   <data name="Health_HyperVIsolated" xml:space="preserve"><value>Aislada</value></data>
   <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Creador {0} · valores predeterminados de VM: entrada {1}, salida {2} · combinación de reglas del host {3} · bucle invertido {4} · perfiles {5}</value></data>
+  <data name="Health_WfpFilters" xml:space="preserve"><value>Filtros WFP persistentes</value></data>
+  <data name="Health_WfpAlertOnly" xml:space="preserve"><value>Inventario solo de alertas; HostsGuard nunca cambia la directiva WFP desde esta comprobación.</value></data>
+  <data name="Health_WfpBaselinePending" xml:space="preserve"><value>Referencia pendiente</value></data>
+  <data name="Health_WfpBaselinePendingDetail" xml:space="preserve"><value>La primera comprobación correcta del servicio crea la referencia. {0}</value></data>
+  <data name="Health_WfpNoDrift" xml:space="preserve"><value>Sin cambios</value></data>
+  <data name="Health_WfpDrift" xml:space="preserve"><value>Cambios detectados</value></data>
+  <data name="Health_WfpChangeDetail" xml:space="preserve"><value>{0}: {1} · {2} · capa {3} · subcapa {4} · acción {5}</value></data>
+  <data name="Health_WfpNoDriftDetail" xml:space="preserve"><value>{0} filtro(s) persistentes/de arranque coinciden con la referencia · comprobado {1}. {2}</value></data>
+  <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} cambio(s) · {1}. {2}</value></data>
 </root>

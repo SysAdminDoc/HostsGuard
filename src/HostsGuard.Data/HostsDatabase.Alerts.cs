@@ -35,6 +35,7 @@ public sealed partial class HostsDatabase
         ("secure_rules_conflict", "Secure Rules conflicts", true),
         ("settings_lock_security", "Settings lock security", true),
         ("wfp_external_filter", "External WFP blocks", true),
+        ("wfp_filter_drift", "Persistent WFP filter drift", true),
         ("unknown_lan", "Unknown LAN / gateway", true),
         ("remote_session", "Remote Desktop sessions", true),
         ("usage_budget", "Usage budget alerts", true),

@@ -35,7 +35,8 @@ public sealed class ServiceState : IDisposable
         IDnsServiceBindingQuery? serviceBindingQuery = null,
         ICaptivePortalProbe? captivePortalProbe = null,
         IClock? clock = null,
-        IHyperVFirewallInventory? hyperVFirewallInventory = null)
+        IHyperVFirewallInventory? hyperVFirewallInventory = null,
+        IWfpFilterInventory? wfpFilterInventory = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -96,6 +97,10 @@ public sealed class ServiceState : IDisposable
         };
         SecureRules = new SecureRulesGuard(firewall, db);
         FirewallDrift = new FirewallDriftMonitor(firewall, db);
+        if (wfpFilterInventory is not null)
+        {
+            WfpFilterDrift = new WfpFilterDriftMonitor(wfpFilterInventory, db);
+        }
         if (proxySnapshotSource is not null)
         {
             ProxyBaseline = new ProxyBaselineMonitor(proxySnapshotSource, db);
@@ -229,6 +234,9 @@ public sealed class ServiceState : IDisposable
     public SecureRulesGuard SecureRules { get; }
 
     public FirewallDriftMonitor FirewallDrift { get; }
+
+    /// <summary>Alert-only persistent/boot-time WFP object baseline.</summary>
+    public WfpFilterDriftMonitor? WfpFilterDrift { get; }
 
     /// <summary>Report-only WinINET/WinHTTP proxy and PAC drift monitor.</summary>
     public ProxyBaselineMonitor? ProxyBaseline { get; }
@@ -781,6 +789,7 @@ public sealed class ServiceState : IDisposable
         try { _shutdown.Cancel(); } catch (AggregateException) { /* callbacks throwing on cancel are benign */ }
         _shutdown.Dispose();
         Intel?.Dispose();
+        WfpFilterDrift?.Dispose();
         FirewallDrift.Dispose();
         ProxyBaseline?.Dispose();
         SecureRules.Dispose();

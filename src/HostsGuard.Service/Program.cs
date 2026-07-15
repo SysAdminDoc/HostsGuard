@@ -122,7 +122,9 @@ using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, 
     flowTerminator: new FlowTerminator(),
     lanSurfaceStore: new RegistryLanAttackSurfaceStore(),
     proxySnapshotSource: new WindowsProxyConfigurationSnapshotSource(),
-    serviceBindingQuery: new DnsQueryExServiceBindingQuery());
+    serviceBindingQuery: new DnsQueryExServiceBindingQuery(),
+    wfpFilterInventory: new WindowsWfpFilterInventory());
+state.WfpFilterDrift?.Start();
 state.DomainFirewall.StartPeriodic();
 
 // One-time on start: consolidate any legacy per-vendor category sections
