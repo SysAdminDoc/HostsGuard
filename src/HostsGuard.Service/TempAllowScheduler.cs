@@ -102,7 +102,7 @@ public sealed class TempAllowScheduler : IDisposable
         // AddDomain's allowlist-wins UPSERT would refuse this downgrade; the
         // revert of our own temporary whitelist is the one legitimate case.
         _db.UpdateStatus(domain, "blocked", "temp_reverted");
-        _db.LogEvent(domain, "blocked", details: "temp-allow expired", reason: "temp_reverted");
+        _db.LogEvent(domain, "blocked", details: "temp-allow expired", reason: "temp_reverted", matchedSource: "temp_allow");
         _bus.Publish(new ActivityEvent
         {
             Ts = Timestamp.FromDateTime(_clock.UtcNow),

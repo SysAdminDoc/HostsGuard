@@ -2618,6 +2618,12 @@
                                                  Style="{StaticResource Hg.HintBox}"
                                                  Tag="{svc:Loc Key=Xaml_Process_12f4c13a}"
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_Event_process_filter_75ccb70d}" />
+                                        <TextBox Width="130" Margin="0,0,6,6"
+                                                 Text="{Binding EventMatchedSource, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource Hg.HintBox}"
+                                                 Tag="{svc:Loc Key=Xaml_Source_6da13add}"
+                                                 AutomationProperties.Name="{svc:Loc Key=Xaml_Source_6da13add}"
+                                                 ToolTip="{svc:Loc Key=Xaml_Source_6da13add}" />
                                         <TextBox Width="148" Margin="0,0,6,6"
                                                  Text="{Binding EventSince, UpdateSourceTrigger=PropertyChanged}"
                                                  Style="{StaticResource Hg.HintBox}"
@@ -2636,6 +2642,7 @@
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Category_a3c686e7}" Binding="{Binding Category}" Width="82" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Action_97c89a4d}" Binding="{Binding Action}" Width="130" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Reason_f219cc06}" Binding="{Binding Reason}" Width="92" />
+                                            <DataGridTextColumn Header="{svc:Loc Key=Xaml_Source_6da13add}" Binding="{Binding MatchedSource}" Width="130" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Subject_8d183dbd}" Binding="{Binding Domain}" Width="1.2*" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="1*" />
                                             <DataGridTextColumn Header="{svc:Loc Key=Xaml_Details_dc3decbb}" Binding="{Binding Details}" Width="1.6*" />

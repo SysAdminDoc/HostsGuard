@@ -99,7 +99,8 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
             Reason: Clean(request.Reason),
             Domain: Clean(request.Domain),
             Process: Clean(request.Process),
-            Category: Clean(request.Category)));
+            Category: Clean(request.Category),
+            MatchedSource: Clean(request.MatchedSource)));
 
         var list = new EventLogList
         {
@@ -120,6 +121,7 @@ public sealed class MonitoringServiceImpl : Monitoring.MonitoringBase
                 Details = request.Redact ? Redaction.RedactText(row.Details) : row.Details,
                 Reason = row.Reason,
                 Category = row.Category,
+                MatchedSource = request.Redact ? Redaction.RedactText(row.MatchedSource) : row.MatchedSource,
             });
         }
 

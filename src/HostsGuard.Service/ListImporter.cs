@@ -170,7 +170,8 @@ public sealed class ListImporter : IDisposable
                      $"{scan.HijackFlagged} hijack-flagged, {scan.ModifiersStripped} modifier-stripped, " +
                      $"{overrides} allowlist-overridden" +
                      (mirrorUsed ? ", via mirror" : string.Empty) + ")",
-            reason: "blocklist");
+            reason: "blocklist",
+            matchedSource: $"list:{name}");
 
         return new ImportOutcome(added, domains.Count, entries, warning,
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed,

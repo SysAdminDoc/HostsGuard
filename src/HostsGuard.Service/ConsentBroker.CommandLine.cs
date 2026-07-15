@@ -27,7 +27,7 @@ public sealed partial class ConsentBroker
         if (rule.Action.Equals("Block", StringComparison.OrdinalIgnoreCase))
         {
             _db.LogEvent(blocked.Application, "consent_cmd_block", details: binding.ScriptPath, reason: "consent",
-                provenance: blocked.Provenance);
+                provenance: blocked.Provenance, matchedSource: rule.RuleName);
             return true;
         }
 

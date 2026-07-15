@@ -160,7 +160,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         if (created)
         {
             _state.Db.UpsertFwState(name, dir, "Block", addr, "Any", string.Empty);
-            _state.Db.LogEvent(addr, "fw_blocked", details: name, reason: "manual");
+            _state.Db.LogEvent(addr, "fw_blocked", details: name, reason: "manual", matchedSource: name);
         }
 
         var closed = _state.FlowTeardown.CloseForRemoteAddress(addr, "ip_block");
@@ -189,7 +189,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         {
             _state.Db.UpsertFwState(name, dir, "Block", "Any", "Any", path);
             _state.Identity?.Remember(name, path);
-            _state.Db.LogEvent(path, "fw_blocked", details: name, reason: "manual");
+            _state.Db.LogEvent(path, "fw_blocked", details: name, reason: "manual", matchedSource: name);
         }
 
         var closed = _state.FlowTeardown.CloseForProgram(path, "program_block");
@@ -896,7 +896,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
             }
         }
 
-        _state.Db.LogEvent("doh", "fw_blocked", details: $"encrypted DNS blocked ({ips.Count} resolver IPs, port 853)", reason: "doh");
+        _state.Db.LogEvent("doh", "fw_blocked", details: $"encrypted DNS blocked ({ips.Count} resolver IPs, port 853)",
+            reason: "doh", matchedSource: string.Join(",", created));
         return Task.FromResult(Ok($"encrypted DNS blocked: {ips.Count} resolver IPs + DoT/DoQ port 853 ({string.Join(", ", created)})"));
     }
 
@@ -921,7 +922,8 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         if (created)
         {
             _state.Db.UpsertFwState(QuicRuleName, "Out", "Block", "Any", "UDP", string.Empty, remotePorts: "443");
-            _state.Db.LogEvent("quic", "fw_blocked", details: "QUIC/HTTP3 blocked (outbound UDP/443)", reason: "doh");
+            _state.Db.LogEvent("quic", "fw_blocked", details: "QUIC/HTTP3 blocked (outbound UDP/443)",
+                reason: "doh", matchedSource: QuicRuleName);
         }
 
         return Task.FromResult(Ok(created
@@ -1234,7 +1236,7 @@ public sealed class FirewallControlServiceImpl : FirewallControl.FirewallControl
         {
             _state.Db.UpsertFwState(name, direction, "Block", remote, "Any", path);
             _state.Identity?.Remember(name, path);
-            _state.Db.LogEvent(path, "fw_scope_blocked", details: $"{scope}", reason: "manual");
+            _state.Db.LogEvent(path, "fw_scope_blocked", details: $"{scope}", reason: "manual", matchedSource: name);
         }
 
         _state.FlowTeardown.CloseForProgram(path, $"scope_block:{scope}");

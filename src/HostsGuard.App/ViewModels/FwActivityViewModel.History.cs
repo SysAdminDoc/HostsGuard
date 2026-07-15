@@ -102,6 +102,9 @@ public sealed partial class FwActivityViewModel
     private string _eventCategory = string.Empty;
 
     [ObservableProperty]
+    private string _eventMatchedSource = string.Empty;
+
+    [ObservableProperty]
     private string _eventStatus = I18n.T("FwHistory_EventLoadPrompt", "Click Load events to browse the persisted event ledger.");
 
     [ObservableProperty]
@@ -247,6 +250,7 @@ public sealed partial class FwActivityViewModel
                 Domain = EventDomain ?? string.Empty,
                 Process = EventProcess ?? string.Empty,
                 Category = EventCategory ?? string.Empty,
+                MatchedSource = EventMatchedSource ?? string.Empty,
             });
             EventRows.Clear();
             foreach (var row in events.Entries)
@@ -260,6 +264,7 @@ public sealed partial class FwActivityViewModel
                     Domain = row.Domain,
                     Process = row.Process,
                     Details = row.Details,
+                    MatchedSource = row.MatchedSource,
                 });
             }
 

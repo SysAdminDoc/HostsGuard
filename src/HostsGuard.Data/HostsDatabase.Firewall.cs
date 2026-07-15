@@ -527,7 +527,8 @@ public sealed partial class HostsDatabase
                             layer_name AS LayerName,
                             layer_runtime_id AS LayerRuntimeId,
                             CAST(COALESCE(interface_index, 0) AS INTEGER) AS InterfaceIndex,
-                            interface_name AS InterfaceName
+                            interface_name AS InterfaceName,
+                            matched_source AS MatchedSource
                      FROM log{where}
                      ORDER BY ts DESC, id DESC
                      LIMIT @limit OFFSET @offset
@@ -545,7 +546,7 @@ public sealed partial class HostsDatabase
         var args = new DynamicParameters();
 
         AddLike("search", filter.Search,
-            "(domain LIKE @search ESCAPE '\\' OR action LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\' OR details LIKE @search ESCAPE '\\' OR reason LIKE @search ESCAPE '\\' OR filter_origin LIKE @search ESCAPE '\\' OR interface_name LIKE @search ESCAPE '\\')");
+            "(domain LIKE @search ESCAPE '\\' OR action LIKE @search ESCAPE '\\' OR process LIKE @search ESCAPE '\\' OR details LIKE @search ESCAPE '\\' OR reason LIKE @search ESCAPE '\\' OR matched_source LIKE @search ESCAPE '\\' OR filter_origin LIKE @search ESCAPE '\\' OR interface_name LIKE @search ESCAPE '\\')");
         if (!string.IsNullOrWhiteSpace(filter.Since))
         {
             clauses.Add("ts >= @since");
@@ -562,6 +563,7 @@ public sealed partial class HostsDatabase
         AddExact("reason", filter.Reason, "reason");
         AddLike("domain", filter.Domain, "domain LIKE @domain ESCAPE '\\'");
         AddLike("process", filter.Process, "process LIKE @process ESCAPE '\\'");
+        AddLike("matchedSource", filter.MatchedSource, "matched_source LIKE @matchedSource ESCAPE '\\'");
         AddCategory(filter.Category);
 
         return (clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses), args);
@@ -636,7 +638,8 @@ public sealed partial class HostsDatabase
             row.LayerName ?? string.Empty,
             row.LayerRuntimeId ?? string.Empty,
             ToInterfaceIndex(row.InterfaceIndex),
-            row.InterfaceName ?? string.Empty);
+            row.InterfaceName ?? string.Empty,
+            row.MatchedSource ?? string.Empty);
 
     private static int ToInterfaceIndex(object? value)
         => value switch
@@ -678,6 +681,8 @@ public sealed partial class HostsDatabase
         public object? InterfaceIndex { get; set; }
 
         public string? InterfaceName { get; set; }
+
+        public string? MatchedSource { get; set; }
     }
 
 

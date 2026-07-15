@@ -549,7 +549,7 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
     {
         _db.LogEvent("repo.maven.apache.org", "blocked", process: @"C:\Users\me\app.exe",
             details: "called https://api.example.com/key/abcdef0123456789abcdef0123456789 at 93.184.216.34",
-            reason: "manual");
+            reason: "blocklist", matchedSource: "list:MavenThreats");
         _db.LogEvent("firewall", "lockdown_on", details: "Public=block", reason: "manual");
         var impl = new MonitoringServiceImpl(_state);
 
@@ -558,10 +558,12 @@ public sealed class ConnectionHistoryAndBandwidthTests : IDisposable
             Limit = 10,
             Category = "hosts",
             Domain = "maven",
+            MatchedSource = "MavenThreats",
         }, null!);
 
         filtered.Total.Should().Be(1);
-        filtered.Entries.Should().ContainSingle(e => e.Action == "blocked" && e.Category == "hosts");
+        filtered.Entries.Should().ContainSingle(e =>
+            e.Action == "blocked" && e.Category == "hosts" && e.MatchedSource == "list:MavenThreats");
 
         var redacted = await impl.ListEvents(new EventLogRequest
         {

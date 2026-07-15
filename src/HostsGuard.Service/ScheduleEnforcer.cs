@@ -113,7 +113,7 @@ public sealed class ScheduleEnforcer : IDisposable
             if (_hosts.Block(target))
             {
                 _db.AddDomain(target, "blocked", "schedule");
-                _db.LogEvent(target, "blocked", details: "scheduled window", reason: "schedule");
+                _db.LogEvent(target, "blocked", details: "scheduled window", reason: "schedule", matchedSource: "schedule");
             }
         }
 

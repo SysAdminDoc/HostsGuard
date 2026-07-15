@@ -69,7 +69,8 @@ public sealed class LanAttackSurfaceCoordinator
 
             _db.SetMeta(MetaPrefix + definition.Key, blocked ? "blocked" : "off");
             _db.LogEvent(definition.Key, blocked ? "lan_surface_blocked" : "lan_surface_unblocked",
-                details: definition.Label, reason: "lan-surface");
+                details: definition.Label, reason: "lan-surface",
+                matchedSource: blocked ? definition.Key : null);
             return Ok(blocked
                 ? $"{definition.Label} blocked"
                 : $"{definition.Label} restored");

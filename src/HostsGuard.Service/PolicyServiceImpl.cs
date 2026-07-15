@@ -198,7 +198,8 @@ public sealed partial class PolicyServiceImpl : Policy.PolicyBase
             }
 
             _state.Db.AddDomainsBulk(newRows);
-            _state.Db.LogEvent(name, "blocked", details: $"service toggle ({domains.Count} domains)", reason: "service");
+            _state.Db.LogEvent(name, "blocked", details: $"service toggle ({domains.Count} domains)",
+                reason: "service", matchedSource: source);
             var note = name == BlockedServices.TelemetryService ? $" — {BlockedServices.TelemetryDefenderNote}" : string.Empty;
             return Task.FromResult(Ok($"blocked {name} ({added} new of {domains.Count} domains){note}"));
         }

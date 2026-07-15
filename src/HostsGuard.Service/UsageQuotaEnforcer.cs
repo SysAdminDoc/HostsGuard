@@ -210,7 +210,7 @@ public sealed class UsageQuotaEnforcer
             action: "usage_quota_block",
             process: rule.Scope == "app" ? rule.Match : string.Empty);
         _db.LogEvent(rule.Match, "usage_budget_block", process: rule.Scope == "app" ? rule.Match : string.Empty,
-            details: detail, reason: "usage_budget");
+            details: detail, reason: "usage_budget", matchedSource: $"quota:{rule.Id}");
     }
 
     private void ClearBlock(UsageQuotaRuleRow rule, string reason)

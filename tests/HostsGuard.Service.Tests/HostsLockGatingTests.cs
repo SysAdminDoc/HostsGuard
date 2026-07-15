@@ -40,6 +40,24 @@ public sealed class HostsLockGatingTests : IDisposable
     private static ServerCallContext Ctx => null!;
 
     [Fact]
+    public async Task Source_owned_block_records_deciding_source()
+    {
+        var ack = await _hosts.Block(new DomainRequest
+        {
+            Domain = "source-owned.example.com",
+            Source = "list:test-fixture",
+        }, Ctx);
+
+        ack.Ok.Should().BeTrue();
+        _state.Db.GetEvents(new EventLogFilter(
+                Action: "blocked",
+                MatchedSource: "list:test-fixture"))
+            .Rows.Should().ContainSingle(row =>
+                row.Domain == "source-owned.example.com"
+                && row.MatchedSource == "list:test-fixture");
+    }
+
+    [Fact]
     public async Task Armed_lock_refuses_weakening_but_allows_blocking()
     {
         _state.Lock.Enable("s3cret");

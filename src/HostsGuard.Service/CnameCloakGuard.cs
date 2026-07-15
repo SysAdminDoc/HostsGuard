@@ -83,7 +83,15 @@ public sealed class CnameCloakGuard
 
             _hosts.Block(queryName);
             _db.AddDomain(queryName, "blocked", "cname-cloak", reason: "cname-cloak");
-            _db.LogEvent(queryName, "blocked", details: $"CNAME-cloak: aliases to blocked {cname}", reason: "cname-cloak");
+            var decidingSource = _db.GetDomainSource(cname);
+            if (string.IsNullOrWhiteSpace(decidingSource))
+            {
+                var decidingList = _db.GetBlocklistsFor(cname).FirstOrDefault();
+                decidingSource = string.IsNullOrWhiteSpace(decidingList) ? "cname-cloak" : $"list:{decidingList}";
+            }
+
+            _db.LogEvent(queryName, "blocked", details: $"CNAME-cloak: aliases to blocked {cname}",
+                reason: "cname-cloak", matchedSource: decidingSource);
             return cname;
         }
 

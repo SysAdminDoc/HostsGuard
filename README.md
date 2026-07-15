@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.137-blue)
+![Version](https://img.shields.io/badge/version-0.12.138-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -196,7 +196,7 @@ HostsGuard.Cli captive-portal [--json] [--pause 5|15|60]
 HostsGuard.Cli mode [normal|notify|learning]
 HostsGuard.Cli secure-rules [status|enable|disable]
 HostsGuard.Cli secure-rules accept|rearm <HG_rule_name>
-HostsGuard.Cli events [--limit N] [--search text] [--category name] [--export events.csv]
+HostsGuard.Cli events [--limit N] [--search text] [--category name] [--source list-or-rule] [--export events.csv]
 HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text] [--risk low|medium|high] [--export path.csv|path.json]
 HostsGuard.Cli firewall-analyze [--kind name] [--remediation name] [--search text] [--export path.csv|path.json]
 HostsGuard.Cli firewall-cleanup preview|apply --analysis-hash SHA256 [--preview-hash SHA256] --name HG_Rule

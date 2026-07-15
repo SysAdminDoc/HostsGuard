@@ -196,7 +196,8 @@ public sealed record LogEventRow(
     string LayerName = "",
     string LayerRuntimeId = "",
     long InterfaceIndex = 0,
-    string InterfaceName = "")
+    string InterfaceName = "",
+    string MatchedSource = "")
 {
     public void Deconstruct(
         out string Ts,
@@ -230,7 +231,8 @@ public sealed record EventLogRow(
     string LayerName = "",
     string LayerRuntimeId = "",
     int InterfaceIndex = 0,
-    string InterfaceName = "");
+    string InterfaceName = "",
+    string MatchedSource = "");
 
 /// <summary>Filter and paging shape for the persisted event ledger.</summary>
 public sealed record EventLogFilter(
@@ -243,7 +245,8 @@ public sealed record EventLogFilter(
     string? Reason = null,
     string? Domain = null,
     string? Process = null,
-    string? Category = null);
+    string? Category = null,
+    string? MatchedSource = null);
 
 /// <summary>A page of filtered event-log rows plus the total matching count.</summary>
 public sealed record EventLogPage(IReadOnlyList<EventLogRow> Rows, int Total);
@@ -353,7 +356,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 37;
+    public const int SchemaVersion = 38;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -505,7 +508,8 @@ public sealed partial class HostsDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS log(
                 id INTEGER PRIMARY KEY, ts TEXT, domain TEXT, action TEXT, process TEXT, details TEXT, reason TEXT,
                 filter_runtime_id TEXT DEFAULT '', filter_origin TEXT DEFAULT '', layer_name TEXT DEFAULT '',
-                layer_runtime_id TEXT DEFAULT '', interface_index INTEGER DEFAULT 0, interface_name TEXT DEFAULT '');
+                layer_runtime_id TEXT DEFAULT '', interface_index INTEGER DEFAULT 0, interface_name TEXT DEFAULT '',
+                matched_source TEXT DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_log_ts ON log(ts);
             CREATE INDEX IF NOT EXISTS idx_feed_ls ON feed(last_seen);
             CREATE TABLE IF NOT EXISTS fw_state(
@@ -683,6 +687,7 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("log", "layer_runtime_id", "TEXT DEFAULT ''");
         AddColumnIfMissing("log", "interface_index", "INTEGER DEFAULT 0");
         AddColumnIfMissing("log", "interface_name", "TEXT DEFAULT ''");
+        AddColumnIfMissing("log", "matched_source", "TEXT DEFAULT ''");
         AddColumnIfMissing("conn_history", "host", "TEXT DEFAULT ''");
         AddColumnIfMissing("conn_history", "asn", "TEXT DEFAULT ''");
         _conn.Execute("CREATE INDEX IF NOT EXISTS idx_conn_history_host ON conn_history(host);");

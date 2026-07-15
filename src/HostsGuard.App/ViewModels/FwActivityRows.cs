@@ -298,6 +298,9 @@ public sealed partial class EventLogRowViewModel : ObservableObject
 
     [ObservableProperty]
     private string _details = string.Empty;
+
+    [ObservableProperty]
+    private string _matchedSource = string.Empty;
 }
 
 /// <summary>Row VM for a daily app/domain usage rollup.</summary>

@@ -1550,6 +1550,7 @@ message EventLogRequest {
   string process = 9;    // substring match on process
   string category = 10;  // taxonomy bucket: hosts/firewall/consent/dns/lists/policy/defender/support/other
   bool redact = 11;      // true = redact domain/process/details for export/support use
+  string matched_source = 12; // substring match on the list/rule/source that decided the block
 }
 
 message EventLogEntry {
@@ -1561,6 +1562,7 @@ message EventLogEntry {
   string details = 6;
   string reason = 7;
   string category = 8;
+  string matched_source = 9; // deciding list/rule/source; empty for non-block events
 }
 
 message EventLogList {

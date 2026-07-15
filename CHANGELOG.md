@@ -2,6 +2,19 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.138] - 2026-07-14
+
+### Added
+- Every newly persisted block decision now carries a deciding source identity,
+  such as its managed-domain source, blocklist, firewall/WFP rule, schedule,
+  command rule, or quota.
+- The event ledger can search and filter deciding sources and shows them in the
+  desktop table, CLI output, and redacted CSV exports.
+
+### Changed
+- The event database advances to schema 38 with an additive
+  `log.matched_source` column; existing event rows remain readable.
+
 ## [0.12.137] - 2026-07-14
 
 ### Added

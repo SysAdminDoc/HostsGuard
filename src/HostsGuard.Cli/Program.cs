@@ -114,7 +114,7 @@ static int Usage()
           HostsGuard.Cli validate-policy <path.json> | validate-policy --emit-schema [path]
           HostsGuard.Cli events [--limit N] [--offset N] [--search text] [--since ISO] [--until ISO]
                                [--action name] [--reason name] [--domain text] [--process text]
-                               [--category name] [--export path.csv]
+                               [--category name] [--source text] [--export path.csv]
           HostsGuard.Cli listeners [--protocol tcp|udp] [--port N] [--process text]
                                [--risk low|medium|high] [--export path.csv|path.json]
           HostsGuard.Cli traffic-profile [path.json|path.csv] [--format json|csv] [--limit N]
@@ -1115,6 +1115,12 @@ static async Task<int> EventsAsync(string[] args)
             continue;
         }
 
+        if (TryReadOptionValue(args, ref i, arg, "--source", out value))
+        {
+            request.MatchedSource = value;
+            continue;
+        }
+
         if (TryReadOptionValue(args, ref i, arg, "--export", out value))
         {
             exportPath = value;
@@ -1152,10 +1158,10 @@ static async Task<int> EventsAsync(string[] args)
         }
 
         Console.WriteLine($"events: {list.Entries.Count} of {list.Total} (offset {list.Offset}){(list.Redacted ? " redacted" : string.Empty)}");
-        Console.WriteLine("when\tcategory\taction\treason\tdomain\tprocess\tdetails");
+        Console.WriteLine("when\tcategory\taction\treason\tsource\tdomain\tprocess\tdetails");
         foreach (var e in list.Entries)
         {
-            Console.WriteLine($"{e.Ts}\t{e.Category}\t{e.Action}\t{e.Reason}\t{e.Domain}\t{e.Process}\t{e.Details}");
+            Console.WriteLine($"{e.Ts}\t{e.Category}\t{e.Action}\t{e.Reason}\t{e.MatchedSource}\t{e.Domain}\t{e.Process}\t{e.Details}");
         }
 
         return 0;
@@ -2624,10 +2630,10 @@ static async Task<int> FullStateSnapshotAsync(string[] args)
 static string BuildEventsCsv(IEnumerable<EventLogEntry> rows)
 {
     var sb = new System.Text.StringBuilder();
-    CsvExport.AppendRow(sb, "When", "Category", "Action", "Reason", "Domain", "Process", "Details");
+    CsvExport.AppendRow(sb, "When", "Category", "Action", "Reason", "Source", "Domain", "Process", "Details");
     foreach (var e in rows)
     {
-        CsvExport.AppendRow(sb, e.Ts, e.Category, e.Action, e.Reason, e.Domain, e.Process, e.Details);
+        CsvExport.AppendRow(sb, e.Ts, e.Category, e.Action, e.Reason, e.MatchedSource, e.Domain, e.Process, e.Details);
     }
 
     return sb.ToString();

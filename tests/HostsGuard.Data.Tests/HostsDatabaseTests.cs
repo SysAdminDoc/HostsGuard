@@ -309,7 +309,8 @@ public sealed class HostsDatabaseTests : IDisposable
     public void Event_ledger_filters_pages_and_derives_categories()
     {
         using var db = new HostsDatabase(DbPath("events.db"));
-        db.LogEvent("ads.example.com", "blocked", process: "chrome.exe", details: "hosts file", reason: "manual");
+        db.LogEvent("ads.example.com", "blocked", process: "chrome.exe", details: "hosts file", reason: "blocklist",
+            matchedSource: "list:StevenBlack");
         db.LogEvent("93.184.216.34", "fw_blocked", process: "app.exe", details: "remote 93.184.216.34 contacted", reason: "manual");
         db.LogEvent("C:\\Tools\\demo.exe", "consent_allow", details: "Out|1.1.1.1|TCP|permanent", reason: "consent");
 
@@ -321,8 +322,12 @@ public sealed class HostsDatabaseTests : IDisposable
             .ContainSingle(e => e.Action == "fw_blocked");
         db.GetEvents(new EventLogFilter(Process: "chrome")).Rows.Should()
             .ContainSingle(e => e.Domain == "ads.example.com");
+        db.GetEvents(new EventLogFilter(MatchedSource: "StevenBlack")).Rows.Should()
+            .ContainSingle(e => e.Domain == "ads.example.com" && e.MatchedSource == "list:StevenBlack");
         db.GetEvents(new EventLogFilter(Search: "remote")).Rows.Should()
             .ContainSingle(e => e.Action == "fw_blocked");
+        db.GetEvents(new EventLogFilter(Search: "StevenBlack")).Rows.Should()
+            .ContainSingle(e => e.Action == "blocked");
         db.GetEvents(new EventLogFilter(Category: "consent")).Rows.Should()
             .ContainSingle(e => e.Action == "consent_allow");
         db.GetEvents(new EventLogFilter(Category: "firewall")).Rows.Should()
