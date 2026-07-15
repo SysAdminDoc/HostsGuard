@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.139] - 2026-07-14
+
+### Added
+- Remote blocklist subscriptions can keep up to five ordered HTTPS fallback
+  mirrors through the desktop editor, CLI, RPC contract, and portable policy.
+- Source health now records the endpoint selected by the latest successful
+  fetch and its latency; the Blocklists table and CLI expose both.
+
+### Changed
+- Mirrors receive the same DNS-rebinding-resistant SSRF checks as primary list
+  fetches. Refresh stops at the first successful endpoint, never merges
+  divergent mirror payloads, and preserves the last applied domains when every
+  endpoint fails.
+- The database advances to schema 39 with additive mirror and fetch-provenance
+  fields on blocklist subscriptions.
+
 ## [0.12.138] - 2026-07-14
 
 ### Added

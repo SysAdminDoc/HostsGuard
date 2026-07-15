@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
+using System.Diagnostics;
 using HostsGuard.Core;
 using HostsGuard.Data;
 using HostsGuard.Windows;
@@ -16,7 +17,9 @@ public sealed record ImportOutcome(
     long Removed = 0, long Preserved = 0, bool Preview = false,
     long Guarded = 0, long Failed = 0, long CheckpointId = 0,
     long ModifiersStripped = 0,
-    IReadOnlyList<WindowsConnectivityWarning>? ConnectivityWarnings = null);
+    IReadOnlyList<WindowsConnectivityWarning>? ConnectivityWarnings = null,
+    string SelectedEndpoint = "",
+    long SelectedEndpointLatencyMs = 0);
 
 /// <summary>
 /// Blocklist / allowlist import engine: fetch (byte-capped), parse, bulk block
@@ -46,8 +49,12 @@ public sealed class ListImporter : IDisposable
         _refreshTimer = new Timer(_ => KickScheduledRefresh(), null, interval, interval);
     }
 
-    public async Task<ImportOutcome> ImportBlocklistAsync(string name, string url, CancellationToken ct)
-        => await ImportBlocklistAsync(name, url, ct, guardChurn: false, existing: null);
+    public async Task<ImportOutcome> ImportBlocklistAsync(
+        string name,
+        string url,
+        CancellationToken ct,
+        IReadOnlyList<string>? mirrors = null)
+        => await ImportBlocklistAsync(name, url, ct, guardChurn: false, existing: null, mirrors);
 
     /// <summary>
     /// Import a blocklist from local file/clipboard content the unelevated client
@@ -59,7 +66,8 @@ public sealed class ListImporter : IDisposable
     public async Task<ImportOutcome> ImportBlocklistContentAsync(string name, string content, CancellationToken ct)
     {
         var scan = await BlocklistCatalog.ScanAsync(new StringReader(content ?? string.Empty), ct);
-        return ApplyScanned(name, LocalSourceUrl(name), scan, mirrorUsed: false, guardChurn: false, existing: _db.GetBlocklistSub(name));
+        return ApplyScanned(name, LocalSourceUrl(name), scan, mirrorUsed: false, guardChurn: false,
+            existing: _db.GetBlocklistSub(name), mirrors: Array.Empty<string>());
     }
 
     /// <summary>Preview a local-content import without applying it.</summary>
@@ -82,12 +90,14 @@ public sealed class ListImporter : IDisposable
         string url,
         CancellationToken ct,
         bool guardChurn,
-        BlocklistSubRow? existing)
+        BlocklistSubRow? existing,
+        IReadOnlyList<string>? requestedMirrors = null)
     {
-        // Mirror fallback (NET-077): if the primary URL fails and the catalog
-        // knows a mirror for this source, retry the mirror before giving up.
-        var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
-        return ApplyScanned(name, url, scan, mirrorUsed, guardChurn, existing);
+        existing ??= _db.GetBlocklistSub(name);
+        var mirrors = ResolveMirrors(name, url, requestedMirrors, existing);
+        var fetched = await FetchWithMirrorsAsync(name, url, mirrors, ct);
+        return ApplyScanned(name, url, fetched.Scan, fetched.MirrorUsed, guardChurn, existing,
+            mirrors, fetched.Endpoint, fetched.LatencyMs);
     }
 
     private ImportOutcome ApplyScanned(
@@ -96,7 +106,10 @@ public sealed class ListImporter : IDisposable
         BlocklistScan scan,
         bool mirrorUsed,
         bool guardChurn,
-        BlocklistSubRow? existing)
+        BlocklistSubRow? existing,
+        IReadOnlyList<string>? mirrors = null,
+        string selectedEndpoint = "",
+        long selectedEndpointLatencyMs = 0)
     {
         var contentHash = Sha256(scan.Domains);
         var domains = scan.Domains;
@@ -114,11 +127,14 @@ public sealed class ListImporter : IDisposable
                     guard.Message,
                     healthStatus: "guarded",
                     lastAttemptHash: contentHash,
-                    lastAttemptDomainCount: domains.Count);
+                    lastAttemptDomainCount: domains.Count,
+                    lastEndpoint: selectedEndpoint.Length == 0 ? null : selectedEndpoint,
+                    lastEndpointLatencyMs: selectedEndpointLatencyMs);
                 _db.LogEvent($"list:{name}", "refresh_guarded", details: guard.Message, reason: "blocklist");
                 return new ImportOutcome(0, domains.Count, _hosts.GetBlocked().Count, guard.Message,
                     scan.Duplicates, scan.Invalid, scan.HijackFlagged, MirrorUsed: mirrorUsed,
-                    Guarded: 1, ModifiersStripped: scan.ModifiersStripped, ConnectivityWarnings: connectivityWarnings);
+                    Guarded: 1, ModifiersStripped: scan.ModifiersStripped, ConnectivityWarnings: connectivityWarnings,
+                    SelectedEndpoint: selectedEndpoint, SelectedEndpointLatencyMs: selectedEndpointLatencyMs);
             }
         }
 
@@ -153,7 +169,10 @@ public sealed class ListImporter : IDisposable
             healthStatus: checkpointId == 0 ? "ok" : "ok",
             lastCheckpointId: checkpointId,
             lastAttemptHash: contentHash,
-            lastAttemptDomainCount: domains.Count);
+            lastAttemptDomainCount: domains.Count,
+            mirrors: mirrors,
+            lastEndpoint: selectedEndpoint.Length == 0 ? null : selectedEndpoint,
+            lastEndpointLatencyMs: selectedEndpointLatencyMs);
 
         // Whitelisted domains always win: re-apply allowlists after an import,
         // and report how many blocklist entries the allowlist overrode.
@@ -177,14 +196,25 @@ public sealed class ListImporter : IDisposable
             scan.Duplicates, scan.Invalid, scan.HijackFlagged, overrides, mirrorUsed,
             Removed: dropped.Removed, Preserved: dropped.Preserved,
             CheckpointId: checkpointId, ModifiersStripped: scan.ModifiersStripped,
-            ConnectivityWarnings: connectivityWarnings);
+            ConnectivityWarnings: connectivityWarnings, SelectedEndpoint: selectedEndpoint,
+            SelectedEndpointLatencyMs: selectedEndpointLatencyMs);
 
     }
 
-    public async Task<ImportOutcome> PreviewBlocklistAsync(string name, string url, CancellationToken ct)
+    public async Task<ImportOutcome> PreviewBlocklistAsync(
+        string name,
+        string url,
+        CancellationToken ct,
+        IReadOnlyList<string>? mirrors = null)
     {
-        var (scan, mirrorUsed) = await FetchWithMirrorAsync(name, url, ct);
-        return PreviewScanned(scan, mirrorUsed);
+        var existing = _db.GetBlocklistSub(name);
+        var configured = ResolveMirrors(name, url, mirrors, existing);
+        var fetched = await FetchWithMirrorsAsync(name, url, configured, ct);
+        return PreviewScanned(fetched.Scan, fetched.MirrorUsed) with
+        {
+            SelectedEndpoint = fetched.Endpoint,
+            SelectedEndpointLatencyMs = fetched.LatencyMs,
+        };
     }
 
     private ImportOutcome PreviewScanned(BlocklistScan scan, bool mirrorUsed)
@@ -224,26 +254,69 @@ public sealed class ListImporter : IDisposable
             Removed: restore.Removed, Preserved: restore.Preserved, CheckpointId: restore.CheckpointId);
     }
 
-    /// <summary>Fetch a list, falling back to the catalog mirror on failure.</summary>
-    private async Task<(BlocklistScan Scan, bool MirrorUsed)> FetchWithMirrorAsync(string name, string url, CancellationToken ct)
-    {
-        try
-        {
-            return (await ScanRemoteAsync(url, BlocklistCatalog.MaxBlocklistBytes, ct), false);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
-        {
-            var mirror = BlocklistCatalog.Sources
-                .FirstOrDefault(s => s.Name == name && s.Url == url && s.Mirror.Length != 0)?.Mirror;
-            if (mirror is null)
-            {
-                throw;
-            }
+    private sealed record FetchSelection(BlocklistScan Scan, string Endpoint, long LatencyMs, bool MirrorUsed);
 
-            _db.LogEvent($"list:{name}", "mirror_fallback", details: $"primary failed ({ex.GetType().Name}); trying mirror");
-            return (await ScanRemoteAsync(mirror, BlocklistCatalog.MaxBlocklistBytes, ct), true);
+    /// <summary>Fetch exactly one payload, trying the primary and then validated mirrors in order.</summary>
+    private async Task<FetchSelection> FetchWithMirrorsAsync(
+        string name,
+        string url,
+        IReadOnlyList<string> mirrors,
+        CancellationToken ct)
+    {
+        var endpoints = new[] { url }.Concat(mirrors).Distinct(StringComparer.Ordinal).ToArray();
+        var failures = new List<string>();
+        for (var index = 0; index < endpoints.Length; index++)
+        {
+            var endpoint = endpoints[index];
+            var timer = Stopwatch.StartNew();
+            try
+            {
+                var scan = await ScanRemoteAsync(endpoint, BlocklistCatalog.MaxBlocklistBytes, ct);
+                timer.Stop();
+                return new FetchSelection(scan, endpoint, Math.Max(1, timer.ElapsedMilliseconds), index != 0);
+            }
+            catch (Exception ex) when (
+                ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException
+                && !ct.IsCancellationRequested)
+            {
+                timer.Stop();
+                failures.Add($"{EndpointLabel(endpoint)}: {ex.GetType().Name}");
+                if (index + 1 < endpoints.Length)
+                {
+                    _db.LogEvent($"list:{name}", "mirror_fallback",
+                        details: $"{EndpointLabel(endpoint)} failed ({ex.GetType().Name}); trying {EndpointLabel(endpoints[index + 1])}");
+                }
+            }
         }
+
+        throw new InvalidOperationException(
+            $"all {endpoints.Length} endpoint{(endpoints.Length == 1 ? string.Empty : "s")} failed ({string.Join("; ", failures)})");
     }
+
+    private static IReadOnlyList<string> ResolveMirrors(
+        string name,
+        string url,
+        IReadOnlyList<string>? requested,
+        BlocklistSubRow? existing)
+    {
+        var mirrors = new List<string>();
+        mirrors.AddRange(requested is { Count: > 0 } ? requested : existing?.Mirrors ?? Array.Empty<string>());
+        var catalogMirror = BlocklistCatalog.Sources
+            .FirstOrDefault(source => source.Name == name && source.Url == url)?.Mirror;
+        if (!string.IsNullOrWhiteSpace(catalogMirror))
+        {
+            mirrors.Add(catalogMirror);
+        }
+
+        return mirrors
+            .Select(static endpoint => endpoint.Trim())
+            .Where(endpoint => endpoint.Length != 0 && !endpoint.Equals(url, StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string EndpointLabel(string endpoint)
+        => Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ? uri.Host : "endpoint";
 
     private Task<BlocklistScan> ScanRemoteAsync(string url, int maxBytes, CancellationToken ct) =>
         _fetcher.ReadTextAsync(url, maxBytes, BlocklistCatalog.ScanAsync, ct);

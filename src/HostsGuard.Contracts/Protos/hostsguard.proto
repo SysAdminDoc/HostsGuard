@@ -432,6 +432,8 @@ service ListControl {
   rpc ImportBlocklistContent(BlocklistContentRequest) returns (BlocklistResult);
   // Enable/disable refresh for one subscribed source (imported domains stay).
   rpc SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack);
+  // Replace the ordered, SSRF-validated fallback endpoints for a subscription.
+  rpc SetBlocklistMirrors(BlocklistMirrorsRequest) returns (Ack);
   // Remove a source and roll back domains owned only by that source.
   rpc RemoveBlocklistSubscription(BlocklistRequest) returns (Ack);
   // Restore the latest pre-refresh checkpoint for one subscribed source.
@@ -507,6 +509,12 @@ message BlocklistIntelStatus {
 message BlocklistRequest {
   string name = 1;
   string url = 2;
+  repeated string mirrors = 3; // ordered fallbacks; one payload wins, never merged
+}
+
+message BlocklistMirrorsRequest {
+  string name = 1;
+  repeated string mirrors = 2;
 }
 
 // Client-supplied local list content (bytes, UTF-8), bounded service-side.
@@ -546,6 +554,9 @@ message BlocklistSource {
   string license = 22;
   string tags = 23;        // comma-separated
   string description = 24;
+  repeated string mirrors = 25; // ordered custom + catalog fallbacks
+  string last_endpoint = 26; // endpoint selected by the latest successful fetch
+  int64 last_endpoint_latency_ms = 27;
 }
 
 message BlocklistSources {
@@ -574,6 +585,8 @@ message BlocklistResult {
   int64 checkpoint_id = 18;    // latest checkpoint created/restored by this operation
   int64 modifiers_stripped = 19; // adblock $modifier rules stripped, never imported (NET-174)
   repeated WindowsConnectivityWarning connectivity_warnings = 20;
+  string selected_endpoint = 21;
+  int64 selected_endpoint_latency_ms = 22;
 }
 
 message WindowsConnectivityWarning {

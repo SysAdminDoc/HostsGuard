@@ -307,7 +307,10 @@ public sealed record BlocklistSubRow(
     string HealthStatus,
     long LastCheckpointId,
     string LastAttemptHash,
-    long LastAttemptDomainCount);
+    long LastAttemptDomainCount,
+    IReadOnlyList<string> Mirrors,
+    string LastEndpoint,
+    long LastEndpointLatencyMs);
 
 /// <summary>Rollback result for removing one blocklist source.</summary>
 public sealed record BlocklistRemoval(long Removed, long Preserved);
@@ -356,7 +359,7 @@ public sealed record PolicySubscriptionRow(
 /// </summary>
 public sealed partial class HostsDatabase : IDisposable
 {
-    public const int SchemaVersion = 38;
+    public const int SchemaVersion = 39;
 
     /// <summary>Default connection-history / bandwidth retention (days).</summary>
     public const int DefaultHistoryRetentionDays = 30;
@@ -548,7 +551,8 @@ public sealed partial class HostsDatabase : IDisposable
                 previous_domain_count INTEGER DEFAULT 0, last_error TEXT DEFAULT '',
                 last_error_at TEXT DEFAULT '', health_status TEXT DEFAULT '',
                 last_checkpoint_id INTEGER DEFAULT 0, last_attempt_hash TEXT DEFAULT '',
-                last_attempt_domain_count INTEGER DEFAULT 0);
+                last_attempt_domain_count INTEGER DEFAULT 0, mirrors_json TEXT DEFAULT '[]',
+                last_endpoint TEXT DEFAULT '', last_endpoint_latency_ms INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS blocklist_domain_sources(
                 source TEXT NOT NULL, domain TEXT NOT NULL,
                 PRIMARY KEY(source, domain)) WITHOUT ROWID;
@@ -702,6 +706,9 @@ public sealed partial class HostsDatabase : IDisposable
         AddColumnIfMissing("blocklist_subs", "last_checkpoint_id", "INTEGER DEFAULT 0");
         AddColumnIfMissing("blocklist_subs", "last_attempt_hash", "TEXT DEFAULT ''");
         AddColumnIfMissing("blocklist_subs", "last_attempt_domain_count", "INTEGER DEFAULT 0");
+        AddColumnIfMissing("blocklist_subs", "mirrors_json", "TEXT DEFAULT '[]'");
+        AddColumnIfMissing("blocklist_subs", "last_endpoint", "TEXT DEFAULT ''");
+        AddColumnIfMissing("blocklist_subs", "last_endpoint_latency_ms", "INTEGER DEFAULT 0");
         AddColumnIfMissing("usage_quota_rules", "block_on_exceed", "INTEGER DEFAULT 0");
         AddColumnIfMissing("usage_quota_rules", "blocked_since", "TEXT DEFAULT ''");
         AddColumnIfMissing("usage_quota_rules", "blocked_rules", "TEXT DEFAULT ''");

@@ -225,6 +225,16 @@ public sealed class PortablePolicy
         }
 
         RejectDuplicates(policy.BlocklistSubs, static row => row.Name, "BlocklistSubs");
+        foreach (var source in policy.BlocklistSubs)
+        {
+            source.Mirrors ??= new();
+            RejectDuplicateStrings(source.Mirrors, $"BlocklistSubs[{source.Name}].Mirrors", StringComparer.Ordinal);
+            if (source.Mirrors.Count > 5 || source.Mirrors.Any(static mirror =>
+                    !Uri.TryCreate(mirror, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
+            {
+                throw new JsonException($"BlocklistSubs[{source.Name}].Mirrors must contain at most 5 https URLs");
+            }
+        }
         RejectDuplicates(policy.IpBlocklists, static row => row.Name, "IpBlocklists");
         RejectDuplicateStrings(policy.AllowlistSubs, "AllowlistSubs", StringComparer.Ordinal);
         RejectDuplicates(policy.AppVpnBindings, static row => row.Program, "AppVpnBindings");
@@ -501,6 +511,8 @@ public sealed class PolicyBlocklistSub
     public string Name { get; set; } = string.Empty;
 
     public string Url { get; set; } = string.Empty;
+
+    public List<string> Mirrors { get; set; } = new();
 }
 
 /// <summary>A subscribed IP-format blocklist (NET-171; refresh re-applies its HG_IPBlock_* rules).</summary>

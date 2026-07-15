@@ -116,6 +116,29 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Blocklist_mirrors_and_selected_endpoint_round_trip_in_order()
+    {
+        using var db = new HostsDatabase(DbPath("source-mirrors.db"));
+        db.UpsertBlocklistSub(
+            "Resilient",
+            "https://primary.example/list.txt",
+            2,
+            mirrors: ["https://one.example/list.txt", "https://two.example/list.txt"],
+            lastEndpoint: "https://two.example/list.txt",
+            lastEndpointLatencyMs: 37);
+
+        var row = db.GetBlocklistSub("Resilient");
+        row.Should().NotBeNull();
+        var actual = row!;
+        actual.Mirrors.Should().Equal("https://one.example/list.txt", "https://two.example/list.txt");
+        actual.LastEndpoint.Should().Be("https://two.example/list.txt");
+        actual.LastEndpointLatencyMs.Should().Be(37);
+
+        db.SetBlocklistMirrors("Resilient", ["https://replacement.example/list.txt"]).Should().BeTrue();
+        db.GetBlocklistSub("Resilient")!.Mirrors.Should().Equal("https://replacement.example/list.txt");
+    }
+
+    [Fact]
     public void Firewall_snapshot_seeds_silently_then_reports_add_change_and_vanish()
     {
         using var db = new HostsDatabase(DbPath("fw-snapshot.db"));

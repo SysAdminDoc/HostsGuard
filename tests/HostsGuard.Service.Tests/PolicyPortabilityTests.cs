@@ -127,7 +127,8 @@ public sealed class PolicyPortabilityTests : IDisposable
         src.Db.AddDomain("work.example.com", "blocked", "manual");
         src.Db.SaveProfile("Work");
         src.Db.SetNetworkProfile("gw-mac-abc", "Work", "Home Wi-Fi");
-        src.Db.UpsertBlocklistSub("StevenBlack", "https://example.com/hosts", 1000);
+        src.Db.UpsertBlocklistSub("StevenBlack", "https://example.com/hosts", 1000,
+            mirrors: ["https://1.1.1.1/hosts", "https://8.8.8.8/hosts"]);
         src.Db.UpsertIpBlocklistSource(
             "hagezi-doh-ips", "https://example.com/doh-ips.txt",
             new[] { "1.2.3.4", "203.0.113.0/24" }, "hash-a", "", 0,
@@ -179,7 +180,9 @@ public sealed class PolicyPortabilityTests : IDisposable
         dst.Db.ListProfiles().Should().Contain("Work");
         dst.Db.LoadProfile("Work").Should().Contain(r => r.Domain == "work.example.com");
         dst.Db.GetNetworkProfiles().Should().Contain(n => n.Fingerprint == "gw-mac-abc" && n.Profile == "Work");
-        dst.Db.GetBlocklistSubs().Should().Contain(b => b.Name == "StevenBlack");
+        dst.Db.GetBlocklistSubs().Should().Contain(b =>
+            b.Name == "StevenBlack"
+            && b.Mirrors.SequenceEqual(new[] { "https://1.1.1.1/hosts", "https://8.8.8.8/hosts" }));
         dst.Db.GetIpBlocklistSources().Should().ContainSingle(b =>
             b.Name == "hagezi-doh-ips" && b.Url == "https://example.com/doh-ips.txt" && !b.Enabled);
         dst.Db.GetAllowlistSubs().Should().Contain("https://example.com/allow.txt");

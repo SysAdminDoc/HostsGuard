@@ -82,6 +82,48 @@ public sealed class BlocklistHealthTests : IDisposable
     }
 
     [Fact]
+    public async Task User_mirrors_are_tried_in_order_and_payloads_are_never_merged()
+    {
+        const string primary = "https://primary.example/list.txt";
+        const string first = "https://first.example/list.txt";
+        const string second = "https://second.example/list.txt";
+        _db.UpsertBlocklistSub("Custom", primary, 0, mirrors: [first, second]);
+        _fetcher.Responses[first] = "0.0.0.0 first-only.example";
+        _fetcher.Responses[second] = "0.0.0.0 second-only.example";
+
+        var outcome = await _importer.ImportBlocklistAsync("Custom", primary, CancellationToken.None);
+
+        outcome.MirrorUsed.Should().BeTrue();
+        outcome.SelectedEndpoint.Should().Be(first);
+        outcome.SelectedEndpointLatencyMs.Should().BeGreaterThan(0);
+        _fetcher.Fetched.Should().Equal(primary, first);
+        _hosts.GetBlocked().Should().Contain("first-only.example").And.NotContain("second-only.example");
+        var stored = _db.GetBlocklistSub("Custom")!;
+        stored.Mirrors.Should().Equal(first, second);
+        stored.LastEndpoint.Should().Be(first);
+    }
+
+    [Fact]
+    public async Task Total_endpoint_failure_preserves_last_applied_state()
+    {
+        const string primary = "https://primary.example/stable.txt";
+        const string mirror = "https://mirror.example/stable.txt";
+        _fetcher.Responses[primary] = "0.0.0.0 stable.example";
+        await _importer.ImportBlocklistAsync("Stable", primary, CancellationToken.None, [mirror]);
+        _fetcher.Responses.Remove(primary);
+
+        var refresh = await _importer.RefreshAllAsync(CancellationToken.None);
+
+        refresh.Failed.Should().Be(1);
+        _hosts.GetBlocked().Should().Contain("stable.example");
+        _db.GetBlocklistSourceDomains("Stable").Should().ContainSingle().Which.Should().Be("stable.example");
+        var stored = _db.GetBlocklistSub("Stable")!;
+        stored.DomainCount.Should().Be(1);
+        stored.LastError.Should().NotBeEmpty();
+        stored.LastEndpoint.Should().Be(primary, "failed refreshes preserve the latest successful endpoint provenance");
+    }
+
+    [Fact]
     public async Task Import_counts_allowlist_overrides()
     {
         _db.AddDomainsBulk([("keep.com", "whitelisted", "allowlist")]);

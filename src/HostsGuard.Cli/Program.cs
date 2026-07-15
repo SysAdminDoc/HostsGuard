@@ -149,10 +149,11 @@ static int Usage()
           HostsGuard.Cli proxy [status|accept-baseline]
           HostsGuard.Cli adopt-hosts [status|now|on|off]
           HostsGuard.Cli blocklists [list|stats|refresh]
-          HostsGuard.Cli blocklists preview <name> <https-url>
-          HostsGuard.Cli blocklists import <name> <https-url>
+          HostsGuard.Cli blocklists preview <name> <https-url> [--mirror <https-url>]...
+          HostsGuard.Cli blocklists import <name> <https-url> [--mirror <https-url>]...
           HostsGuard.Cli blocklists preview-file <name> <path>
           HostsGuard.Cli blocklists import-file <name> <path>
+          HostsGuard.Cli blocklists mirrors <name> [https-url ...]
           HostsGuard.Cli blocklists disable|enable|remove|rollback <name>
           HostsGuard.Cli blocklists recover-connectivity [exact-ncsi-domain ...]
           HostsGuard.Cli ip-blocklists [list|refresh]
@@ -2746,10 +2747,10 @@ static async Task<int> BlocklistsAsync(string[] args)
         {
             case "list":
                 var sources = await client.ListBlocklistSourcesAsync(new Empty());
-                Console.WriteLine("name\tsubscribed\tenabled\thealth\tdomains\towned\tprevious\tattempt\tcheckpoint\thits_30d\turl");
+                Console.WriteLine("name\tsubscribed\tenabled\thealth\tdomains\towned\tprevious\tattempt\tcheckpoint\thits_30d\tendpoint_ms\tendpoint\tmirrors\turl");
                 foreach (var s in sources.Sources.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
                 {
-                    Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{SourceHealth(s)}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.PreviousDomainCount}\t{s.LastAttemptDomainCount}\t{s.RollbackCheckpointId}\t{s.Hits30D}\t{s.Url}");
+                    Console.WriteLine($"{s.Name}\t{s.Subscribed}\t{s.Enabled}\t{SourceHealth(s)}\t{s.DomainCount}\t{s.OwnedDomainCount}\t{s.PreviousDomainCount}\t{s.LastAttemptDomainCount}\t{s.RollbackCheckpointId}\t{s.Hits30D}\t{s.LastEndpointLatencyMs}\t{s.LastEndpoint}\t{string.Join(',', s.Mirrors)}\t{s.Url}");
                 }
 
                 return 0;
@@ -2771,14 +2772,36 @@ static async Task<int> BlocklistsAsync(string[] args)
             case "import":
                 if (args.Length < 4)
                 {
-                    Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <https-url>");
+                    Console.Error.WriteLine($"Usage: blocklists {subcommand} <name> <https-url> [--mirror <https-url>]...");
                     return 1;
                 }
 
                 var request = new BlocklistRequest { Name = args[2], Url = args[3] };
+                for (var i = 4; i < args.Length; i++)
+                {
+                    if (!TryReadOptionValue(args, ref i, args[i], "--mirror", out var mirror))
+                    {
+                        Console.Error.WriteLine($"Unknown blocklist option: {args[i]}");
+                        return 1;
+                    }
+
+                    request.Mirrors.Add(mirror);
+                }
                 return PrintBlocklistResult(subcommand == "preview"
                     ? await client.PreviewBlocklistAsync(request)
                     : await client.ImportBlocklistAsync(request));
+            case "mirrors":
+                if (args.Length < 3)
+                {
+                    Console.Error.WriteLine("Usage: blocklists mirrors <name> [https-url ...]");
+                    return 1;
+                }
+
+                var mirrorRequest = new BlocklistMirrorsRequest { Name = args[2] };
+                mirrorRequest.Mirrors.AddRange(args.Skip(3));
+                var mirrorAck = await client.SetBlocklistMirrorsAsync(mirrorRequest);
+                Console.WriteLine(mirrorAck.Message);
+                return mirrorAck.Ok ? 0 : 2;
             case "preview-file":
             case "import-file":
                 if (args.Length < 4)
@@ -2984,6 +3007,11 @@ static int PrintBlocklistResult(BlocklistResult result)
     if (result.CheckpointId != 0)
     {
         Console.WriteLine($"  checkpoint:  {result.CheckpointId}");
+    }
+
+    if (result.SelectedEndpoint.Length != 0)
+    {
+        Console.WriteLine($"  endpoint:    {result.SelectedEndpoint} ({result.SelectedEndpointLatencyMs} ms)");
     }
 
     if (result.Warning.Length != 0)

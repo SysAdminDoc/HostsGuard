@@ -1596,7 +1596,9 @@
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_Actions_c3cd636a}" Width="400">
+                                        <DataGridTextColumn Header="{svc:Loc Key=Blocklists_Mirror}" Binding="{Binding MirrorsText}" Width="130"
+                                                            IsReadOnly="True" />
+                                        <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_Actions_c3cd636a}" Width="480">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
@@ -1614,6 +1616,10 @@
                                                         <Button Content="{svc:Loc Key=Xaml_Restore_3cbe6d6b}" Padding="8,2" Margin="0,0,6,0"
                                                                 Visibility="{Binding CanRollback, Converter={StaticResource BoolToVis}}"
                                                                 Command="{Binding DataContext.RollbackCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Content="{svc:Loc Key=Blocklists_Mirror}" Padding="8,2" Margin="0,0,6,0"
+                                                                Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding DataContext.EditMirrorsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                                 CommandParameter="{Binding}" />
                                                         <Button Content="{svc:Loc Key=Xaml_Remove_e963907d}" Padding="8,2"
                                                                 Visibility="{Binding Subscribed, Converter={StaticResource BoolToVis}}"

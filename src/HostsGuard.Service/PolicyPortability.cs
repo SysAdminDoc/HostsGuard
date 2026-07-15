@@ -132,7 +132,12 @@ public static class PolicyPortability
 
         foreach (var sub in state.Db.GetBlocklistSubs())
         {
-            policy.BlocklistSubs.Add(new PolicyBlocklistSub { Name = sub.Name, Url = sub.Url });
+            policy.BlocklistSubs.Add(new PolicyBlocklistSub
+            {
+                Name = sub.Name,
+                Url = sub.Url,
+                Mirrors = sub.Mirrors.ToList(),
+            });
         }
 
         foreach (var source in state.Db.GetIpBlocklistSources())
@@ -586,7 +591,7 @@ public static class PolicyPortability
         {
             if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
             {
-                state.Db.UpsertBlocklistSub(b.Name, b.Url, 0);
+                state.Db.UpsertBlocklistSub(b.Name, b.Url, 0, mirrors: SafeBlocklistMirrors(b.Mirrors));
             }
         }
 
@@ -746,7 +751,7 @@ public static class PolicyPortability
         {
             if (!string.IsNullOrWhiteSpace(b.Name) && !string.IsNullOrWhiteSpace(b.Url))
             {
-                state.Db.UpsertBlocklistSub(b.Name, b.Url, 0);
+                state.Db.UpsertBlocklistSub(b.Name, b.Url, 0, mirrors: SafeBlocklistMirrors(b.Mirrors));
             }
         }
 
@@ -1089,6 +1094,27 @@ public static class PolicyPortability
         state.Webhooks.Urls = accepted;
         state.Webhooks.Save(state.DataDir);
         summary.Add($"{accepted.Count} webhook endpoint(s), {rejected} rejected; secret omitted");
+    }
+
+    private static IReadOnlyList<string> SafeBlocklistMirrors(IEnumerable<string>? mirrors)
+    {
+        var accepted = new List<string>();
+        foreach (var mirror in mirrors ?? Array.Empty<string>())
+        {
+            try
+            {
+                SsrfGuard.EnsurePublicHttpsAsync(mirror, CancellationToken.None).GetAwaiter().GetResult();
+                accepted.Add(mirror);
+            }
+            catch (SsrfBlockedException)
+            {
+                // Portable policy may come from another trust boundary. Unsafe
+                // fallback endpoints are omitted rather than persisted for a
+                // later LocalSystem refresh.
+            }
+        }
+
+        return accepted;
     }
 
     private static void SetMetaIfNotNull(ServiceState state, string key, string? value)

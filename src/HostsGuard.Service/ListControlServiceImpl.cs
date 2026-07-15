@@ -4,6 +4,7 @@ using System.Text;
 using Grpc.Core;
 using HostsGuard.Contracts;
 using HostsGuard.Core;
+using HostsGuard.Data;
 
 namespace HostsGuard.Service;
 
@@ -11,6 +12,7 @@ namespace HostsGuard.Service;
 [SupportedOSPlatform("windows")]
 public sealed class ListControlServiceImpl : ListControl.ListControlBase
 {
+    private const int MaxMirrors = 5;
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
     private readonly ServiceState _state;
 
@@ -28,7 +30,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             var enabled = !subscribed || sub is null || sub.Enabled;
             var owned = subscribed && sub is not null ? sub.OwnedDomainCount : 0;
             var hits30d = subscribed && sub is not null ? sub.Hits30d : 0;
-            list.Sources.Add(new BlocklistSource
+            var mirrors = EffectiveMirrors(src, sub);
+            var item = new BlocklistSource
             {
                 Category = src.Category,
                 Name = src.Name,
@@ -41,7 +44,7 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 LastRefresh = lastRefresh,
                 DomainCount = domainCount,
                 LargeListWarning = BlocklistCatalog.LargeLists.Contains(src.Name),
-                Mirror = src.Mirror,
+                Mirror = mirrors.FirstOrDefault() ?? string.Empty,
                 Enabled = enabled,
                 OwnedDomainCount = owned,
                 Hits30D = hits30d,
@@ -54,13 +57,17 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 RollbackCheckpointId = subscribed && sub is not null ? sub.LastCheckpointId : 0,
                 LastAttemptHash = subscribed && sub is not null ? sub.LastAttemptHash : string.Empty,
                 LastAttemptDomainCount = subscribed && sub is not null ? sub.LastAttemptDomainCount : 0,
-            });
+                LastEndpoint = subscribed && sub is not null ? sub.LastEndpoint : string.Empty,
+                LastEndpointLatencyMs = subscribed && sub is not null ? sub.LastEndpointLatencyMs : 0,
+            };
+            item.Mirrors.AddRange(mirrors);
+            list.Sources.Add(item);
         }
 
         // Custom (non-catalog) subscriptions surface too.
         foreach (var sub in subs.Values.Where(s => BlocklistCatalog.Sources.All(c => c.Name != s.Name)))
         {
-            list.Sources.Add(new BlocklistSource
+            var item = new BlocklistSource
             {
                 Category = "Custom",
                 Name = sub.Name,
@@ -80,7 +87,12 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
                 RollbackCheckpointId = sub.LastCheckpointId,
                 LastAttemptHash = sub.LastAttemptHash,
                 LastAttemptDomainCount = sub.LastAttemptDomainCount,
-            });
+                Mirror = sub.Mirrors.FirstOrDefault() ?? string.Empty,
+                LastEndpoint = sub.LastEndpoint,
+                LastEndpointLatencyMs = sub.LastEndpointLatencyMs,
+            };
+            item.Mirrors.AddRange(sub.Mirrors);
+            list.Sources.Add(item);
         }
 
         return Task.FromResult(list);
@@ -99,9 +111,15 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             return validation;
         }
 
+        if (await ValidateMirrorTargetsAsync(request.Mirrors, context.CancellationToken) is { } mirrorError)
+        {
+            return mirrorError;
+        }
+
         try
         {
-            var outcome = await lists.PreviewBlocklistAsync(request.Name.Trim(), request.Url.Trim(), context.CancellationToken);
+            var outcome = await lists.PreviewBlocklistAsync(
+                request.Name.Trim(), request.Url.Trim(), context.CancellationToken, request.Mirrors.ToArray());
             return ToResult(outcome, $"previewed {request.Name}: {outcome.Added} would be new of {outcome.Total} domains");
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or IOException)
@@ -128,11 +146,16 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             return validation;
         }
 
+        if (await ValidateMirrorTargetsAsync(request.Mirrors, context.CancellationToken) is { } mirrorError)
+        {
+            return mirrorError;
+        }
+
         try
         {
             var name = request.Name.Trim();
             var url = request.Url.Trim();
-            var outcome = await lists.ImportBlocklistAsync(name, url, context.CancellationToken);
+            var outcome = await lists.ImportBlocklistAsync(name, url, context.CancellationToken, request.Mirrors.ToArray());
             return ToResult(outcome, $"imported {name}: {outcome.Added} new of {outcome.Total} domains" +
                                      (outcome.MirrorUsed ? " (via mirror)" : string.Empty));
         }
@@ -254,6 +277,45 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
         _state.Db.SetBlocklistSubEnabled(name, request.Enabled);
         _state.Db.LogEvent($"list:{name}", request.Enabled ? "blocklist_enabled" : "blocklist_disabled", reason: "blocklist");
         return Task.FromResult(new Ack { Ok = true, Message = $"{(request.Enabled ? "enabled" : "disabled")} {name}" });
+    }
+
+    public override async Task<Ack> SetBlocklistMirrors(BlocklistMirrorsRequest request, ServerCallContext context)
+    {
+        if (_state.GateWhenLocked("ListControl") is { } gate) return gate;
+
+        var name = (request.Name ?? string.Empty).Trim();
+        var mirrors = NormalizeMirrors(request.Mirrors);
+        if (name.Length == 0 || mirrors is null)
+        {
+            return new Ack
+            {
+                Ok = false,
+                Message = $"a blocklist name and up to {MaxMirrors} distinct https:// mirrors are required",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            };
+        }
+
+        if (_state.Db.GetBlocklistSub(name) is null)
+        {
+            return new Ack { Ok = false, Message = $"blocklist '{name}' was not found", ErrorCode = "hostsguard.error.v1/not_found" };
+        }
+
+        try
+        {
+            foreach (var mirror in mirrors)
+            {
+                await SsrfGuard.EnsurePublicHttpsAsync(mirror, context.CancellationToken);
+            }
+        }
+        catch (SsrfBlockedException ex)
+        {
+            return new Ack { Ok = false, Message = ex.Message, ErrorCode = "hostsguard.error.v1/invalid_source" };
+        }
+
+        _state.Db.SetBlocklistMirrors(name, mirrors);
+        _state.Db.LogEvent($"list:{name}", "blocklist_mirrors_updated",
+            details: $"{mirrors.Count} ordered fallback{(mirrors.Count == 1 ? string.Empty : "s")}", reason: "blocklist");
+        return new Ack { Ok = true, Message = $"saved {mirrors.Count} fallback mirror{(mirrors.Count == 1 ? string.Empty : "s")} for {name}" };
     }
 
     public override Task<Ack> RemoveBlocklistSubscription(BlocklistRequest request, ServerCallContext context)
@@ -806,8 +868,68 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             };
         }
 
+        var mirrors = NormalizeMirrors(request.Mirrors);
+        if (mirrors is null || mirrors.Any(mirror => mirror.Equals(url, StringComparison.Ordinal)))
+        {
+            return new BlocklistResult
+            {
+                Ok = false,
+                Message = $"mirrors must be up to {MaxMirrors} distinct https:// URLs different from the primary",
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            };
+        }
+
         return null;
     }
+
+    private static IReadOnlyList<string>? NormalizeMirrors(IEnumerable<string> values)
+    {
+        var mirrors = values.Select(static value => (value ?? string.Empty).Trim())
+            .Where(static value => value.Length != 0)
+            .ToArray();
+        if (mirrors.Length > MaxMirrors || mirrors.Distinct(StringComparer.Ordinal).Count() != mirrors.Length)
+        {
+            return null;
+        }
+
+        return mirrors.All(static value =>
+                value.Length <= 2048
+                && Uri.TryCreate(value, UriKind.Absolute, out var uri)
+                && uri.Scheme == Uri.UriSchemeHttps)
+            ? mirrors
+            : null;
+    }
+
+    private static async Task<BlocklistResult?> ValidateMirrorTargetsAsync(
+        IEnumerable<string> mirrors,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            foreach (var mirror in mirrors)
+            {
+                await SsrfGuard.EnsurePublicHttpsAsync(mirror, cancellationToken);
+            }
+
+            return null;
+        }
+        catch (SsrfBlockedException ex)
+        {
+            return new BlocklistResult
+            {
+                Ok = false,
+                Message = ex.Message,
+                ErrorCode = "hostsguard.error.v1/invalid_source",
+            };
+        }
+    }
+
+    private static IReadOnlyList<string> EffectiveMirrors(BlocklistSourceInfo catalog, BlocklistSubRow? sub)
+        => (sub?.Mirrors ?? Array.Empty<string>())
+            .Append(catalog.Mirror)
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
     private static BlocklistResult ToResult(
         ImportOutcome outcome,
@@ -824,6 +946,8 @@ public sealed class ListControlServiceImpl : ListControl.ListControlBase
             Removed = outcome.Removed, Preserved = outcome.Preserved, Preview = outcome.Preview,
             Guarded = outcome.Guarded, Failed = outcome.Failed, CheckpointId = outcome.CheckpointId,
             ModifiersStripped = outcome.ModifiersStripped,
+            SelectedEndpoint = outcome.SelectedEndpoint,
+            SelectedEndpointLatencyMs = outcome.SelectedEndpointLatencyMs,
         };
         foreach (var warning in outcome.ConnectivityWarnings ?? Array.Empty<Core.WindowsConnectivityWarning>())
         {

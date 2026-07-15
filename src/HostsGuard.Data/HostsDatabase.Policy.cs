@@ -1,5 +1,6 @@
 using Dapper;
 using HostsGuard.Core;
+using System.Text.Json;
 
 namespace HostsGuard.Data;
 
@@ -556,7 +557,10 @@ public sealed partial class HostsDatabase
         string healthStatus = "ok",
         long lastCheckpointId = 0,
         string lastAttemptHash = "",
-        long lastAttemptDomainCount = 0)
+        long lastAttemptDomainCount = 0,
+        IReadOnlyList<string>? mirrors = null,
+        string? lastEndpoint = null,
+        long? lastEndpointLatencyMs = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
@@ -567,11 +571,11 @@ public sealed partial class HostsDatabase
                 INSERT INTO blocklist_subs(
                     name,url,last_refresh,domain_count,enabled,content_hash,previous_hash,
                     previous_domain_count,last_error,last_error_at,health_status,last_checkpoint_id,
-                    last_attempt_hash,last_attempt_domain_count)
+                    last_attempt_hash,last_attempt_domain_count,mirrors_json,last_endpoint,last_endpoint_latency_ms)
                 VALUES(
                     @name,@url,@now,@domainCount,1,@contentHash,@previousHash,
                     @previousDomainCount,'','',@healthStatus,@lastCheckpointId,
-                    @lastAttemptHash,@lastAttemptDomainCount)
+                    @lastAttemptHash,@lastAttemptDomainCount,@mirrorsJson,@endpoint,@endpointLatencyMs)
                 ON CONFLICT(name) DO UPDATE SET
                     url=excluded.url,
                     last_refresh=excluded.last_refresh,
@@ -585,7 +589,10 @@ public sealed partial class HostsDatabase
                     health_status=excluded.health_status,
                     last_checkpoint_id=excluded.last_checkpoint_id,
                     last_attempt_hash=excluded.last_attempt_hash,
-                    last_attempt_domain_count=excluded.last_attempt_domain_count
+                    last_attempt_domain_count=excluded.last_attempt_domain_count,
+                    mirrors_json=CASE WHEN @replaceMirrors=1 THEN excluded.mirrors_json ELSE blocklist_subs.mirrors_json END,
+                    last_endpoint=CASE WHEN @recordEndpoint=1 THEN excluded.last_endpoint ELSE blocklist_subs.last_endpoint END,
+                    last_endpoint_latency_ms=CASE WHEN @recordEndpoint=1 THEN excluded.last_endpoint_latency_ms ELSE blocklist_subs.last_endpoint_latency_ms END
                 """,
                 new
                 {
@@ -600,7 +607,24 @@ public sealed partial class HostsDatabase
                     lastCheckpointId,
                     lastAttemptHash = lastAttemptHash ?? string.Empty,
                     lastAttemptDomainCount,
+                    mirrorsJson = SerializeMirrors(mirrors),
+                    replaceMirrors = mirrors is null ? 0 : 1,
+                    endpoint = lastEndpoint ?? string.Empty,
+                    endpointLatencyMs = Math.Max(0, lastEndpointLatencyMs ?? 0),
+                    recordEndpoint = lastEndpoint is null ? 0 : 1,
                 });
+        }
+    }
+
+    public bool SetBlocklistMirrors(string name, IReadOnlyList<string> mirrors)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(mirrors);
+        lock (_gate)
+        {
+            return _conn.Execute(
+                "UPDATE blocklist_subs SET mirrors_json=@json WHERE name=@name",
+                new { name, json = SerializeMirrors(mirrors) }) == 1;
         }
     }
 
@@ -610,7 +634,9 @@ public sealed partial class HostsDatabase
         string error,
         string healthStatus = "error",
         string lastAttemptHash = "",
-        long lastAttemptDomainCount = 0)
+        long lastAttemptDomainCount = 0,
+        string? lastEndpoint = null,
+        long? lastEndpointLatencyMs = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var now = DateTime.Now.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
@@ -626,15 +652,17 @@ public sealed partial class HostsDatabase
                 """
                 INSERT INTO blocklist_subs(
                     name,url,last_refresh,domain_count,enabled,last_error,last_error_at,
-                    health_status,last_attempt_hash,last_attempt_domain_count)
-                VALUES(@name,@url,'',0,1,@message,@now,@healthStatus,@lastAttemptHash,@lastAttemptDomainCount)
+                    health_status,last_attempt_hash,last_attempt_domain_count,last_endpoint,last_endpoint_latency_ms)
+                VALUES(@name,@url,'',0,1,@message,@now,@healthStatus,@lastAttemptHash,@lastAttemptDomainCount,@endpoint,@endpointLatencyMs)
                 ON CONFLICT(name) DO UPDATE SET
                     url=CASE WHEN @url!='' THEN @url ELSE blocklist_subs.url END,
                     last_error=excluded.last_error,
                     last_error_at=excluded.last_error_at,
                     health_status=excluded.health_status,
                     last_attempt_hash=excluded.last_attempt_hash,
-                    last_attempt_domain_count=excluded.last_attempt_domain_count
+                    last_attempt_domain_count=excluded.last_attempt_domain_count,
+                    last_endpoint=CASE WHEN @recordEndpoint=1 THEN excluded.last_endpoint ELSE blocklist_subs.last_endpoint END,
+                    last_endpoint_latency_ms=CASE WHEN @recordEndpoint=1 THEN excluded.last_endpoint_latency_ms ELSE blocklist_subs.last_endpoint_latency_ms END
                 """,
                 new
                 {
@@ -645,6 +673,9 @@ public sealed partial class HostsDatabase
                     healthStatus = string.IsNullOrWhiteSpace(healthStatus) ? "error" : healthStatus,
                     lastAttemptHash = lastAttemptHash ?? string.Empty,
                     lastAttemptDomainCount,
+                    endpoint = lastEndpoint ?? string.Empty,
+                    endpointLatencyMs = Math.Max(0, lastEndpointLatencyMs ?? 0),
+                    recordEndpoint = lastEndpoint is null ? 0 : 1,
                 });
         }
     }
@@ -981,7 +1012,10 @@ public sealed partial class HostsDatabase
                     string HealthStatus,
                     long LastCheckpointId,
                     string LastAttemptHash,
-                    long LastAttemptDomainCount)>(
+                    long LastAttemptDomainCount,
+                    string MirrorsJson,
+                    string LastEndpoint,
+                    long LastEndpointLatencyMs)>(
                 $"""
                 SELECT s.name AS Name, s.url AS Url, COALESCE(s.last_refresh,'') AS LastRefresh,
                        COALESCE(s.domain_count,0) AS DomainCount, COALESCE(s.enabled,1) AS Enabled,
@@ -994,7 +1028,10 @@ public sealed partial class HostsDatabase
                        COALESCE(NULLIF(s.health_status,''),'new') AS HealthStatus,
                        COALESCE(s.last_checkpoint_id,0) AS LastCheckpointId,
                        COALESCE(s.last_attempt_hash,'') AS LastAttemptHash,
-                       COALESCE(s.last_attempt_domain_count,0) AS LastAttemptDomainCount
+                       COALESCE(s.last_attempt_domain_count,0) AS LastAttemptDomainCount,
+                       COALESCE(s.mirrors_json,'[]') AS MirrorsJson,
+                       COALESCE(s.last_endpoint,'') AS LastEndpoint,
+                       COALESCE(s.last_endpoint_latency_ms,0) AS LastEndpointLatencyMs
                 FROM blocklist_subs s
                 LEFT JOIN blocklist_domain_sources b ON b.source=s.name
                 LEFT JOIN (
@@ -1008,7 +1045,8 @@ public sealed partial class HostsDatabase
                 GROUP BY s.name, s.url, s.last_refresh, s.domain_count, s.enabled,
                          s.content_hash, s.previous_hash, s.previous_domain_count,
                          s.last_error, s.last_error_at, s.health_status, s.last_checkpoint_id,
-                         s.last_attempt_hash, s.last_attempt_domain_count
+                         s.last_attempt_hash, s.last_attempt_domain_count, s.mirrors_json,
+                         s.last_endpoint, s.last_endpoint_latency_ms
                 ORDER BY s.name
                 """,
                 MergeArgs(args, cutoff))
@@ -1028,8 +1066,30 @@ public sealed partial class HostsDatabase
                     r.HealthStatus,
                     r.LastCheckpointId,
                     r.LastAttemptHash,
-                    r.LastAttemptDomainCount))
+                    r.LastAttemptDomainCount,
+                    DeserializeMirrors(r.MirrorsJson),
+                    r.LastEndpoint,
+                    r.LastEndpointLatencyMs))
                 .ToList();
+        }
+    }
+
+    private static string SerializeMirrors(IReadOnlyList<string>? mirrors)
+        => JsonSerializer.Serialize((mirrors ?? Array.Empty<string>())
+            .Select(static value => value.Trim())
+            .Where(static value => value.Length != 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray());
+
+    private static IReadOnlyList<string> DeserializeMirrors(string? json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(json ?? "[]") ?? Array.Empty<string>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<string>();
         }
     }
 

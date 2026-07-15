@@ -63,7 +63,7 @@ public static class RpcMutationPolicy
             "ImportBlocklist", "ImportBlocklistContent", "RefreshThreatIntel", "RefreshGeoIp",
             "RefreshBlocklistIntelligence", "ImportIpBlocklist");
         Add(policies, "ListControl", RpcMutationKind.LockProtectedMutation,
-            "SetBlocklistEnabled", "RemoveBlocklistSubscription", "RestoreBlocklistCheckpoint", "RefreshBlocklists",
+            "SetBlocklistEnabled", "SetBlocklistMirrors", "RemoveBlocklistSubscription", "RestoreBlocklistCheckpoint", "RefreshBlocklists",
             "RecoverWindowsConnectivity", "SetAllowlists", "RefreshAllowlists", "SetIpBlocklistEnabled",
             "RemoveIpBlocklist", "RefreshIpBlocklists", "RollbackIpBlocklist");
 

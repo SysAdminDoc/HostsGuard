@@ -170,6 +170,7 @@ public class SchemaLockTests
           RollbackIpBlocklist(BlocklistRequest) returns (IpBlocklistResult)
           SetAllowlists(AllowlistUrls) returns (Ack)
           SetBlocklistEnabled(BlocklistToggleRequest) returns (Ack)
+          SetBlocklistMirrors(BlocklistMirrorsRequest) returns (Ack)
           SetIpBlocklistEnabled(BlocklistToggleRequest) returns (Ack)
         service Monitoring
           AckAlert(AlertAckRequest) returns (Ack)

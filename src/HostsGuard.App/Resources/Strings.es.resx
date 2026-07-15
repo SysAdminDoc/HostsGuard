@@ -688,4 +688,9 @@
   <data name="CnameChain_Query" xml:space="preserve"><value>Consulta</value></data>
   <data name="CnameChain_Listed" xml:space="preserve"><value>En lista</value></data>
   <data name="CnameChain_Resolved" xml:space="preserve"><value>Resuelto</value></data>
+  <data name="Blocklists_Mirror" xml:space="preserve"><value>Servidor alternativo</value></data>
+  <data name="Blocklists_SelectSubscribedSource" xml:space="preserve"><value>Seleccione primero una lista de bloqueo suscrita</value></data>
+  <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
+  <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>URL HTTPS alternativas en orden (separadas por punto y coma). Déjelo vacío para borrar las personalizadas.</value></data>
+  <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Guardar servidores alternativos para {0}</value></data>
 </root>

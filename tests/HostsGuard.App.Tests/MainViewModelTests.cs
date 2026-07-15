@@ -496,6 +496,22 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Blocklist_mirror_editor_saves_ordered_fallbacks()
+    {
+        _state.Db.UpsertBlocklistSub("custom", "https://example.com/list.txt", 1);
+        var prompt = new FixedPrompt("https://1.1.1.1/one; https://8.8.8.8/two");
+        var vm = new BlocklistsViewModel(_client, new FakeConfirm(true), prompt: prompt);
+        await vm.RefreshCommand.ExecuteAsync(null);
+
+        await vm.EditMirrorsCommand.ExecuteAsync(vm.Sources.Single(source => source.Name == "custom"));
+
+        _state.Db.GetBlocklistSub("custom")!.Mirrors.Should()
+            .Equal("https://1.1.1.1/one", "https://8.8.8.8/two");
+        vm.Sources.Single(source => source.Name == "custom").Mirrors.Should()
+            .Equal("https://1.1.1.1/one", "https://8.8.8.8/two");
+    }
+
+    [Fact]
     public async Task Local_blocklist_picker_reports_encoding_size_and_cancel_without_mutation()
     {
         var picker = new FakePicker();
@@ -699,5 +715,10 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct) =>
             Task.FromResult(Array.Empty<byte>());
+    }
+
+    private sealed class FixedPrompt(string? value) : IPrompt
+    {
+        public string? Ask(string title, string message, string defaultValue = "") => value;
     }
 }

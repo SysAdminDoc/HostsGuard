@@ -87,6 +87,30 @@ public sealed class ListControlServiceRpcTests : IDisposable
     }
 
     [Fact]
+    public async Task Blocklist_mirrors_are_ordered_and_ssrf_validated()
+    {
+        _state.Db.UpsertBlocklistSub("mirrored", "https://example.com/list.txt", 1);
+
+        var saved = await _lists.SetBlocklistMirrors(new BlocklistMirrorsRequest
+        {
+            Name = "mirrored",
+            Mirrors = { "https://1.1.1.1/one", "https://8.8.8.8/two" },
+        }, Ctx);
+        saved.Ok.Should().BeTrue();
+        _state.Db.GetBlocklistSub("mirrored")!.Mirrors.Should()
+            .Equal("https://1.1.1.1/one", "https://8.8.8.8/two");
+
+        var rejected = await _lists.SetBlocklistMirrors(new BlocklistMirrorsRequest
+        {
+            Name = "mirrored",
+            Mirrors = { "https://127.0.0.1/private" },
+        }, Ctx);
+        rejected.ErrorCode.Should().Be("hostsguard.error.v1/invalid_source");
+        _state.Db.GetBlocklistSub("mirrored")!.Mirrors.Should()
+            .Equal("https://1.1.1.1/one", "https://8.8.8.8/two");
+    }
+
+    [Fact]
     public async Task Ip_blocklist_name_is_required_and_unknown_reports_not_found()
     {
         (await _lists.SetIpBlocklistEnabled(new BlocklistToggleRequest { Name = "", Enabled = true }, Ctx))

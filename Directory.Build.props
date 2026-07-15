@@ -15,6 +15,9 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.139: blocklist subscriptions now persist up to five ordered,
+         SSRF-validated fallback mirrors plus the selected endpoint and latency;
+         refresh consumes exactly one payload and preserves state on failure. -->
     <!-- 0.12.138: persisted block events now carry their deciding managed
          source, blocklist, firewall/WFP rule, schedule, or quota identity and
          expose it through ledger search, filters, the app, CLI, and exports. -->
@@ -259,7 +262,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.138</Version>
+    <Version>0.12.139</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

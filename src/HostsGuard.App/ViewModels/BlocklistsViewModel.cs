@@ -44,6 +44,17 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
     [ObservableProperty]
     private string _mirror = string.Empty;
 
+    public IReadOnlyList<string> Mirrors { get; init; } = Array.Empty<string>();
+
+    public string MirrorsText => string.Join(" → ", Mirrors.Select(static value =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri.Host : value));
+
+    [ObservableProperty]
+    private string _lastEndpoint = string.Empty;
+
+    [ObservableProperty]
+    private long _lastEndpointLatencyMs;
+
     [ObservableProperty]
     private string _healthStatus = "new";
 
@@ -104,7 +115,7 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         + (HealthStatus is "guarded" or "error" ? HealthStatusText(HealthStatus) + " " : string.Empty)
         + (RollbackCheckpointId > 0 ? I18n.T("Blocklists_Checkpoint", "Checkpoint") + " " : string.Empty)
         + (LargeListWarning ? I18n.T("Blocklists_Large", "Large") + " " : string.Empty)
-        + (Mirror.Length != 0 ? I18n.T("Blocklists_Mirror", "Mirror") : string.Empty);
+        + (Mirrors.Count != 0 ? I18n.T("Blocklists_Mirror", "Mirror") : string.Empty);
 
     public string ToggleLabel => Enabled
         ? I18n.T("Common_Disable", "Disable")
@@ -135,6 +146,12 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
                     : LastError);
             }
 
+            if (LastEndpoint.Length != 0)
+            {
+                var endpoint = Uri.TryCreate(LastEndpoint, UriKind.Absolute, out var uri) ? uri.Host : LastEndpoint;
+                parts.Add(I18n.T("Blocklists_EndpointLatency", "{0} · {1} ms", endpoint, LastEndpointLatencyMs));
+            }
+
             return string.Join(" - ", parts);
         }
     }
@@ -162,6 +179,9 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
         Hits30d = s.Hits30D,
         LargeListWarning = s.LargeListWarning,
         Mirror = s.Mirror,
+        Mirrors = s.Mirrors.ToArray(),
+        LastEndpoint = s.LastEndpoint,
+        LastEndpointLatencyMs = s.LastEndpointLatencyMs,
         HealthStatus = s.HealthStatus,
         LastError = s.LastError,
         LastErrorAt = s.LastErrorAt,
@@ -186,6 +206,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     private readonly HostsServiceClient _client;
     private readonly IConfirm _confirm;
     private readonly IFilePicker _filePicker;
+    private readonly IPrompt _prompt;
 
     [ObservableProperty]
     private string _statusText = I18n.T("Status.Ready", "Ready");
@@ -193,11 +214,16 @@ public sealed partial class BlocklistsViewModel : ObservableObject
     [ObservableProperty]
     private string _allowlistUrlsText = string.Empty;
 
-    public BlocklistsViewModel(HostsServiceClient client, IConfirm confirm, IFilePicker? filePicker = null)
+    public BlocklistsViewModel(
+        HostsServiceClient client,
+        IConfirm confirm,
+        IFilePicker? filePicker = null,
+        IPrompt? prompt = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _confirm = confirm ?? throw new ArgumentNullException(nameof(confirm));
         _filePicker = filePicker ?? new DialogFilePicker();
+        _prompt = prompt ?? new InputDialogPrompt();
     }
 
     public ObservableCollection<BlocklistSourceViewModel> Sources { get; } = new();
@@ -258,6 +284,37 @@ public sealed partial class BlocklistsViewModel : ObservableObject
             var result = await _client.Lists.PreviewBlocklistAsync(new BlocklistRequest { Name = source.Name, Url = source.Url });
             CaptureConnectivityWarnings(result);
             StatusText = FormatResult(result);
+        });
+    }
+
+    [RelayCommand]
+    public async Task EditMirrorsAsync(BlocklistSourceViewModel? source)
+    {
+        if (source is null || !source.Subscribed)
+        {
+            StatusText = I18n.T("Blocklists_SelectSubscribedSource", "Select a subscribed blocklist source first");
+            return;
+        }
+
+        var value = _prompt.Ask(
+            I18n.T("Blocklists_Mirror", "Mirror"),
+            I18n.T("Blocklists_MirrorPrompt", "Ordered HTTPS fallback URLs (separate with semicolons). Leave empty to clear custom mirrors."),
+            string.Join("; ", source.Mirrors));
+        if (value is null)
+        {
+            return;
+        }
+
+        var request = new BlocklistMirrorsRequest { Name = source.Name };
+        request.Mirrors.AddRange(value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        await RunServiceActionAsync(I18n.T("Blocklists_ActionSaveMirrors", "Save mirrors for {0}", source.Name), async () =>
+        {
+            var ack = await _client.Lists.SetBlocklistMirrorsAsync(request);
+            StatusText = ack.Message;
+            if (ack.Ok)
+            {
+                await RefreshCoreAsync();
+            }
         });
     }
 

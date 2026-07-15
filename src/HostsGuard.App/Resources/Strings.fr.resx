@@ -687,4 +687,9 @@
   <data name="CnameChain_Query" xml:space="preserve"><value>Requête</value></data>
   <data name="CnameChain_Listed" xml:space="preserve"><value>Répertorié</value></data>
   <data name="CnameChain_Resolved" xml:space="preserve"><value>Résolu</value></data>
+  <data name="Blocklists_Mirror" xml:space="preserve"><value>Serveur de secours</value></data>
+  <data name="Blocklists_SelectSubscribedSource" xml:space="preserve"><value>Sélectionnez d’abord une liste de blocage abonnée</value></data>
+  <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
+  <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>URL HTTPS de secours ordonnées (séparées par des points-virgules). Laissez vide pour effacer les miroirs personnalisés.</value></data>
+  <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Enregistrer les secours pour {0}</value></data>
 </root>
