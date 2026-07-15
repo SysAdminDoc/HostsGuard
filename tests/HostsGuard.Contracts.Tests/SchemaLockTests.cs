@@ -38,6 +38,7 @@ public class SchemaLockTests
           CheckCaptivePortal(Empty) returns (CaptivePortalStatus)
           ExportSupportBundle(SupportBundleRequest) returns (Ack)
           GetDefenderStatus(Empty) returns (DefenderStatus)
+          GetHyperVFirewallCoverage(Empty) returns (HyperVFirewallCoverage)
           GetStatus(Empty) returns (ServiceStatus)
           GetUpdateStatus(Empty) returns (UpdateStatus)
           InspectProxyBaseline(Empty) returns (ProxyBaselineReport)

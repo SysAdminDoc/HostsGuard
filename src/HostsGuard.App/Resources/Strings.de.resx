@@ -692,4 +692,16 @@
   <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
   <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>Geordnete HTTPS-Ausweich-URLs (durch Semikolons trennen). Leer lassen, um benutzerdefinierte Spiegel zu löschen.</value></data>
   <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Ausweichserver für {0} speichern</value></data>
+  <data name="Health_HyperVFirewall" xml:space="preserve"><value>Hyper-V-Firewall</value></data>
+  <data name="Health_HyperVAttributionLimit" xml:space="preserve"><value>Nur Erstellergrenze; keine Zuordnung von Prozessen im Gast.</value></data>
+  <data name="Health_HyperVUnavailable" xml:space="preserve"><value>Nicht verfügbar</value></data>
+  <data name="Health_HyperVUnavailableDetail" xml:space="preserve"><value>{0}. {1}</value></data>
+  <data name="Health_HyperVNoWorkloads" xml:space="preserve"><value>Keine virtuellen Arbeitslasten</value></data>
+  <data name="Health_HyperVIdentity" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Health_HyperVNoProfiles" xml:space="preserve"><value>keine profilspezifische Richtlinie zurückgegeben</value></data>
+  <data name="Health_HyperVProfileDetail" xml:space="preserve"><value>{0}: {1}, eingehend {2}, ausgehend {3}, lokale Regeln {4}</value></data>
+  <data name="Health_HyperVSettingMissing" xml:space="preserve"><value>Einstellungen fehlen</value></data>
+  <data name="Health_HyperVMerged" xml:space="preserve"><value>Zusammengeführt</value></data>
+  <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isoliert</value></data>
+  <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Ersteller {0} · VM-Standardwerte eingehend {1}, ausgehend {2} · Hostregelzusammenführung {3} · Loopback {4} · Profile {5}</value></data>
 </root>

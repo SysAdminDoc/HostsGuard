@@ -14,6 +14,7 @@ public sealed class DiagnosticsHealthTests : IDisposable
 {
     private readonly string _dir;
     private readonly ServiceState _state;
+    private readonly FixedHyperVFirewall _hyperVFirewall = new();
 
     public DiagnosticsHealthTests()
     {
@@ -22,7 +23,8 @@ public sealed class DiagnosticsHealthTests : IDisposable
         var hostsPath = Path.Combine(_dir, "hosts");
         File.WriteAllText(hostsPath, "# hosts\n");
         _state = new ServiceState(new HostsEngine(hostsPath), new HostsDatabase(Path.Combine(_dir, "db.sqlite")),
-            dataDir: _dir);
+            dataDir: _dir,
+            hyperVFirewallInventory: _hyperVFirewall);
     }
 
     public void Dispose()
@@ -108,8 +110,53 @@ public sealed class DiagnosticsHealthTests : IDisposable
             session.SourceAddress == "198.51.100.9" && session.ClientName == "OPS-LAPTOP");
     }
 
+    [Fact]
+    public async Task HyperV_coverage_maps_effective_creator_and_profile_policy_without_guest_attribution()
+    {
+        var checkedAt = new DateTime(2026, 7, 14, 17, 0, 0, DateTimeKind.Utc);
+        _hyperVFirewall.Snapshot = new HyperVFirewallSnapshot(
+            true,
+            string.Empty,
+            checkedAt,
+            [new HostsGuard.Windows.HyperVFirewallWorkload(
+                "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}",
+                string.Empty,
+                true,
+                true,
+                "Block",
+                "Allow",
+                true,
+                false,
+                [new HostsGuard.Windows.HyperVFirewallProfile("Public", true, "Block", "Allow", false)])]);
+
+        var result = await new DiagnosticsServiceImpl(_state)
+            .GetHyperVFirewallCoverage(new Empty(), null!);
+
+        result.Available.Should().BeTrue();
+        result.CheckedAt.Should().Be(checkedAt.ToString("o"));
+        result.AttributionLimit.Should().Contain("inner-guest processes are not attributed");
+        var workload = result.Workloads.Should().ContainSingle().Subject;
+        workload.CreatorId.Should().Be("{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}");
+        workload.AllowHostPolicyMerge.Should().BeTrue();
+        workload.Profiles.Should().ContainSingle().Which.Should().Match<HostsGuard.Contracts.HyperVFirewallProfile>(
+            profile => profile.Name == "Public" && profile.DefaultInboundAction == "Block" &&
+                       profile.DefaultOutboundAction == "Allow" && !profile.AllowLocalFirewallRules);
+    }
+
     private sealed class FixedRemoteSessions(RemoteSessionSnapshot snapshot) : IRemoteSessionSource
     {
         public RemoteSessionSnapshot Snapshot() => snapshot;
+    }
+
+    private sealed class FixedHyperVFirewall : IHyperVFirewallInventory
+    {
+        public HyperVFirewallSnapshot Snapshot { get; set; } = new(
+            true,
+            string.Empty,
+            DateTime.UtcNow,
+            []);
+
+        public Task<HyperVFirewallSnapshot> SnapshotAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(Snapshot);
     }
 }

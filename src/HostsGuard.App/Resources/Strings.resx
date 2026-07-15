@@ -972,6 +972,18 @@
   <data name="Health_HostsScale" xml:space="preserve"><value>Hosts file scale</value></data>
   <data name="Health_Large" xml:space="preserve"><value>Large</value></data>
   <data name="Health_HostsScaleDetail" xml:space="preserve"><value>large enough to slow system-wide DNS — prefer firewall IP rules</value></data>
+  <data name="Health_HyperVFirewall" xml:space="preserve"><value>Hyper-V firewall</value></data>
+  <data name="Health_HyperVAttributionLimit" xml:space="preserve"><value>Creator boundary only; no inner-guest process attribution.</value></data>
+  <data name="Health_HyperVUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="Health_HyperVUnavailableDetail" xml:space="preserve"><value>{0}. {1}</value></data>
+  <data name="Health_HyperVNoWorkloads" xml:space="preserve"><value>No virtual workloads</value></data>
+  <data name="Health_HyperVIdentity" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Health_HyperVNoProfiles" xml:space="preserve"><value>no per-profile policy returned</value></data>
+  <data name="Health_HyperVProfileDetail" xml:space="preserve"><value>{0}: {1}, inbound {2}, outbound {3}, local rules {4}</value></data>
+  <data name="Health_HyperVSettingMissing" xml:space="preserve"><value>Settings missing</value></data>
+  <data name="Health_HyperVMerged" xml:space="preserve"><value>Merged</value></data>
+  <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isolated</value></data>
+  <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Creator {0} · VM defaults inbound {1}, outbound {2} · host-rule merge {3} · loopback {4} · profiles {5}</value></data>
   <data name="Health_AllOk" xml:space="preserve"><value>All health checks OK.</value></data>
   <data name="Health_SomeBad" xml:space="preserve"><value>{0} health check(s) need attention.</value></data>
   <data name="Update_Title" xml:space="preserve"><value>Service self-update</value></data>

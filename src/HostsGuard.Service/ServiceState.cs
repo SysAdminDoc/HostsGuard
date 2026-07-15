@@ -34,7 +34,8 @@ public sealed class ServiceState : IDisposable
         IProxyConfigurationSnapshotSource? proxySnapshotSource = null,
         IDnsServiceBindingQuery? serviceBindingQuery = null,
         ICaptivePortalProbe? captivePortalProbe = null,
-        IClock? clock = null)
+        IClock? clock = null,
+        IHyperVFirewallInventory? hyperVFirewallInventory = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -68,6 +69,7 @@ public sealed class ServiceState : IDisposable
         EnforcementPause = new EnforcementPauseCoordinator(hosts, db, firewall, DataDir, Clock);
         EnforcementPause.Resume();
         CaptivePortalProbe = captivePortalProbe ?? new WindowsNcsiCaptivePortalProbe();
+        HyperVFirewall = hyperVFirewallInventory ?? new PowerShellHyperVFirewallInventory();
         ConnectionSnapshot = connectionSnapshot ?? (() => new ConnectionMonitor().Snapshot());
         FlowTeardown = new FlowTeardownCoordinator(
             db,
@@ -138,6 +140,9 @@ public sealed class ServiceState : IDisposable
     public HostsDatabase Db { get; }
 
     public IClock Clock { get; }
+
+    /// <summary>Read-only effective Hyper-V firewall inventory.</summary>
+    public IHyperVFirewallInventory HyperVFirewall { get; }
 
     public IdnHomographMonitor IdnHomographs { get; }
 

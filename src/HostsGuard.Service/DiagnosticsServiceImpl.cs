@@ -92,6 +92,46 @@ public sealed class DiagnosticsServiceImpl : HostsGuard.Contracts.Diagnostics.Di
         return Task.FromResult(status);
     }
 
+    public override async Task<HyperVFirewallCoverage> GetHyperVFirewallCoverage(
+        Empty request,
+        ServerCallContext context)
+    {
+        var snapshot = await _state.HyperVFirewall
+            .SnapshotAsync(context?.CancellationToken ?? CancellationToken.None)
+            .ConfigureAwait(false);
+        var response = new HyperVFirewallCoverage
+        {
+            Available = snapshot.Available,
+            ErrorCode = snapshot.ErrorCode,
+            CheckedAt = snapshot.CheckedAtUtc.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            AttributionLimit = "Windows exposes the Hyper-V workload/creator boundary only; inner-guest processes are not attributed.",
+        };
+        response.Workloads.AddRange(snapshot.Workloads.Select(workload =>
+        {
+            var row = new Contracts.HyperVFirewallWorkload
+            {
+                CreatorId = workload.CreatorId,
+                DisplayName = workload.DisplayName,
+                SettingPresent = workload.SettingPresent,
+                Enabled = workload.Enabled,
+                DefaultInboundAction = workload.DefaultInboundAction,
+                DefaultOutboundAction = workload.DefaultOutboundAction,
+                AllowHostPolicyMerge = workload.AllowHostPolicyMerge,
+                LoopbackEnabled = workload.LoopbackEnabled,
+            };
+            row.Profiles.AddRange(workload.Profiles.Select(profile => new Contracts.HyperVFirewallProfile
+            {
+                Name = profile.Name,
+                Enabled = profile.Enabled,
+                DefaultInboundAction = profile.DefaultInboundAction,
+                DefaultOutboundAction = profile.DefaultOutboundAction,
+                AllowLocalFirewallRules = profile.AllowLocalFirewallRules,
+            }));
+            return row;
+        }));
+        return response;
+    }
+
     private RemoteSessionSnapshot CaptureRemoteSessions()
     {
         try

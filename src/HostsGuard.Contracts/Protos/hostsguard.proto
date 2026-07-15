@@ -40,6 +40,37 @@ service Diagnostics {
   rpc InspectProxyBaseline(Empty) returns (ProxyBaselineReport);
   // Accepts the current observed state without changing any Windows setting.
   rpc AcceptProxyBaseline(Empty) returns (Ack);
+  // Read-only effective Hyper-V firewall policy by Windows VM creator ID.
+  // This cannot attribute processes inside WSL or another guest.
+  rpc GetHyperVFirewallCoverage(Empty) returns (HyperVFirewallCoverage);
+}
+
+message HyperVFirewallCoverage {
+  bool available = 1;
+  string error_code = 2;
+  string checked_at = 3;
+  repeated HyperVFirewallWorkload workloads = 4;
+  string attribution_limit = 5;
+}
+
+message HyperVFirewallWorkload {
+  string creator_id = 1;
+  string display_name = 2;
+  bool setting_present = 3;
+  bool enabled = 4;
+  string default_inbound_action = 5;
+  string default_outbound_action = 6;
+  bool allow_host_policy_merge = 7;
+  bool loopback_enabled = 8;
+  repeated HyperVFirewallProfile profiles = 9;
+}
+
+message HyperVFirewallProfile {
+  string name = 1;
+  bool enabled = 2;
+  string default_inbound_action = 3;
+  string default_outbound_action = 4;
+  bool allow_local_firewall_rules = 5;
 }
 
 message CaptivePortalStatus {

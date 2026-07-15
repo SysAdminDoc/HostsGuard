@@ -50,7 +50,8 @@ public sealed class MainViewModelTests : IAsyncLifetime
             dataDir: _dir,
             listFetcher: new EmptyListFetcher(),
             flowTerminator: _flows,
-            connectionSnapshot: () => Array.Empty<ConnectionInfo>());
+            connectionSnapshot: () => Array.Empty<ConnectionInfo>(),
+            hyperVFirewallInventory: new FixedHyperVFirewall());
         _killSwitch = new KillSwitchMonitor(_fw, _state.Db, _ => false, _dir);
         _state.KillSwitch = _killSwitch;
         _token = SessionToken.Generate();
@@ -129,6 +130,22 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.SetGlobalModeCommand.CanExecute("block-all").Should().BeTrue();
         vm.PauseEnforcementCommand.CanExecute("5").Should().BeTrue();
         vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Health_glance_identifies_HyperV_creator_boundary_and_host_rule_merge_state()
+    {
+        var vm = new ToolsViewModel(_client, new FakeConfirm(true));
+
+        await vm.LoadHealthAsync();
+
+        var row = vm.HealthRows.Should().ContainSingle(entry => entry.Aspect == "Hyper-V firewall").Subject;
+        row.State.Should().Be("Merged");
+        row.Detail.Should().Contain("{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}")
+            .And.Contain("inbound Block")
+            .And.Contain("outbound Allow")
+            .And.Contain("inner-guest processes are not attributed");
+        row.Healthy.Should().BeTrue();
     }
 
     [Fact]
@@ -715,6 +732,25 @@ public sealed class MainViewModelTests : IAsyncLifetime
 
         public Task<byte[]> FetchBytesAsync(string url, int maxBytes, CancellationToken ct) =>
             Task.FromResult(Array.Empty<byte>());
+    }
+
+    private sealed class FixedHyperVFirewall : IHyperVFirewallInventory
+    {
+        public Task<HyperVFirewallSnapshot> SnapshotAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new HyperVFirewallSnapshot(
+                true,
+                string.Empty,
+                new DateTime(2026, 7, 14, 17, 0, 0, DateTimeKind.Utc),
+                [new HostsGuard.Windows.HyperVFirewallWorkload(
+                    "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}",
+                    string.Empty,
+                    true,
+                    true,
+                    "Block",
+                    "Allow",
+                    true,
+                    false,
+                    [new HostsGuard.Windows.HyperVFirewallProfile("Public", true, "Block", "Allow", true)])]));
     }
 
     private sealed class FixedPrompt(string? value) : IPrompt

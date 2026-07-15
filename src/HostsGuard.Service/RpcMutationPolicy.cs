@@ -36,7 +36,8 @@ public static class RpcMutationPolicy
         var policies = new Dictionary<string, RpcMutationKind>(StringComparer.Ordinal);
 
         Add(policies, "Diagnostics", RpcMutationKind.ReadOnly,
-            "GetStatus", "CheckCaptivePortal", "GetDefenderStatus", "GetUpdateStatus", "InspectProxyBaseline");
+            "GetStatus", "CheckCaptivePortal", "GetDefenderStatus", "GetUpdateStatus", "InspectProxyBaseline",
+            "GetHyperVFirewallCoverage");
         Add(policies, "Diagnostics", RpcMutationKind.ProtectiveMutation, "ExportSupportBundle");
         Add(policies, "Diagnostics", RpcMutationKind.LockProtectedMutation, "StageUpdate", "AcceptProxyBaseline");
 

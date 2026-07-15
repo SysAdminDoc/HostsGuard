@@ -486,6 +486,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Detail = "lost 1 · gaps 25 · restarts 1 · transition 14:00 · rollover detected",
             Healthy = false,
         });
+        Tools.HealthRows.Add(new HealthRowViewModel
+        {
+            Aspect = "Hyper-V firewall",
+            State = "Merged",
+            Detail = "Creator boundary only; no inner-guest process attribution. Creator {40E0AC32-46A5-438A-A0B2-2B479E8F2E90} · VM defaults inbound Block, outbound Allow · profiles Domain/Private/Public",
+            Healthy = true,
+        });
         Tools.HealthStatusText = "1 health check needs attention — evidence is incomplete.";
         Tools.StatusText = "Deterministic diagnostics ready";
 

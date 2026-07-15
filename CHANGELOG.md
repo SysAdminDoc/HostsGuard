@@ -2,6 +2,18 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.140] - 2026-07-14
+
+### Added
+- Tools health now lists read-only Hyper-V firewall coverage by Windows VM
+  creator ID, including effective VM/profile defaults, host-rule merge,
+  local-rule merge, and loopback state.
+
+### Changed
+- Hyper-V diagnostics explicitly report unsupported cmdlets and the Windows
+  guest-attribution boundary; HostsGuard does not claim inner-WSL process
+  identity and never changes Hyper-V firewall policy from this surface.
+
 ## [0.12.139] - 2026-07-14
 
 ### Added

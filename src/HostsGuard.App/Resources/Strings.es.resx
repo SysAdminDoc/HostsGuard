@@ -693,4 +693,16 @@
   <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
   <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>URL HTTPS alternativas en orden (separadas por punto y coma). Déjelo vacío para borrar las personalizadas.</value></data>
   <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Guardar servidores alternativos para {0}</value></data>
+  <data name="Health_HyperVFirewall" xml:space="preserve"><value>Firewall de Hyper-V</value></data>
+  <data name="Health_HyperVAttributionLimit" xml:space="preserve"><value>Solo límite del creador; sin atribución de procesos internos del invitado.</value></data>
+  <data name="Health_HyperVUnavailable" xml:space="preserve"><value>No disponible</value></data>
+  <data name="Health_HyperVUnavailableDetail" xml:space="preserve"><value>{0}. {1}</value></data>
+  <data name="Health_HyperVNoWorkloads" xml:space="preserve"><value>Sin cargas virtuales</value></data>
+  <data name="Health_HyperVIdentity" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Health_HyperVNoProfiles" xml:space="preserve"><value>no se devolvió ninguna directiva por perfil</value></data>
+  <data name="Health_HyperVProfileDetail" xml:space="preserve"><value>{0}: {1}, entrada {2}, salida {3}, reglas locales {4}</value></data>
+  <data name="Health_HyperVSettingMissing" xml:space="preserve"><value>Faltan ajustes</value></data>
+  <data name="Health_HyperVMerged" xml:space="preserve"><value>Combinadas</value></data>
+  <data name="Health_HyperVIsolated" xml:space="preserve"><value>Aislada</value></data>
+  <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Creador {0} · valores predeterminados de VM: entrada {1}, salida {2} · combinación de reglas del host {3} · bucle invertido {4} · perfiles {5}</value></data>
 </root>

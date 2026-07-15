@@ -35,6 +35,15 @@ public sealed partial class ToolsViewModel
         {
             var status = await _client.Diagnostics.GetStatusAsync(new Empty());
             var lastListRefresh = string.Empty;
+            HyperVFirewallCoverage? hyperVFirewall = null;
+            try
+            {
+                hyperVFirewall = await _client.Diagnostics.GetHyperVFirewallCoverageAsync(new Empty());
+            }
+            catch (Grpc.Core.RpcException)
+            {
+                // Backward-compatible with a service that predates this additive RPC.
+            }
             try
             {
                 var lists = await _client.Lists.ListBlocklistSourcesAsync(new Empty());
@@ -128,6 +137,10 @@ public sealed partial class ToolsViewModel
                        + I18n.T("Health_PendingConsent", "{0} pending consent", status.PendingConsent),
                 Healthy = true,
             });
+            if (hyperVFirewall is not null)
+            {
+                AddHyperVFirewallRows(hyperVFirewall);
+            }
             HealthRows.Add(new HealthRowViewModel
             {
                 Aspect = I18n.T("Health_Persistence", "Activity persistence"),
@@ -204,6 +217,85 @@ public sealed partial class ToolsViewModel
         "security_log" => I18n.T("Health_SecurityObservation", "Blocked evidence (Security log)"),
         _ => source,
     };
+
+    private void AddHyperVFirewallRows(HyperVFirewallCoverage coverage)
+    {
+        var aspect = I18n.T("Health_HyperVFirewall", "Hyper-V firewall");
+        var attributionLimit = I18n.T(
+            "Health_HyperVAttributionLimit",
+            "Creator boundary only; no inner-guest process attribution.");
+        if (!coverage.Available)
+        {
+            HealthRows.Add(new HealthRowViewModel
+            {
+                Aspect = aspect,
+                State = I18n.T("Health_HyperVUnavailable", "Unavailable"),
+                Detail = I18n.T(
+                    "Health_HyperVUnavailableDetail",
+                    "{0}. {1}",
+                    coverage.ErrorCode,
+                    attributionLimit),
+                Healthy = true, // unsupported Windows builds have no Hyper-V firewall surface
+            });
+            return;
+        }
+
+        if (coverage.Workloads.Count == 0)
+        {
+            HealthRows.Add(new HealthRowViewModel
+            {
+                Aspect = aspect,
+                State = I18n.T("Health_HyperVNoWorkloads", "No virtual workloads"),
+                Detail = attributionLimit,
+                Healthy = true,
+            });
+            return;
+        }
+
+        foreach (var workload in coverage.Workloads)
+        {
+            var identity = workload.DisplayName.Length == 0
+                ? workload.CreatorId
+                : I18n.T("Health_HyperVIdentity", "{0} ({1})", workload.DisplayName, workload.CreatorId);
+            var profiles = workload.Profiles.Count == 0
+                ? I18n.T("Health_HyperVNoProfiles", "no per-profile policy returned")
+                : string.Join("; ", workload.Profiles.Select(profile => I18n.T(
+                    "Health_HyperVProfileDetail",
+                    "{0}: {1}, inbound {2}, outbound {3}, local rules {4}",
+                    profile.Name,
+                    OnOff(profile.Enabled),
+                    profile.DefaultInboundAction,
+                    profile.DefaultOutboundAction,
+                    OnOff(profile.AllowLocalFirewallRules))));
+            var healthy = workload.SettingPresent && workload.Enabled && workload.AllowHostPolicyMerge;
+            HealthRows.Add(new HealthRowViewModel
+            {
+                Aspect = aspect,
+                State = !workload.SettingPresent
+                    ? I18n.T("Health_HyperVSettingMissing", "Settings missing")
+                    : !workload.Enabled
+                        ? I18n.T("Common_Disabled", "Disabled")
+                        : workload.AllowHostPolicyMerge
+                            ? I18n.T("Health_HyperVMerged", "Merged")
+                            : I18n.T("Health_HyperVIsolated", "Isolated"),
+                Detail = I18n.T(
+                    "Health_HyperVWorkloadDetail",
+                    "{6} Creator {0} · VM defaults inbound {1}, outbound {2} · host-rule merge {3} · loopback {4} · profiles {5}",
+                    identity,
+                    workload.DefaultInboundAction,
+                    workload.DefaultOutboundAction,
+                    OnOff(workload.AllowHostPolicyMerge),
+                    OnOff(workload.LoopbackEnabled),
+                    profiles,
+                    attributionLimit),
+                Healthy = healthy,
+            });
+        }
+    }
+
+    private static string OnOff(bool value) => value
+        ? I18n.T("Common_OnLower", "on")
+        : I18n.T("Common_OffLower", "off");
 
     // ─── SHA-256-verified self-update (NET-187) ──────────────────────────────
 

@@ -692,4 +692,16 @@
   <data name="Blocklists_EndpointLatency" xml:space="preserve"><value>{0} · {1} ms</value></data>
   <data name="Blocklists_MirrorPrompt" xml:space="preserve"><value>URL HTTPS de secours ordonnées (séparées par des points-virgules). Laissez vide pour effacer les miroirs personnalisés.</value></data>
   <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Enregistrer les secours pour {0}</value></data>
+  <data name="Health_HyperVFirewall" xml:space="preserve"><value>Pare-feu Hyper-V</value></data>
+  <data name="Health_HyperVAttributionLimit" xml:space="preserve"><value>Limite au créateur ; aucune attribution des processus internes de l’invité.</value></data>
+  <data name="Health_HyperVUnavailable" xml:space="preserve"><value>Indisponible</value></data>
+  <data name="Health_HyperVUnavailableDetail" xml:space="preserve"><value>{0}. {1}</value></data>
+  <data name="Health_HyperVNoWorkloads" xml:space="preserve"><value>Aucune charge de travail virtuelle</value></data>
+  <data name="Health_HyperVIdentity" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Health_HyperVNoProfiles" xml:space="preserve"><value>aucune stratégie par profil renvoyée</value></data>
+  <data name="Health_HyperVProfileDetail" xml:space="preserve"><value>{0} : {1}, entrant {2}, sortant {3}, règles locales {4}</value></data>
+  <data name="Health_HyperVSettingMissing" xml:space="preserve"><value>Paramètres manquants</value></data>
+  <data name="Health_HyperVMerged" xml:space="preserve"><value>Fusionnées</value></data>
+  <data name="Health_HyperVIsolated" xml:space="preserve"><value>Isolée</value></data>
+  <data name="Health_HyperVWorkloadDetail" xml:space="preserve"><value>{6} Créateur {0} · valeurs VM par défaut : entrant {1}, sortant {2} · fusion des règles de l’hôte {3} · bouclage {4} · profils {5}</value></data>
 </root>
