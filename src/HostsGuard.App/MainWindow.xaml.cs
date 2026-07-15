@@ -122,15 +122,14 @@ public partial class MainWindow : Window
             // connection stays default-deny blocked). Fail loud.
             if (!await vm.SendDecisionAsync(decision))
             {
-                MessageBox.Show(
-                    this,
+                ConfirmDialog.ShowAlert(
+                    I18n.T("Consent_DeliveryFailedTitle", "Decision not applied"),
                     I18n.T(
                         "Consent_DeliveryFailedBody",
                         "Your decision for {0} could not be applied — the service did not accept it. The connection stays blocked; it will prompt again on its next attempt.",
                         System.IO.Path.GetFileName(decision.Application)),
-                    I18n.T("Consent_DeliveryFailedTitle", "Decision not applied"),
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    ThemedDialogKind.Warning,
+                    this);
             }
         }
     }

@@ -534,6 +534,21 @@ public sealed class WpfSmokeTests
                 ((Button)confirm.FindName("ConfirmButton")).IsDefault.Should().BeFalse(
                     "destructive mutation prompts must default to cancel");
 
+                var warning = new ConfirmDialog(
+                    "Decision not applied",
+                    "The connection stays blocked.",
+                    ThemedDialogKind.Warning);
+                warning.Measure(new Size(500, 220));
+                warning.Arrange(new Rect(0, 0, 500, 220));
+                warning.UpdateLayout();
+                System.Windows.Automation.AutomationProperties.GetName(warning)
+                    .Should().Be("Decision not applied");
+                ((Button)warning.FindName("CancelButton")).Visibility.Should().Be(Visibility.Collapsed);
+                ((Border)warning.FindName("ActionNote")).Visibility.Should().Be(Visibility.Collapsed);
+                var warningAction = (Button)warning.FindName("ConfirmButton");
+                warningAction.Content.Should().Be("OK");
+                warningAction.IsDefault.Should().BeTrue();
+
                 _stage = $"{theme}: constructing InputDialog";
                 var input = new InputDialog("Assign to rule group",
                     "Group name for 2 rules (blank removes them from all groups):", "Browsers");

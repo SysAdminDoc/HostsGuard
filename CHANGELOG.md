@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.148] - 2026-07-14
+
+### Changed
+- Lost consent decisions, service-unavailable failures, and unexpected action
+  failures now use the active HostsGuard theme instead of native light-chrome
+  message boxes. Warning/error presentations expose one explicit **OK** action,
+  preserve safe keyboard defaults, and are covered by offscreen dialog renders.
+
 ## [0.12.147] - 2026-07-14
 
 ### Added

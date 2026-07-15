@@ -208,6 +208,10 @@ internal static class VisualSmokeRunner
             ("Confirmation", new ConfirmDialog(
                 "Block all outbound traffic?",
                 "New outbound connections will be blocked until you restore the safe network posture.")),
+            ("Warning", new ConfirmDialog(
+                "Decision not applied",
+                "The service did not accept this decision. The connection stays blocked.",
+                ThemedDialogKind.Warning)),
             ("Input", new InputDialog(
                 "Assign rule group",
                 "Enter a group name for the selected firewall rules.",

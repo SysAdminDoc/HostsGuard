@@ -2106,4 +2106,5 @@
   <data name="QuicPosture_SelectProcess" xml:space="preserve"><value>Select a QUIC process first</value></data>
   <data name="QuicPosture_CannotResolveProgram" xml:space="preserve"><value>Cannot resolve the executable path for {0}</value></data>
   <data name="QuicPosture_Action" xml:space="preserve"><value>Steer QUIC app to TCP</value></data>
+  <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
 </root>

@@ -227,13 +227,13 @@ public partial class App : Application
         // actionable message instead of a raw "StatusCode=Unavailable" dump.
         // Handler-side failures (StatusCode.Unknown) are NOT connectivity: the
         // service is up, so don't tell the user to restart it.
-        var (message, title, icon) = Services.ServiceErrors.IsConnectivity(e.Exception)
+        var (message, title, kind) = Services.ServiceErrors.IsConnectivity(e.Exception)
             ? ("HostsGuard can't reach its background service. It may be starting, stopped, or restarting — "
                + "wait a moment and try again, or reopen HostsGuard.",
-               "HostsGuard — service unavailable", MessageBoxImage.Warning)
-            : (Services.ServiceErrors.Describe(e.Exception), "HostsGuard — action failed", MessageBoxImage.Error);
+               "HostsGuard — service unavailable", ThemedDialogKind.Warning)
+            : (Services.ServiceErrors.Describe(e.Exception), "HostsGuard — action failed", ThemedDialogKind.Error);
 
-        MessageBox.Show(message, title, MessageBoxButton.OK, icon);
+        ConfirmDialog.ShowAlert(title, message, kind);
         e.Handled = true;
     }
 }

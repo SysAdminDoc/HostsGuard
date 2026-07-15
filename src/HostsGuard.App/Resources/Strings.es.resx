@@ -784,4 +784,5 @@
   <data name="AllowlistReview_Select" xml:space="preserve"><value>Selecciona primero una recomendacion</value></data>
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Permitir dominio recomendado</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>Se permitio {0}; se elimino la recomendacion</value></data>
+  <data name="Dialog_Ok" xml:space="preserve"><value>Aceptar</value></data>
 </root>

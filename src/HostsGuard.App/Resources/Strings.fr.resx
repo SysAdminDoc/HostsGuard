@@ -783,4 +783,5 @@
   <data name="AllowlistReview_Select" xml:space="preserve"><value>Selectionnez d'abord une recommandation</value></data>
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Autoriser le domaine recommande</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>{0} a ete autorise ; la recommandation a ete retiree</value></data>
+  <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
 </root>

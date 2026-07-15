@@ -21,11 +21,13 @@
 
             <DockPanel Grid.Row="0">
                 <Border DockPanel.Dock="Left"
+                        x:Name="IconBorder"
                         Style="{StaticResource Hg.DialogIcon}"
                         Background="{DynamicResource Hg.DangerSoft}"
                         BorderBrush="{DynamicResource Hg.DangerBorder}">
                     <Viewbox Stretch="Uniform">
-                        <Path Data="M 12 2 L 22 21 H 2 Z M 12 8 V 13 M 12 17 H 12"
+                        <Path x:Name="IconPath"
+                              Data="M 12 2 L 22 21 H 2 Z M 12 8 V 13 M 12 17 H 12"
                               Stroke="{DynamicResource Hg.Red}"
                               Fill="Transparent"
                               StrokeThickness="2"
@@ -46,6 +48,7 @@
                        LineHeight="20" />
 
             <Border Grid.Row="2"
+                    x:Name="ActionNote"
                     Margin="0,14,0,0"
                     Padding="10,8"
                     CornerRadius="6"
