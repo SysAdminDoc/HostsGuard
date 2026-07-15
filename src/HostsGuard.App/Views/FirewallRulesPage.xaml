@@ -1,0 +1,440 @@
+<views:MajorTabPage x:Class="HostsGuard.App.Views.FirewallRulesPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:svc="clr-namespace:HostsGuard.App.Services"
+             xmlns:vm="clr-namespace:HostsGuard.App.ViewModels"
+             xmlns:views="clr-namespace:HostsGuard.App.Views"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/HostsGuard.App;component/Views/MajorTabResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid Margin="4" DataContext="{Binding FwRules}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                    Command="{Binding RefreshCommand}" Margin="8,0,0,0" />
+            <Button DockPanel.Dock="Right"
+                    Command="{Binding AdoptRulesCommand}" Margin="8,0,0,0"
+                    ToolTip="{svc:Loc Key=FwRules_IncludeWindowsRulesTip, Default=Index current Windows Firewall rules in this view. Read-only; nothing on the live firewall changes.}">
+                <TextBlock Text="{svc:Loc Key=FwRules_IncludeWindowsRules, Default=Include Windows rules}" TextWrapping="Wrap" />
+            </Button>
+            <CheckBox DockPanel.Dock="Right" Margin="8,0,0,0"
+                      VerticalAlignment="Center" IsChecked="{Binding HostsGuardOnly}"
+                      ToolTip="{svc:Loc Key=FwRules_HostsGuardOnlyTip, Default=Show only rules created and managed by HostsGuard.}">
+                <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_rules_only_a5afd2dd}" TextWrapping="Wrap" />
+            </CheckBox>
+            <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Drift_only_d7e80af4}" Margin="8,0,0,0"
+                      VerticalAlignment="Center" IsChecked="{Binding DriftOnly}"
+                      ToolTip="{svc:Loc Key=Xaml_Show_only_firewall_rules_that_changed_7d356f72}" />
+            <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource Hg.HintBox}"
+                      Tag="{svc:Loc Key=Xaml_SearchRulesHint}"
+                     AutomationProperties.Name="{svc:Loc Key=Xaml_Search_firewall_rules_bbf5460e}"
+                     ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_matches_4dd5c1e7}" />
+        </DockPanel>
+        </Border>
+
+        <DataGrid x:Name="FwRulesGrid" Grid.Row="1" ItemsSource="{Binding Rules}"
+                  AutomationProperties.Name="{svc:Loc Key=Xaml_Firewall_rules_1e019fbf}"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  IsVisibleChanged="OnGridVisible">
+            <DataGrid.Resources>
+                <Style TargetType="TextBlock">
+                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                    <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                </Style>
+            </DataGrid.Resources>
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{svc:Loc Key=Xaml_Enable_disable_37f81b0c}"
+                              Command="{Binding PlacementTarget.DataContext.ToggleRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <MenuItem Header="{svc:Loc Key=FwRules_EditManaged}"
+                              Command="{Binding PlacementTarget.DataContext.EditRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=FwRules_EditManagedTip}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Delete_f6fdbe48}"
+                              Command="{Binding PlacementTarget.DataContext.DeleteRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Delete_selected_8516a714}"
+                              Command="{Binding PlacementTarget.DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <Separator />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Assign_to_group_0952229e}"
+                              Command="{Binding PlacementTarget.DataContext.AssignToGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Assign_the_selected_HG_rules_to_490e2bd6}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Suggest_rebind_program_00cd0094}"
+                              Command="{Binding PlacementTarget.DataContext.RebindRuleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding Name}" Width="1.5*" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Dir_84c6b9ac}" Binding="{Binding Direction}" Width="42" />
+                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Action_97c89a4d}" Binding="{Binding Action}" Width="58" />
+                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Origin}" Width="68" IsReadOnly="True" />
+                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_TargetKind, Default=Kind}" Binding="{Binding TargetKind}" Width="64" IsReadOnly="True" />
+                 <DataGridCheckBoxColumn Header="{svc:Loc Key=Xaml_On_e0049a66}" Binding="{Binding Enabled}" Width="38" IsReadOnly="True" />
+                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Remote_c93f6536}" Binding="{Binding RemoteAddr}" SortMemberPath="RemoteAddressSortKey" Width="0.8*" />
+                 <DataGridTextColumn Header="{svc:Loc Key=Xaml_Proto_24131f3e}" Binding="{Binding Protocol}" Width="52" />
+                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Ports, Default=Ports}" Binding="{Binding Ports}" Width="64" IsReadOnly="True" />
+                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Target, Default=Target}" Binding="{Binding Target}" Width="1.8*" IsReadOnly="True" />
+                 <DataGridTextColumn Header="{svc:Loc Key=FwRules_Interfaces, Default=Interfaces}" Binding="{Binding Interfaces}" Width="72" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Service_329cb8b6}" Binding="{Binding ServiceName}" Width="80" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Drift_0c1f6e7a}" Binding="{Binding DriftStatus}" Width="64">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                            <Setter Property="ToolTip" Value="{Binding DriftDetail}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Flags_5d728758}" Binding="{Binding Flags}" Width="86">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                            <Setter Property="ToolTip" Value="{Binding Flags}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Peach}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="1"
+                Style="{StaticResource Hg.EmptyState}"
+                Visibility="{Binding Rules.Count, Converter={StaticResource EmptyStateVis}}">
+            <StackPanel>
+                <TextBlock Text="{svc:Loc Key=Xaml_No_firewall_rules_match_6d4b1891}"
+                           Style="{StaticResource Hg.SectionTitle}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,4" />
+                <TextBlock Text="{svc:Loc Key=Xaml_Clear_the_filter_turn_off_HostsGuard_811239c1}"
+                           Style="{StaticResource Hg.EmptyText}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Rule groups (NET-103): enable/disable a named set atomically -->
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding RuleGroups}" Margin="0,8,0,0">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource Hg.Card}" Padding="8,4" Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <Button Content="{svc:Loc Key=Xaml_On_e0049a66}" Padding="8,1" Margin="0,0,4,0"
+                                    Command="{Binding DataContext.EnableGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Content="{svc:Loc Key=Xaml_Off_e3de5ab0}" Padding="8,1"
+                                    Command="{Binding DataContext.DisableGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Inline custom-rule form -->
+        <Border Grid.Row="3" Style="{StaticResource Hg.Card}" Margin="0,8,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" LastChildFill="True">
+                    <Button DockPanel.Dock="Right" Content="{Binding AuthoringActionText}"
+                            Style="{StaticResource Hg.AccentButton}"
+                            Command="{Binding CreateRuleCommand}" Margin="12,0,0,0"
+                            ToolTip="{Binding CreateRuleHelpText}" />
+                    <Button DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_CancelEdit}"
+                            Command="{Binding CancelRuleEditCommand}" Margin="12,0,0,0"
+                            Visibility="{Binding IsEditingRule, Converter={StaticResource BoolToVis}}" />
+                    <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=FwRules_EnabledLabel}"
+                              IsChecked="{Binding NewRuleEnabled}" Margin="12,0,0,0"
+                              VerticalAlignment="Center"
+                              AutomationProperties.Name="{svc:Loc Key=FwRules_EnabledName}" />
+                    <StackPanel>
+                        <TextBlock Text="{svc:Loc Key=Xaml_Create_HostsGuard_rule_0516d184}"
+                                   Style="{StaticResource Hg.SectionTitle}"
+                                   Visibility="{Binding IsEditingRule, Converter={StaticResource InverseBoolToVis}}" />
+                        <TextBlock Text="{svc:Loc Key=FwRules_EditTitle}"
+                                   Style="{StaticResource Hg.SectionTitle}"
+                                   Visibility="{Binding IsEditingRule, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{svc:Loc Key=Xaml_Rules_created_here_use_the_HG_b7f8e3c1}"
+                                   Style="{StaticResource Hg.HelperText}" Margin="0,3,0,0" />
+                    </StackPanel>
+                </DockPanel>
+
+                <Grid Grid.Row="1" Margin="0,12,0,0">
+                     <Grid.ColumnDefinitions>
+                         <ColumnDefinition Width="160" />
+                         <ColumnDefinition Width="76" />
+                         <ColumnDefinition Width="92" />
+                         <ColumnDefinition Width="82" />
+                         <ColumnDefinition Width="150" />
+                         <ColumnDefinition Width="220" />
+                         <ColumnDefinition Width="*" />
+                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{svc:Loc Key=Xaml_Name_709a2322}" Style="{StaticResource Hg.FieldLabel}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{svc:Loc Key=Xaml_Dir_84c6b9ac}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{svc:Loc Key=Xaml_Action_97c89a4d}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                     <TextBlock Grid.Row="0" Grid.Column="3" Text="{svc:Loc Key=Xaml_Protocol_1ed77c3f}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                     <TextBlock Grid.Row="0" Grid.Column="4" Text="{svc:Loc Key=Xaml_Remote_c93f6536}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                     <TextBlock Grid.Row="0" Grid.Column="5" Text="{svc:Loc Key=FwRules_Package, Default=Package}" Style="{StaticResource Hg.FieldLabel}" Margin="0,0,8,4" />
+                     <TextBlock Grid.Row="0" Grid.Column="6" Text="{svc:Loc Key=Xaml_Program_path_223d2c44}" Style="{StaticResource Hg.FieldLabel}" />
+
+                    <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                             Text="{Binding NewRuleName, UpdateSourceTrigger=PropertyChanged}"
+                             Tag="{svc:Loc Key=Xaml_RequiredHint}"
+                             AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_name_025d122b}"
+                             ToolTip="{svc:Loc Key=Xaml_Rule_name_HG_prefix_added_automatically_80fd16a4}">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox" BasedOn="{StaticResource Hg.HintBox}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditingRule}" Value="True">
+                                        <Setter Property="IsReadOnly" Value="True" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
+                              ItemsSource="{x:Static vm:FwRulesViewModel.Directions}"
+                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_direction_d8bbd16c}"
+                              SelectedItem="{Binding NewRuleDirection}" />
+                    <ComboBox Grid.Row="1" Grid.Column="2" Margin="0,0,8,0"
+                              ItemsSource="{x:Static vm:FwRulesViewModel.Actions}"
+                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_action_86b8dc92}"
+                              SelectedItem="{Binding NewRuleAction}" />
+                    <ComboBox Grid.Row="1" Grid.Column="3" Margin="0,0,8,0"
+                              ItemsSource="{x:Static vm:FwRulesViewModel.Protocols}"
+                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_protocol_ffde13a2}"
+                              SelectedItem="{Binding NewRuleProtocol}" />
+                    <TextBox Grid.Row="1" Grid.Column="4" Margin="0,0,8,0"
+                             Text="{Binding NewRuleRemoteAddr, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_remote_address_80867949}"
+                             ToolTip="{svc:Loc Key=Xaml_Remote_address_IP_CIDR_or_range_3aeffde3}" />
+                     <ComboBox Grid.Row="1" Grid.Column="5" Margin="0,0,8,0"
+                               ItemsSource="{Binding AppPackages}"
+                               DisplayMemberPath="Label"
+                               SelectedValuePath="PackageFamilyName"
+                               SelectedValue="{Binding NewRulePackageFamily, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                               Text="{Binding NewRulePackageFamily, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                               IsEditable="True"
+                               IsTextSearchEnabled="True"
+                               AutomationProperties.Name="{svc:Loc Key=FwRules_NewRulePackage, Default=New firewall rule package}"
+                               ToolTip="{svc:Loc Key=FwRules_PackageTip, Default=Optional MSIX package family name or package SID}" />
+                     <TextBox Grid.Row="1" Grid.Column="6"
+                              Text="{Binding NewRuleProgram, UpdateSourceTrigger=PropertyChanged}"
+                              AutomationProperties.Name="{svc:Loc Key=Xaml_New_firewall_rule_program_path_1032f360}"
+                             ToolTip="{svc:Loc Key=Xaml_Program_path_optional_c4107d4a}" />
+                </Grid>
+
+                <Grid Grid.Row="2" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="240" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{svc:Loc Key=FwRules_LocalPortsLabel}"
+                               Style="{StaticResource Hg.FieldLabel}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{svc:Loc Key=FwRules_RemotePortsLabel}"
+                               Style="{StaticResource Hg.FieldLabel}" />
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="{svc:Loc Key=FwRules_ManualInterfacesLabel}"
+                               Style="{StaticResource Hg.FieldLabel}" />
+                    <DockPanel Grid.Row="0" Grid.Column="3" LastChildFill="True">
+                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                                Command="{Binding LoadInterfaceAliasesCommand}" Padding="8,1" />
+                        <TextBlock Text="{svc:Loc Key=FwRules_InterfaceAliasesLabel}"
+                                   Style="{StaticResource Hg.FieldLabel}" />
+                    </DockPanel>
+                    <TextBox Grid.Row="1" Grid.Column="0" Margin="0,0,8,0"
+                             Text="{Binding NewRuleLocalPorts, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_PortsHint}"
+                             AutomationProperties.Name="{svc:Loc Key=FwRules_LocalPortsName}"
+                             ToolTip="{svc:Loc Key=FwRules_PortsTip}" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,8,0"
+                             Text="{Binding NewRuleRemotePorts, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_PortsHint}"
+                             AutomationProperties.Name="{svc:Loc Key=FwRules_RemotePortsName}"
+                             ToolTip="{svc:Loc Key=FwRules_PortsTip}" />
+                    <TextBox Grid.Row="1" Grid.Column="2" Margin="0,0,8,0"
+                             Text="{Binding NewRuleInterfaces, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource Hg.HintBox}" Tag="{svc:Loc Key=FwRules_InterfacesHint}"
+                             AutomationProperties.Name="{svc:Loc Key=FwRules_ManualInterfacesName}"
+                             ToolTip="{svc:Loc Key=FwRules_ManualInterfacesTip}" />
+                    <ScrollViewer Grid.Row="1" Grid.Column="3" MaxHeight="72"
+                                  VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding InterfaceAliases}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                              Margin="0,0,12,4" ToolTip="{Binding Description}"
+                                              AutomationProperties.Name="{Binding Name}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding InterfaceAliasStatus}"
+                               Style="{StaticResource Hg.DimText}" Margin="0,3,0,0"
+                               TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Polite" />
+                </Grid>
+
+                <Border Grid.Row="3" Style="{StaticResource Hg.StatusStrip}" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding CreateRulePreview}" TextWrapping="Wrap"
+                               AutomationProperties.Name="{svc:Loc Key=FwRules_PreviewName}" />
+                </Border>
+
+                <TextBlock Grid.Row="4" Margin="0,8,0,0"
+                           Text="{Binding CreateRuleHelpText}"
+                           Style="{StaticResource Hg.HelperText}"
+                           AutomationProperties.LiveSetting="Polite" />
+            </Grid>
+        </Border>
+
+        <Expander Grid.Row="4" Margin="0,8,0,0" IsExpanded="False"
+                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_Name}">
+            <Expander.Header>
+                <TextBlock Text="{svc:Loc Key=RuleAnalysis_Title}" TextWrapping="Wrap" />
+            </Expander.Header>
+            <Border Style="{StaticResource Hg.Card}">
+                <StackPanel>
+                    <DockPanel LastChildFill="False">
+                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Apply}"
+                                Command="{Binding ApplyRuleCleanupCommand}" Padding="10,2" Margin="6,0,0,0"
+                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_ApplyName}"
+                                ToolTip="{svc:Loc Key=RuleAnalysis_ApplyTip}" />
+                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Preview}"
+                                Command="{Binding PreviewRuleCleanupCommand}" Padding="10,2" Margin="6,0,0,0"
+                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_PreviewName}" />
+                        <Button DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_Run}"
+                                Command="{Binding AnalyzeRulesCommand}" Padding="10,2" Margin="6,0,0,0"
+                                AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_RunName}" />
+                        <CheckBox DockPanel.Dock="Right" Content="{svc:Loc Key=RuleAnalysis_GroupProvenance}"
+                                  IsChecked="{Binding GroupAnalysisByProvenance}" Margin="8,0,4,0"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_GroupProvenanceName}" />
+                        <TextBox Width="260" Text="{Binding AnalysisFilter, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource Hg.HintBox}"
+                                 Tag="{svc:Loc Key=RuleAnalysis_SearchHint}"
+                                 AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_SearchName}"
+                                 ToolTip="{svc:Loc Key=RuleAnalysis_SearchTip}" />
+                    </DockPanel>
+                    <DockPanel Margin="0,6,0,4">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AnalysisContext}"
+                                   Style="{StaticResource Hg.DimText}" />
+                        <TextBlock Text="{Binding AnalysisStatus}" Style="{StaticResource Hg.DimText}"
+                                   AutomationProperties.LiveSetting="Polite" />
+                    </DockPanel>
+                    <TextBlock Text="{svc:Loc Key=RuleAnalysis_Disclaimer}"
+                               Style="{StaticResource Hg.HelperText}" Margin="0,0,0,5"
+                               TextWrapping="Wrap" />
+                    <Grid>
+                        <DataGrid ItemsSource="{Binding AnalysisView}" MaxHeight="220"
+                                  IsReadOnly="True" CanUserSortColumns="True"
+                                  AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_TableName}">
+                            <DataGrid.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.ContainerStyle>
+                                        <Style TargetType="{x:Type GroupItem}">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                        <Expander IsExpanded="True" Margin="0,2,0,0">
+                                                            <Expander.Header>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                                                                               Style="{StaticResource Hg.DimText}" />
+                                                                </StackPanel>
+                                                            </Expander.Header>
+                                                            <ItemsPresenter />
+                                                        </Expander>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </GroupStyle.ContainerStyle>
+                                </GroupStyle>
+                            </DataGrid.GroupStyle>
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="{svc:Loc Key=RuleAnalysis_Select}" Width="58">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding CleanupEligible}"
+                                                      ToolTip="{Binding SelectionHelp}"
+                                                      AutomationProperties.Name="{svc:Loc Key=RuleAnalysis_SelectName}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Kind}" Binding="{Binding Kind}" Width="124" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Name_709a2322}" Binding="{Binding RuleName}" Width="1.2*" />
+                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Related}" Binding="{Binding RelatedRuleName}" Width="1.1*" />
+                                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Origin_44ab85a2}" Binding="{Binding Provenance}" Width="104" />
+                                <DataGridTextColumn Header="{svc:Loc Key=ListenerExposure_Reason}" Binding="{Binding Reason}" Width="1.6*">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                            <Setter Property="ToolTip" Value="{Binding Reason}" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="{svc:Loc Key=RuleAnalysis_Remediation}" Binding="{Binding Remediation}" Width="116" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Border Visibility="{Binding AnalysisFindings.Count, Converter={StaticResource EmptyStateVis}}"
+                                Style="{StaticResource Hg.EmptyState}" IsHitTestVisible="False">
+                            <TextBlock Text="{svc:Loc Key=RuleAnalysis_Empty}" Style="{StaticResource Hg.EmptyText}" />
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Expander>
+
+        <TextBlock Grid.Row="5" Margin="2,6,0,0"
+                   Text="{Binding StatusText}"
+                   Style="{StaticResource Hg.DimText}"
+                   AutomationProperties.LiveSetting="Polite" />
+    </Grid>
+</views:MajorTabPage>

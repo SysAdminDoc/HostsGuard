@@ -331,7 +331,7 @@ internal static class VisualSmokeRunner
             failures.Add($"{tab} was captured without the connected fixture.");
         }
 
-        if (window.FindName("DisconnectedOverlay") is FrameworkElement { IsVisible: true })
+        if (FindNamedElement(window, "DisconnectedOverlay") is { IsVisible: true })
         {
             failures.Add($"{tab} was obscured by the disconnected recovery overlay.");
         }
@@ -345,7 +345,7 @@ internal static class VisualSmokeRunner
         string landmark,
         IList<string> failures)
     {
-        if (window.FindName(landmark) is not FrameworkElement element)
+        if (FindNamedElement(window, landmark) is not { } element)
         {
             failures.Add($"{surface} landmark '{landmark}' was not found.");
         }
@@ -355,6 +355,16 @@ internal static class VisualSmokeRunner
                 $"{surface} landmark '{landmark}' was not visibly rendered " +
                 $"({element.ActualWidth:F0}x{element.ActualHeight:F0}).");
         }
+    }
+
+    private static FrameworkElement? FindNamedElement(DependencyObject root, string name)
+    {
+        if (root is FrameworkElement element && element.Name == name)
+        {
+            return element;
+        }
+
+        return FindDescendants<FrameworkElement>(root).FirstOrDefault(element => element.Name == name);
     }
 
     private static string GetSha256(string path) =>

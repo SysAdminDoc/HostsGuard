@@ -11,6 +11,7 @@ using FluentAssertions;
 using HostsGuard.App;
 using HostsGuard.App.Services;
 using HostsGuard.App.ViewModels;
+using HostsGuard.App.Views;
 using HostsGuard.Contracts;
 using HostsGuard.Ipc;
 using Xunit;
@@ -203,6 +204,30 @@ public sealed class WpfSmokeTests
         }
     }
 
+    private static T FindNamed<T>(FrameworkElement root, string name)
+        where T : FrameworkElement
+    {
+        if (root.FindName(name) is T direct)
+        {
+            return direct;
+        }
+
+        foreach (var scope in LogicalDescendants<FrameworkElement>(root))
+        {
+            if (scope is T named && scope.Name == name)
+            {
+                return named;
+            }
+
+            if (scope.FindName(name) is T nested)
+            {
+                return nested;
+            }
+        }
+
+        throw new InvalidOperationException($"'{name}' was not found under {root.GetType().Name}.");
+    }
+
     /// <summary>
     /// NET-088 accessibility invariant: every text/combo/password input on a tab
     /// must expose an AutomationProperties.Name — those controls carry no intrinsic
@@ -363,6 +388,44 @@ public sealed class WpfSmokeTests
     }
 
     [Fact]
+    public void Major_pages_construct_independently_in_both_themes()
+    {
+        RunSta(() =>
+        {
+            var app = Application.Current ?? new Application
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown,
+            };
+            var pages = new (Func<MajorTabPage> Create, string Landmark)[]
+            {
+                (() => new HostsActivityPage(), "ActivityGrid"),
+                (() => new AlertsPage(), "AlertsGrid"),
+                (() => new HostsFilePage(), "DomainsGrid"),
+                (() => new FirewallActivityPage(), "ConnectionsGrid"),
+                (() => new FirewallRulesPage(), "FwRulesGrid"),
+                (() => new ToolsPage(), "ToolsSurface"),
+            };
+
+            foreach (var theme in new[] { "Dark", "Light" })
+            {
+                app.Resources.MergedDictionaries.Clear();
+                app.Resources.MergedDictionaries.Add(Load(theme));
+                app.Resources.MergedDictionaries.Add(Load("Styles"));
+
+                foreach (var (create, landmark) in pages)
+                {
+                    var page = create();
+                    page.Measure(new Size(1280, 760));
+                    page.Arrange(new Rect(0, 0, 1280, 760));
+                    page.UpdateLayout();
+                    FindNamed<FrameworkElement>(page, landmark).Should().NotBeNull(
+                        $"{page.GetType().Name} must own its automation landmark in {theme}");
+                }
+            }
+        });
+    }
+
+    [Fact]
     public void Every_window_constructs_in_both_themes_without_a_service()
     {
         RunSta(() =>
@@ -403,7 +466,7 @@ public sealed class WpfSmokeTests
                 window.Arrange(new Rect(0, 0, 1280, 800));
                 window.UpdateLayout();
 
-                var mainTabs = (TabControl)window.FindName("MainTabs");
+                var mainTabs = FindNamed<TabControl>(window, "MainTabs");
 
                 // NET-088: walk every tab and assert screen-reader names on all
                 // text/combo/password inputs (also realizes each tab's template).
@@ -419,10 +482,10 @@ public sealed class WpfSmokeTests
                 }
 
                 mainTabs.SelectedIndex = 1; // Alerts.
-                var alertsTabs = (TabControl)window.FindName("AlertsTabs");
+                var alertsTabs = FindNamed<TabControl>(window, "AlertsTabs");
                 alertsTabs.SelectedIndex = 1; // Allowlist review.
                 window.UpdateLayout();
-                var allowlistReviewGrid = (DataGrid)window.FindName("AllowlistReviewGrid");
+                var allowlistReviewGrid = FindNamed<DataGrid>(window, "AllowlistReviewGrid");
                 allowlistReviewGrid.CanUserSortColumns.Should().BeTrue();
                 BindingOperations.GetBinding(allowlistReviewGrid, ItemsControl.ItemsSourceProperty)?.Path.Path
                     .Should().Be(nameof(AlertsViewModel.AllowlistRecommendations));
@@ -438,9 +501,9 @@ public sealed class WpfSmokeTests
 
                 mainTabs.SelectedIndex = 3; // FW Activity.
                 window.UpdateLayout();
-                var modeGroup = (StackPanel)window.FindName("FwActivityModeGroup");
-                var viewGroup = (StackPanel)window.FindName("FwActivityViewGroup");
-                var searchGroup = (StackPanel)window.FindName("FwActivitySearchGroup");
+                var modeGroup = FindNamed<StackPanel>(window, "FwActivityModeGroup");
+                var viewGroup = FindNamed<StackPanel>(window, "FwActivityViewGroup");
+                var searchGroup = FindNamed<StackPanel>(window, "FwActivitySearchGroup");
                 System.Windows.Automation.AutomationProperties.GetName(modeGroup).Should().Be("Mode");
                 System.Windows.Automation.AutomationProperties.GetName(viewGroup).Should().Be("View");
                 System.Windows.Automation.AutomationProperties.GetName(searchGroup).Should().Be("Search & explain");
@@ -454,44 +517,44 @@ public sealed class WpfSmokeTests
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
                     .Should().Contain(t => t.StartsWith("Use a domain, service target, or fw:HG_RuleName", StringComparison.Ordinal));
-                var lockPassword = (PasswordBox)window.FindName("LockPasswordBox");
+                var lockPassword = FindNamed<PasswordBox>(window, "LockPasswordBox");
                 PasswordBoxHelper.GetWatermark(lockPassword).Should().Be("Enter lock password");
                 PasswordBoxHelper.GetIsEmpty(lockPassword).Should().BeTrue();
                 lockPassword.Template.Triggers.OfType<Trigger>()
                     .Should().Contain(t => t.Property == PasswordBoxHelper.IsEmptyProperty && Equals(t.Value, true));
-                var aiKey = (PasswordBox)window.FindName("AiKeyBox");
+                var aiKey = FindNamed<PasswordBox>(window, "AiKeyBox");
                 PasswordBoxHelper.GetWatermark(aiKey)
                     .Should().Be("Enter a new API key (blank keeps the stored key)");
                 PasswordBoxHelper.GetIsEmpty(aiKey).Should().BeTrue();
-                var aiKeyStatus = (TextBlock)window.FindName("AiKeyStorageStatus");
+                var aiKeyStatus = FindNamed<TextBlock>(window, "AiKeyStorageStatus");
                 BindingOperations.GetBinding(aiKeyStatus, TextBlock.TextProperty)?.Path.Path
                     .Should().Be(nameof(ToolsViewModel.AiKeyStorageText));
-                var localPreview = (Button)window.FindName("LocalBlocklistPreviewButton");
+                var localPreview = FindNamed<Button>(window, "LocalBlocklistPreviewButton");
                 BindingOperations.GetBinding(localPreview, Button.CommandProperty)?.Path.Path
                     .Should().Be("PreviewLocalFileCommand");
-                var localImport = (Button)window.FindName("LocalBlocklistImportButton");
+                var localImport = FindNamed<Button>(window, "LocalBlocklistImportButton");
                 BindingOperations.GetBinding(localImport, Button.CommandProperty)?.Path.Path
                     .Should().Be("ImportLocalPreviewCommand");
-                var localSummary = (TextBlock)window.FindName("LocalBlocklistPreviewSummary");
+                var localSummary = FindNamed<TextBlock>(window, "LocalBlocklistPreviewSummary");
                 BindingOperations.GetBinding(localSummary, TextBlock.TextProperty)?.Path.Path
                     .Should().Be(nameof(BlocklistsViewModel.LocalPreviewSummary));
-                var resolutionChain = (ItemsControl)window.FindName("ResolutionChainItems");
+                var resolutionChain = FindNamed<ItemsControl>(window, "ResolutionChainItems");
                 BindingOperations.GetBinding(resolutionChain, ItemsControl.ItemsSourceProperty)?.Path.Path
                     .Should().Be(nameof(ActivityRowViewModel.ResolutionChain));
-                var redirectDomain = (TextBox)window.FindName("RedirectDomainInput");
+                var redirectDomain = FindNamed<TextBox>(window, "RedirectDomainInput");
                 BindingOperations.GetBinding(redirectDomain, TextBox.TextProperty)?.Path.Path
                     .Should().Be(nameof(HostsViewModel.NewRedirectDomain));
-                var redirectIp = (TextBox)window.FindName("RedirectIpInput");
+                var redirectIp = FindNamed<TextBox>(window, "RedirectIpInput");
                 BindingOperations.GetBinding(redirectIp, TextBox.TextProperty)?.Path.Path
                     .Should().Be(nameof(HostsViewModel.NewRedirectIp));
-                var pinRedirect = (Button)window.FindName("PinRedirectButton");
+                var pinRedirect = FindNamed<Button>(window, "PinRedirectButton");
                 BindingOperations.GetBinding(pinRedirect, Button.CommandProperty)?.Path.Path
                     .Should().Be("PinRedirectCommand");
-                var redirectsGrid = (DataGrid)window.FindName("HostsRedirectsGrid");
+                var redirectsGrid = FindNamed<DataGrid>(window, "HostsRedirectsGrid");
                 BindingOperations.GetBinding(redirectsGrid, ItemsControl.ItemsSourceProperty)?.Path.Path
                     .Should().Be(nameof(HostsViewModel.Redirects));
 
-                var trayProfiles = (MenuItem)window.FindName("TrayProfiles");
+                var trayProfiles = FindNamed<MenuItem>(window, "TrayProfiles");
                 vm.Tools.Profiles.Add("Home");
                 vm.Tools.Profiles.Add("Work");
                 vm.Tools.ActiveProfileName = "Work";
@@ -594,7 +657,7 @@ public sealed class WpfSmokeTests
                     {
                         vm.Activity.Rows.Add(new ActivityRowViewModel { Domain = "pseudo.example", Root = "pseudo.example" });
                         var pseudoWindow = new MainWindow(vm);
-                        var pseudoTabs = (TabControl)pseudoWindow.FindName("MainTabs");
+                        var pseudoTabs = FindNamed<TabControl>(pseudoWindow, "MainTabs");
                         foreach (var scale in new[] { 90, 100, 125, 150 })
                         {
                             vm.UiScalePct = scale;
@@ -647,7 +710,11 @@ public sealed class WpfSmokeTests
     [Fact]
     public void Firewall_pseudo_locale_hotspots_use_wrapping_content_at_every_supported_scale()
     {
-        var xaml = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "HostsGuard.App", "MainWindow.xaml"));
+        var appDir = Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "HostsGuard.App");
+        var xaml = string.Concat(
+            File.ReadAllText(Path.Combine(appDir, "Views", "FirewallActivityPage.xaml")),
+            File.ReadAllText(Path.Combine(appDir, "Views", "FirewallRulesPage.xaml")));
         var wrappedKeys = new[]
         {
             "Xaml_Inherit_to_children_86cbf611",
@@ -826,7 +893,7 @@ public sealed class WpfSmokeTests
                     window.Show();
                     window.UpdateLayout();
                     AssertRailServiceCommands(window, vm, item.State);
-                    var tabs = (TabControl)window.FindName("MainTabs");
+                    var tabs = FindNamed<TabControl>(window, "MainTabs");
                     for (var tab = 0; tab < tabs.Items.Count; tab++)
                     {
                         tabs.SelectedIndex = tab;
@@ -858,7 +925,7 @@ public sealed class WpfSmokeTests
                             if (tab == 0)
                             {
                                 var header = (StackPanel)group.Header;
-                                header.Tag.Should().BeSameAs(window.FindName("ActivityGrid"));
+                                header.Tag.Should().BeSameAs(FindNamed<DataGrid>(window, "ActivityGrid"));
                                 var headerMenu = header.ContextMenu;
                                 headerMenu.Should().NotBeNull("the Hosts group header retains its hide-root action");
                                 headerMenu!.PlacementTarget = header;
@@ -890,7 +957,7 @@ public sealed class WpfSmokeTests
                     {
                         tabs.SelectedIndex = 5;
                         window.UpdateLayout();
-                        var toolsTabs = (TabControl)window.FindName("ToolsTabs");
+                        var toolsTabs = FindNamed<TabControl>(window, "ToolsTabs");
                         toolsTabs.Items.Count.Should().Be(5);
                         var cardCount = 0;
                         for (var toolsTab = 0; toolsTab < toolsTabs.Items.Count; toolsTab++)

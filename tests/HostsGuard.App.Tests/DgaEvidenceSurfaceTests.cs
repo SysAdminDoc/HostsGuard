@@ -89,7 +89,8 @@ public sealed class DgaEvidenceSurfaceTests
     [Fact]
     public void Alerts_xaml_preserves_default_off_alert_only_and_accessible_evidence_bindings()
     {
-        var path = Path.Combine(RepoRoot(), "src", "HostsGuard.App", "MainWindow.xaml");
+        var path = Path.Combine(
+            RepoRoot(), "src", "HostsGuard.App", "Views", "AlertsPage.xaml");
         var xaml = File.ReadAllText(path);
 
         xaml.Should().Contain("SelectedAlert.HasDgaEvidence");

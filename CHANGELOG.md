@@ -2,6 +2,17 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.153] - 2026-07-14
+
+### Changed
+- The WPF shell now composes six independently rendered primary-page controls
+  instead of owning their markup, reducing `MainWindow.xaml` from 5,110 to
+  665 lines while preserving bindings, automation landmarks, keyboard order,
+  and page-specific interactions.
+- Localization, semantic-address sorting, DGA evidence, and visual/accessibility
+  gates now inspect the extracted page boundaries; dark/light page construction
+  is verified independently before the full shell matrix runs.
+
 ## [0.12.152] - 2026-07-14
 
 ### Changed

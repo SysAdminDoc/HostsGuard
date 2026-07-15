@@ -1,0 +1,59 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:svc="clr-namespace:HostsGuard.App.Services">
+    <svc:PointsTextConverter x:Key="PointsConverter" />
+    <svc:SeriesBrushConverter x:Key="SeriesBrush" />
+    <svc:SeriesDashConverter x:Key="SeriesDash" />
+    <svc:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis" />
+    <svc:EmptyStateVisibilityConverter x:Key="EmptyStateVis" />
+    <svc:ObjectPresentBooleanConverter x:Key="ObjectPresentBool" />
+    <Style x:Key="Hg.LockPasswordBox" TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="PasswordBox">
+                    <Grid>
+                        <Border x:Name="FocusRing"
+                                BorderBrush="{DynamicResource Hg.Focus}"
+                                BorderThickness="2"
+                                CornerRadius="8"
+                                Margin="-2"
+                                Opacity="0"
+                                IsHitTestVisible="False" />
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <Grid>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                                <TextBlock x:Name="Hint"
+                                           Margin="8,0"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           Visibility="Collapsed"
+                                           Foreground="{DynamicResource Hg.Dim}"
+                                           Text="{Binding Path=(svc:PasswordBoxHelper.Watermark), RelativeSource={RelativeSource TemplatedParent}}"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="svc:PasswordBoxHelper.IsEmpty" Value="True">
+                            <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
+                            <Setter TargetName="FocusRing" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Disabled}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

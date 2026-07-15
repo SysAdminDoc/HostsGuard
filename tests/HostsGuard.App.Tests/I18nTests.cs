@@ -152,7 +152,9 @@ public sealed class I18nTests
     public void Critical_shell_menu_dialog_and_recovery_keys_have_full_satellite_coverage(string resourceFile)
     {
         var required = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var file in LocalizedXamlFiles().Where(file => !file.EndsWith("MainWindow.xaml", StringComparison.Ordinal)))
+        foreach (var file in LocalizedXamlFiles().Where(file =>
+                     !file.EndsWith("MainWindow.xaml", StringComparison.Ordinal) &&
+                     !file.EndsWith("Page.xaml", StringComparison.Ordinal)))
         {
             required.UnionWith(XamlKeys(file));
         }
@@ -533,6 +535,10 @@ public sealed class I18nTests
     private static IEnumerable<string> LocalizedXamlFiles()
     {
         yield return Path.Combine(AppDir, "MainWindow.xaml");
+        foreach (var page in Directory.EnumerateFiles(Path.Combine(AppDir, "Views"), "*Page.xaml"))
+        {
+            yield return page;
+        }
         yield return Path.Combine(AppDir, "ConfirmDialog.xaml");
         yield return Path.Combine(AppDir, "InputDialog.xaml");
         yield return Path.Combine(AppDir, "ConsentWindow.xaml");

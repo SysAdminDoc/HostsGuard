@@ -146,22 +146,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// WPF quirk guard: a DataGrid first measured while its tab is not selected
-    /// (or before the service populates rows) can clamp every column to MinWidth
-    /// and never recover — the "smushed" view. Re-assert the declared widths
-    /// whenever a grid becomes visible. Attached to every primary tab grid.
-    /// </summary>
-    private void OnGridVisible(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.DataGrid grid || !grid.IsVisible)
-        {
-            return;
-        }
-
-        _ = DataGridWidthRepair.RepairAsync(grid);
-    }
-
     /// <summary>Refresh checkmarks and saved profiles whenever the tray opens.</summary>
     private async void OnTrayMenuOpened(object sender, RoutedEventArgs e)
     {
@@ -314,30 +298,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// PasswordBox can't bind — copy its value to the VM before the lock command
-    /// runs (Click fires before Command), then clear the box so the masked
-    /// password doesn't linger on screen after arm/disarm/unlock.
-    /// </summary>
-    private void OnLockPasswordSync(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel { Tools: { } tools } && LockPasswordBox is not null)
-        {
-            tools.LockPassword = LockPasswordBox.Password;
-            LockPasswordBox.Clear();
-        }
-    }
-
-    /// <summary>Push the AI API key to the VM before saving, then clear the box.</summary>
-    private void OnAiKeySync(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel { Tools: { } tools } && AiKeyBox is not null)
-        {
-            tools.AiApiKey = AiKeyBox.Password;
-            AiKeyBox.Clear();
-        }
-    }
-
     protected override void OnClosing(CancelEventArgs e)
     {
         if (!_exiting)
@@ -384,12 +344,6 @@ public partial class MainWindow : Window
         {
             UseShellExecute = true,
         });
-
-    private void OnClearActivitySelection(object sender, RoutedEventArgs e)
-    {
-        ActivityGrid.SelectedItem = null;
-        ActivityGrid.UnselectAll();
-    }
 
     private void OnTrayOpen(object sender, RoutedEventArgs e)
     {

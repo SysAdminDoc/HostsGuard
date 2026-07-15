@@ -1,0 +1,526 @@
+<views:MajorTabPage x:Class="HostsGuard.App.Views.HostsActivityPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:svc="clr-namespace:HostsGuard.App.Services"
+             xmlns:vm="clr-namespace:HostsGuard.App.ViewModels"
+             xmlns:views="clr-namespace:HostsGuard.App.Views"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/HostsGuard.App;component/Views/MajorTabResources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Grid Margin="4" DataContext="{Binding Activity}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="180" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
+        <WrapPanel VerticalAlignment="Center">
+            <TextBox Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
+                     Style="{StaticResource Hg.HintBox}"
+                     Width="160"
+                     Tag="{svc:Loc Key=Xaml_SearchDomainsHint}"
+                     AutomationProperties.Name="{svc:Loc Key=Xaml_Search_DNS_activity_c131610b}"
+                     ToolTip="{svc:Loc Key=Xaml_Filters_as_you_type_supports_field_900279c6}" />
+            <Button
+                    Command="{Binding ResearchPurposesCommand}"
+                    Padding="10,5"
+                    Margin="6,0,0,0"
+                    ToolTip="{svc:Loc Key=Xaml_Have_DeepSeek_research_what_each_domain_68c1899f}">
+                <TextBlock Text="{svc:Loc Key=Xaml_AI_purposes_9aa2d27e}" TextWrapping="Wrap" />
+            </Button>
+            <Button Content="{svc:Loc Key=Xaml_Block_82dd2cdf}"
+                    Style="{StaticResource Hg.DangerButton}"
+                    Padding="10,5"
+                    Command="{Binding BlockSelectedCommand}"
+                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}"
+                    Margin="6,0,0,0" />
+            <Button Content="{svc:Loc Key=Xaml_Allow_3ad0e369}"
+                    Style="{StaticResource Hg.SuccessButton}"
+                    Padding="10,5"
+                    Command="{Binding AllowSelectedCommand}"
+                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}"
+                    Margin="6,0,8,0" />
+            <CheckBox Content="{svc:Loc Key=Xaml_Reverse_DNS_9fc5dae3}" Margin="6,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding HideReverseDns}"
+                      AutomationProperties.Name="{svc:Loc Key=Xaml_Hide_reverse_DNS_PTR_lookups_c24359ac}"
+                      ToolTip="{svc:Loc Key=Xaml_Hide_reverse_DNS_PTR_lookups_in_667e1814}" />
+            <CheckBox Content="{svc:Loc Key=Xaml_Group_root_b54b32ae}" Margin="6,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding GroupByRoot}"
+                      AutomationProperties.Name="{svc:Loc Key=Xaml_Group_feed_rows_by_root_domain_5a130da0}"
+                      ToolTip="{svc:Loc Key=Xaml_Collapse_subdomains_under_their_root_ca66b5fb}" />
+            <CheckBox Content="{svc:Loc Key=Xaml_Blocked_99613c74}" Margin="6,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding BlockedOnly}"
+                      AutomationProperties.Name="{svc:Loc Key=Xaml_Show_only_blocked_domains_0ccd7e40}" />
+            <CheckBox Margin="6,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding HideBlocked}"
+                      AutomationProperties.Name="{svc:Loc Key=Xaml_Hide_already_blocked_domains_c28c44e2}">
+                <TextBlock Text="{svc:Loc Key=Xaml_Hide_blocked_3a8dacc1}" TextWrapping="Wrap" MaxWidth="110" />
+            </CheckBox>
+            <CheckBox Content="{svc:Loc Key=Xaml_Hidden_d4c2792a}" Margin="6,0,0,0"
+                      VerticalAlignment="Center"
+                      IsChecked="{Binding ShowHidden}" />
+            <Button Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
+                    Command="{Binding RefreshCommand}"
+                    Padding="10,5"
+                    Margin="6,0,0,0" />
+        </WrapPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" MinWidth="250" MaxWidth="360" />
+            </Grid.ColumnDefinitions>
+
+        <DataGrid Grid.Column="0" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
+                  SelectedIndex="0"
+                  AutomationProperties.Name="{svc:Loc Key=Xaml_DNS_activity_feed_3e3cfef1}"
+                  IsVisibleChanged="OnGridVisible">
+            <DataGrid.GroupStyle>
+                <!-- Shared collapsible group header; right-clicking only the
+                     header retains the Hosts-specific hide-root action. -->
+                <GroupStyle>
+                    <GroupStyle.ContainerStyle>
+                        <Style TargetType="{x:Type GroupItem}">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                        <Expander Style="{StaticResource Hg.DataGridGroup}">
+                                            <Expander.Header>
+                                                <StackPanel Orientation="Horizontal"
+                                                            Tag="{Binding RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            ToolTip="{svc:Loc Key=Xaml_Right_click_to_hide_this_group_8b651c7a}">
+                                                    <StackPanel.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="{svc:Loc Key=Xaml_Hide_this_group_cc5d662f}"
+                                                                      Command="{Binding PlacementTarget.Tag.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      CommandParameter="{Binding PlacementTarget.DataContext.Name, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                      ToolTip="{svc:Loc Key=Xaml_Hide_every_domain_currently_listed_under_28de8cef}" />
+                                                        </ContextMenu>
+                                                    </StackPanel.ContextMenu>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
+                                                               Style="{StaticResource Hg.DimText}" />
+                                                </StackPanel>
+                                            </Expander.Header>
+                                            <ItemsPresenter />
+                                        </Expander>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </GroupStyle.ContainerStyle>
+                </GroupStyle>
+            </DataGrid.GroupStyle>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+                    <Setter Property="MinHeight" Value="32" />
+                    <Setter Property="ToolTip" Value="{Binding Reason}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Status}" Value="blocked">
+                            <Setter Property="Background" Value="{DynamicResource Hg.DangerSoft}" />
+                        </DataTrigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="{svc:Loc Key=Xaml_Block_82dd2cdf}"
+                              Command="{Binding PlacementTarget.DataContext.BlockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Block_every_selected_domain_multi_select_01215dea}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Block_root_6c8978ac}"
+                              Command="{Binding PlacementTarget.DataContext.BlockRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Allow_3ad0e369}"
+                              Command="{Binding PlacementTarget.DataContext.AllowSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Allow_every_selected_domain_remove_85f98590}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Unblock_remove_from_hosts_da345a55}"
+                              Command="{Binding PlacementTarget.DataContext.UnblockSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Remove_the_selected_domains_0_0_f3c604ab}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Temp_allow_dcb5b93d}">
+                        <MenuItem Header="{svc:Loc Key=Xaml_15_minutes_899761ff}"
+                                  Command="{Binding PlacementTarget.DataContext.TempAllow15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_1_hour_f030c3d6}"
+                                  Command="{Binding PlacementTarget.DataContext.TempAllow60Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_8_hours_191800b7}"
+                                  Command="{Binding PlacementTarget.DataContext.TempAllow480Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    </MenuItem>
+                    <MenuItem Header="{svc:Loc Key=Xaml_Temp_block_e7a19c42}">
+                        <MenuItem Header="{svc:Loc Key=Xaml_15_minutes_899761ff}"
+                                  Command="{Binding PlacementTarget.DataContext.TempBlock15Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_1_hour_f030c3d6}"
+                                  Command="{Binding PlacementTarget.DataContext.TempBlock60Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_8_hours_191800b7}"
+                                  Command="{Binding PlacementTarget.DataContext.TempBlock480Command, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Hide_domain_s_5312c84d}"
+                              Command="{Binding PlacementTarget.DataContext.HideSelectedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItems, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Hide_every_selected_domain_from_the_c9919958}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Hide_root_768c2f5a}"
+                              Command="{Binding PlacementTarget.DataContext.HideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Hide_the_whole_root_including_future_f3fb6200}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Hide_this_group_cc5d662f}"
+                              Command="{Binding PlacementTarget.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem.Root, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Hide_every_domain_currently_listed_under_bd945a60}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Unhide_root_ffc85337}"
+                              Command="{Binding PlacementTarget.DataContext.UnhideRootCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <Separator />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_purpose_226cec91}"
+                              Command="{Binding PlacementTarget.DataContext.FixPurposeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_purpose_0a507959}" />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Fix_category_2b0ad390}"
+                              Command="{Binding PlacementTarget.DataContext.FixCategoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                              ToolTip="{svc:Loc Key=Xaml_Correct_this_domain_s_category_c06fdadd}" />
+                    <Separator />
+                    <MenuItem Header="{svc:Loc Key=Xaml_Research_online_0fdb1e04}">
+                        <MenuItem Header="{svc:Loc Key=Xaml_Google_2b681c0a}"
+                                  Command="{Binding PlacementTarget.DataContext.ResearchGoogleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_VirusTotal_d38e68d0}"
+                                  Command="{Binding PlacementTarget.DataContext.ResearchVirusTotalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                        <MenuItem Header="{svc:Loc Key=Xaml_who_is_42562da6}"
+                                  Command="{Binding PlacementTarget.DataContext.ResearchWhoisCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem.Domain, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    </MenuItem>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Domain_9b10914d}" Binding="{Binding Domain}" Width="170">
+                    <DataGridTextColumn.ElementStyle>
+                        <!-- Yellow = undecided domain the reference blocklists would
+                             block: a candidate worth reviewing. -->
+                        <Style TargetType="TextBlock">
+                            <Setter Property="ToolTip" Value="{Binding BlocklistsTip}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding BlocklistsText}" Value="">
+                                    <Setter Property="ToolTip" Value="{x:Null}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsBlockCandidate}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Yellow}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Binding="{Binding Purpose}" Width="135">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Status_bae7d5be}" Binding="{Binding StatusText}" Width="80">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
+                            <Style.Triggers>
+                                <!-- Blocked stands out red so an over-block is easy to spot when troubleshooting. -->
+                                <DataTrigger Binding="{Binding Status}" Value="allowed">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="blocked">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Red}" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="95" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_a6179b4c}" Binding="{Binding Hits}" Width="45" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Data_e5e429bc}" Binding="{Binding DataText}" Width="64" IsReadOnly="True" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_New_c2a1f0e3}" Binding="{Binding NewText}" Width="44" IsReadOnly="True">
+                    <DataGridTextColumn.ElementStyle>
+                        <!-- Green "NEW" = first observed on this machine within the window. -->
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource Hg.Green}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="FontSize" Value="10" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_24h_02779596}" Width="96">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Viewbox Width="84" Height="18" Stretch="Fill" HorizontalAlignment="Left"
+                                     ToolTip="{Binding SparklineTip}">
+                                <Canvas Width="120" Height="20">
+                                    <Polyline Points="{Binding SparklinePoints, Converter={StaticResource PointsConverter}}"
+                                              Stroke="{DynamicResource Hg.Series1}"
+                                              StrokeThickness="1.2" StrokeLineJoin="Round" />
+                                </Canvas>
+                            </Viewbox>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Last_seen_56462f81}" Binding="{Binding LastSeenText}" Width="75" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Column="0"
+                Style="{StaticResource Hg.EmptyState}"
+                Visibility="{Binding Rows.Count, Converter={StaticResource EmptyStateVis}}">
+            <StackPanel>
+                <TextBlock Text="{svc:Loc Key=Xaml_No_DNS_activity_yet_edff6649}"
+                           Style="{StaticResource Hg.SectionTitle}"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,4" />
+                <TextBlock Text="{svc:Loc Key=Xaml_HostsGuard_will_fill_this_feed_as_6cba4cd0}"
+                           Style="{StaticResource Hg.EmptyText}" />
+            </StackPanel>
+        </Border>
+
+            <Border Grid.Column="1"
+                    Style="{StaticResource Hg.Inspector}"
+                    Margin="10,0,0,0"
+                    DataContext="{Binding SelectedItem, ElementName=ActivityGrid}">
+                <Grid>
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <DockPanel LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    Style="{StaticResource Hg.CloseIconButton}"
+                                    ToolTip="{svc:Loc Key=Xaml_Clear_selection_247fd631}"
+                                    AutomationProperties.Name="{svc:Loc Key=Xaml_Clear_selection_247fd631}"
+                                    Click="OnClearActivitySelection">
+                                <Path Style="{StaticResource Hg.ButtonGlyphPath}"
+                                      Data="M 4 4 L 12 12 M 12 4 L 4 12"
+                                      Stroke="{DynamicResource Hg.Sub}" />
+                            </Button>
+                            <TextBlock DockPanel.Dock="Left"
+                                       Text="{svc:Loc Key=Xaml_DNS_3ddc21b1}"
+                                       Foreground="{DynamicResource Hg.Teal}"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,8,0"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding Domain, TargetNullValue={svc:Loc Key=Xaml_SelectDnsRowTargetNull}}"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding RootText, TargetNullValue={svc:Loc Key=Xaml_DnsRowActionMenuTargetNull}}"
+                                   Style="{StaticResource Hg.DimText}"
+                                   Margin="0,5,0,0"
+                                   TextWrapping="Wrap" />
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Style="{StaticResource Hg.Badge}" Margin="0,0,6,0">
+                                <TextBlock Text="{Binding Status, TargetNullValue={svc:Loc Key=Xaml_NoStatusTargetNull}}"
+                                           Style="{StaticResource Hg.DimText}" />
+                            </Border>
+                            <Border Grid.Column="1" Style="{StaticResource Hg.Badge}" Margin="6,0,0,0">
+                                <TextBlock Text="{Binding BlocklistsText, TargetNullValue={svc:Loc Key=Xaml_NoListHitsTargetNull}}"
+                                           Style="{StaticResource Hg.DimText}" />
+                            </Border>
+                        </Grid>
+
+                        <DockPanel Margin="0,10,0,3" LastChildFill="True">
+                            <Button DockPanel.Dock="Right"
+                                    Command="{Binding DataContext.ResearchPurposesCommand, ElementName=ActivityGrid}"
+                                    Padding="8,2"
+                                    MinHeight="24">
+                                <TextBlock Text="{svc:Loc Key=Xaml_AI_analyze_b541cf78}" TextWrapping="Wrap" TextAlignment="Center" />
+                            </Button>
+                            <TextBlock Text="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Style="{StaticResource Hg.InspectorLabel}" Margin="0" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding Purpose, TargetNullValue={svc:Loc Key=Xaml_NotClassifiedYetTargetNull}}"
+                                   Style="{StaticResource Hg.InspectorValue}" />
+
+                        <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0"
+                                Visibility="{Binding HasResolutionChain, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Text="{svc:Loc Key=CnameChain_Title, Default=Resolution chain}"
+                                           Style="{StaticResource Hg.InspectorLabel}" Margin="0,0,0,2" />
+                                <TextBlock Text="{svc:Loc Key=CnameChain_Help, Default=Latest observed query → CNAME aliases → resolved addresses. Verdicts reflect current managed and reference-list state.}"
+                                           Style="{StaticResource Hg.HelperText}" Margin="0,0,0,7"
+                                           TextWrapping="Wrap" />
+                                <ItemsControl x:Name="ResolutionChainItems" ItemsSource="{Binding ResolutionChain}"
+                                              AutomationProperties.Name="{svc:Loc Key=CnameChain_AutomationName, Default=DNS resolution chain}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="50" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="75" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding KindText}"
+                                                           Style="{StaticResource Hg.Kicker}" />
+                                                <StackPanel Grid.Column="1" Margin="6,0">
+                                                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap"
+                                                               FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding BlocklistsText}"
+                                                               Style="{StaticResource Hg.DimText}"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding VerdictText}"
+                                                           Foreground="{DynamicResource Hg.Peach}"
+                                                           HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <UniformGrid Columns="2" Margin="0,12,0,0">
+                            <Border Style="{StaticResource Hg.MetricTile}">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Hits_a6179b4c}" Style="{StaticResource Hg.Kicker}" />
+                                    <TextBlock Text="{Binding Hits}" Style="{StaticResource Hg.MetricValue}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Hg.MetricTile}" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="{svc:Loc Key=Xaml_Last_seen_56462f81}" Style="{StaticResource Hg.Kicker}" />
+                                    <TextBlock Text="{Binding LastSeenText, TargetNullValue='-'}"
+                                               Style="{StaticResource Hg.InspectorValue}" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <TextBlock Text="{svc:Loc Key=Xaml_Actions_c3cd636a}" Style="{StaticResource Hg.InspectorLabel}" />
+                        <StackPanel>
+                            <Button
+                                    Style="{StaticResource Hg.SuccessButton}"
+                                    Margin="0,0,0,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DataContext.AllowSelectedCommand, ElementName=ActivityGrid}"
+                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Allow_domain_2c91d71a}" TextWrapping="Wrap" TextAlignment="Center" />
+                            </Button>
+                            <Button
+                                    Style="{StaticResource Hg.DangerButton}"
+                                    Margin="0,0,0,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DataContext.BlockSelectedCommand, ElementName=ActivityGrid}"
+                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Block_domain_9fcd1d15}" TextWrapping="Wrap" TextAlignment="Center" />
+                            </Button>
+                            <Button
+                                    Margin="0,0,0,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DataContext.TempAllow60Command, ElementName=ActivityGrid}"
+                                    CommandParameter="{Binding Domain}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Temp_allow_69178873}" TextWrapping="Wrap" TextAlignment="Center" />
+                            </Button>
+                            <Button
+                                    Margin="0,0,0,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DataContext.HideSelectedCommand, ElementName=ActivityGrid}"
+                                    CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}">
+                                <TextBlock Text="{svc:Loc Key=Xaml_Hide_domain_5dfed914}" TextWrapping="Wrap" TextAlignment="Center" />
+                            </Button>
+                            <Button Content="{svc:Loc Key=Xaml_Research_be601df2}"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DataContext.ResearchGoogleCommand, ElementName=ActivityGrid}"
+                                    CommandParameter="{Binding Domain}"
+                                    IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Style="{StaticResource Hg.EmptyState}"
+                            Visibility="{Binding Converter={StaticResource EmptyStateVis}}">
+                        <StackPanel>
+                            <TextBlock Text="{svc:Loc Key=Xaml_Select_a_domain_ecec97fc}"
+                                       Style="{StaticResource Hg.SectionTitle}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,0,0,4" />
+                            <TextBlock Text="{svc:Loc Key=Xaml_The_inspector_keeps_row_details_and_19beece8}"
+                                       Style="{StaticResource Hg.EmptyText}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="2,6,0,0">
+            <TextBlock Text="{Binding IntegrityStatusText}"
+                       Foreground="{DynamicResource Hg.Yellow}"
+                       TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite" />
+            <TextBlock Text="{Binding StatusText}"
+                       AutomationProperties.LiveSetting="Polite">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IntegrityStatusText}" Value="">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </Grid>
+</views:MajorTabPage>

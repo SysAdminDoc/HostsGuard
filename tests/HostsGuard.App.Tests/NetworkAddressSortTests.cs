@@ -59,11 +59,12 @@ public sealed class NetworkAddressSortTests
     [Fact]
     public void Every_address_grid_uses_the_shared_semantic_sort_key()
     {
-        var path = Path.Combine(
+        var views = Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
-            "src", "HostsGuard.App", "MainWindow.xaml");
-        var xaml = File.ReadAllText(path);
+            "src", "HostsGuard.App", "Views");
+        var xaml = string.Concat(
+            Directory.EnumerateFiles(views, "*Page.xaml").Select(File.ReadAllText));
 
         xaml.Should().Contain("Binding=\"{Binding RemoteAddr}\" SortMemberPath=\"RemoteAddressSortKey\" Width=\"100\"")
             .And.Contain("Binding=\"{Binding RemoteAddress}\" SortMemberPath=\"RemoteAddressSortKey\"")
