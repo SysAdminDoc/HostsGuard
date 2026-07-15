@@ -801,4 +801,10 @@
   <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | description {0}</value></data>
   <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>La description ne peut pas dépasser {0} caractères.</value></data>
   <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>La description doit tenir sur une seule ligne de texte visible.</value></data>
+  <data name="Page_HostsActivity_Subtitle" xml:space="preserve"><value>Surveillez en temps réel l’activité DNS et celle du fichier hosts. Examinez les domaines suspects et intervenez.</value></data>
+  <data name="Page_Alerts_Subtitle" xml:space="preserve"><value>Examinez les signaux de sécurité exploitables et acquittez les constats résolus.</value></data>
+  <data name="Page_HostsFile_Subtitle" xml:space="preserve"><value>Gérez la politique locale des domaines, les listes de sources et le fichier hosts Windows.</value></data>
+  <data name="Page_FirewallActivity_Subtitle" xml:space="preserve"><value>Inspectez l’activité réseau en direct, l’historique, les ports à l’écoute et les décisions de politique.</value></data>
+  <data name="Page_FirewallRules_Subtitle" xml:space="preserve"><value>Examinez la politique du Pare-feu Windows et créez des règles gérées par HostsGuard.</value></data>
+  <data name="Page_Tools_Subtitle" xml:space="preserve"><value>Configurez les contrôles de confidentialité, les diagnostics, l’automatisation et la récupération.</value></data>
 </root>

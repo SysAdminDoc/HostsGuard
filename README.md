@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.154-blue)
+![Version](https://img.shields.io/badge/version-0.12.155-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -10,7 +10,7 @@
 
 ## Screenshots
 
-Live DNS activity feed with the premium operator-console status rail, native themed window chrome, icon-led navigation, dense activity table, selected-row inspector, per-root 24h sparklines, and the `field:value` search DSL - dark, light, and live Windows contrast themes. The local visual-smoke gate renders deterministic connected/populated fixtures in dark, light, Aquatic, Desert, Dusk, and Night Sky palettes; asserts a visible landmark and unique pixel hash for every primary page; captures disconnected recovery separately; and pins matching app/service versions plus evidence in `docs/img/visual-smoke-manifest.json`.
+Live DNS activity feed with a quiet open-section status rail, 14px body type, clear page hierarchy, restrained semantic color, a compact selected-row inspector, per-root 24h sparklines, and the `field:value` search DSL - dark, light, and live Windows contrast themes. The local visual-smoke gate renders deterministic connected/populated fixtures in dark, light, Aquatic, Desert, Dusk, and Night Sky palettes; asserts a visible landmark and unique pixel hash for every primary page; captures disconnected recovery separately; and pins matching app/service versions plus evidence in `docs/img/visual-smoke-manifest.json`.
 
 ![Hosts Activity — dark theme](docs/img/hosts-activity-dark.png)
 
@@ -240,7 +240,7 @@ The CLI talks to the service over the same authenticated pipe contract as the ap
 git clone https://github.com/SysAdminDoc/HostsGuard.git
 cd HostsGuard
 dotnet build HostsGuard.sln          # requires .NET 10 SDK
-dotnet test HostsGuard.sln           # 1841 tests, no elevation needed
+dotnet test HostsGuard.sln           # 1842 tests, no elevation needed
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-hygiene.ps1
                                       # fails on vulnerable or undeferred stale NuGet packages
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\release-version-gate.ps1

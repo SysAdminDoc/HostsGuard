@@ -135,4 +135,28 @@ public sealed class ThemeTokenTests
             .Should().NotContain(setter => (string?)setter.Attribute("Property") == "Background",
                 "the template focus ring already exposes focus and allow/block actions must retain their meaning");
     }
+
+    [Fact]
+    public void Primary_shell_uses_open_sections_instead_of_nested_outlined_cards()
+    {
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var document = XDocument.Load(Path.Combine(AppDir, "Themes", "Styles.xaml"));
+
+        XElement Style(string key) => document.Descendants(presentation + "Style")
+            .Single(element => (string?)element.Attribute(xaml + "Key") == key);
+
+        Style("Hg.Window").Elements(presentation + "Setter")
+            .Single(setter => (string?)setter.Attribute("Property") == "FontSize")
+            .Attribute("Value")!.Value.Should().Be("14");
+        Style("Hg.RailTile").Elements(presentation + "Setter")
+            .Single(setter => (string?)setter.Attribute("Property") == "BorderThickness")
+            .Attribute("Value")!.Value.Should().Be("0,0,0,1");
+        Style("Hg.CommandBar").Elements(presentation + "Setter")
+            .Single(setter => (string?)setter.Attribute("Property") == "BorderThickness")
+            .Attribute("Value")!.Value.Should().Be("0,0,0,1");
+        Style("Hg.Inspector").Elements(presentation + "Setter")
+            .Single(setter => (string?)setter.Attribute("Property") == "BorderThickness")
+            .Attribute("Value")!.Value.Should().Be("1,0,0,0");
+    }
 }

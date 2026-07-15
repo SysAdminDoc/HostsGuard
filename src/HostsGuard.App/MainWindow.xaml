@@ -135,35 +135,19 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Path Width="17" Height="17" Stretch="Uniform"
-                              Data="M 8 2 A 6 6 0 1 1 8 14 A 6 6 0 1 1 8 2 M 5 8 H 11"
-                              Stroke="{DynamicResource Hg.Dim}"
-                              StrokeThickness="1.7"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round"
-                              Margin="0,0,9,0" />
-                        <TextBlock Text="{svc:Loc Key=TopBand_System}" Style="{StaticResource Hg.SubText}" VerticalAlignment="Center" Margin="0,0,18,0" />
-                        <Path Width="17" Height="17" Stretch="Uniform"
-                              Data="M 8 1 L 14 3.5 V 8 C 14 11 11.5 13 8 15 C 4.5 13 2 11 2 8 V 3.5 Z M 5 8 L 7 10 L 11 5.5"
-                              Fill="Transparent"
-                              StrokeThickness="1.7"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round"
-                              Margin="0,0,8,0">
-                            <Path.Style>
-                                <Style TargetType="Path">
-                                    <Setter Property="Stroke" Value="{DynamicResource Hg.Dim}" />
+                        <Ellipse Width="9" Height="9" Margin="0,0,9,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource Hg.Dim}" />
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding PostureIsSafe}" Value="True">
-                                            <Setter Property="Stroke" Value="{DynamicResource Hg.Green}" />
+                                            <Setter Property="Fill" Value="{DynamicResource Hg.Green}" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
-                            </Path.Style>
-                        </Path>
-                        <TextBlock Text="{Binding PostureText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0">
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding PostureText}" FontWeight="SemiBold" VerticalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
@@ -175,7 +159,11 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
-                        <TextBlock Text="{Binding FilteringModeTitle}" Foreground="{DynamicResource Hg.Sub}" VerticalAlignment="Center" />
+                        <Border Width="1" Height="16" Margin="14,0"
+                                Background="{DynamicResource Hg.S0}" />
+                        <TextBlock Text="{Binding FilteringModeTitle}"
+                                   Foreground="{DynamicResource Hg.Sub}"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource Hg.SafeButton}"
@@ -283,7 +271,7 @@
             <!-- Main workbench -->
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" MinWidth="264" MaxWidth="340" />
+                    <ColumnDefinition Width="Auto" MinWidth="240" MaxWidth="290" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -299,7 +287,7 @@
                                       HorizontalScrollBarVisibility="Disabled"
                                       Padding="0,0,2,0">
                             <StackPanel>
-                                <Grid Margin="4,4,4,12">
+                                <Grid Margin="2,0,2,16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -398,8 +386,8 @@
                                                 Command="{Binding SetFilteringModeCommand}"
                                                 CommandParameter="notify"
                                                 IsEnabled="{Binding IsConnected}"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="7,3"
+                                                Style="{StaticResource Hg.RailLinkButton}"
+                                                HorizontalAlignment="Left"
                                                 ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                 ToolTipService.ShowOnDisabled="True"
                                                 AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}" />
@@ -421,9 +409,10 @@
                                         <Button
                                                 Command="{Binding RestoreSafeNetworkPostureCommand}"
                                                 IsEnabled="{Binding IsConnected}"
-                                                Style="{StaticResource Hg.SafeButton}"
-                                                HorizontalAlignment="Stretch"
-                                                Margin="0,0,0,8"
+                                                Style="{StaticResource Hg.RailLinkButton}"
+                                                Foreground="{DynamicResource Hg.Teal}"
+                                                HorizontalAlignment="Left"
+                                                Margin="0,0,0,4"
                                                 ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                 ToolTipService.ShowOnDisabled="True"
                                                 AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}">
@@ -433,9 +422,9 @@
                                                 Command="{Binding SetGlobalModeCommand}"
                                                 CommandParameter="block-all"
                                                 IsEnabled="{Binding IsConnected}"
-                                                Style="{StaticResource Hg.DangerButton}"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="7,3"
+                                                Style="{StaticResource Hg.RailLinkButton}"
+                                                Foreground="{DynamicResource Hg.Red}"
+                                                HorizontalAlignment="Left"
                                                 ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                 ToolTipService.ShowOnDisabled="True"
                                                 AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}">
@@ -450,7 +439,7 @@
                                                     ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                     ToolTipService.ShowOnDisabled="True"
                                                     AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
-                                                    Padding="7,3"
+                                                    Style="{StaticResource Hg.SegmentButton}"
                                                     Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_5_minutes_34e17f47}" TextWrapping="Wrap" /></Button>
                                             <Button
                                                     Command="{Binding PauseEnforcementCommand}"
@@ -459,7 +448,7 @@
                                                     ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                     ToolTipService.ShowOnDisabled="True"
                                                     AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
-                                                    Padding="7,3"
+                                                    Style="{StaticResource Hg.SegmentButton}"
                                                     Margin="0,0,6,6"><TextBlock Text="{svc:Loc Key=Xaml_15_minutes_899761ff}" TextWrapping="Wrap" /></Button>
                                             <Button
                                                     Command="{Binding PauseEnforcementCommand}"
@@ -468,7 +457,7 @@
                                                     ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                     ToolTipService.ShowOnDisabled="True"
                                                     AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}"
-                                                    Padding="7,3"
+                                                    Style="{StaticResource Hg.SegmentButton}"
                                                     Margin="0,0,0,6"><TextBlock Text="{svc:Loc Key=Xaml_1_hour_f030c3d6}" TextWrapping="Wrap" /></Button>
                                         </WrapPanel>
                                     </StackPanel>
@@ -499,8 +488,8 @@
                                         <Button Content="{svc:Loc Key=Xaml_Refresh_56e3badc}"
                                                 Command="{Binding Alerts.RefreshCommand}"
                                                 IsEnabled="{Binding IsConnected}"
-                                                HorizontalAlignment="Stretch"
-                                                Padding="7,3"
+                                                Style="{StaticResource Hg.RailLinkButton}"
+                                                HorizontalAlignment="Left"
                                                 ToolTip="{Binding ServiceCommandAvailabilityText}"
                                                 ToolTipService.ShowOnDisabled="True"
                                                 AutomationProperties.HelpText="{Binding ServiceCommandAvailabilityText}" />
@@ -553,12 +542,13 @@
                 <Border Grid.Column="1" Style="{StaticResource Hg.ShellSurface}">
                     <Grid>
             <TabControl x:Name="MainTabs"
-                        Style="{StaticResource Hg.PrimaryTabs}"
+                        Style="{StaticResource Hg.ShellTabs}"
                         ItemContainerStyle="{StaticResource Hg.PrimaryTabItem}"
                         SelectedIndex="{Binding SelectedMainTabIndex, Mode=TwoWay}"
                         Margin="0"
                         IsEnabled="{Binding IsConnected}">
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_HostsActivity}"
+                         ToolTip="{svc:Loc Key=Page_HostsActivity_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -571,7 +561,8 @@
                     <views:HostsActivityPage />
                 </TabItem>
 
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_Alerts}"
+                         ToolTip="{svc:Loc Key=Page_Alerts_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -583,7 +574,8 @@
                     <views:AlertsPage />
                 </TabItem>
 
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_HostsFile}"
+                         ToolTip="{svc:Loc Key=Page_HostsFile_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -595,7 +587,8 @@
                     <views:HostsFilePage />
                 </TabItem>
 
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_FirewallActivity}"
+                         ToolTip="{svc:Loc Key=Page_FirewallActivity_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -607,7 +600,8 @@
                     <views:FirewallActivityPage />
                 </TabItem>
 
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_FirewallRules}"
+                         ToolTip="{svc:Loc Key=Page_FirewallRules_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"
@@ -619,7 +613,8 @@
                     <views:FirewallRulesPage />
                 </TabItem>
 
-                <TabItem>
+                <TabItem Tag="{svc:Loc Key=Tab_Tools}"
+                         ToolTip="{svc:Loc Key=Page_Tools_Subtitle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <Path Style="{StaticResource Hg.MainTabIconPath}"

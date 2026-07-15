@@ -37,7 +37,7 @@
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="UseLayoutRounding" Value="True" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
@@ -59,13 +59,26 @@
 
     <Style x:Key="Hg.SectionTitle" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontSize" Value="16" />
         <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Hg.PageTitle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LineHeight" Value="28" />
+    </Style>
+
+    <Style x:Key="Hg.PageSubtitle" TargetType="TextBlock" BasedOn="{StaticResource Hg.SubText}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineHeight" Value="20" />
+        <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
     <Style x:Key="Hg.FieldLabel" TargetType="TextBlock">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Margin" Value="0,0,0,4" />
     </Style>
@@ -83,20 +96,20 @@
     </Style>
 
     <Style x:Key="Hg.Card" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.Panel}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="4,4,4,18" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
     <Style x:Key="Hg.EmptyState" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.Mantle}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="18,14" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="20,16" />
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="IsHitTestVisible" Value="False" />
@@ -104,33 +117,32 @@
 
     <Style x:Key="Hg.StatusStrip" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="10,7" />
     </Style>
 
     <Style x:Key="Hg.CommandBar" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="10" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="0,0,0,12" />
     </Style>
 
     <Style x:Key="Hg.TopBand" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.PanelAlt}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Padding" Value="16,7" />
     </Style>
 
     <Style x:Key="Hg.TopBandButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="MinHeight" Value="34" />
         <Setter Property="Padding" Value="12,6" />
-        <Setter Property="Background" Value="{DynamicResource Hg.Panel}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Style.Triggers>
             <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Foreground" Value="{DynamicResource Hg.Disabled}" />
@@ -154,43 +166,41 @@
     </Style>
 
     <Style x:Key="Hg.Badge" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="0" />
     </Style>
 
     <Style x:Key="Hg.ShellSurface" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.Bg}" />
         <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="14,12,18,12" />
+        <Setter Property="Padding" Value="18,0,20,12" />
     </Style>
 
     <Style x:Key="Hg.SideRail" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Hg.PanelAlt}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
         <Setter Property="BorderThickness" Value="0,0,1,0" />
-        <Setter Property="Padding" Value="14,12,12,10" />
+        <Setter Property="Padding" Value="16,14,16,10" />
     </Style>
 
     <Style x:Key="Hg.RailTile" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.Panel}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="10,9" />
-        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="2,14,2,18" />
+        <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style x:Key="Hg.BrandMark" TargetType="Border">
         <Setter Property="Width" Value="48" />
         <Setter Property="Height" Value="52" />
-        <Setter Property="Background" Value="{DynamicResource Hg.SafeSoft}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.SafeBorder}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="10" />
-        <Setter Property="Padding" Value="9" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="7" />
     </Style>
 
     <Style x:Key="Hg.BrandName" TargetType="TextBlock">
@@ -200,7 +210,7 @@
     </Style>
 
     <Style x:Key="Hg.BrandVersion" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="Margin" Value="0,3,0,0" />
     </Style>
 
@@ -233,23 +243,22 @@
 
     <Style x:Key="Hg.MetricTile" TargetType="Border" BasedOn="{StaticResource Hg.RailTile}">
         <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="Padding" Value="9,8" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="10,9" />
         <Setter Property="Margin" Value="0,0,8,8" />
     </Style>
 
     <Style x:Key="Hg.Inspector" TargetType="Border">
-        <Setter Property="Background" Value="{DynamicResource Hg.PanelAlt}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="16" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="16,8,0,0" />
     </Style>
 
     <Style x:Key="Hg.Kicker" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
-        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontSize" Value="11" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
@@ -271,9 +280,9 @@
     </Style>
 
     <Style x:Key="Hg.ActionChip" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Padding" Value="6,4" />
-        <Setter Property="MinHeight" Value="28" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FontSize" Value="13" />
     </Style>
 
     <Style x:Key="Hg.CloseIconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -303,9 +312,10 @@
     <Style x:Key="Hg.RailLinkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="Padding" Value="3,2" />
-        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="Padding" Value="2,4" />
+        <Setter Property="MinHeight" Value="28" />
         <Setter Property="FontWeight" Value="Normal" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
@@ -321,7 +331,7 @@
     </Style>
 
     <Style x:Key="Hg.RailActionText" TargetType="TextBlock" BasedOn="{StaticResource Hg.DimText}">
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="TextWrapping" Value="NoWrap" />
     </Style>
 
@@ -377,6 +387,41 @@
                         <ContentPresenter x:Name="PART_SelectedContentHost"
                                           Grid.Row="1"
                                           Margin="0,10,0,0"
+                                          ContentSource="SelectedContent"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Hg.ShellTabs" TargetType="TabControl" BasedOn="{StaticResource Hg.PrimaryTabs}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid KeyboardNavigation.TabNavigation="Local">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Border Grid.Row="0"
+                                BorderBrush="{DynamicResource Hg.S0}"
+                                BorderThickness="0,0,0,1">
+                            <TabPanel x:Name="HeaderPanel"
+                                      IsItemsHost="True"
+                                      KeyboardNavigation.TabIndex="1"
+                                      Panel.ZIndex="1" />
+                        </Border>
+                        <StackPanel Grid.Row="1" Margin="12,22,12,18">
+                            <TextBlock Text="{Binding SelectedItem.Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Style="{StaticResource Hg.PageTitle}" />
+                            <TextBlock Text="{Binding SelectedItem.ToolTip, RelativeSource={RelativeSource TemplatedParent}}"
+                                       Style="{StaticResource Hg.PageSubtitle}"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+                        <ContentPresenter x:Name="PART_SelectedContentHost"
+                                          Grid.Row="2"
                                           ContentSource="SelectedContent"
                                           SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
                     </Grid>
@@ -443,8 +488,15 @@
 
     <Style x:Key="Hg.SecondaryTabItem" TargetType="TabItem">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontSize" Value="13" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="HeaderTemplate">
+            <Setter.Value>
+                <DataTemplate>
+                    <TextBlock Text="{Binding}" TextWrapping="Wrap" TextAlignment="Center" />
+                </DataTemplate>
+            </Setter.Value>
+        </Setter>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TabItem">
@@ -510,12 +562,12 @@
     </Style>
 
     <Style TargetType="Button">
-        <Setter Property="Background" Value="{DynamicResource Hg.S0}" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="12,6" />
-        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="MinHeight" Value="34" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -543,7 +595,7 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource Hg.S2}" />
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource Hg.Command}" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.86" />
@@ -572,6 +624,13 @@
                 <Setter Property="BorderBrush" Value="{DynamicResource Hg.Sky}" />
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Hg.SegmentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="9,5" />
+        <Setter Property="MinHeight" Value="32" />
     </Style>
 
     <Style x:Key="Hg.SuccessButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -608,8 +667,8 @@
         <Setter Property="SelectionBrush" Value="{DynamicResource Hg.Sel}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S1}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="6,4" />
-        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="9,5" />
+        <Setter Property="MinHeight" Value="36" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -743,7 +802,7 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinHeight" Value="30" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
@@ -856,7 +915,7 @@
         <Setter Property="Background" Value="{DynamicResource Hg.Panel}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="RowBackground" Value="{DynamicResource Hg.Panel}" />
         <Setter Property="AlternatingRowBackground" Value="{DynamicResource Hg.PanelAlt}" />
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Hg.S0}" />
@@ -889,8 +948,8 @@
         <Setter Property="Background" Value="{DynamicResource Hg.Command}" />
         <Setter Property="Foreground" Value="{DynamicResource Hg.Sub}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Hg.S0}" />
-        <Setter Property="BorderThickness" Value="0,0,1,1" />
-        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="12,10" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Template">
             <Setter.Value>
@@ -933,7 +992,7 @@
 
     <Style TargetType="DataGridRow">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="38" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
@@ -942,20 +1001,18 @@
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
                 <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
             </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
                 <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
             </Trigger>
         </Style.Triggers>
     </Style>
 
     <Style TargetType="DataGridCell">
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="Padding" Value="12,7" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridCell">
@@ -986,7 +1043,6 @@
                 <Setter Property="Background" Value="{DynamicResource Hg.RowSelected}" />
                 <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
                 <Setter Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />
-                <Setter Property="FontWeight" Value="SemiBold" />
             </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter Property="BorderBrush" Value="{DynamicResource Hg.Focus}" />

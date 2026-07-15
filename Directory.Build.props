@@ -15,6 +15,8 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.155: the WPF shell now uses a quieter open-section visual system,
+         stronger type hierarchy, clearer grouping, and corrected row contrast. -->
     <!-- 0.12.154: firewall-rule descriptions now round-trip through Windows
          Firewall, gRPC, authoring, search, and portable policy. -->
     <!-- 0.12.153: MainWindow now composes six independently rendered primary
@@ -300,7 +302,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.154</Version>
+    <Version>0.12.155</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

@@ -2124,4 +2124,10 @@
   <data name="FwRules_PreviewDescription" xml:space="preserve"><value> | description {0}</value></data>
   <data name="FwRules_DescriptionTooLong" xml:space="preserve"><value>Description cannot exceed {0} characters.</value></data>
   <data name="FwRules_DescriptionSingleLine" xml:space="preserve"><value>Description must be a single line of visible text.</value></data>
+  <data name="Page_HostsActivity_Subtitle" xml:space="preserve"><value>Monitor DNS and hosts-file activity in real time. Investigate and act on suspicious domains.</value></data>
+  <data name="Page_Alerts_Subtitle" xml:space="preserve"><value>Review actionable security signals and acknowledge resolved findings.</value></data>
+  <data name="Page_HostsFile_Subtitle" xml:space="preserve"><value>Manage local domain policy, source lists, and the Windows hosts file.</value></data>
+  <data name="Page_FirewallActivity_Subtitle" xml:space="preserve"><value>Inspect live network activity, history, listeners, and policy decisions.</value></data>
+  <data name="Page_FirewallRules_Subtitle" xml:space="preserve"><value>Review Windows Firewall policy and author HostsGuard-managed rules.</value></data>
+  <data name="Page_Tools_Subtitle" xml:space="preserve"><value>Configure privacy controls, diagnostics, automation, and recovery.</value></data>
 </root>

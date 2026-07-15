@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.155] - 2026-07-15
+
+### Changed
+- The WPF shell now uses an open-section visual system with 14px body text,
+  22px page titles, quieter borders, clearer command grouping, a narrower
+  status rail, and a two-column activity inspector action layout.
+- Navigation, page subtitles, tables, metrics, empty states, and status
+  presentation now share a more consistent spacing rhythm; selected rows use
+  readable foregrounds in both dark and light themes.
+
 ## [0.12.154] - 2026-07-14
 
 ### Added

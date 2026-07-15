@@ -84,7 +84,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*" />
-                <ColumnDefinition Width="2*" MinWidth="250" MaxWidth="360" />
+                <ColumnDefinition Width="2*" MinWidth="270" MaxWidth="320" />
             </Grid.ColumnDefinitions>
 
         <DataGrid Grid.Column="0" x:Name="ActivityGrid" ItemsSource="{Binding RowsView}"
@@ -232,7 +232,7 @@
                 </ContextMenu>
             </DataGrid.ContextMenu>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Domain_9b10914d}" Binding="{Binding Domain}" Width="170">
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Domain_9b10914d}" Binding="{Binding Domain}" Width="185">
                     <DataGridTextColumn.ElementStyle>
                         <!-- Yellow = undecided domain the reference blocklists would
                              block: a candidate worth reviewing. -->
@@ -249,10 +249,15 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Binding="{Binding Purpose}" Width="135">
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Purpose_a0fb821b}" Binding="{Binding Purpose}" Width="150">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="{DynamicResource Hg.Dim}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=IsSelected}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Hg.OnRowSelected}" />
+                                </DataTrigger>
+                            </Style.Triggers>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
@@ -277,10 +282,10 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="95" />
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_a6179b4c}" Binding="{Binding Hits}" Width="45" />
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Data_e5e429bc}" Binding="{Binding DataText}" Width="64" IsReadOnly="True" />
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_New_c2a1f0e3}" Binding="{Binding NewText}" Width="44" IsReadOnly="True">
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Process_12f4c13a}" Binding="{Binding Process}" Width="105" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Hits_a6179b4c}" Binding="{Binding Hits}" Width="50" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Data_e5e429bc}" Binding="{Binding DataText}" Width="70" IsReadOnly="True" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_New_c2a1f0e3}" Binding="{Binding NewText}" Width="50" IsReadOnly="True">
                     <DataGridTextColumn.ElementStyle>
                         <!-- Green "NEW" = first observed on this machine within the window. -->
                         <Style TargetType="TextBlock">
@@ -290,7 +295,7 @@
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_24h_02779596}" Width="96">
+                <DataGridTemplateColumn Header="{svc:Loc Key=Xaml_24h_02779596}" Width="90">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Viewbox Width="84" Height="18" Stretch="Fill" HorizontalAlignment="Left"
@@ -304,7 +309,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Last_seen_56462f81}" Binding="{Binding LastSeenText}" Width="75" />
+                <DataGridTextColumn Header="{svc:Loc Key=Xaml_Last_seen_56462f81}" Binding="{Binding LastSeenText}" Width="120" />
             </DataGrid.Columns>
         </DataGrid>
 
@@ -445,10 +450,10 @@
                         </UniformGrid>
 
                         <TextBlock Text="{svc:Loc Key=Xaml_Actions_c3cd636a}" Style="{StaticResource Hg.InspectorLabel}" />
-                        <StackPanel>
+                        <UniformGrid Columns="2">
                             <Button
                                     Style="{StaticResource Hg.SuccessButton}"
-                                    Margin="0,0,0,6"
+                                    Margin="0,0,4,6"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding DataContext.AllowSelectedCommand, ElementName=ActivityGrid}"
                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
@@ -457,7 +462,7 @@
                             </Button>
                             <Button
                                     Style="{StaticResource Hg.DangerButton}"
-                                    Margin="0,0,0,6"
+                                    Margin="4,0,0,6"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding DataContext.BlockSelectedCommand, ElementName=ActivityGrid}"
                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
@@ -465,7 +470,7 @@
                                 <TextBlock Text="{svc:Loc Key=Xaml_Block_domain_9fcd1d15}" TextWrapping="Wrap" TextAlignment="Center" />
                             </Button>
                             <Button
-                                    Margin="0,0,0,6"
+                                    Margin="0,0,4,6"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding DataContext.TempAllow60Command, ElementName=ActivityGrid}"
                                     CommandParameter="{Binding Domain}"
@@ -473,7 +478,7 @@
                                 <TextBlock Text="{svc:Loc Key=Xaml_Temp_allow_69178873}" TextWrapping="Wrap" TextAlignment="Center" />
                             </Button>
                             <Button
-                                    Margin="0,0,0,6"
+                                    Margin="4,0,0,6"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding DataContext.HideSelectedCommand, ElementName=ActivityGrid}"
                                     CommandParameter="{Binding SelectedItems, ElementName=ActivityGrid}"
@@ -481,11 +486,12 @@
                                 <TextBlock Text="{svc:Loc Key=Xaml_Hide_domain_5dfed914}" TextWrapping="Wrap" TextAlignment="Center" />
                             </Button>
                             <Button Content="{svc:Loc Key=Xaml_Research_be601df2}"
+                                    Margin="0,0,4,0"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding DataContext.ResearchGoogleCommand, ElementName=ActivityGrid}"
                                     CommandParameter="{Binding Domain}"
                                     IsEnabled="{Binding SelectedItem, ElementName=ActivityGrid, Converter={StaticResource ObjectPresentBool}}" />
-                        </StackPanel>
+                        </UniformGrid>
                     </StackPanel>
 
                     <Border Style="{StaticResource Hg.EmptyState}"

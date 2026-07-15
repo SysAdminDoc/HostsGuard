@@ -47,7 +47,7 @@
     <SolidColorBrush x:Key="Hg.Sel" Color="#24265FDB" />
     <SolidColorBrush x:Key="Hg.OnSel" Color="#ffffff" />
     <SolidColorBrush x:Key="Hg.RowSelected" Color="#24265FDB" />
-    <SolidColorBrush x:Key="Hg.OnRowSelected" Color="#ffffff" />
+    <SolidColorBrush x:Key="Hg.OnRowSelected" Color="#17212B" />
 
     <!-- chart series accents (timeline / sparklines) -->
     <SolidColorBrush x:Key="Hg.Series0" Color="#265FDB" />
