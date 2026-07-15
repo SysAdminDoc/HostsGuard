@@ -94,6 +94,7 @@
                             <MenuItem Header="{svc:Loc Key=Xaml_1_hour_f030c3d6}" Tag="60" Click="OnTrayPauseEnforcement" />
                         </MenuItem>
                     </MenuItem>
+                    <MenuItem x:Name="TrayProfiles" Header="{svc:Loc Key=Tray_Profiles, Default=Profiles}" />
                     <Separator />
                     <MenuItem Header="{svc:Loc Key=Xaml_Exit_f83b6fe3}" Click="OnTrayExit" />
                 </ContextMenu>

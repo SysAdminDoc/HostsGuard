@@ -624,4 +624,14 @@
   <data name="RemoteSession_NotReported" xml:space="preserve"><value>nicht gemeldet</value></data>
   <data name="FwRules_RuleCountOne" xml:space="preserve"><value>1 Regel</value></data>
   <data name="FwRules_RuleCountMany" xml:space="preserve"><value>{0} Regeln</value></data>
+  <data name="Profile_Loading" xml:space="preserve"><value>Netzwerkprofile werden geladen…</value></data>
+  <data name="Profile_SwitchCancelled" xml:space="preserve"><value>Profilwechsel abgebrochen</value></data>
+  <data name="Tray_Profiles" xml:space="preserve"><value>Profile</value></data>
+  <data name="Tray_ProfilesLoading" xml:space="preserve"><value>Gespeicherte Profile werden geladen…</value></data>
+  <data name="Tray_ProfilesUnavailable" xml:space="preserve"><value>Profile nicht verfügbar — erneut mit HostsGuardSvc verbinden</value></data>
+  <data name="Tray_ProfileLoadFailed" xml:space="preserve"><value>Profile konnten nicht geladen werden: {0}</value></data>
+  <data name="Tray_ProfileSwitching" xml:space="preserve"><value>Wechsel zu {0}…</value></data>
+  <data name="Tray_ProfileSwitched" xml:space="preserve"><value>Aktives Profil: {0}</value></data>
+  <data name="Tray_ProfileSwitchFailed" xml:space="preserve"><value>Wechsel zu {0} fehlgeschlagen: {1}</value></data>
+  <data name="Tray_NoProfiles" xml:space="preserve"><value>Keine gespeicherten Profile</value></data>
 </root>

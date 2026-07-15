@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.133] - 2026-07-14
+
+### Added
+- The tray now has a localized Profiles submenu that refreshes saved profiles
+  whenever it opens, checks the active profile, and switches through the same
+  guarded workflow used by the Tools page.
+- Profile items stay open while switching; pending clicks are disabled and
+  settings-lock, service, cancellation, and success outcomes remain visible in
+  the submenu. External profile changes appear on the next tray open.
+
 ## [0.12.132] - 2026-07-14
 
 ### Changed

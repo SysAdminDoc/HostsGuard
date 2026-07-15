@@ -1948,4 +1948,14 @@
   <data name="RemoteSession_NotReported" xml:space="preserve"><value>not reported</value></data>
   <data name="FwRules_RuleCountOne" xml:space="preserve"><value>1 rule</value></data>
   <data name="FwRules_RuleCountMany" xml:space="preserve"><value>{0} rules</value></data>
+  <data name="Profile_Loading" xml:space="preserve"><value>Loading network profiles…</value></data>
+  <data name="Profile_SwitchCancelled" xml:space="preserve"><value>Profile switch cancelled</value></data>
+  <data name="Tray_Profiles" xml:space="preserve"><value>Profiles</value></data>
+  <data name="Tray_ProfilesLoading" xml:space="preserve"><value>Loading saved profiles…</value></data>
+  <data name="Tray_ProfilesUnavailable" xml:space="preserve"><value>Profiles unavailable — reconnect to HostsGuardSvc</value></data>
+  <data name="Tray_ProfileLoadFailed" xml:space="preserve"><value>Could not load profiles: {0}</value></data>
+  <data name="Tray_ProfileSwitching" xml:space="preserve"><value>Switching to {0}…</value></data>
+  <data name="Tray_ProfileSwitched" xml:space="preserve"><value>Active profile: {0}</value></data>
+  <data name="Tray_ProfileSwitchFailed" xml:space="preserve"><value>Could not switch to {0}: {1}</value></data>
+  <data name="Tray_NoProfiles" xml:space="preserve"><value>No saved profiles</value></data>
 </root>

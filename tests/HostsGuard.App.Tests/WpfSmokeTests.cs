@@ -432,6 +432,22 @@ public sealed class WpfSmokeTests
                 lockPassword.Template.Triggers.OfType<Trigger>()
                     .Should().Contain(t => t.Property == PasswordBoxHelper.IsEmptyProperty && Equals(t.Value, true));
 
+                var trayProfiles = (MenuItem)window.FindName("TrayProfiles");
+                vm.Tools.Profiles.Add("Home");
+                vm.Tools.Profiles.Add("Work");
+                vm.Tools.ActiveProfileName = "Work";
+                window.RenderTrayProfiles(vm.Tools, "Switching", profilesEnabled: false);
+                var trayProfileItems = trayProfiles.Items.OfType<MenuItem>()
+                    .Where(item => item.Tag is string)
+                    .ToList();
+                trayProfileItems.Should().HaveCount(2)
+                    .And.OnlyContain(item => item.IsCheckable && item.StaysOpenOnClick && !item.IsEnabled);
+                trayProfileItems.Single(item => Equals(item.Tag, "Work")).IsChecked.Should().BeTrue();
+
+                window.RenderTrayProfiles(vm.Tools, "Settings are locked");
+                trayProfiles.Items.OfType<MenuItem>()
+                    .Should().Contain(item => !item.IsEnabled && Equals(item.Header, "Settings are locked"));
+
                 _stage = $"{theme}: constructing ConsentWindow";
                 var consent = new ConsentWindow(new ConnectionDecisionRequest
                 {

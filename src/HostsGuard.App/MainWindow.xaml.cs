@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaUseImmersiveDarkModeBefore20H1 = 19;
     private bool _exiting;
+    private int _trayProfileRefreshGeneration;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -162,16 +163,141 @@ public partial class MainWindow : Window
         _ = DataGridWidthRepair.RepairAsync(grid);
     }
 
-    /// <summary>Reflect the current filtering mode as a checkmark when the tray menu opens.</summary>
-    private void OnTrayMenuOpened(object sender, RoutedEventArgs e)
+    /// <summary>Refresh checkmarks and saved profiles whenever the tray opens.</summary>
+    private async void OnTrayMenuOpened(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel vm)
         {
             TrayModeNormal.IsChecked = vm.FilteringMode == "normal";
             TrayModeNotify.IsChecked = vm.FilteringMode == "notify";
             TrayModeLearning.IsChecked = vm.FilteringMode == "learning";
+            await RefreshTrayProfilesAsync(vm);
         }
     }
+
+    private async Task RefreshTrayProfilesAsync(MainViewModel vm)
+    {
+        var generation = Interlocked.Increment(ref _trayProfileRefreshGeneration);
+        RenderTrayProfileStatus(I18n.T("Tray_ProfilesLoading", "Loading saved profiles…"));
+        if (!vm.IsConnected || vm.Tools is not { } tools)
+        {
+            RenderTrayProfileStatus(I18n.T(
+                "Tray_ProfilesUnavailable",
+                "Profiles unavailable — reconnect to HostsGuardSvc"));
+            return;
+        }
+
+        try
+        {
+            var loaded = await tools.LoadProfilesForTrayAsync();
+            if (generation != Volatile.Read(ref _trayProfileRefreshGeneration))
+            {
+                return;
+            }
+
+            if (!loaded)
+            {
+                RenderTrayProfileStatus(I18n.T(
+                    "Tray_ProfileLoadFailed",
+                    "Could not load profiles: {0}",
+                    tools.StatusText));
+                return;
+            }
+
+            RenderTrayProfiles(tools);
+        }
+        catch (Exception ex)
+        {
+            if (generation == Volatile.Read(ref _trayProfileRefreshGeneration))
+            {
+                RenderTrayProfileStatus(I18n.T(
+                    "Tray_ProfileLoadFailed",
+                    "Could not load profiles: {0}",
+                    ServiceErrors.Describe(ex)));
+            }
+        }
+    }
+
+    private async void OnTrayProfile(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string profile } item
+            || DataContext is not MainViewModel { IsConnected: true, Tools: { } tools })
+        {
+            return;
+        }
+
+        _ = Interlocked.Increment(ref _trayProfileRefreshGeneration);
+        item.IsEnabled = false;
+        RenderTrayProfiles(
+            tools,
+            I18n.T("Tray_ProfileSwitching", "Switching to {0}…", profile),
+            profilesEnabled: false);
+        try
+        {
+            var switched = await tools.SwitchToProfileAsync(profile);
+            var status = switched
+                ? I18n.T("Tray_ProfileSwitched", "Active profile: {0}", tools.ActiveProfileName)
+                : I18n.T("Tray_ProfileSwitchFailed", "Could not switch to {0}: {1}", profile, tools.StatusText);
+            RenderTrayProfiles(tools, status);
+        }
+        catch (Exception ex)
+        {
+            RenderTrayProfiles(tools, I18n.T(
+                "Tray_ProfileSwitchFailed",
+                "Could not switch to {0}: {1}",
+                profile,
+                ServiceErrors.Describe(ex)));
+        }
+
+        e.Handled = true;
+    }
+
+    internal void RenderTrayProfiles(
+        ToolsViewModel tools,
+        string? status = null,
+        bool profilesEnabled = true)
+    {
+        ArgumentNullException.ThrowIfNull(tools);
+        TrayProfiles.Items.Clear();
+        foreach (var profile in tools.Profiles.OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var item = new MenuItem
+            {
+                Header = profile,
+                Tag = profile,
+                IsCheckable = true,
+                IsChecked = profile.Equals(tools.ActiveProfileName, StringComparison.Ordinal),
+                IsEnabled = profilesEnabled,
+                StaysOpenOnClick = true,
+            };
+            item.Click += OnTrayProfile;
+            TrayProfiles.Items.Add(item);
+        }
+
+        if (tools.Profiles.Count == 0)
+        {
+            TrayProfiles.Items.Add(StatusMenuItem(I18n.T("Tray_NoProfiles", "No saved profiles")));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            TrayProfiles.Items.Add(new Separator());
+            TrayProfiles.Items.Add(StatusMenuItem(status));
+        }
+    }
+
+    private void RenderTrayProfileStatus(string status)
+    {
+        TrayProfiles.Items.Clear();
+        TrayProfiles.Items.Add(StatusMenuItem(status));
+    }
+
+    private static MenuItem StatusMenuItem(string status) => new()
+    {
+        Header = status,
+        IsEnabled = false,
+        StaysOpenOnClick = true,
+    };
 
     private void OnTrayGlobalMode(object sender, RoutedEventArgs e)
     {

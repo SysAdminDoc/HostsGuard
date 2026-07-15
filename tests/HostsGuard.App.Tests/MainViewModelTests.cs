@@ -206,6 +206,52 @@ public sealed class MainViewModelTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Tray_profile_path_loads_switches_and_reflects_external_changes()
+    {
+        await _client.Policy.SaveProfileAsync(new Contracts.ProfileRequest { Name = "Home" });
+        await _client.Policy.SaveProfileAsync(new Contracts.ProfileRequest { Name = "Work" });
+        await _client.Policy.SwitchProfileAsync(new Contracts.ProfileRequest { Name = "Work" });
+        using var vm = CreateShell();
+        await vm.ConnectAsync();
+        var tools = vm.Tools!;
+        tools.Should().NotBeNull();
+
+        (await tools.LoadProfilesForTrayAsync()).Should().BeTrue();
+        tools.Profiles.Should().Contain(new[] { "Home", "Work" });
+        tools.ActiveProfileName.Should().Be("Work");
+
+        await _client.Policy.SwitchProfileAsync(new Contracts.ProfileRequest { Name = "Home" });
+        (await tools.LoadProfilesForTrayAsync()).Should().BeTrue();
+        tools.ActiveProfileName.Should().Be("Home", "opening the tray must reflect an external switch");
+
+        (await tools.SwitchToProfileAsync("Work")).Should().BeTrue();
+        tools.ActiveProfileName.Should().Be("Work");
+        (await _client.Policy.ListProfilesAsync(new Contracts.Empty())).Active.Should().Be("Work");
+    }
+
+    [Fact]
+    public async Task Tray_profile_path_reports_settings_lock_rejection_without_losing_profiles()
+    {
+        await _client.Policy.SaveProfileAsync(new Contracts.ProfileRequest { Name = "Work" });
+        (await _client.Policy.SetLockAsync(new Contracts.LockRequest
+        {
+            Action = "enable",
+            Password = "correct-horse-battery-staple",
+        })).Ok.Should().BeTrue();
+        using var vm = CreateShell();
+        await vm.ConnectAsync();
+        var tools = vm.Tools!;
+        tools.Should().NotBeNull();
+
+        (await tools.LoadProfilesForTrayAsync()).Should().BeTrue();
+        (await tools.SwitchToProfileAsync("Work")).Should().BeFalse();
+
+        tools.StatusText.Should().ContainEquivalentOf("locked");
+        tools.Profiles.Should().Contain("Work");
+        tools.ActiveProfileName.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Active_remote_session_warning_can_cancel_global_lockdown()
     {
         var checkedAt = new DateTime(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);

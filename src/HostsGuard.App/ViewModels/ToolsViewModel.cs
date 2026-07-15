@@ -480,6 +480,9 @@ public sealed partial class ToolsViewModel : ObservableObject
     private string _activeProfile = string.Empty;
 
     [ObservableProperty]
+    private string _activeProfileName = string.Empty;
+
+    [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SwitchProfileCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteProfileCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveNetworkProfileRuleCommand))]
@@ -494,20 +497,34 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     public async Task LoadProfilesAsync()
     {
+        _ = await LoadProfilesCoreAsync();
+    }
+
+    internal Task<bool> LoadProfilesForTrayAsync() => LoadProfilesCoreAsync();
+
+    private async Task<bool> LoadProfilesCoreAsync()
+    {
+        var loaded = false;
+        Profiles.Clear();
+        ActiveProfileName = string.Empty;
+        ActiveProfile = I18n.T("Profile_Loading", "Loading network profiles…");
+        SelectedProfile = null;
         await RunServiceActionAsync(I18n.T("Profile_ActionLoad", "Load network profiles"), async () =>
         {
             var list = await _client.Policy.ListProfilesAsync(new Empty());
-            Profiles.Clear();
             foreach (var name in list.Names)
             {
                 Profiles.Add(name);
             }
 
+            ActiveProfileName = list.Active;
             ActiveProfile = list.Active.Length != 0
                 ? I18n.T("Profile_Active", "Active: {0}", list.Active)
                 : I18n.T("Profile_NoneActive", "No active profile");
             SelectedProfile = list.Names.Contains(list.Active) ? list.Active : Profiles.FirstOrDefault();
+            loaded = true;
         });
+        return loaded;
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveProfile))]
@@ -532,27 +549,38 @@ public sealed partial class ToolsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanUseSelectedProfile))]
     public async Task SwitchProfileAsync()
     {
-        if (string.IsNullOrEmpty(SelectedProfile))
+        if (string.IsNullOrWhiteSpace(SelectedProfile))
         {
             return;
         }
 
+        _ = await SwitchToProfileAsync(SelectedProfile);
+    }
+
+    internal async Task<bool> SwitchToProfileAsync(string profile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile);
+        SelectedProfile = profile;
         var warning = await RemoteSessionWarning.DescribeAsync(_client);
         if (warning.Length != 0 && !_confirm.Confirm(
                 I18n.T("Profile_RemoteSwitchTitle", "Switch network profile during Remote Desktop use"),
                 RemoteSessionWarning.AppendTo(
-                    I18n.T("Profile_RemoteSwitchMessage", "Switch to network profile '{0}'? Its saved policy may change firewall or hosts enforcement.", SelectedProfile),
+                    I18n.T("Profile_RemoteSwitchMessage", "Switch to network profile '{0}'? Its saved policy may change firewall or hosts enforcement.", profile),
                     warning)))
         {
-            return;
+            StatusText = I18n.T("Profile_SwitchCancelled", "Profile switch cancelled");
+            return false;
         }
 
+        var switched = false;
         await RunServiceActionAsync(I18n.T("Profile_ActionSwitch", "Switch network profile"), async () =>
         {
-            var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = SelectedProfile });
+            var ack = await _client.Policy.SwitchProfileAsync(new ProfileRequest { Name = profile });
             StatusText = ack.Message;
-            await LoadProfilesAsync();
+            switched = ack.Ok;
+            _ = await LoadProfilesCoreAsync();
         });
+        return switched;
     }
 
     [RelayCommand(CanExecute = nameof(CanUseSelectedProfile))]
