@@ -359,6 +359,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             Reason = "Manual allow",
             Bytes = 2_621_440,
         });
+        // Exercise the shared collapsible group header in release screenshots
+        // without persisting a view preference to the operator's profile.
+        Activity.RowsView.GroupDescriptions.Clear();
+        Activity.RowsView.GroupDescriptions.Add(
+            new System.Windows.Data.PropertyGroupDescription(nameof(ActivityRowViewModel.Root)));
         Activity.IntegrityStatusText = "Evidence is incomplete — DNS ETW degraded since 14:00 (lost 3, gaps 0, restarts 1): observing after buffer loss";
 
         Alerts!.Alerts.Add(new AlertRowViewModel

@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.151] - 2026-07-14
+
+### Changed
+- Hosts Activity and Firewall Activity group-by views now share the same
+  keyboard-focusable chevron header, collapsed/expanded behavior, count format,
+  and automation naming. Hosts root headers retain their header-only hide-group
+  action without applying that menu to data rows.
+
 ## [0.12.150] - 2026-07-14
 
 ### Changed

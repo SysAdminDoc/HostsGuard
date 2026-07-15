@@ -694,39 +694,34 @@
                                   AutomationProperties.Name="{svc:Loc Key=Xaml_DNS_activity_feed_3e3cfef1}"
                                   IsVisibleChanged="OnGridVisible">
                             <DataGrid.GroupStyle>
-                                <!-- Flat section headers: a styled band per root with the
-                                     normal grid rows directly beneath - same layout as the
-                                     ungrouped feed, just sectioned. Right-click hides the root. -->
+                                <!-- Shared collapsible group header; right-clicking only the
+                                     header retains the Hosts-specific hide-root action. -->
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
                                         <Style TargetType="{x:Type GroupItem}">
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="{x:Type GroupItem}">
-                                                        <StackPanel>
-                                                            <Border Background="{DynamicResource Hg.Mantle}"
-                                                                    BorderBrush="{DynamicResource Hg.S0}"
-                                                                    BorderThickness="0,1,0,1"
-                                                                    Padding="8,4" Cursor="Hand"
-                                                                    Tag="{Binding RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                    ToolTip="{svc:Loc Key=Xaml_Right_click_to_hide_this_group_8b651c7a}">
-                                                                <Border.ContextMenu>
-                                                                    <ContextMenu>
-                                                                        <MenuItem Header="{svc:Loc Key=Xaml_Hide_this_group_cc5d662f}"
-                                                                                  Command="{Binding PlacementTarget.Tag.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                                                  CommandParameter="{Binding Name}"
-                                                                                  ToolTip="{svc:Loc Key=Xaml_Hide_every_domain_currently_listed_under_28de8cef}" />
-                                                                    </ContextMenu>
-                                                                </Border.ContextMenu>
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
-                                                                               Foreground="{DynamicResource Hg.Blue}" />
-                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' - {0} domains'}"
+                                                        <Expander Style="{StaticResource Hg.DataGridGroup}">
+                                                            <Expander.Header>
+                                                                <StackPanel Orientation="Horizontal"
+                                                                            Tag="{Binding RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                            ToolTip="{svc:Loc Key=Xaml_Right_click_to_hide_this_group_8b651c7a}">
+                                                                    <StackPanel.ContextMenu>
+                                                                        <ContextMenu>
+                                                                            <MenuItem Header="{svc:Loc Key=Xaml_Hide_this_group_cc5d662f}"
+                                                                                      Command="{Binding PlacementTarget.Tag.DataContext.HideGroupCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                                      CommandParameter="{Binding PlacementTarget.DataContext.Name, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                                                      ToolTip="{svc:Loc Key=Xaml_Hide_every_domain_currently_listed_under_28de8cef}" />
+                                                                        </ContextMenu>
+                                                                    </StackPanel.ContextMenu>
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding ItemCount, StringFormat=' ({0})'}"
                                                                                Style="{StaticResource Hg.DimText}" />
                                                                 </StackPanel>
-                                                            </Border>
+                                                            </Expander.Header>
                                                             <ItemsPresenter />
-                                                        </StackPanel>
+                                                        </Expander>
                                                     </ControlTemplate>
                                                 </Setter.Value>
                                             </Setter>
@@ -2016,7 +2011,7 @@
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="{x:Type GroupItem}">
-                                                        <Expander IsExpanded="True" Margin="0,2,0,0">
+                                                        <Expander Style="{StaticResource Hg.DataGridGroup}">
                                                             <Expander.Header>
                                                                 <StackPanel Orientation="Horizontal">
                                                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />

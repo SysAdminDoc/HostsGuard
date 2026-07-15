@@ -1341,6 +1341,15 @@
         </Setter>
     </Style>
 
+    <!-- Shared group-by affordance for activity grids. Keep grouping visually and
+         behaviorally consistent while allowing each header to add its own menu. -->
+    <Style x:Key="Hg.DataGridGroup" TargetType="Expander"
+           BasedOn="{StaticResource {x:Type Expander}}">
+        <Setter Property="IsExpanded" Value="True" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+    </Style>
+
     <Style TargetType="ComboBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource Hg.Text}" />
         <Setter Property="Padding" Value="8,4" />

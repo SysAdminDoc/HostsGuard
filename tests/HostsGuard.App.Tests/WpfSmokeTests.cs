@@ -846,6 +846,32 @@ public sealed class WpfSmokeTests
                         captureIds.Add(captureId).Should().BeTrue("capture identifiers must be unique");
                         AssertRenderedPixels((FrameworkElement)window.Content, item, captureId);
 
+                        if (item.State == "populated" && tab is 0 or 3)
+                        {
+                            var groupName = tab == 0 ? "matrix.example" : "matrix.exe";
+                            var group = Descendants<Expander>(window).Single(expander =>
+                                expander.IsVisible && AutomationProperties.GetName(expander) == groupName);
+                            group.Style.Should().BeSameAs(app.Resources["Hg.DataGridGroup"]);
+                            group.IsExpanded.Should().BeTrue();
+                            ((StackPanel)group.Header).Orientation.Should().Be(Orientation.Horizontal);
+
+                            if (tab == 0)
+                            {
+                                var header = (StackPanel)group.Header;
+                                header.Tag.Should().BeSameAs(window.FindName("ActivityGrid"));
+                                var headerMenu = header.ContextMenu;
+                                headerMenu.Should().NotBeNull("the Hosts group header retains its hide-root action");
+                                headerMenu!.PlacementTarget = header;
+                                var hide = headerMenu!.Items.OfType<MenuItem>().Single();
+                                BindingOperations.GetBinding(hide, MenuItem.CommandParameterProperty)?.Path.Path
+                                    .Should().Be("PlacementTarget.DataContext.Name");
+                                hide.GetBindingExpression(MenuItem.CommandProperty)?.UpdateTarget();
+                                hide.GetBindingExpression(MenuItem.CommandParameterProperty)?.UpdateTarget();
+                                hide.Command.Should().BeSameAs(vm.Activity!.HideGroupCommand);
+                                hide.CommandParameter.Should().Be("matrix.example");
+                            }
+                        }
+
                         foreach (var nested in Descendants<TabControl>(window)
                                      .Where(control => control != tabs && control.IsVisible))
                         {
@@ -933,6 +959,15 @@ public sealed class WpfSmokeTests
             vm.DbBlocked = 40;
             vm.DbAllowed = 2;
             vm.Activity!.Rows.Add(new ActivityRowViewModel { Domain = "matrix.example", Root = "matrix.example" });
+            vm.Activity.GroupByRoot = true;
+            vm.FwActivity!.Rows.Add(new ConnectionRowViewModel
+            {
+                Process = "matrix.exe",
+                Protocol = "TCP",
+                RemoteAddr = "203.0.113.10",
+                RemotePort = 443,
+            });
+            vm.FwActivity.GroupByApp = true;
             vm.Alerts!.AllowlistRecommendations.Add(new AllowlistRecommendationViewModel(
                 "assets.example.test",
                 25,
