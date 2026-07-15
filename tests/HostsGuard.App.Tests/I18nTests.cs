@@ -36,7 +36,11 @@ public sealed class I18nTests
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
             I18n.T("Tab_Tools", "Tools").Should().Be(tools);
             I18n.T("Tab_FirewallRules", "Firewall Rules").Should().Be(fwRules);
-            // A key the satellite omits still falls back to English.
+            // A neutral key intentionally omitted from the satellite falls
+            // back through ResourceManager before the caller's default.
+            I18n.T("Status.ConnectedLoading", "different fallback")
+                .Should().Be("Connected - loading views...");
+            // An entirely unknown key falls back to the caller's English.
             I18n.T("Nope_Missing", "English fallback").Should().Be("English fallback");
         }
         finally
@@ -165,9 +169,9 @@ public sealed class I18nTests
     }
 
     [Theory]
-    [InlineData("Strings.es.resx", 547, 1834)]
-    [InlineData("Strings.de.resx", 543, 1834)]
-    [InlineData("Strings.fr.resx", 541, 1834)]
+    [InlineData("Strings.es.resx", 592, 1890)]
+    [InlineData("Strings.de.resx", 588, 1890)]
+    [InlineData("Strings.fr.resx", 589, 1890)]
     public void Overall_used_string_coverage_is_measured_and_cannot_regress(
         string resourceFile,
         int minimumCovered,
@@ -227,7 +231,7 @@ public sealed class I18nTests
     {
         var keys = NeutralResourceKeys();
         var missing = new List<string>();
-        var pattern = new Regex("I18n\\.T\\(\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
+        var pattern = new Regex("I18n\\s*\\.\\s*T\\s*\\(\\s*\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
         foreach (var file in Directory.EnumerateFiles(AppDir, "*.cs", SearchOption.AllDirectories))
         {
             var text = File.ReadAllText(file);
@@ -245,28 +249,55 @@ public sealed class I18nTests
     }
 
     [Fact]
-    public void Firewall_and_tools_runtime_actions_and_statuses_are_localized()
+    public void App_runtime_actions_statuses_and_service_messages_are_localized()
     {
-        var files = Directory.EnumerateFiles(Path.Combine(AppDir, "ViewModels"), "*.cs")
-            .Where(file =>
-            {
-                var name = Path.GetFileName(file);
-                return name.StartsWith("FwActivityViewModel", StringComparison.Ordinal)
-                       || name.StartsWith("FwRulesViewModel", StringComparison.Ordinal)
-                       || name.StartsWith("ToolsViewModel", StringComparison.Ordinal)
-                       || name.Equals("ToolsRows.cs", StringComparison.Ordinal);
-            });
+        var viewModelDir = Path.Combine(AppDir, "ViewModels");
+        var serviceDir = Path.Combine(AppDir, "Services");
+        var files = Directory.EnumerateFiles(viewModelDir, "*.cs")
+            .Concat(Directory.EnumerateFiles(serviceDir, "*.cs"));
         var rawAction = new Regex("(?:RunServiceActionAsync|ServiceActionGuard\\.RunAsync|_confirm\\.Confirm|_prompt\\?\\.Ask)\\(\\s*\\$?\"", RegexOptions.Compiled);
         var rawStatus = new Regex(
             "\\b(?:StatusText|HistoryStatus|EventStatus|BandwidthStatus|UsageStatus|UsageQuotaStatus|TimelineStatus|DecisionSummary|FlowTeardownText|ListenerStatus|AnalysisStatus|LearnedStatus|InspectResult|ActiveProfile|EchPostureText|SecureRulesText)\\s*=\\s*\\$?\"",
             RegexOptions.Compiled);
-        var offenders = files
-            .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, index)))
-            .Where(item => rawAction.IsMatch(item.line) || rawStatus.IsMatch(item.line))
-            .Select(item => $"{Path.GetFileName(item.file)}:{item.index + 1}")
-            .ToList();
+        var rawServiceMessage = new Regex(
+            "(?:\\breturn\\s+|Unavailable\\([^,\\r\\n]+,\\s*|Filter\\s*=\\s*(?:filter\\s*\\?\\?\\s*)?|^\\s*[?:]\\s*)\\$?\"(?=[^\"]*\\s)[^\"]+\"",
+            RegexOptions.Compiled);
+        var offenders = new List<string>();
+        foreach (var file in files)
+        {
+            var isService = Path.GetDirectoryName(file)!.Equals(serviceDir, StringComparison.OrdinalIgnoreCase);
+            var isVerificationOnly = Path.GetFileName(file).Equals("VisualSmokeRunner.cs", StringComparison.Ordinal);
+            var inVisualFixture = false;
+            foreach (var (line, index) in File.ReadLines(file).Select((line, index) => (line, index)))
+            {
+                if (Path.GetFileName(file).Equals("MainViewModel.cs", StringComparison.Ordinal))
+                {
+                    if (line.Contains("internal void PrepareVisualSmokeFixture()", StringComparison.Ordinal))
+                    {
+                        inVisualFixture = true;
+                    }
+                    else if (line.Contains("internal void PrepareVisualSmokeConnectionFixture()", StringComparison.Ordinal))
+                    {
+                        inVisualFixture = false;
+                    }
+                }
 
-        offenders.Should().BeEmpty("operator-visible runtime actions and statuses must use I18n.T");
+                if (inVisualFixture || isVerificationOnly)
+                {
+                    continue;
+                }
+
+                if (rawAction.IsMatch(line)
+                    || rawStatus.IsMatch(line)
+                    || (isService && rawServiceMessage.IsMatch(line)))
+                {
+                    offenders.Add($"{Path.GetRelativePath(AppDir, file)}:{index + 1}");
+                }
+            }
+        }
+
+        offenders.Should().BeEmpty(
+            "every app-side service and view model must resource operator-visible runtime actions, statuses, and messages");
     }
 
     [Fact]
@@ -451,7 +482,7 @@ public sealed class I18nTests
     private static IReadOnlySet<string> UsedLocalizationKeys()
     {
         var keys = LocalizedXamlFiles().SelectMany(XamlKeys).ToHashSet(StringComparer.Ordinal);
-        var pattern = new Regex("I18n\\.T\\(\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
+        var pattern = new Regex("I18n\\s*\\.\\s*T\\s*\\(\\s*\"(?<key>[^\"]+)\"", RegexOptions.Compiled);
         foreach (var file in Directory.EnumerateFiles(AppDir, "*.cs", SearchOption.AllDirectories))
         {
             keys.UnionWith(pattern.Matches(File.ReadAllText(file)).Select(match => match.Groups["key"].Value));

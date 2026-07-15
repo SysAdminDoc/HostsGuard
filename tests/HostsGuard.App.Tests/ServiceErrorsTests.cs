@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using FluentAssertions;
 using Grpc.Core;
 using HostsGuard.App.Services;
@@ -85,5 +86,25 @@ public sealed class ServiceErrorsTests
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("bad view state");
+    }
+
+    [Fact]
+    public void Service_error_wrappers_follow_the_current_ui_culture()
+    {
+        var original = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("es-ES");
+
+            ServiceErrors.Describe(Rpc(StatusCode.Unknown, "detalle técnico"))
+                .Should().Be("El servicio HostsGuard informó de un error: detalle técnico");
+            ServiceErrors.DescribeActionFailure("Bloquear dominio", Rpc(StatusCode.Unavailable))
+                .Should().StartWith("Error en Bloquear dominio")
+                .And.Contain("barra de estado");
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = original;
+        }
     }
 }

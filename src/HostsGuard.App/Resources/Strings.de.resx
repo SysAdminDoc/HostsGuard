@@ -594,4 +594,34 @@
   <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>Eine aktive Remotedesktop-Sitzung kann getrennt werden: {0}. Fahren Sie nur fort, wenn Sie lokal erneut verbinden können.</value></data>
   <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Netzwerkprofil während Remotedesktop-Nutzung wechseln</value></data>
   <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Zum Netzwerkprofil „{0}“ wechseln? Die gespeicherte Richtlinie kann Firewall- oder Hosts-Durchsetzung ändern.</value></data>
+  <data name="ServiceError_OlderService" xml:space="preserve"><value>Der HostsGuard-Dienst ist älter als diese App und unterstützt diese Aktion nicht. Installieren Sie HostsGuard erneut oder starten Sie HostsGuardSvc nach dem Update neu und versuchen Sie es erneut.</value></data>
+  <data name="ServiceError_Reported" xml:space="preserve"><value>Der HostsGuard-Dienst hat einen Fehler gemeldet: {0}</value></data>
+  <data name="ServiceError_Internal" xml:space="preserve"><value>Beim Verarbeiten dieser Aktion ist im HostsGuard-Dienst ein interner Fehler aufgetreten. Der Dienst läuft weiter; die Aktion wurde nicht angewendet. Details stehen im Dienstprotokoll (Werkzeuge → Supportpaket exportieren).</value></data>
+  <data name="ServiceError_ConnectivityAction" xml:space="preserve"><value>{0} fehlgeschlagen — Dienst nicht verfügbar; über die Statusleiste erneut verbinden</value></data>
+  <data name="ServiceError_Action" xml:space="preserve"><value>{0} fehlgeschlagen — {1}</value></data>
+  <data name="Release_UnknownVersion" xml:space="preserve"><value>unbekannt</value></data>
+  <data name="Release_HttpStatus" xml:space="preserve"><value>GitHub gab {0} zurück</value></data>
+  <data name="Release_MissingTag" xml:space="preserve"><value>Die Antwort zur neuesten GitHub-Version enthielt kein Tag</value></data>
+  <data name="Release_Timeout" xml:space="preserve"><value>Zeitüberschreitung der GitHub-Anfrage nach {0:0} Sekunden</value></data>
+  <data name="Release_RequestFailed" xml:space="preserve"><value>GitHub-Anfrage fehlgeschlagen: {0}</value></data>
+  <data name="Release_ParseFailed" xml:space="preserve"><value>GitHub-Antwort konnte nicht verarbeitet werden: {0}</value></data>
+  <data name="Release_CheckFailed" xml:space="preserve"><value>Updateprüfung fehlgeschlagen: {0}</value></data>
+  <data name="Release_DateUnavailable" xml:space="preserve"><value>Datum nicht verfügbar</value></data>
+  <data name="Release_UpdateAvailable" xml:space="preserve"><value>Update verfügbar: {0} (veröffentlicht am {1}). {2}. Keine automatische Installation durchgeführt.</value></data>
+  <data name="Release_UpToDate" xml:space="preserve"><value>HostsGuard ist aktuell: {0} (neueste Version {1}, veröffentlicht am {2}). {3}.</value></data>
+  <data name="Release_InstalledNewer" xml:space="preserve"><value>Die installierte Version {0} ist neuer als die neueste GitHub-Version {1} (veröffentlicht am {2}). {3}.</value></data>
+  <data name="Release_LatestUnavailable" xml:space="preserve"><value>Updateprüfung fehlgeschlagen: Neueste Version nicht verfügbar. {0}.</value></data>
+  <data name="Release_NoAssets" xml:space="preserve"><value>Keine Release-Dateien aufgeführt</value></data>
+  <data name="Release_HashUnavailable" xml:space="preserve"><value>Hash nicht verfügbar</value></data>
+  <data name="Release_AssetCountOne" xml:space="preserve"><value>1 Datei</value></data>
+  <data name="Release_AssetCountMany" xml:space="preserve"><value>{0} Dateien</value></data>
+  <data name="Release_AssetSummary" xml:space="preserve"><value>{0} ({1}, {2}; {3} aufgeführt)</value></data>
+  <data name="Release_SizeBytes" xml:space="preserve"><value>{0} B</value></data>
+  <data name="Release_SizeKilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
+  <data name="Release_SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
+  <data name="FileFilter_All" xml:space="preserve"><value>Alle Dateien ({0})|{0}</value></data>
+  <data name="FileFilter_Programs" xml:space="preserve"><value>Programme ({0})|{0}|Alle Dateien ({1})|{1}</value></data>
+  <data name="RemoteSession_NotReported" xml:space="preserve"><value>nicht gemeldet</value></data>
+  <data name="FwRules_RuleCountOne" xml:space="preserve"><value>1 Regel</value></data>
+  <data name="FwRules_RuleCountMany" xml:space="preserve"><value>{0} Regeln</value></data>
 </root>

@@ -1389,7 +1389,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void SetLanguage(string? tag)
     {
         _config.SaveLanguage(tag ?? string.Empty);
-        var name = AppConfigStore.Languages.FirstOrDefault(l => l.Tag == (tag ?? string.Empty)).Name
+        var name = AppConfigStore.LanguageOptions.FirstOrDefault(option => option.Tag == (tag ?? string.Empty))?.Name
             ?? I18n.T("Shell_SystemDefault", "System default");
         ConnectionText = I18n.T("Shell_LanguageSet", "Language set to {0} - restart HostsGuard to apply.", name);
     }

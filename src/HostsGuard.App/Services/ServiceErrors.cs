@@ -38,15 +38,17 @@ public static class ServiceErrors
             {
                 if (rpc.StatusCode is StatusCode.Unimplemented)
                 {
-                    return "The HostsGuard service is older than this app and does not support this action. "
-                           + "Reinstall HostsGuard or restart HostsGuardSvc after updating, then try again.";
+                    return I18n.T("ServiceError_OlderService",
+                        "The HostsGuard service is older than this app and does not support this action. "
+                        + "Reinstall HostsGuard or restart HostsGuardSvc after updating, then try again.");
                 }
 
                 return rpc.Status.Detail.Length != 0 && rpc.Status.Detail != "Exception was thrown by handler."
-                    ? $"The HostsGuard service reported an error: {rpc.Status.Detail}"
-                    : "The HostsGuard service hit an internal error handling this action. "
-                      + "The service is still running — the action was not applied. "
-                      + "Details are in the service log (Tools → Export support bundle).";
+                    ? I18n.T("ServiceError_Reported", "The HostsGuard service reported an error: {0}", rpc.Status.Detail)
+                    : I18n.T("ServiceError_Internal",
+                        "The HostsGuard service hit an internal error handling this action. "
+                        + "The service is still running — the action was not applied. "
+                        + "Details are in the service log (Tools → Export support bundle).");
             }
         }
 
@@ -56,6 +58,6 @@ public static class ServiceErrors
     /// <summary>Action-specific status line for a command that failed against the service.</summary>
     public static string DescribeActionFailure(string action, Exception ex)
         => IsConnectivity(ex)
-            ? $"{action} failed — service unavailable; reconnect from the status bar"
-            : $"{action} failed — {Describe(ex)}";
+            ? I18n.T("ServiceError_ConnectivityAction", "{0} failed — service unavailable; reconnect from the status bar", action)
+            : I18n.T("ServiceError_Action", "{0} failed — {1}", action, Describe(ex));
 }

@@ -16,14 +16,20 @@ public interface IFilePicker
 /// <summary>Open/SaveFileDialog-backed picker used by the running app.</summary>
 public sealed class DialogFilePicker : IFilePicker
 {
-    private const string DefaultFilter = "All files (*.*)|*.*";
+    private static string DefaultFilter => I18n.T("FileFilter_All", "All files ({0})|{0}", "*.*");
+
+    private static string ProgramFilter => I18n.T(
+        "FileFilter_Programs",
+        "Programs ({0})|{0}|All files ({1})|{1}",
+        "*.exe",
+        "*.*");
 
     public string? PickFile(string title, string? initialPath = null, string? filter = null)
     {
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = title,
-            Filter = filter ?? "Programs (*.exe)|*.exe|All files (*.*)|*.*",
+            Filter = filter ?? ProgramFilter,
             CheckFileExists = true,
         };
         if (!string.IsNullOrEmpty(initialPath))

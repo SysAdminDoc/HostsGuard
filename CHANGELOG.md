@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.132] - 2026-07-14
+
+### Changed
+- Service/RPC failures, release-update outcomes, dates, asset plurals and sizes,
+  default file-dialog filters, RDP fallback evidence, and firewall-rule counts
+  now resolve through localized resources in English, Spanish, German, and French.
+- Localization gates now scan every app service and view model, recognize
+  multiline resource calls, and exercise interpolation, plural, date, fallback,
+  and pseudo-locale behavior.
+
 ## [0.12.131] - 2026-07-14
 
 ### Changed

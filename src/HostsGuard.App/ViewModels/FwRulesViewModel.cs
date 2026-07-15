@@ -406,7 +406,9 @@ public sealed partial class FwRulesViewModel : ObservableObject
         }
 
         StatusText = driftCount == 0
-            ? Plural.Of(Rules.Count, "rule")
+            ? Rules.Count == 1
+                ? I18n.T("FwRules_RuleCountOne", "1 rule")
+                : I18n.T("FwRules_RuleCountMany", "{0} rules", Rules.Count)
             : I18n.T("FwRules_Status", "{0} rule(s) - {1} drift event(s)", Rules.Count, driftCount);
         await LoadRuleGroupsCoreAsync();
     }

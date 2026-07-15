@@ -594,4 +594,34 @@
   <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>Une session Bureau à distance active peut être déconnectée : {0}. Continuez uniquement si vous pouvez vous reconnecter localement.</value></data>
   <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Changer de profil réseau pendant une session Bureau à distance</value></data>
   <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Passer au profil réseau « {0} » ? Sa stratégie enregistrée peut modifier l’application du pare-feu ou du fichier hosts.</value></data>
+  <data name="ServiceError_OlderService" xml:space="preserve"><value>Le service HostsGuard est plus ancien que cette application et ne prend pas en charge cette action. Réinstallez HostsGuard ou redémarrez HostsGuardSvc après la mise à jour, puis réessayez.</value></data>
+  <data name="ServiceError_Reported" xml:space="preserve"><value>Le service HostsGuard a signalé une erreur : {0}</value></data>
+  <data name="ServiceError_Internal" xml:space="preserve"><value>Le service HostsGuard a rencontré une erreur interne pendant cette action. Le service fonctionne toujours ; l’action n’a pas été appliquée. Les détails figurent dans le journal du service (Outils → Exporter le paquet d’assistance).</value></data>
+  <data name="ServiceError_ConnectivityAction" xml:space="preserve"><value>Échec de {0} — service indisponible ; reconnectez-vous depuis la barre d’état</value></data>
+  <data name="ServiceError_Action" xml:space="preserve"><value>Échec de {0} — {1}</value></data>
+  <data name="Release_UnknownVersion" xml:space="preserve"><value>inconnue</value></data>
+  <data name="Release_HttpStatus" xml:space="preserve"><value>GitHub a renvoyé {0}</value></data>
+  <data name="Release_MissingTag" xml:space="preserve"><value>La réponse de la dernière version GitHub ne contenait pas de balise</value></data>
+  <data name="Release_Timeout" xml:space="preserve"><value>La requête GitHub a expiré après {0:0} secondes</value></data>
+  <data name="Release_RequestFailed" xml:space="preserve"><value>Échec de la requête GitHub : {0}</value></data>
+  <data name="Release_ParseFailed" xml:space="preserve"><value>La réponse GitHub n’a pas pu être analysée : {0}</value></data>
+  <data name="Release_CheckFailed" xml:space="preserve"><value>Échec de la recherche de mises à jour : {0}</value></data>
+  <data name="Release_DateUnavailable" xml:space="preserve"><value>date indisponible</value></data>
+  <data name="Release_UpdateAvailable" xml:space="preserve"><value>Mise à jour disponible : {0} (publiée le {1}). {2}. Aucune installation automatique effectuée.</value></data>
+  <data name="Release_UpToDate" xml:space="preserve"><value>HostsGuard est à jour : {0} (dernière version {1}, publiée le {2}). {3}.</value></data>
+  <data name="Release_InstalledNewer" xml:space="preserve"><value>La version installée {0} est plus récente que la dernière version GitHub {1} (publiée le {2}). {3}.</value></data>
+  <data name="Release_LatestUnavailable" xml:space="preserve"><value>Échec de la recherche de mises à jour : dernière version indisponible. {0}.</value></data>
+  <data name="Release_NoAssets" xml:space="preserve"><value>Aucun fichier de version répertorié</value></data>
+  <data name="Release_HashUnavailable" xml:space="preserve"><value>hachage indisponible</value></data>
+  <data name="Release_AssetCountOne" xml:space="preserve"><value>1 fichier</value></data>
+  <data name="Release_AssetCountMany" xml:space="preserve"><value>{0} fichiers</value></data>
+  <data name="Release_AssetSummary" xml:space="preserve"><value>{0} ({1}, {2} ; {3} répertorié(s))</value></data>
+  <data name="Release_SizeBytes" xml:space="preserve"><value>{0} o</value></data>
+  <data name="Release_SizeKilobytes" xml:space="preserve"><value>{0:0.#} Ko</value></data>
+  <data name="Release_SizeMegabytes" xml:space="preserve"><value>{0:0.#} Mo</value></data>
+  <data name="FileFilter_All" xml:space="preserve"><value>Tous les fichiers ({0})|{0}</value></data>
+  <data name="FileFilter_Programs" xml:space="preserve"><value>Programmes ({0})|{0}|Tous les fichiers ({1})|{1}</value></data>
+  <data name="RemoteSession_NotReported" xml:space="preserve"><value>non signalé</value></data>
+  <data name="FwRules_RuleCountOne" xml:space="preserve"><value>1 règle</value></data>
+  <data name="FwRules_RuleCountMany" xml:space="preserve"><value>{0} règles</value></data>
 </root>

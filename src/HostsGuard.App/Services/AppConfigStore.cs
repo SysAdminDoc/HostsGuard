@@ -31,24 +31,14 @@ public sealed class AppConfigStore
     /// <summary>UI language BCP-47 tag ("" = follow the Windows display language) — NET-098.</summary>
     public string Language { get; private set; } = string.Empty;
 
-    /// <summary>Offered UI languages: (tag, English name). "" = system default.</summary>
-    public static readonly IReadOnlyList<(string Tag, string Name)> Languages = new[]
-    {
-        ("", "System default"),
-        ("en", "English"),
-        ("es", "Español"),
-        ("de", "Deutsch"),
-        ("fr", "Français"),
-    };
-
     /// <summary>Canonical bound language menu shown by the shell.</summary>
     public static readonly IReadOnlyList<LanguageOption> LanguageOptions = new[]
     {
         new LanguageOption("", "Language_System", "System default"),
         new LanguageOption("en", "Language_English", "English"),
-        new LanguageOption("es", "Language_Spanish", "EspaÃ±ol"),
+        new LanguageOption("es", "Language_Spanish", "Espa\u00f1ol"),
         new LanguageOption("de", "Language_German", "Deutsch"),
-        new LanguageOption("fr", "Language_French", "FranÃ§ais"),
+        new LanguageOption("fr", "Language_French", "Fran\u00e7ais"),
     };
 
     /// <summary>Learning mode: surface trust prompts for unknown processes.</summary>

@@ -30,7 +30,7 @@ public static class RemoteSessionWarning
         if (!status.RemoteSessionObservationAvailable)
         {
             var error = string.IsNullOrWhiteSpace(status.RemoteSessionObservationError)
-                ? "not reported"
+                ? I18n.T("RemoteSession_NotReported", "not reported")
                 : status.RemoteSessionObservationError;
             return I18n.T(
                 "RemoteSession_UnavailableWarning",

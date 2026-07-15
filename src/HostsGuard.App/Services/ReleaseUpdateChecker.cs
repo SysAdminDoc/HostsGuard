@@ -55,7 +55,9 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
     public async Task<ReleaseUpdateResult> CheckAsync(
         string installedVersion, CancellationToken cancellationToken = default)
     {
-        var installed = string.IsNullOrWhiteSpace(installedVersion) ? "unknown" : installedVersion.Trim();
+        var installed = string.IsNullOrWhiteSpace(installedVersion)
+            ? I18n.T("Release_UnknownVersion", "unknown")
+            : installedVersion.Trim();
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -68,7 +70,10 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
                 request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                return Unavailable(installed, $"GitHub returned {DescribeStatus(response.StatusCode, response.ReasonPhrase)}");
+                return Unavailable(installed, I18n.T(
+                    "Release_HttpStatus",
+                    "GitHub returned {0}",
+                    DescribeStatus(response.StatusCode, response.ReasonPhrase)));
             }
 
             await using var body = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
@@ -76,7 +81,9 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
                 body, JsonOptions, timeout.Token).ConfigureAwait(false);
             if (release is null || string.IsNullOrWhiteSpace(release.TagName))
             {
-                return Unavailable(installed, "GitHub latest release response did not include a tag");
+                return Unavailable(installed, I18n.T(
+                    "Release_MissingTag",
+                    "GitHub latest release response did not include a tag"));
             }
 
             var latest = release.TagName.Trim();
@@ -105,20 +112,24 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return Unavailable(installed, $"GitHub request timed out after {_timeout.TotalSeconds:0} seconds");
+            return Unavailable(installed, I18n.T(
+                "Release_Timeout",
+                "GitHub request timed out after {0:0} seconds",
+                _timeout.TotalSeconds));
         }
         catch (HttpRequestException ex)
         {
-            return Unavailable(installed, $"GitHub request failed: {ex.Message}");
+            return Unavailable(installed, I18n.T("Release_RequestFailed", "GitHub request failed: {0}", ex.Message));
         }
         catch (JsonException ex)
         {
-            return Unavailable(installed, $"GitHub response could not be parsed: {ex.Message}");
+            return Unavailable(installed, I18n.T("Release_ParseFailed", "GitHub response could not be parsed: {0}", ex.Message));
         }
     }
 
     private static ReleaseUpdateResult Unavailable(string installedVersion, string message) =>
-        new(ReleaseUpdateState.Unavailable, installedVersion, null, null, [], $"Update check failed: {message}");
+        new(ReleaseUpdateState.Unavailable, installedVersion, null, null, [],
+            I18n.T("Release_CheckFailed", "Update check failed: {0}", message));
 
     private static string BuildMessage(
         ReleaseUpdateState state,
@@ -127,17 +138,25 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
         DateTimeOffset? publishedAt,
         IReadOnlyList<ReleaseAssetInfo> assets)
     {
-        var date = publishedAt?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "date unavailable";
+        var date = publishedAt?.ToString("d", CultureInfo.CurrentCulture)
+            ?? I18n.T("Release_DateUnavailable", "date unavailable");
         var asset = DescribeAsset(assets);
         return state switch
         {
             ReleaseUpdateState.UpdateAvailable =>
-                $"Update available: {latest} (published {date}). {asset}. No auto-install performed.",
+                I18n.T("Release_UpdateAvailable",
+                    "Update available: {0} (published {1}). {2}. No auto-install performed.",
+                    latest, date, asset),
             ReleaseUpdateState.UpToDate =>
-                $"HostsGuard is up to date: {installed} (latest {latest}, published {date}). {asset}.",
+                I18n.T("Release_UpToDate",
+                    "HostsGuard is up to date: {0} (latest {1}, published {2}). {3}.",
+                    installed, latest, date, asset),
             ReleaseUpdateState.InstalledNewer =>
-                $"Installed {installed} is newer than latest GitHub release {latest} (published {date}). {asset}.",
-            _ => $"Update check failed: latest release unavailable. {asset}.",
+                I18n.T("Release_InstalledNewer",
+                    "Installed {0} is newer than latest GitHub release {1} (published {2}). {3}.",
+                    installed, latest, date, asset),
+            _ => I18n.T("Release_LatestUnavailable",
+                "Update check failed: latest release unavailable. {0}.", asset),
         };
     }
 
@@ -145,31 +164,34 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
     {
         if (assets.Count == 0)
         {
-            return "No release assets listed";
+            return I18n.T("Release_NoAssets", "No release assets listed");
         }
 
         var asset = assets.FirstOrDefault(a => a.Name.Contains("Setup", StringComparison.OrdinalIgnoreCase))
             ?? assets[0];
-        var digest = asset.Digest ?? "hash unavailable";
-        var total = assets.Count == 1 ? "1 asset" : $"{assets.Count.ToString(CultureInfo.InvariantCulture)} assets";
-        return $"{asset.Name} ({FormatSize(asset.Size)}, {digest}; {total} listed)";
+        var digest = asset.Digest ?? I18n.T("Release_HashUnavailable", "hash unavailable");
+        var total = assets.Count == 1
+            ? I18n.T("Release_AssetCountOne", "1 asset")
+            : I18n.T("Release_AssetCountMany", "{0} assets", assets.Count);
+        return I18n.T("Release_AssetSummary", "{0} ({1}, {2}; {3} listed)",
+            asset.Name, FormatSize(asset.Size), digest, total);
     }
 
     private static string FormatSize(long bytes)
     {
         if (bytes < 1024)
         {
-            return $"{bytes.ToString(CultureInfo.InvariantCulture)} B";
+            return I18n.T("Release_SizeBytes", "{0} B", bytes);
         }
 
         var kb = bytes / 1024.0;
         if (kb < 1024)
         {
-            return $"{kb.ToString("0.#", CultureInfo.InvariantCulture)} KB";
+            return I18n.T("Release_SizeKilobytes", "{0:0.#} KB", kb);
         }
 
         var mb = kb / 1024.0;
-        return $"{mb.ToString("0.#", CultureInfo.InvariantCulture)} MB";
+        return I18n.T("Release_SizeMegabytes", "{0:0.#} MB", mb);
     }
 
     private static int CompareVersions(string installed, string latest)
@@ -229,13 +251,13 @@ public sealed class ReleaseUpdateChecker : IReleaseUpdateChecker
 
     private static string UserAgentVersion(string installed) =>
         TryParseSemVer(installed, out var version)
-            ? $"{version.Major}.{version.Minor}.{version.Build}"
+            ? version.ToString(3)
             : "0";
 
     private static string DescribeStatus(HttpStatusCode status, string? reason)
     {
         var label = string.IsNullOrWhiteSpace(reason) ? status.ToString() : reason.Trim();
-        return $"{(int)status} {label}";
+        return string.Concat(((int)status).ToString(CultureInfo.InvariantCulture), " ", label);
     }
 
     private sealed class GitHubReleaseDto

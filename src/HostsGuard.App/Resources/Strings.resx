@@ -1918,4 +1918,34 @@
   <data name="RemoteSession_ActiveWarning" xml:space="preserve"><value>An active Remote Desktop session may be disconnected: {0}. Continue only if you can reconnect locally.</value></data>
   <data name="Profile_RemoteSwitchTitle" xml:space="preserve"><value>Switch network profile during Remote Desktop use</value></data>
   <data name="Profile_RemoteSwitchMessage" xml:space="preserve"><value>Switch to network profile '{0}'? Its saved policy may change firewall or hosts enforcement.</value></data>
+  <data name="ServiceError_OlderService" xml:space="preserve"><value>The HostsGuard service is older than this app and does not support this action. Reinstall HostsGuard or restart HostsGuardSvc after updating, then try again.</value></data>
+  <data name="ServiceError_Reported" xml:space="preserve"><value>The HostsGuard service reported an error: {0}</value></data>
+  <data name="ServiceError_Internal" xml:space="preserve"><value>The HostsGuard service hit an internal error handling this action. The service is still running — the action was not applied. Details are in the service log (Tools → Export support bundle).</value></data>
+  <data name="ServiceError_ConnectivityAction" xml:space="preserve"><value>{0} failed — service unavailable; reconnect from the status bar</value></data>
+  <data name="ServiceError_Action" xml:space="preserve"><value>{0} failed — {1}</value></data>
+  <data name="Release_UnknownVersion" xml:space="preserve"><value>unknown</value></data>
+  <data name="Release_HttpStatus" xml:space="preserve"><value>GitHub returned {0}</value></data>
+  <data name="Release_MissingTag" xml:space="preserve"><value>GitHub latest release response did not include a tag</value></data>
+  <data name="Release_Timeout" xml:space="preserve"><value>GitHub request timed out after {0:0} seconds</value></data>
+  <data name="Release_RequestFailed" xml:space="preserve"><value>GitHub request failed: {0}</value></data>
+  <data name="Release_ParseFailed" xml:space="preserve"><value>GitHub response could not be parsed: {0}</value></data>
+  <data name="Release_CheckFailed" xml:space="preserve"><value>Update check failed: {0}</value></data>
+  <data name="Release_DateUnavailable" xml:space="preserve"><value>date unavailable</value></data>
+  <data name="Release_UpdateAvailable" xml:space="preserve"><value>Update available: {0} (published {1}). {2}. No auto-install performed.</value></data>
+  <data name="Release_UpToDate" xml:space="preserve"><value>HostsGuard is up to date: {0} (latest {1}, published {2}). {3}.</value></data>
+  <data name="Release_InstalledNewer" xml:space="preserve"><value>Installed {0} is newer than latest GitHub release {1} (published {2}). {3}.</value></data>
+  <data name="Release_LatestUnavailable" xml:space="preserve"><value>Update check failed: latest release unavailable. {0}.</value></data>
+  <data name="Release_NoAssets" xml:space="preserve"><value>No release assets listed</value></data>
+  <data name="Release_HashUnavailable" xml:space="preserve"><value>hash unavailable</value></data>
+  <data name="Release_AssetCountOne" xml:space="preserve"><value>1 asset</value></data>
+  <data name="Release_AssetCountMany" xml:space="preserve"><value>{0} assets</value></data>
+  <data name="Release_AssetSummary" xml:space="preserve"><value>{0} ({1}, {2}; {3} listed)</value></data>
+  <data name="Release_SizeBytes" xml:space="preserve"><value>{0} B</value></data>
+  <data name="Release_SizeKilobytes" xml:space="preserve"><value>{0:0.#} KB</value></data>
+  <data name="Release_SizeMegabytes" xml:space="preserve"><value>{0:0.#} MB</value></data>
+  <data name="FileFilter_All" xml:space="preserve"><value>All files ({0})|{0}</value></data>
+  <data name="FileFilter_Programs" xml:space="preserve"><value>Programs ({0})|{0}|All files ({1})|{1}</value></data>
+  <data name="RemoteSession_NotReported" xml:space="preserve"><value>not reported</value></data>
+  <data name="FwRules_RuleCountOne" xml:space="preserve"><value>1 rule</value></data>
+  <data name="FwRules_RuleCountMany" xml:space="preserve"><value>{0} rules</value></data>
 </root>
