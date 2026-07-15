@@ -784,6 +784,9 @@
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Autoriser le domaine recommande</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>{0} a ete autorise ; la recommandation a ete retiree</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="FwActivity_CommandGroupMode" xml:space="preserve"><value>Mode</value></data>
+  <data name="FwActivity_CommandGroupView" xml:space="preserve"><value>Affichage</value></data>
+  <data name="FwActivity_CommandGroupSearch" xml:space="preserve"><value>Rechercher et expliquer</value></data>
   <data name="ToolsNav_Name" xml:space="preserve"><value>Sections des outils</value></data>
   <data name="ToolsNav_Overview" xml:space="preserve"><value>Vue d’ensemble</value></data>
   <data name="ToolsNav_Network" xml:space="preserve"><value>Réseau et DNS</value></data>

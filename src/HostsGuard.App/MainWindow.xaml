@@ -1889,7 +1889,21 @@
 
                         <!-- Modes: lockdown = default-outbound Block; learning/observe persist to config -->
                         <Border Grid.Row="0" Style="{StaticResource Hg.CommandBar}" Margin="0,0,0,8">
-                        <WrapPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="7*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="5*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="6*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" x:Name="FwActivityModeGroup"
+                                        AutomationProperties.Name="{svc:Loc Key=FwActivity_CommandGroupMode}">
+                                <TextBlock Text="{svc:Loc Key=FwActivity_CommandGroupMode}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <WrapPanel>
                             <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Lockdown_8ba04349}" Margin="0,0,14,0" VerticalAlignment="Center"
                                       IsChecked="{Binding Lockdown}"
                                       ToolTip="{svc:Loc Key=Xaml_Set_the_default_outbound_action_to_26ed8581}" />
@@ -1914,6 +1928,18 @@
                             <TextBlock DockPanel.Dock="Right" Text="{Binding PostureText}"
                                        Style="{StaticResource Hg.DimText}" VerticalAlignment="Center"
                                        TextWrapping="Wrap" MaxWidth="520" />
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Width="1" Margin="12,0"
+                                    Background="{DynamicResource Hg.S0}" />
+
+                            <StackPanel Grid.Column="2" x:Name="FwActivityViewGroup"
+                                        AutomationProperties.Name="{svc:Loc Key=FwActivity_CommandGroupView}">
+                                <TextBlock Text="{svc:Loc Key=FwActivity_CommandGroupView}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <WrapPanel>
                             <CheckBox DockPanel.Dock="Right" Margin="10,0,0,0" VerticalAlignment="Center"
                                       IsChecked="{Binding FlowTeardownEnabled}"
                                       AutomationProperties.Name="{svc:Loc Key=Xaml_Close_matching_IPv4_TCP_flows_on_block_b80df497}"
@@ -1939,6 +1965,18 @@
                                       ToolTip="{svc:Loc Key=Xaml_Group_the_live_connections_by_remote_925f45c1}">
                                 <TextBlock Text="{svc:Loc Key=Xaml_Group_by_country_20629707}" TextWrapping="Wrap" />
                             </CheckBox>
+                                </WrapPanel>
+                            </StackPanel>
+
+                            <Border Grid.Column="3" Width="1" Margin="12,0"
+                                    Background="{DynamicResource Hg.S0}" />
+
+                            <StackPanel Grid.Column="4" x:Name="FwActivitySearchGroup"
+                                        AutomationProperties.Name="{svc:Loc Key=FwActivity_CommandGroupSearch}">
+                                <TextBlock Text="{svc:Loc Key=FwActivity_CommandGroupSearch}"
+                                           Style="{StaticResource Hg.DimText}"
+                                           FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <WrapPanel>
                             <TextBox Margin="0,0,0,0" VerticalAlignment="Center"
                                      Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource Hg.HintBox}"
@@ -1957,7 +1995,9 @@
                                     ToolTip="{svc:Loc Key=Xaml_Show_the_ordered_hosts_firewall_trust_7b7cc959}">
                                 <TextBlock Text="{svc:Loc Key=Xaml_Explain_55cbfd1b}" TextWrapping="Wrap" />
                             </Button>
-                        </WrapPanel>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
                         </Border>
 
                         <Grid Grid.Row="1" MinHeight="180">

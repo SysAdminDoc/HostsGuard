@@ -436,6 +436,20 @@ public sealed class WpfSmokeTests
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)
                     .Should().Contain("Create HostsGuard rule");
 
+                mainTabs.SelectedIndex = 3; // FW Activity.
+                window.UpdateLayout();
+                var modeGroup = (StackPanel)window.FindName("FwActivityModeGroup");
+                var viewGroup = (StackPanel)window.FindName("FwActivityViewGroup");
+                var searchGroup = (StackPanel)window.FindName("FwActivitySearchGroup");
+                System.Windows.Automation.AutomationProperties.GetName(modeGroup).Should().Be("Mode");
+                System.Windows.Automation.AutomationProperties.GetName(viewGroup).Should().Be("View");
+                System.Windows.Automation.AutomationProperties.GetName(searchGroup).Should().Be("Search & explain");
+                Descendants<CheckBox>(modeGroup).Should().HaveCount(5);
+                Descendants<CheckBox>(viewGroup).Should().HaveCount(4);
+                Descendants<Button>(viewGroup).Should().ContainSingle();
+                Descendants<TextBox>(searchGroup).Should().HaveCount(2);
+                Descendants<Button>(searchGroup).Should().ContainSingle();
+
                 mainTabs.SelectedIndex = 5; // Tools.
                 window.UpdateLayout();
                 LogicalDescendants<TextBlock>(window).Select(t => t.Text)

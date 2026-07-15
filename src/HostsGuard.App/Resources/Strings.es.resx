@@ -785,6 +785,9 @@
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Permitir dominio recomendado</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>Se permitio {0}; se elimino la recomendacion</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>Aceptar</value></data>
+  <data name="FwActivity_CommandGroupMode" xml:space="preserve"><value>Modo</value></data>
+  <data name="FwActivity_CommandGroupView" xml:space="preserve"><value>Vista</value></data>
+  <data name="FwActivity_CommandGroupSearch" xml:space="preserve"><value>Buscar y explicar</value></data>
   <data name="ToolsNav_Name" xml:space="preserve"><value>Secciones de herramientas</value></data>
   <data name="ToolsNav_Overview" xml:space="preserve"><value>Resumen</value></data>
   <data name="ToolsNav_Network" xml:space="preserve"><value>Red y DNS</value></data>

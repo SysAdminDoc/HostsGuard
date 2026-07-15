@@ -2,6 +2,14 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.150] - 2026-07-14
+
+### Changed
+- Firewall Activity now separates its command bar into localized Mode, View,
+  and Search & explain sections with visible dividers and independent wrapping.
+  Existing posture, enrichment, grouping, search, and explanation behavior is
+  unchanged, while narrow and pseudo-localized layouts remain readable.
+
 ## [0.12.149] - 2026-07-14
 
 ### Changed
