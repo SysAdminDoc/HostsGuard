@@ -167,4 +167,148 @@ public class DesignatedResolverTests
         rec!.IsEncrypted.Should().BeFalse();
         rec.DohEndpoint.Should().BeNull(); // no dohpath
     }
+
+    [Fact]
+    public void Parses_multiple_dhcpv4_dnr_instances_and_preserves_priority()
+    {
+        var first = BuildDnrV4Instance(
+            0,
+            new[] { "doh", "example" },
+            new byte[] { 192, 0, 2, 53 },
+            (1, AlpnValue("h2")),
+            (3, new byte[] { 0x01, 0xbb }),
+            (7, System.Text.Encoding.ASCII.GetBytes("/dns-query{?dns}")));
+        var second = BuildDnrV4Instance(20, new[] { "resolver", "example" });
+
+        var records = DesignatedResolver.ParseDnrV4Option(first.Concat(second).ToArray());
+
+        records.Should().HaveCount(2);
+        records![0].Resolver.Priority.Should().Be(0);
+        records[0].Resolver.TargetName.Should().Be("doh.example");
+        records[0].Resolver.IsEncrypted.Should().BeTrue();
+        records[0].Addresses.Should().Equal("192.0.2.53");
+        records[0].AdnOnly.Should().BeFalse();
+        records[1].Resolver.Priority.Should().Be(20);
+        records[1].AdnOnly.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Rejects_forbidden_dnr_addresses_and_hint_parameters(bool loopback, bool hint)
+    {
+        var address = loopback ? new byte[] { 127, 0, 0, 1 } : new byte[] { 192, 0, 2, 53 };
+        var parameters = hint
+            ? new[] { (4, new byte[] { 192, 0, 2, 1 }) }
+            : new[] { (1, AlpnValue("h2")) };
+
+        DesignatedResolver.ParseDnrV4Option(
+            BuildDnrV4Instance(1, new[] { "resolver", "example" }, address, parameters))
+            .Should().BeNull();
+    }
+
+    [Fact]
+    public void Rejects_truncated_dnr_instance_instead_of_returning_partial_data()
+    {
+        var valid = BuildDnrV4Instance(1, new[] { "resolver", "example" });
+        var truncated = valid.Concat(new byte[] { 0, 9, 0, 1 }).ToArray();
+
+        DesignatedResolver.ParseDnrV4Option(truncated).Should().BeNull();
+    }
+
+    [Fact]
+    public void Parses_dhcpv6_dnr_and_rejects_multicast_address()
+    {
+        var valid = BuildDnrV6(
+            7,
+            new[] { "resolver", "example" },
+            System.Net.IPAddress.Parse("2001:db8::53"),
+            (1, AlpnValue("doq")));
+
+        var record = DesignatedResolver.ParseDnrV6Option(valid);
+
+        record.Should().NotBeNull();
+        record!.Resolver.Priority.Should().Be(7);
+        record.Resolver.TargetName.Should().Be("resolver.example");
+        record.Resolver.Alpn.Should().Equal("doq");
+        record.Addresses.Should().Equal("2001:db8::53");
+        record.AdnOnly.Should().BeFalse();
+        DesignatedResolver.ParseDnrV6Option(BuildDnrV6(
+            7,
+            new[] { "resolver", "example" },
+            System.Net.IPAddress.Parse("ff02::53"),
+            (1, AlpnValue("doq")))).Should().BeNull();
+    }
+
+    private static byte[] BuildDnrV4Instance(
+        int priority,
+        string[] targetLabels,
+        byte[]? addresses = null,
+        params (int Key, byte[] Value)[] svcParams)
+    {
+        var name = new List<byte>();
+        foreach (var label in targetLabels)
+        {
+            name.Add((byte)label.Length);
+            name.AddRange(System.Text.Encoding.ASCII.GetBytes(label));
+        }
+        name.Add(0);
+
+        var body = new List<byte>
+        {
+            (byte)(priority >> 8),
+            (byte)priority,
+            (byte)name.Count,
+        };
+        body.AddRange(name);
+        if (addresses is not null)
+        {
+            body.Add((byte)addresses.Length);
+            body.AddRange(addresses);
+            foreach (var (key, value) in svcParams)
+            {
+                body.Add((byte)(key >> 8));
+                body.Add((byte)key);
+                body.Add((byte)(value.Length >> 8));
+                body.Add((byte)value.Length);
+                body.AddRange(value);
+            }
+        }
+
+        return new[] { (byte)(body.Count >> 8), (byte)body.Count }.Concat(body).ToArray();
+    }
+
+    private static byte[] BuildDnrV6(
+        int priority,
+        string[] targetLabels,
+        System.Net.IPAddress address,
+        params (int Key, byte[] Value)[] svcParams)
+    {
+        var name = new List<byte>();
+        foreach (var label in targetLabels)
+        {
+            name.Add((byte)label.Length);
+            name.AddRange(System.Text.Encoding.ASCII.GetBytes(label));
+        }
+        name.Add(0);
+        var body = new List<byte>
+        {
+            (byte)(priority >> 8), (byte)priority,
+            (byte)(name.Count >> 8), (byte)name.Count,
+        };
+        body.AddRange(name);
+        var addresses = address.GetAddressBytes();
+        body.Add((byte)(addresses.Length >> 8));
+        body.Add((byte)addresses.Length);
+        body.AddRange(addresses);
+        foreach (var (key, value) in svcParams)
+        {
+            body.Add((byte)(key >> 8));
+            body.Add((byte)key);
+            body.Add((byte)(value.Length >> 8));
+            body.Add((byte)value.Length);
+            body.AddRange(value);
+        }
+        return body.ToArray();
+    }
 }

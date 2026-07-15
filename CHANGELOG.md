@@ -2,6 +2,22 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.144] - 2026-07-14
+
+### Added
+- Tools and `HostsGuard.Cli encrypted-resolver` can run report-only RFC 9462
+  DDR discovery against each adapter's configured resolver and inspect RFC 9463
+  DHCPv4/v6 DNR options 162/144 without adopting any discovered endpoint.
+- An initial per-source designation baseline is persisted; changed or malformed
+  DDR/DNR data raises a surfaced alert, with an explicit lock-protected action
+  to trust a legitimate current network state.
+
+### Changed
+- Direct DDR queries use the documented Windows 11 `DnsQueryEx` request-v3
+  custom-server path with an explicit interface index. DHCP option reads are
+  bounded behind one worker so the documented two-minute native wait cannot
+  accumulate service threads or block the desktop.
+
 ## [0.12.143] - 2026-07-14
 
 ### Added

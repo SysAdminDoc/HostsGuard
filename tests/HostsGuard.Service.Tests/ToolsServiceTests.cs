@@ -113,17 +113,37 @@ internal sealed class FakeServiceBindingQuery : IDnsServiceBindingQuery
 {
     public Dictionary<ushort, DnsRawQueryResult> Results { get; } = new();
 
+    public List<DnsQueryTarget?> Targets { get; } = [];
+
     public Task<DnsRawQueryResult> QueryResourceRecordsAsync(
         string name,
         ushort recordType,
         TimeSpan timeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DnsQueryTarget? target = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Targets.Add(target);
         return Task.FromResult(Results.TryGetValue(recordType, out var result)
             ? result
             : new DnsRawQueryResult(DnsRawQueryOutcome.NoRecords, [], 0, string.Empty));
     }
+}
+
+internal sealed class FakeDnrOptionSource : IDnrOptionSource
+{
+    public DnrOptionResult Result { get; set; } = new(DnrOptionOutcome.NoOption, [], 2, "option_not_present");
+
+    public Task<DnrOptionResult> ReadV4Async(
+        string adapterId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) => Task.FromResult(Result);
+
+    public Task<DnrOptionResult> ReadV6Async(
+        string adapterId,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) => Task.FromResult(new DnrOptionResult(
+            DnrOptionOutcome.NoOption, [], 2, "option_not_present"));
 }
 
 /// <summary>
@@ -138,6 +158,7 @@ public sealed class ToolsServiceTests : IAsyncLifetime
     private ServiceState _state = null!;
     private FakeDnsConfig _dns = null!;
     private FakeServiceBindingQuery _serviceBindingQuery = null!;
+    private FakeDnrOptionSource _dnrOptionSource = null!;
     private string _pipe = null!;
     private string _token = null!;
 
@@ -150,12 +171,14 @@ public sealed class ToolsServiceTests : IAsyncLifetime
 
         _dns = new FakeDnsConfig();
         _serviceBindingQuery = new FakeServiceBindingQuery();
+        _dnrOptionSource = new FakeDnrOptionSource();
         _state = new ServiceState(
             new HostsEngine(hostsPath),
             new HostsDatabase(Path.Combine(_dir, "hostsguard.db")),
             dns: _dns,
             dataDir: _dir,
-            serviceBindingQuery: _serviceBindingQuery);
+            serviceBindingQuery: _serviceBindingQuery,
+            dnrOptionSource: _dnrOptionSource);
         _token = SessionToken.Generate();
         _pipe = "HostsGuard.ToolsTest." + Guid.NewGuid().ToString("N");
         _app = ServiceHost.Build(_state, _token, _pipe);
@@ -324,6 +347,50 @@ public sealed class ToolsServiceTests : IAsyncLifetime
 
         report.ErrorCode.Should().Be("hostsguard.error.v1/invalid_probe_host");
         _dns.ResolverHealthCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Encrypted_resolver_discovery_round_trips_and_accept_is_lock_protected()
+    {
+        _serviceBindingQuery.Results[64] = new DnsRawQueryResult(
+            DnsRawQueryOutcome.Success,
+            [new DnsRawResourceRecord("_dns.resolver.arpa", 64, 60,
+            [
+                0, 1,
+                3, (byte)'d', (byte)'o', (byte)'h',
+                7, (byte)'e', (byte)'x', (byte)'a', (byte)'m', (byte)'p', (byte)'l', (byte)'e', 0,
+                0, 1, 0, 3, 2, (byte)'h', (byte)'2',
+            ])],
+            0,
+            string.Empty);
+        _dnrOptionSource.Result = new DnrOptionResult(
+            DnrOptionOutcome.Success,
+            [
+                0, 28,
+                0, 5, 13,
+                3, (byte)'d', (byte)'n', (byte)'r',
+                7, (byte)'e', (byte)'x', (byte)'a', (byte)'m', (byte)'p', (byte)'l', (byte)'e', 0,
+                4, 192, 0, 2, 54,
+                0, 1, 0, 3, 2, (byte)'h', (byte)'2',
+            ],
+            0,
+            string.Empty);
+        using var channel = NamedPipeChannel.Create(_token, _pipe);
+        var client = new DnsControl.DnsControlClient(channel);
+
+        (await client.GetEncryptedResolverDiscoveryAsync(new Empty())).Entries.Should().BeEmpty();
+        var report = await client.RunEncryptedResolverDiscoveryAsync(new Empty());
+
+        report.BaselinePresent.Should().BeTrue();
+        report.DriftDetected.Should().BeFalse();
+        report.Entries.Should().Contain(row => row.Source == "ddr" && row.Target == "doh.example");
+        report.Entries.Should().Contain(row => row.Source == "dnr_v4" && row.Target == "dnr.example");
+        _serviceBindingQuery.Targets.Should().AllSatisfy(target => target.Should().NotBeNull());
+        _dns.ResolverSets.Should().BeEmpty();
+
+        _state.Lock.Enable("locked1").Ok.Should().BeTrue();
+        var locked = await client.AcceptEncryptedResolverBaselineAsync(new Empty());
+        locked.Message.Should().Contain("locked");
     }
 
     [Fact]

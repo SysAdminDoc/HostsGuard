@@ -1302,6 +1302,11 @@ service DnsControl {
   rpc GetResolverHealth(Empty) returns (ResolverHealthReport);
   rpc RunResolverHealth(ResolverHealthRequest) returns (ResolverHealthReport);
   rpc SetResolverHealthSchedule(ResolverHealthScheduleRequest) returns (ResolverHealthReport);
+  // RFC 9462 DDR + RFC 9463 DHCPv4/v6 DNR discovery. Manual/report-only; the
+  // explicit accept action updates only HostsGuard's tamper baseline.
+  rpc GetEncryptedResolverDiscovery(Empty) returns (EncryptedResolverDiscoveryReport);
+  rpc RunEncryptedResolverDiscovery(Empty) returns (EncryptedResolverDiscoveryReport);
+  rpc AcceptEncryptedResolverBaseline(Empty) returns (EncryptedResolverDiscoveryReport);
   rpc SetResolver(ResolverRequest) returns (Ack);
   // TLS SNI capture (NET-109): recover hostnames for HTTPS connections resolved
   // over DoH by reading the ClientHello SNI (driver-free raw socket). Opt-in;
@@ -1444,6 +1449,31 @@ message ResolverHealthReport {
   string next_scheduled_at = 8;
   string message = 9;
   string error_code = 10;
+}
+
+message EncryptedResolverDiscoveryEntry {
+  string adapter_id = 1;
+  string adapter_name = 2;
+  string source = 3; // ddr, dnr_v4, or dnr_v6
+  string resolver = 4; // configured Do53 resolver used for DDR
+  string outcome = 5; // encrypted, advertised, no_records/no_option, malformed, unavailable
+  int32 priority = 6;
+  string target = 7; // authentication/target domain name
+  repeated string addresses = 8;
+  repeated string protocols = 9; // ALPN identifiers such as h2, h3, dot, doq
+  string endpoint = 10;
+  bool drifted = 11;
+  string detail = 12;
+}
+
+message EncryptedResolverDiscoveryReport {
+  repeated EncryptedResolverDiscoveryEntry entries = 1;
+  string checked_at = 2;
+  bool running = 3;
+  bool baseline_present = 4;
+  bool drift_detected = 5;
+  string fingerprint = 6;
+  string message = 7;
 }
 
 message DnsRecord {

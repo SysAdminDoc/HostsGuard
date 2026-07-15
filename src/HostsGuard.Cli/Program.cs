@@ -48,6 +48,7 @@ var handlers = new Dictionary<string, Func<string[], Task<int>>>(StringComparer.
     ["dns-cache"] = DnsCacheAsync,
     ["dns-inspect"] = DnsInspectAsync,
     ["resolver-health"] = ResolverHealthAsync,
+    ["encrypted-resolver"] = EncryptedResolverAsync,
     ["profile-match"] = ProfileMatchAsync,
     ["captive-portal"] = CaptivePortalAsync,
     ["dns-flush-entry"] = DnsFlushEntryAsync,
@@ -137,6 +138,7 @@ static int Usage()
           HostsGuard.Cli dns-cache [--limit N] [--search text]
           HostsGuard.Cli dns-inspect <domain> [--json]
           HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
+          HostsGuard.Cli encrypted-resolver [--run|--accept-baseline] [--json]
           HostsGuard.Cli profile-match [current|list] [--json]
           HostsGuard.Cli profile-match set --profile name [--label text] [--gateway-mac mac]
                                [--ssid name] [--interface name] [--dns-suffix suffix]
@@ -2400,6 +2402,79 @@ static string AddressResult(string status, int count, string detail) =>
         : string.IsNullOrWhiteSpace(detail) ? TextOrUnavailable(status) : detail;
 
 static string TextOrUnavailable(string value) => string.IsNullOrWhiteSpace(value) ? "unavailable" : value;
+
+static async Task<int> EncryptedResolverAsync(string[] args)
+{
+    var run = false;
+    var accept = false;
+    var json = false;
+    foreach (var arg in args.Skip(1))
+    {
+        if (arg.Equals("--run", StringComparison.OrdinalIgnoreCase)) run = true;
+        else if (arg.Equals("--accept-baseline", StringComparison.OrdinalIgnoreCase)) accept = true;
+        else if (arg.Equals("--json", StringComparison.OrdinalIgnoreCase)) json = true;
+        else
+        {
+            Console.Error.WriteLine($"Unknown encrypted-resolver option: {arg}");
+            return 1;
+        }
+    }
+
+    if (run && accept)
+    {
+        Console.Error.WriteLine("Specify either --run or --accept-baseline, not both.");
+        return 1;
+    }
+
+    return await RunCommandAsync(async channel =>
+    {
+        var client = new DnsControl.DnsControlClient(channel);
+        var report = accept
+            ? await client.AcceptEncryptedResolverBaselineAsync(new Empty())
+            : run
+                ? await client.RunEncryptedResolverDiscoveryAsync(new Empty())
+                : await client.GetEncryptedResolverDiscoveryAsync(new Empty());
+        if (json)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                checked_at = report.CheckedAt,
+                running = report.Running,
+                baseline_present = report.BaselinePresent,
+                drift_detected = report.DriftDetected,
+                fingerprint = report.Fingerprint,
+                message = report.Message,
+                entries = report.Entries.Select(static entry => new
+                {
+                    adapter_id = entry.AdapterId,
+                    adapter = entry.AdapterName,
+                    source = entry.Source,
+                    resolver = entry.Resolver,
+                    outcome = entry.Outcome,
+                    priority = entry.Priority,
+                    target = entry.Target,
+                    addresses = entry.Addresses,
+                    protocols = entry.Protocols,
+                    endpoint = entry.Endpoint,
+                    drifted = entry.Drifted,
+                    detail = entry.Detail,
+                }),
+            }, new JsonSerializerOptions { WriteIndented = true }));
+            return report.DriftDetected ? 3 : 0;
+        }
+
+        Console.WriteLine($"encrypted-resolver: checked={TextOrUnavailable(report.CheckedAt)} baseline={report.BaselinePresent.ToString().ToLowerInvariant()} drift={report.DriftDetected.ToString().ToLowerInvariant()}");
+        Console.WriteLine("adapter\tsource\tresolver\toutcome\tpriority\ttarget/endpoint\tprotocols\taddresses\tdrift\tdetail");
+        foreach (var entry in report.Entries)
+        {
+            var endpoint = string.IsNullOrWhiteSpace(entry.Endpoint) ? entry.Target : entry.Endpoint;
+            Console.WriteLine($"{TextOrUnavailable(entry.AdapterName)}\t{entry.Source}\t{TextOrUnavailable(entry.Resolver)}\t{entry.Outcome}\t{entry.Priority}\t{TextOrUnavailable(endpoint)}\t{string.Join(',', entry.Protocols)}\t{string.Join(',', entry.Addresses)}\t{entry.Drifted.ToString().ToLowerInvariant()}\t{entry.Detail}");
+        }
+        Console.WriteLine(report.Message);
+        Console.WriteLine("report-only: discovered resolvers are never adopted or placed in the DNS path");
+        return report.DriftDetected ? 3 : 0;
+    });
+}
 
 static async Task<int> DnsFlushEntryAsync(string[] args)
 {

@@ -85,11 +85,13 @@ public static class RpcMutationPolicy
 
         Add(policies, "DnsControl", RpcMutationKind.ReadOnly,
             "GetDohStatus", "GetIdnHomographStatus", "Inspect", "ListCache", "ResolveHosts",
-            "ListResolverAdapters", "GetResolverHealth", "RunResolverHealth");
+            "ListResolverAdapters", "GetResolverHealth", "RunResolverHealth",
+            "GetEncryptedResolverDiscovery", "RunEncryptedResolverDiscovery");
         Add(policies, "DnsControl", RpcMutationKind.ProtectiveMutation,
             "FlushCache", "FlushCacheEntry", "RefreshDohIntelligence");
         Add(policies, "DnsControl", RpcMutationKind.LockProtectedMutation,
-            "SetCnameCloak", "SetIdnHomograph", "SetResolverHealthSchedule", "SetResolver", "SetSniCapture");
+            "SetCnameCloak", "SetIdnHomograph", "SetResolverHealthSchedule", "SetResolver", "SetSniCapture",
+            "AcceptEncryptedResolverBaseline");
 
         Add(policies, "Monitoring", RpcMutationKind.ReadOnly,
             "WatchDns", "WatchConnections", "WatchEvents", "GetConnectionHistory", "ListEvents", "ListListeners",

@@ -55,6 +55,7 @@ public sealed partial class HostsDatabase
         // public resolver, or a known DoH endpoint) bypasses the system resolver.
         ("dns_bypass", "Apps bypassing system DNS", false),
         ("dns_plaintext_fallback", "Encrypted DNS plaintext fallback", true),
+        ("encrypted_resolver_drift", "Encrypted resolver designation drift", true),
         // Opt-in (off by default): high-volume unique subdomain bursts can be
         // legitimate CDN/telemetry traffic and require operator review.
         ("dns_tunnel", "DNS-tunneling bursts", false),

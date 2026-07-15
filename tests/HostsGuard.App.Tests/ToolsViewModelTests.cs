@@ -140,6 +140,34 @@ public sealed class ToolsViewModelTests
     }
 
     [Fact]
+    public void Encrypted_resolver_row_exposes_source_endpoint_and_drift()
+    {
+        var entry = new EncryptedResolverDiscoveryEntry
+        {
+            AdapterId = "ethernet-id",
+            AdapterName = "Ethernet",
+            Source = "dnr_v4",
+            Outcome = "encrypted",
+            Target = "resolver.example",
+            Endpoint = "https://resolver.example/dns-query",
+            Drifted = true,
+            Detail = "network designation",
+        };
+        entry.Protocols.Add("h2");
+        entry.Addresses.Add("192.0.2.53");
+
+        var row = EncryptedResolverDiscoveryRowViewModel.From(entry);
+
+        row.Adapter.Should().Be("Ethernet");
+        row.Source.Should().Be("DNRv4");
+        row.Resolver.Should().Be("Network");
+        row.Target.Should().Be("https://resolver.example/dns-query");
+        row.Protocols.Should().Be("h2");
+        row.Addresses.Should().Be("192.0.2.53");
+        row.Drift.Should().Be("Changed");
+    }
+
+    [Fact]
     public void Direct_service_binding_row_preserves_exact_parameters_and_ech_semantics()
     {
         var record = new ServiceBindingRecord

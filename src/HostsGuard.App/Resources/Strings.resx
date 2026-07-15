@@ -2038,4 +2038,35 @@
   <data name="Blocklists_ActionSaveMirrors" xml:space="preserve"><value>Save mirrors for {0}</value></data>
   <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} encrypted resolver(s) configured; no plaintext fallback observed</value></data>
   <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; WARNING: {0} plaintext fallback finding(s) across {1} encrypted resolver(s); latest {2} at {3}</value></data>
+  <data name="EncryptedResolver_NoReport" xml:space="preserve"><value>No DDR/DNR discovery report yet. Run discovery to create or compare the tamper baseline.</value></data>
+  <data name="EncryptedResolver_ActionLoad" xml:space="preserve"><value>Load encrypted-resolver discovery</value></data>
+  <data name="EncryptedResolver_ActionRun" xml:space="preserve"><value>Run encrypted-resolver discovery</value></data>
+  <data name="EncryptedResolver_ActionAccept" xml:space="preserve"><value>Trust current encrypted-resolver baseline</value></data>
+  <data name="EncryptedResolver_Running" xml:space="preserve"><value>Encrypted-resolver discovery is running.</value></data>
+  <data name="EncryptedResolver_Status" xml:space="preserve"><value>{0} row(s); checked {1}; baseline={2}; drift={3}. {4}</value></data>
+  <data name="EncryptedResolver_Unavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="EncryptedResolver_Network" xml:space="preserve"><value>Network</value></data>
+  <data name="EncryptedResolver_Changed" xml:space="preserve"><value>Changed</value></data>
+  <data name="EncryptedResolver_Unchanged" xml:space="preserve"><value>Unchanged</value></data>
+  <data name="EncryptedResolver_Accept" xml:space="preserve"><value>Trust current</value></data>
+  <data name="EncryptedResolver_AcceptName" xml:space="preserve"><value>Trust current encrypted-resolver designations</value></data>
+  <data name="EncryptedResolver_AcceptTip" xml:space="preserve"><value>Replace the tamper baseline with the current report. This never changes Windows DNS.</value></data>
+  <data name="EncryptedResolver_Run" xml:space="preserve"><value>Run discovery</value></data>
+  <data name="EncryptedResolver_RunName" xml:space="preserve"><value>Run encrypted-resolver discovery</value></data>
+  <data name="EncryptedResolver_RunTip" xml:space="preserve"><value>Query each configured resolver for DDR and inspect DHCPv4/v6 DNR options 162/144.</value></data>
+  <data name="EncryptedResolver_Load" xml:space="preserve"><value>Load report</value></data>
+  <data name="EncryptedResolver_LoadName" xml:space="preserve"><value>Load encrypted-resolver discovery report</value></data>
+  <data name="EncryptedResolver_LoadTip" xml:space="preserve"><value>Load the cached report without sending network queries.</value></data>
+  <data name="EncryptedResolver_Title" xml:space="preserve"><value>Encrypted-resolver discovery and tamper baseline</value></data>
+  <data name="EncryptedResolver_Help" xml:space="preserve"><value>Report-only RFC 9462 DDR and RFC 9463 DHCPv4/v6 DNR inspection. Discovered resolvers are never adopted or placed in the DNS path.</value></data>
+  <data name="EncryptedResolver_TableName" xml:space="preserve"><value>Encrypted-resolver DDR and DNR observations</value></data>
+  <data name="EncryptedResolver_Adapter" xml:space="preserve"><value>Adapter</value></data>
+  <data name="EncryptedResolver_Source" xml:space="preserve"><value>Source</value></data>
+  <data name="EncryptedResolver_Resolver" xml:space="preserve"><value>Resolver</value></data>
+  <data name="EncryptedResolver_Outcome" xml:space="preserve"><value>Outcome</value></data>
+  <data name="EncryptedResolver_Target" xml:space="preserve"><value>Target / endpoint</value></data>
+  <data name="EncryptedResolver_Protocols" xml:space="preserve"><value>Protocols</value></data>
+  <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Addresses</value></data>
+  <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Baseline</value></data>
+  <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Detail</value></data>
 </root>

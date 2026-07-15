@@ -160,6 +160,32 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
     public override Task<ResolverHealthReport> GetResolverHealth(Empty request, ServerCallContext context) =>
         Task.FromResult(ToResolverHealthReport(_state.ResolverHealth.Snapshot()));
 
+    public override Task<EncryptedResolverDiscoveryReport> GetEncryptedResolverDiscovery(
+        Empty request,
+        ServerCallContext context) =>
+        Task.FromResult(ToEncryptedResolverDiscoveryReport(_state.EncryptedResolverDiscovery.Snapshot()));
+
+    public override async Task<EncryptedResolverDiscoveryReport> RunEncryptedResolverDiscovery(
+        Empty request,
+        ServerCallContext context)
+        => ToEncryptedResolverDiscoveryReport(
+            await _state.EncryptedResolverDiscovery.RunAsync(context.CancellationToken).ConfigureAwait(false));
+
+    public override Task<EncryptedResolverDiscoveryReport> AcceptEncryptedResolverBaseline(
+        Empty request,
+        ServerCallContext context)
+    {
+        if (_state.GateWhenLocked("DnsControl") is { } gate)
+        {
+            var snapshot = _state.EncryptedResolverDiscovery.Snapshot();
+            return Task.FromResult(ToEncryptedResolverDiscoveryReport(
+                snapshot with { Message = gate.Message }));
+        }
+
+        return Task.FromResult(ToEncryptedResolverDiscoveryReport(
+            _state.EncryptedResolverDiscovery.AcceptCurrentBaseline()));
+    }
+
     public override async Task<ResolverHealthReport> RunResolverHealth(
         ResolverHealthRequest request,
         ServerCallContext context)
@@ -373,6 +399,41 @@ public sealed class DnsControlServiceImpl : DnsControl.DnsControlBase
                 Error = row.Error,
                 Success = success,
             });
+        }
+
+        return report;
+    }
+
+    private static EncryptedResolverDiscoveryReport ToEncryptedResolverDiscoveryReport(
+        EncryptedResolverDiscoverySnapshot snapshot)
+    {
+        var report = new EncryptedResolverDiscoveryReport
+        {
+            CheckedAt = snapshot.CheckedAtUtc?.ToString("o", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+            Running = snapshot.Running,
+            BaselinePresent = snapshot.BaselinePresent,
+            DriftDetected = snapshot.DriftDetected,
+            Fingerprint = snapshot.Fingerprint,
+            Message = snapshot.Message,
+        };
+        foreach (var row in snapshot.Entries)
+        {
+            var entry = new Contracts.EncryptedResolverDiscoveryEntry
+            {
+                AdapterId = row.AdapterId,
+                AdapterName = row.AdapterName,
+                Source = row.Source,
+                Resolver = row.Resolver,
+                Outcome = row.Outcome,
+                Priority = row.Priority,
+                Target = row.Target,
+                Endpoint = row.Endpoint,
+                Drifted = row.Drifted,
+                Detail = row.Detail,
+            };
+            entry.Addresses.AddRange(row.Addresses);
+            entry.Protocols.AddRange(row.Protocols);
+            report.Entries.Add(entry);
         }
 
         return report;

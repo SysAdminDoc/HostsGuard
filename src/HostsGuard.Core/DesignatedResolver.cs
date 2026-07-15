@@ -7,6 +7,18 @@ namespace HostsGuard.Core;
 /// <summary>An unrecognized but well-formed SVCB parameter.</summary>
 public sealed record SvcbUnknownParameter(ushort Key, byte[] Value);
 
+/// <summary>One validated RFC 9463 DHCPv4 DNR option instance.</summary>
+public sealed record DnrV4Resolver(
+    DesignatedResolverRecord Resolver,
+    IReadOnlyList<string> Addresses,
+    bool AdnOnly);
+
+/// <summary>One validated RFC 9463 DHCPv6 option 144 instance.</summary>
+public sealed record DnrV6Resolver(
+    DesignatedResolverRecord Resolver,
+    IReadOnlyList<string> Addresses,
+    bool AdnOnly);
+
 /// <summary>
 /// A parsed SVCB/HTTPS resource record (RFC 9460), including the parameters
 /// registered for encrypted DNS discovery and HTTPS endpoint selection.
@@ -275,6 +287,187 @@ public static class DesignatedResolver
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Parses the concatenated payload of DHCPv4 option 162 (RFC 9463 section
+    /// 5.1). Invalid option payloads are rejected as a whole so callers never
+    /// baseline a truncated or partially attacker-controlled designation.
+    /// </summary>
+    public static IReadOnlyList<DnrV4Resolver>? ParseDnrV4Option(ReadOnlySpan<byte> optionData)
+    {
+        if (optionData.IsEmpty)
+        {
+            return null;
+        }
+
+        var result = new List<DnrV4Resolver>();
+        var pos = 0;
+        while (pos < optionData.Length)
+        {
+            if (optionData.Length - pos < 2)
+            {
+                return null;
+            }
+
+            var instanceLength = BinaryPrimitives.ReadUInt16BigEndian(optionData[pos..]);
+            pos += 2;
+            if (instanceLength < 4 || instanceLength > optionData.Length - pos)
+            {
+                return null;
+            }
+
+            var instance = optionData.Slice(pos, instanceLength);
+            pos += instanceLength;
+            var priority = BinaryPrimitives.ReadUInt16BigEndian(instance);
+            var adnLength = instance[2];
+            if (adnLength == 0 || adnLength > instance.Length - 3)
+            {
+                return null;
+            }
+
+            var adn = instance.Slice(3, adnLength);
+            var namePos = 0;
+            var target = ReadName(adn, ref namePos);
+            if (target is null || target == "." || namePos != adn.Length)
+            {
+                return null;
+            }
+
+            var remaining = instance[(3 + adnLength)..];
+            if (remaining.IsEmpty)
+            {
+                result.Add(new DnrV4Resolver(
+                    CreateDnrRecord(priority, target),
+                    Array.Empty<string>(),
+                    true));
+                continue;
+            }
+
+            var addressLength = remaining[0];
+            if (addressLength == 0 || addressLength % 4 != 0 || addressLength > remaining.Length - 1)
+            {
+                return null;
+            }
+
+            var addresses = new List<string>();
+            for (var addressPos = 1; addressPos < 1 + addressLength; addressPos += 4)
+            {
+                var address = new IPAddress(remaining.Slice(addressPos, 4));
+                if (IPAddress.IsLoopback(address) || IsIpv4Multicast(address))
+                {
+                    return null;
+                }
+
+                addresses.Add(address.ToString());
+            }
+
+            var parameters = remaining[(1 + addressLength)..];
+            var parsed = CreateDnrRecord(priority, adn, parameters);
+            if (parsed is null || parsed.Ipv4Hints.Count != 0 || parsed.Ipv6Hints.Count != 0)
+            {
+                return null;
+            }
+
+            result.Add(new DnrV4Resolver(parsed, addresses.AsReadOnly(), false));
+        }
+
+        return result.Count == 0 ? null : result.AsReadOnly();
+    }
+
+    /// <summary>Parses one DHCPv6 option 144 payload (RFC 9463 section 4.1).</summary>
+    public static DnrV6Resolver? ParseDnrV6Option(ReadOnlySpan<byte> optionData)
+    {
+        if (optionData.Length < 5)
+        {
+            return null;
+        }
+
+        var priority = BinaryPrimitives.ReadUInt16BigEndian(optionData);
+        var adnLength = BinaryPrimitives.ReadUInt16BigEndian(optionData[2..]);
+        if (adnLength == 0 || adnLength > optionData.Length - 4)
+        {
+            return null;
+        }
+
+        var adn = optionData.Slice(4, adnLength);
+        var namePos = 0;
+        var target = ReadName(adn, ref namePos);
+        if (target is null || target == "." || namePos != adn.Length)
+        {
+            return null;
+        }
+
+        var remaining = optionData[(4 + adnLength)..];
+        if (remaining.IsEmpty)
+        {
+            return new DnrV6Resolver(CreateDnrRecord(priority, target), [], true);
+        }
+
+        if (remaining.Length < 2)
+        {
+            return null;
+        }
+
+        var addressLength = BinaryPrimitives.ReadUInt16BigEndian(remaining);
+        if (addressLength == 0 || addressLength % 16 != 0 || addressLength > remaining.Length - 2)
+        {
+            return null;
+        }
+
+        var addresses = new List<string>();
+        for (var addressPos = 2; addressPos < 2 + addressLength; addressPos += 16)
+        {
+            var address = new IPAddress(remaining.Slice(addressPos, 16));
+            if (IPAddress.IsLoopback(address) || address.IsIPv6Multicast)
+            {
+                return null;
+            }
+
+            addresses.Add(address.ToString());
+        }
+
+        var parsed = CreateDnrRecord(priority, adn, remaining[(2 + addressLength)..]);
+        return parsed is null || parsed.Ipv4Hints.Count != 0 || parsed.Ipv6Hints.Count != 0
+            ? null
+            : new DnrV6Resolver(parsed, addresses.AsReadOnly(), false);
+    }
+
+    private static DesignatedResolverRecord CreateDnrRecord(ushort priority, string target)
+        => new(priority, target, [], [], false, null, [], null, [], null, []);
+
+    private static DesignatedResolverRecord? CreateDnrRecord(
+        ushort priority,
+        ReadOnlySpan<byte> adn,
+        ReadOnlySpan<byte> parameters)
+    {
+        // DNR service priority is ordering data, not SVCB AliasMode. Parse with
+        // a non-zero SVCB priority, then restore the exact DNR priority.
+        var rdata = new byte[2 + adn.Length + parameters.Length];
+        BinaryPrimitives.WriteUInt16BigEndian(rdata, 1);
+        adn.CopyTo(rdata.AsSpan(2));
+        parameters.CopyTo(rdata.AsSpan(2 + adn.Length));
+        var parsed = ParseSvcb(rdata);
+        return parsed is null
+            ? null
+            : new DesignatedResolverRecord(
+                priority,
+                parsed.TargetName,
+                parsed.MandatoryKeys,
+                parsed.Alpn,
+                parsed.NoDefaultAlpn,
+                parsed.Port,
+                parsed.Ipv4Hints,
+                parsed.Ech,
+                parsed.Ipv6Hints,
+                parsed.DohPath,
+                parsed.UnknownParameters);
+    }
+
+    private static bool IsIpv4Multicast(IPAddress address)
+    {
+        var bytes = address.GetAddressBytes();
+        return bytes[0] is >= 224 and <= 239;
     }
 
     private static string? ReadName(ReadOnlySpan<byte> data, ref int pos)

@@ -3593,6 +3593,67 @@
                                                        AutomationProperties.LiveSetting="Polite" />
                                         </StackPanel>
                                     </Border>
+                                    <Border Style="{StaticResource Hg.StatusStrip}" Margin="0,10,0,0">
+                                        <StackPanel>
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right"
+                                                        Content="{svc:Loc Key=EncryptedResolver_Accept}"
+                                                        Command="{Binding AcceptEncryptedResolverBaselineCommand}"
+                                                        AutomationProperties.Name="{svc:Loc Key=EncryptedResolver_AcceptName}"
+                                                        ToolTip="{svc:Loc Key=EncryptedResolver_AcceptTip}"
+                                                        Margin="8,0,0,0"
+                                                        Padding="10,2" />
+                                                <Button DockPanel.Dock="Right"
+                                                        Content="{svc:Loc Key=EncryptedResolver_Run}"
+                                                        Command="{Binding RunEncryptedResolverDiscoveryCommand}"
+                                                        AutomationProperties.Name="{svc:Loc Key=EncryptedResolver_RunName}"
+                                                        ToolTip="{svc:Loc Key=EncryptedResolver_RunTip}"
+                                                        Margin="8,0,0,0"
+                                                        Padding="10,2" />
+                                                <Button DockPanel.Dock="Right"
+                                                        Content="{svc:Loc Key=EncryptedResolver_Load}"
+                                                        Command="{Binding LoadEncryptedResolverDiscoveryCommand}"
+                                                        AutomationProperties.Name="{svc:Loc Key=EncryptedResolver_LoadName}"
+                                                        ToolTip="{svc:Loc Key=EncryptedResolver_LoadTip}"
+                                                        Margin="8,0,0,0"
+                                                        Padding="10,2" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{svc:Loc Key=EncryptedResolver_Title}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{svc:Loc Key=EncryptedResolver_Help}"
+                                                               Style="{StaticResource Hg.HelperText}"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                            <DataGrid ItemsSource="{Binding EncryptedResolverDiscoveryEntries}"
+                                                      AutoGenerateColumns="False"
+                                                      IsReadOnly="True"
+                                                      CanUserAddRows="False"
+                                                      CanUserDeleteRows="False"
+                                                      HeadersVisibility="Column"
+                                                      MaxHeight="190"
+                                                      Margin="0,8,0,0"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                      AutomationProperties.Name="{svc:Loc Key=EncryptedResolver_TableName}">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Adapter}" Binding="{Binding Adapter}" Width="130" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Source}" Binding="{Binding Source}" Width="66" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Resolver}" Binding="{Binding Resolver}" Width="120" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Outcome}" Binding="{Binding Outcome}" Width="92" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Target}" Binding="{Binding Target}" Width="220" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Protocols}" Binding="{Binding Protocols}" Width="100" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Addresses}" Binding="{Binding Addresses}" Width="145" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Drift}" Binding="{Binding Drift}" Width="86" />
+                                                    <DataGridTextColumn Header="{svc:Loc Key=EncryptedResolver_Detail}" Binding="{Binding Detail}" Width="240" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                            <TextBlock Text="{Binding EncryptedResolverDiscoveryStatusText}"
+                                                       Style="{StaticResource Hg.DimText}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,6,0,0"
+                                                       AutomationProperties.Name="{Binding EncryptedResolverDiscoveryStatusText}"
+                                                       AutomationProperties.LiveSetting="Polite" />
+                                        </StackPanel>
+                                    </Border>
                                     <DockPanel Margin="0,10,0,0">
                                         <Button DockPanel.Dock="Right" Content="{svc:Loc Key=Xaml_Inspect_18ca87af}"
                                                 Command="{Binding InspectCommand}" Margin="8,0,0,0"

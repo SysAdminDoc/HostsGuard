@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.143-blue)
+![Version](https://img.shields.io/badge/version-0.12.144-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -141,6 +141,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | CNAME-cloak guard | Opt-in reactive block of first-party hosts that resolve via CNAME to a blocked tracker |
 | DNS resolver switcher | Select physical or explicit VPN/tunnel adapters, preview DHCP/static state, then apply Cloudflare/Google/Quad9 or DHCP transactionally; known providers receive Windows per-interface DoH auto-upgrade templates, unknown resolvers raise an explicit plaintext-fallback warning, and a bounded A+AAAA probe reports RTT or restores every adapter exactly |
 | Resolver health matrix | Run read-only A+AAAA probes against every active adapter/resolver endpoint with UDP or configured DoH attribution, RTT, TLS/certificate state, and explicit unavailable/failure details; optional 15–1,440 minute schedules are off by default, non-overlapping, and never change DNS settings. HostsGuard also correlates Windows DNS Client port-53 traffic with configured per-interface DoH endpoints and raises an alert-only plaintext-fallback finding. |
+| Encrypted-resolver discovery | Manually query each configured resolver for RFC 9462 DDR and inspect RFC 9463 DHCPv4/v6 DNR options 162/144 per adapter; an accepted baseline makes changed or malformed designations alertable, while discovery remains report-only and never adopts an endpoint. |
 | DNS and HTTPS/SVCB inspector | Inspect Windows DNS Client cache entries or directly query a selected name through cancellable `DnsQueryEx`; decode priority, alias target, mandatory keys, ALPN, port, IPv4/IPv6 hints, ECH, DoH path, and bounded unknown parameters, while distinguishing DNS-advertised ECH from global, unattributable on-wire observations |
 | Proxy/PAC tamper baseline | Compare every loaded user's WinINET proxy/PAC settings and the machine WinHTTP state with an explicitly accepted baseline; changes raise one redacted alert, credentials and PAC tokens never persist, and HostsGuard never rewrites the setting |
 | IDN homograph alerts | Opt-in, alert-only comparison of observed IDNs against allowlisted, trusted, and recent domains using embedded Unicode 17.0.0 UTS #39 confusable data; Alerts shows decoded Unicode, punycode, scripts, restriction evidence, and the matching domain without auto-blocking |
@@ -162,7 +163,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Support bundle | Redacted diagnostic zip — config, DB integrity, logs, event history, firewall summary, and metadata-only traffic-profile JSON/CSV with Wireshark filter hints (no tokens, webhooks, packet payloads, private domains, or remote IPs) |
 | Event taxonomy | Structured, filterable event ledger of every block, allow, firewall, consent, DNS, list, support, and policy action; browsable in WPF and CLI with redacted CSV export |
 | Alert inbox | Stateful, low-volume security alerts with unread/read acknowledgement and per-type surface/log-only settings for identity drift, threat hits, hosts tamper, settings-lock failures, kill-switch, Remote Desktop sessions, firewall drift, unknown networks, algorithmic domains, DNS-tunneling bursts, and blocked inbound scans across distinct local ports |
-| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 1,755-key surface currently has 505 Spanish, 502 German, and 499 French translations, with honest English fallback and a non-regression ratchet rather than a false completeness claim |
+| Localization | System default, English, Spanish, German, and French are selectable from one canonical menu. Menus, dialogs, critical recovery flows, and all runtime ViewModel text use resources; the 2,011-key used surface has honest English fallback and measured Spanish/German/French non-regression ratchets rather than a false completeness claim |
 | Rendered accessibility QA | Deterministic background WPF tests render 67 pairwise captures spanning empty/populated/loading/disconnected/error states, dark/light/simulated High Contrast, 90/100/125/150% scale, compact/default sizes, all primary tabs, nested Hosts tabs, and every Tools card; gates cover clipping, focus, live regions, names, grid headers, contrast, pixel detail, and capture completeness |
 
 ### CLI
@@ -193,6 +194,7 @@ HostsGuard.Cli idn-homograph [status|enable|disable]
 HostsGuard.Cli dga-check <domain> [--json]
 HostsGuard.Cli dns-inspect <domain> [--json]
 HostsGuard.Cli resolver-health [--run] [--host name] [--schedule off|minutes] [--json]
+HostsGuard.Cli encrypted-resolver [--run|--accept-baseline] [--json]
 HostsGuard.Cli profile-match [current|list|set|delete] [options] [--json]
 HostsGuard.Cli captive-portal [--json] [--pause 5|15|60]
 HostsGuard.Cli mode [normal|notify|learning]

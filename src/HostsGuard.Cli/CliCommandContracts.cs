@@ -48,6 +48,7 @@ internal static class CliCommandCatalog
         new("dns-cache"),
         new("dns-inspect"),
         new("resolver-health"),
+        new("encrypted-resolver"),
         new("profile-match"),
         new("captive-portal"),
         new("dns-flush-entry"),

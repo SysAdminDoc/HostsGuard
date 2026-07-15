@@ -20,7 +20,8 @@ public sealed record DnsAdapterState(
     bool IsVpn,
     bool UsesDhcp,
     IReadOnlyList<string> ConfiguredResolvers,
-    IReadOnlyList<string> EffectiveResolvers);
+    IReadOnlyList<string> EffectiveResolvers,
+    uint InterfaceIndex = 0);
 
 /// <summary>An exact, restorable resolver snapshot for a selected set of adapters.</summary>
 public sealed class DnsResolverSnapshot
@@ -110,7 +111,8 @@ internal sealed record DnsAdapterCandidate(
     NetworkInterfaceType Type,
     bool IsUp,
     bool HasUnicastAddress,
-    IReadOnlyList<string> EffectiveResolvers);
+    IReadOnlyList<string> EffectiveResolvers,
+    uint InterfaceIndex = 0);
 
 internal sealed record DnsRegistryValue(bool Exists, object? Value, RegistryValueKind? Kind)
 {
@@ -336,7 +338,8 @@ public sealed class DnsConfig : IDnsConfig
                 IsVpnAdapter(a),
                 normalizedServers.Length == 0,
                 normalizedServers,
-                a.EffectiveResolvers)).ToArray();
+                a.EffectiveResolvers,
+                a.InterfaceIndex)).ToArray();
         return new DnsResolverChange(prior, changed, dohStatus.Values
             .OrderBy(status => status.Server, StringComparer.OrdinalIgnoreCase)
             .ToArray());
@@ -486,7 +489,8 @@ public sealed class DnsConfig : IDnsConfig
             IsVpnAdapter(adapter),
             configured.Count == 0,
             configured,
-            adapter.EffectiveResolvers);
+            adapter.EffectiveResolvers,
+            adapter.InterfaceIndex);
     }
 
     private void ApplyTransaction(
@@ -723,10 +727,25 @@ internal sealed class SystemDnsAdapterSource : IDnsAdapterSource
                 nic.OperationalStatus == OperationalStatus.Up,
                 properties.UnicastAddresses.Any(a =>
                     a.Address.AddressFamily is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6),
-                properties.DnsAddresses.Select(a => a.ToString()).Distinct().ToArray()));
+                properties.DnsAddresses.Select(a => a.ToString()).Distinct().ToArray(),
+                GetInterfaceIndex(properties)));
         }
 
         return adapters;
+    }
+
+    private static uint GetInterfaceIndex(IPInterfaceProperties properties)
+    {
+        try
+        {
+            return checked((uint)(properties.GetIPv4Properties()?.Index
+                ?? properties.GetIPv6Properties()?.Index
+                ?? 0));
+        }
+        catch (NetworkInformationException)
+        {
+            return 0;
+        }
     }
 }
 

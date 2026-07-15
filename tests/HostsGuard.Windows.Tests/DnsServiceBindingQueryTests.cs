@@ -160,6 +160,68 @@ public sealed class DnsServiceBindingQueryTests
         native.QueryCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Direct_target_uses_request3_custom_udp_server_and_interface()
+    {
+        var native = new FakeDnsQueryExNative { QueryStatus = 9501 };
+        var query = new DnsQueryExServiceBindingQuery(native);
+
+        await query.QueryResourceRecordsAsync(
+            "_dns.resolver.arpa",
+            64,
+            TimeSpan.FromSeconds(1),
+            CancellationToken.None,
+            new DnsQueryTarget("192.0.2.53", 17));
+
+        var request = native.Request3;
+        request.Version.Should().Be(3);
+        request.InterfaceIndex.Should().Be(17);
+        request.CustomServerCount.Should().Be(1);
+        var server = native.CustomServer;
+        server.ServerType.Should().Be(1);
+        server.TemplateOrHostname.Should().Be(IntPtr.Zero);
+        server.SocketAddress[0].Should().Be(2);
+        server.SocketAddress[2..4].Should().Equal(0, 53);
+        server.SocketAddress[4..8].Should().Equal(192, 0, 2, 53);
+    }
+
+    [Fact]
+    public async Task Direct_target_rejects_non_ip_server_before_native_query()
+    {
+        var native = new FakeDnsQueryExNative();
+        var query = new DnsQueryExServiceBindingQuery(native);
+
+        var act = () => query.QueryResourceRecordsAsync(
+            "_dns.resolver.arpa",
+            64,
+            TimeSpan.FromSeconds(1),
+            CancellationToken.None,
+            new DnsQueryTarget("resolver.example", 1));
+
+        await act.Should().ThrowAsync<ArgumentException>();
+        native.QueryCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Direct_ipv6_target_preserves_scope_id_in_socket_address()
+    {
+        var native = new FakeDnsQueryExNative { QueryStatus = 9501 };
+        var query = new DnsQueryExServiceBindingQuery(native);
+
+        await query.QueryResourceRecordsAsync(
+            "_dns.resolver.arpa",
+            64,
+            TimeSpan.FromSeconds(1),
+            CancellationToken.None,
+            new DnsQueryTarget("fe80::53%17", 17));
+
+        native.CustomServer.SocketAddress[0..2].Should().Equal(23, 0);
+        native.CustomServer.SocketAddress[2..4].Should().Equal(0, 53);
+        native.CustomServer.SocketAddress[8..24].Should().Equal(
+            0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x53);
+        BitConverter.ToUInt32(native.CustomServer.SocketAddress, 24).Should().Be(17);
+    }
+
     private sealed class FakeDnsQueryExNative : IDnsQueryExNative
     {
         private IntPtr _request;
@@ -171,6 +233,8 @@ public sealed class DnsServiceBindingQueryTests
         public int QueryCount { get; private set; }
         public int CancelCount { get; private set; }
         public List<IntPtr> FreedRecords { get; } = [];
+        public DnsQueryRequest3Native Request3 { get; private set; }
+        public DnsCustomServerNative CustomServer { get; private set; }
 
         public int Query(IntPtr request, IntPtr result, IntPtr cancel)
         {
@@ -182,6 +246,11 @@ public sealed class DnsServiceBindingQueryTests
 
             _request = request;
             _result = result;
+            if (Marshal.ReadInt32(request) == 3)
+            {
+                Request3 = Marshal.PtrToStructure<DnsQueryRequest3Native>(request);
+                CustomServer = Marshal.PtrToStructure<DnsCustomServerNative>(Request3.CustomServers);
+            }
             if (QueryStatus != 9506)
             {
                 WriteResult(QueryStatus, QueryRecords);

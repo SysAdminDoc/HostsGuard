@@ -36,7 +36,8 @@ public sealed class ServiceState : IDisposable
         ICaptivePortalProbe? captivePortalProbe = null,
         IClock? clock = null,
         IHyperVFirewallInventory? hyperVFirewallInventory = null,
-        IWfpFilterInventory? wfpFilterInventory = null)
+        IWfpFilterInventory? wfpFilterInventory = null,
+        IDnrOptionSource? dnrOptionSource = null)
     {
         Hosts = hosts ?? throw new ArgumentNullException(nameof(hosts));
         Db = db ?? throw new ArgumentNullException(nameof(db));
@@ -49,6 +50,12 @@ public sealed class ServiceState : IDisposable
         Dns = dns;
         ResolverHealth = new ResolverHealthCoordinator(dns, db, Clock);
         ServiceBindingQuery = serviceBindingQuery;
+        EncryptedResolverDiscovery = new EncryptedResolverDiscoveryCoordinator(
+            dns,
+            serviceBindingQuery,
+            dnrOptionSource,
+            db,
+            Clock);
         DataDir = dataDir ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HostsGuard");
         Snapshots = new StateSnapshotCoordinator(
@@ -165,6 +172,9 @@ public sealed class ServiceState : IDisposable
 
     /// <summary>Cancellable direct HTTPS/SVCB query seam; null when the Windows API is unavailable.</summary>
     public IDnsServiceBindingQuery? ServiceBindingQuery { get; }
+
+    /// <summary>Manual, report-only DDR/DNR discovery with a persistent tamper baseline.</summary>
+    internal EncryptedResolverDiscoveryCoordinator EncryptedResolverDiscovery { get; }
 
     /// <summary>Service data directory (backups, support bundles). ProgramData in production.</summary>
     public string DataDir { get; }

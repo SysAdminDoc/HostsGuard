@@ -123,7 +123,8 @@ using var state = new ServiceState(hosts, db, firewall, identity, dns, baseDir, 
     lanSurfaceStore: new RegistryLanAttackSurfaceStore(),
     proxySnapshotSource: new WindowsProxyConfigurationSnapshotSource(),
     serviceBindingQuery: new DnsQueryExServiceBindingQuery(),
-    wfpFilterInventory: new WindowsWfpFilterInventory());
+    wfpFilterInventory: new WindowsWfpFilterInventory(),
+    dnrOptionSource: new DhcpDnrOptionSource());
 state.WfpFilterDrift?.Start();
 state.DomainFirewall.StartPeriodic();
 

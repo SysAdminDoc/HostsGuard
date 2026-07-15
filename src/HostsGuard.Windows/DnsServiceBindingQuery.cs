@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
@@ -28,6 +30,9 @@ public sealed record DnsRawQueryResult(
     int NativeStatus,
     string Error);
 
+/// <summary>An explicit resolver and interface for a direct DDR query.</summary>
+public sealed record DnsQueryTarget(string Server, uint InterfaceIndex);
+
 /// <summary>Cancellable direct-query seam for HTTPS/SVCB records.</summary>
 public interface IDnsServiceBindingQuery
 {
@@ -35,7 +40,8 @@ public interface IDnsServiceBindingQuery
         string name,
         ushort recordType,
         TimeSpan timeout,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        DnsQueryTarget? target = null);
 }
 
 /// <summary>
@@ -66,7 +72,8 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
         string name,
         ushort recordType,
         TimeSpan timeout,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DnsQueryTarget? target = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         if (recordType is not DnsTypeSvcb and not DnsTypeHttps)
@@ -89,7 +96,7 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
             throw new ArgumentException("A DNS name is required.", nameof(name));
         }
 
-        using var operation = new QueryOperation(_native, normalizedName, recordType);
+        using var operation = new QueryOperation(_native, normalizedName, recordType, target);
         return await operation.RunAsync(timeout, cancellationToken).ConfigureAwait(false);
     }
 
@@ -112,6 +119,7 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
         private readonly IntPtr _request;
         private readonly IntPtr _result;
         private readonly IntPtr _cancel;
+        private readonly IntPtr _customServer;
         private readonly GCHandle _selfHandle;
         private readonly TaskCompletionSource<DnsRawQueryResult> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -122,31 +130,91 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
         private int _cancelRequested;
         private bool _disposed;
 
-        public QueryOperation(IDnsQueryExNative native, string name, ushort recordType)
+        public QueryOperation(IDnsQueryExNative native, string name, ushort recordType, DnsQueryTarget? target)
         {
+            DnsCustomServerNative? preparedCustomServer = target is null
+                ? null
+                : CreateCustomServer(target.Server);
             _native = native;
             _queryName = Marshal.StringToHGlobalUni(name);
-            _request = Marshal.AllocHGlobal(Marshal.SizeOf<DnsQueryRequestNative>());
+            _request = Marshal.AllocHGlobal(target is null
+                ? Marshal.SizeOf<DnsQueryRequestNative>()
+                : Marshal.SizeOf<DnsQueryRequest3Native>());
             _result = Marshal.AllocHGlobal(Marshal.SizeOf<DnsQueryResultNative>());
             _cancel = Marshal.AllocHGlobal(32);
-            Clear(_request, Marshal.SizeOf<DnsQueryRequestNative>());
+            Clear(_request, target is null
+                ? Marshal.SizeOf<DnsQueryRequestNative>()
+                : Marshal.SizeOf<DnsQueryRequest3Native>());
             Clear(_result, Marshal.SizeOf<DnsQueryResultNative>());
             Clear(_cancel, 32);
 
             _selfHandle = GCHandle.Alloc(this);
-            Marshal.StructureToPtr(
-                new DnsQueryRequestNative
-                {
-                    Version = 1,
-                    QueryName = _queryName,
-                    QueryType = recordType,
-                    QueryOptions = 0, // Flat/unknown data preserves the exact wire RDATA.
-                    CompletionCallback = Marshal.GetFunctionPointerForDelegate(CompletionCallback),
-                    QueryContext = GCHandle.ToIntPtr(_selfHandle),
-                },
-                _request,
-                false);
+            if (target is null)
+            {
+                _customServer = IntPtr.Zero;
+                Marshal.StructureToPtr(
+                    new DnsQueryRequestNative
+                    {
+                        Version = 1,
+                        QueryName = _queryName,
+                        QueryType = recordType,
+                        QueryOptions = 0,
+                        CompletionCallback = Marshal.GetFunctionPointerForDelegate(CompletionCallback),
+                        QueryContext = GCHandle.ToIntPtr(_selfHandle),
+                    },
+                    _request,
+                    false);
+            }
+            else
+            {
+                _customServer = Marshal.AllocHGlobal(Marshal.SizeOf<DnsCustomServerNative>());
+                Clear(_customServer, Marshal.SizeOf<DnsCustomServerNative>());
+                Marshal.StructureToPtr(preparedCustomServer!.Value, _customServer, false);
+                Marshal.StructureToPtr(
+                    new DnsQueryRequest3Native
+                    {
+                        Version = 3,
+                        QueryName = _queryName,
+                        QueryType = recordType,
+                        QueryOptions = 0,
+                        InterfaceIndex = target.InterfaceIndex,
+                        CompletionCallback = Marshal.GetFunctionPointerForDelegate(CompletionCallback),
+                        QueryContext = GCHandle.ToIntPtr(_selfHandle),
+                        CustomServerCount = 1,
+                        CustomServers = _customServer,
+                    },
+                    _request,
+                    false);
+            }
             Marshal.StructureToPtr(new DnsQueryResultNative { Version = 1 }, _result, false);
+        }
+
+        private static DnsCustomServerNative CreateCustomServer(string value)
+        {
+            if (!IPAddress.TryParse(value, out var address))
+            {
+                throw new ArgumentException("The direct DNS server must be an IP address.", nameof(value));
+            }
+
+            var socketAddress = new byte[32];
+            var family = address.AddressFamily == AddressFamily.InterNetwork
+                ? (ushort)AddressFamily.InterNetwork
+                : address.AddressFamily == AddressFamily.InterNetworkV6
+                    ? (ushort)AddressFamily.InterNetworkV6
+                    : throw new ArgumentException("Unsupported DNS server address family.", nameof(value));
+            BitConverter.TryWriteBytes(socketAddress.AsSpan(0, 2), family);
+            socketAddress[2] = 0;
+            socketAddress[3] = 53;
+            address.GetAddressBytes().CopyTo(socketAddress, family == (ushort)AddressFamily.InterNetwork ? 4 : 8);
+            if (address.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                BitConverter.TryWriteBytes(socketAddress.AsSpan(24, 4), checked((uint)address.ScopeId));
+            }
+            return new DnsCustomServerNative
+            {
+                ServerType = 1,
+                SocketAddress = socketAddress,
+            };
         }
 
         public async Task<DnsRawQueryResult> RunAsync(
@@ -333,6 +401,10 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
             Marshal.FreeHGlobal(_result);
             Marshal.FreeHGlobal(_request);
             Marshal.FreeHGlobal(_queryName);
+            if (_customServer != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_customServer);
+            }
         }
 
         private static void Clear(IntPtr memory, int length)
@@ -343,6 +415,33 @@ public sealed class DnsQueryExServiceBindingQuery : IDnsServiceBindingQuery
             }
         }
     }
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct DnsQueryRequest3Native
+{
+    public uint Version;
+    public IntPtr QueryName;
+    public ushort QueryType;
+    public ulong QueryOptions;
+    public IntPtr DnsServerList;
+    public uint InterfaceIndex;
+    public IntPtr CompletionCallback;
+    public IntPtr QueryContext;
+    public int IsNetworkQueryRequired;
+    public uint RequiredNetworkIndex;
+    public uint CustomServerCount;
+    public IntPtr CustomServers;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct DnsCustomServerNative
+{
+    public uint ServerType;
+    public ulong Flags;
+    public IntPtr TemplateOrHostname;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    public byte[] SocketAddress;
 }
 
 [StructLayout(LayoutKind.Sequential)]

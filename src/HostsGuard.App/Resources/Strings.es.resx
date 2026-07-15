@@ -716,4 +716,35 @@
   <data name="Health_WfpDriftDetail" xml:space="preserve"><value>{0} cambio(s) · {1}. {2}</value></data>
   <data name="EncryptedDns_NoPlaintextFallback" xml:space="preserve"><value>; {0} resolvedores cifrados configurados; no se observó recuperación a texto sin cifrar</value></data>
   <data name="EncryptedDns_PlaintextFallback" xml:space="preserve"><value>; ADVERTENCIA: {0} hallazgo(s) de recuperación a texto sin cifrar entre {1} resolvedores cifrados; último {2} a las {3}</value></data>
+  <data name="EncryptedResolver_NoReport" xml:space="preserve"><value>Aún no hay informe DDR/DNR. Ejecute la detección para crear o comparar la referencia antimanipulación.</value></data>
+  <data name="EncryptedResolver_ActionLoad" xml:space="preserve"><value>Cargar detección de resolutores cifrados</value></data>
+  <data name="EncryptedResolver_ActionRun" xml:space="preserve"><value>Ejecutar detección de resolutores cifrados</value></data>
+  <data name="EncryptedResolver_ActionAccept" xml:space="preserve"><value>Confiar en la referencia actual</value></data>
+  <data name="EncryptedResolver_Running" xml:space="preserve"><value>La detección de resolutores cifrados está en curso.</value></data>
+  <data name="EncryptedResolver_Status" xml:space="preserve"><value>{0} fila(s); comprobado {1}; referencia={2}; cambio={3}. {4}</value></data>
+  <data name="EncryptedResolver_Unavailable" xml:space="preserve"><value>No disponible</value></data>
+  <data name="EncryptedResolver_Network" xml:space="preserve"><value>Red</value></data>
+  <data name="EncryptedResolver_Changed" xml:space="preserve"><value>Cambiado</value></data>
+  <data name="EncryptedResolver_Unchanged" xml:space="preserve"><value>Sin cambios</value></data>
+  <data name="EncryptedResolver_Accept" xml:space="preserve"><value>Confiar en actual</value></data>
+  <data name="EncryptedResolver_AcceptName" xml:space="preserve"><value>Confiar en las designaciones actuales</value></data>
+  <data name="EncryptedResolver_AcceptTip" xml:space="preserve"><value>Reemplaza la referencia por el informe actual. Nunca cambia el DNS de Windows.</value></data>
+  <data name="EncryptedResolver_Run" xml:space="preserve"><value>Ejecutar detección</value></data>
+  <data name="EncryptedResolver_RunName" xml:space="preserve"><value>Ejecutar detección de resolutores cifrados</value></data>
+  <data name="EncryptedResolver_RunTip" xml:space="preserve"><value>Consulta DDR en cada resolutor configurado e inspecciona las opciones DNR 162/144 de DHCPv4/v6.</value></data>
+  <data name="EncryptedResolver_Load" xml:space="preserve"><value>Cargar informe</value></data>
+  <data name="EncryptedResolver_LoadName" xml:space="preserve"><value>Cargar informe de resolutores cifrados</value></data>
+  <data name="EncryptedResolver_LoadTip" xml:space="preserve"><value>Carga el informe guardado sin enviar consultas de red.</value></data>
+  <data name="EncryptedResolver_Title" xml:space="preserve"><value>Detección de resolutores cifrados y referencia antimanipulación</value></data>
+  <data name="EncryptedResolver_Help" xml:space="preserve"><value>Inspección informativa de DDR RFC 9462 y DNR DHCPv4/v6 RFC 9463. Los resolutores descubiertos nunca se adoptan.</value></data>
+  <data name="EncryptedResolver_TableName" xml:space="preserve"><value>Observaciones DDR y DNR de resolutores cifrados</value></data>
+  <data name="EncryptedResolver_Adapter" xml:space="preserve"><value>Adaptador</value></data>
+  <data name="EncryptedResolver_Source" xml:space="preserve"><value>Origen</value></data>
+  <data name="EncryptedResolver_Resolver" xml:space="preserve"><value>Resolutor</value></data>
+  <data name="EncryptedResolver_Outcome" xml:space="preserve"><value>Resultado</value></data>
+  <data name="EncryptedResolver_Target" xml:space="preserve"><value>Destino / extremo</value></data>
+  <data name="EncryptedResolver_Protocols" xml:space="preserve"><value>Protocolos</value></data>
+  <data name="EncryptedResolver_Addresses" xml:space="preserve"><value>Direcciones</value></data>
+  <data name="EncryptedResolver_Drift" xml:space="preserve"><value>Referencia</value></data>
+  <data name="EncryptedResolver_Detail" xml:space="preserve"><value>Detalle</value></data>
 </root>
