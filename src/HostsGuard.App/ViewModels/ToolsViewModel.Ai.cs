@@ -22,6 +22,9 @@ public sealed partial class ToolsViewModel
     [ObservableProperty]
     private string _aiStatusText = I18n.T("Ai_Checking", "Checking AI configuration…");
 
+    [ObservableProperty]
+    private string _aiKeyStorageText = I18n.T("Ai_KeyChecking", "Checking whether a key is stored…");
+
     public async Task LoadAiStatusAsync()
     {
         await RunServiceActionAsync(I18n.T("Ai_ActionLoad", "Load AI status"), s => AiStatusText = s, async () =>
@@ -32,6 +35,10 @@ public sealed partial class ToolsViewModel
             {
                 AiModel = status.Model;
             }
+
+            AiKeyStorageText = status.Configured
+                ? I18n.T("Ai_KeyStored", "API key stored — leave the field blank to keep it, or enter a new key to replace it.")
+                : I18n.T("Ai_KeyNotStored", "No API key stored — enter one before enabling AI categorization.");
 
             AiStatusText = !status.Configured
                 ? I18n.T("Ai_NotConfigured", "No DeepSeek API key stored — add one to categorize domains with AI.")

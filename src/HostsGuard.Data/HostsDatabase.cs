@@ -434,8 +434,9 @@ public sealed partial class HostsDatabase : IDisposable
         }
         catch (Exception ex) when (ex is SqliteException or InvalidOperationException or IOException)
         {
-            // Release any native handle the failed open left so the file can move.
-            SqliteConnection.ClearAllPools();
+            // The failed constructor already disposed its non-pooled connection.
+            // Never clear process-wide pools here: another database may be serving
+            // an unrelated request in this process while recovery quarantines this file.
             quarantinedPath = QuarantineDatabaseFiles(path);
 
             var db = new HostsDatabase(path);

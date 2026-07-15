@@ -635,4 +635,8 @@
   <data name="Tray_ProfileSwitched" xml:space="preserve"><value>Perfil activo: {0}</value></data>
   <data name="Tray_ProfileSwitchFailed" xml:space="preserve"><value>No se pudo cambiar a {0}: {1}</value></data>
   <data name="Tray_NoProfiles" xml:space="preserve"><value>No hay perfiles guardados</value></data>
+  <data name="Ai_KeyWatermark" xml:space="preserve"><value>Introduzca una nueva clave API (en blanco conserva la guardada)</value></data>
+  <data name="Ai_KeyChecking" xml:space="preserve"><value>Comprobando si hay una clave guardada…</value></data>
+  <data name="Ai_KeyStored" xml:space="preserve"><value>Clave API guardada — deje el campo en blanco para conservarla o escriba una nueva para reemplazarla.</value></data>
+  <data name="Ai_KeyNotStored" xml:space="preserve"><value>No hay ninguna clave API guardada — introduzca una antes de activar la categorización con IA.</value></data>
 </root>

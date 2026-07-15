@@ -634,4 +634,8 @@
   <data name="Tray_ProfileSwitched" xml:space="preserve"><value>Profil actif : {0}</value></data>
   <data name="Tray_ProfileSwitchFailed" xml:space="preserve"><value>Impossible de passer à {0} : {1}</value></data>
   <data name="Tray_NoProfiles" xml:space="preserve"><value>Aucun profil enregistré</value></data>
+  <data name="Ai_KeyWatermark" xml:space="preserve"><value>Saisissez une nouvelle clé API (vide conserve la clé enregistrée)</value></data>
+  <data name="Ai_KeyChecking" xml:space="preserve"><value>Vérification de la présence d’une clé enregistrée…</value></data>
+  <data name="Ai_KeyStored" xml:space="preserve"><value>Clé API enregistrée — laissez le champ vide pour la conserver ou saisissez une nouvelle clé pour la remplacer.</value></data>
+  <data name="Ai_KeyNotStored" xml:space="preserve"><value>Aucune clé API enregistrée — saisissez-en une avant d’activer la catégorisation par IA.</value></data>
 </root>

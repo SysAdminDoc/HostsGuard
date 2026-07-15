@@ -149,6 +149,30 @@ public sealed class StateSnapshotCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public void Staged_startup_restore_does_not_close_an_unrelated_live_database()
+    {
+        StateSnapshotInfo target;
+        using (var database = new HostsDatabase(_databasePath))
+        {
+            database.SetMeta("snapshot_probe", "target");
+            target = Coordinator(database).Create();
+            database.SetMeta("snapshot_probe", "current");
+            Coordinator(database).StageForStartup(target.Id, target.Sha256);
+        }
+
+        using var unrelated = new HostsDatabase(Path.Combine(_dir, "unrelated-live.db"));
+        unrelated.SetMeta("unrelated_probe", "before");
+
+        var result = StateSnapshotCoordinator.ApplyPendingAtStartup(
+            _databasePath, _hostsPath, _dir, "9.8.7", _snapshotRoot);
+
+        result.Restored.Should().BeTrue();
+        unrelated.GetMeta("unrelated_probe").Should().Be("before");
+        unrelated.SetMeta("unrelated_probe", "after");
+        unrelated.GetMeta("unrelated_probe").Should().Be("after");
+    }
+
+    [Fact]
     public void Failed_startup_validation_restores_durable_pre_start_state()
     {
         StateSnapshotInfo target;

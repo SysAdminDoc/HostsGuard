@@ -3888,8 +3888,16 @@
                                                  AutomationProperties.Name="{svc:Loc Key=Xaml_AI_model_6572e8b8}"
                                                  ToolTip="{svc:Loc Key=Xaml_DeepSeek_model_deepseek_chat_is_the_ca4c0112}" />
                                         <PasswordBox x:Name="AiKeyBox" VerticalAlignment="Center"
+                                                     Style="{StaticResource Hg.LockPasswordBox}"
+                                                     svc:PasswordBoxHelper.Watermark="{svc:Loc Key=Ai_KeyWatermark, Default=Enter a new API key (blank keeps the stored key)}"
                                                      AutomationProperties.Name="{svc:Loc Key=Xaml_DeepSeek_API_key_aef39533}" />
                                     </DockPanel>
+                                    <TextBlock x:Name="AiKeyStorageStatus"
+                                               Text="{Binding AiKeyStorageText}"
+                                               Style="{StaticResource Hg.HelperText}"
+                                               Margin="0,5,0,0"
+                                               TextWrapping="Wrap"
+                                               AutomationProperties.LiveSetting="Polite" />
                                     <DockPanel LastChildFill="False" Margin="0,8,0,0">
                                         <CheckBox DockPanel.Dock="Left" Content="{svc:Loc Key=Xaml_Auto_categorize_new_blocks_909f7f79}" VerticalAlignment="Center"
                                                   IsChecked="{Binding AiEnabled}" Margin="0,0,12,0"

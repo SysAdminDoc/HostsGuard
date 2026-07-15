@@ -694,7 +694,6 @@ public sealed class StateSnapshotCoordinator
     {
         var snapshotPath = Path.Combine(snapshotRoot, snapshotId);
         var byComponent = manifest.Files.ToDictionary(file => file.Component, StringComparer.Ordinal);
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         foreach (var sidecar in new[] { databasePath + "-wal", databasePath + "-shm" })
         {
             if (File.Exists(sidecar))

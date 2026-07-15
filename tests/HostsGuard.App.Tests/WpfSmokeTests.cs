@@ -431,6 +431,13 @@ public sealed class WpfSmokeTests
                 PasswordBoxHelper.GetIsEmpty(lockPassword).Should().BeTrue();
                 lockPassword.Template.Triggers.OfType<Trigger>()
                     .Should().Contain(t => t.Property == PasswordBoxHelper.IsEmptyProperty && Equals(t.Value, true));
+                var aiKey = (PasswordBox)window.FindName("AiKeyBox");
+                PasswordBoxHelper.GetWatermark(aiKey)
+                    .Should().Be("Enter a new API key (blank keeps the stored key)");
+                PasswordBoxHelper.GetIsEmpty(aiKey).Should().BeTrue();
+                var aiKeyStatus = (TextBlock)window.FindName("AiKeyStorageStatus");
+                BindingOperations.GetBinding(aiKeyStatus, TextBlock.TextProperty)?.Path.Path
+                    .Should().Be(nameof(ToolsViewModel.AiKeyStorageText));
 
                 var trayProfiles = (MenuItem)window.FindName("TrayProfiles");
                 vm.Tools.Profiles.Add("Home");

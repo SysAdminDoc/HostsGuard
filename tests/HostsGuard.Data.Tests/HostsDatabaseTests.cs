@@ -597,6 +597,22 @@ public sealed class HostsDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void Corrupt_database_recovery_does_not_disrupt_an_unrelated_live_database()
+    {
+        using var healthy = new HostsDatabase(DbPath("live-during-recovery.db"));
+        healthy.AddDomain("still-live.example", "blocked", "manual");
+
+        var corruptPath = DbPath("unrelated-corrupt.db");
+        File.WriteAllBytes(corruptPath, System.Text.Encoding.ASCII.GetBytes("not sqlite"));
+        using var recovered = HostsDatabase.OpenWithRecovery(corruptPath, out var quarantined);
+
+        quarantined.Should().NotBeNull();
+        healthy.GetDomains().Should().ContainSingle(row => row.Domain == "still-live.example");
+        healthy.LogEvent("still-live.example", "checked", reason: "test");
+        healthy.GetLog(10).Should().Contain(row => row.Action == "checked");
+    }
+
+    [Fact]
     public void Dispose_is_idempotent()
     {
         var db = new HostsDatabase(DbPath("dispose-twice.db"));

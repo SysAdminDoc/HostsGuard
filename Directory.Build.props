@@ -15,6 +15,9 @@
     <!-- Always resolve the latest servicing patch of the runtime so builds pick
          up security fixes. Self-contained publish then bundles that patch. -->
     <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+    <!-- 0.12.134: the write-only AI key field now has localized empty-state
+         guidance and service-backed stored/not-stored status beside the input;
+         database recovery/restore no longer clears process-wide SQLite pools. -->
     <!-- 0.12.133: the tray now refreshes saved profiles on open and delegates
          checked, stay-open switching to the existing Tools profile workflow,
          with visible lock/connectivity outcomes and external-change refresh. -->
@@ -244,7 +247,7 @@
          domain-purpose annotations + consent-prompt accessibility + runtime
          servicing floor. Builds on 0.4.0 WFC-parity consent loop + packaging +
          hardening. -->
-    <Version>0.12.133</Version>
+    <Version>0.12.134</Version>
     <Product>HostsGuard</Product>
     <Company>SysAdminDoc</Company>
     <Authors>SysAdminDoc</Authors>

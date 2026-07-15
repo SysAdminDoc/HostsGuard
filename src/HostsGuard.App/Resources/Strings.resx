@@ -1958,4 +1958,8 @@
   <data name="Tray_ProfileSwitched" xml:space="preserve"><value>Active profile: {0}</value></data>
   <data name="Tray_ProfileSwitchFailed" xml:space="preserve"><value>Could not switch to {0}: {1}</value></data>
   <data name="Tray_NoProfiles" xml:space="preserve"><value>No saved profiles</value></data>
+  <data name="Ai_KeyWatermark" xml:space="preserve"><value>Enter a new API key (blank keeps the stored key)</value></data>
+  <data name="Ai_KeyChecking" xml:space="preserve"><value>Checking whether a key is stored…</value></data>
+  <data name="Ai_KeyStored" xml:space="preserve"><value>API key stored — leave the field blank to keep it, or enter a new key to replace it.</value></data>
+  <data name="Ai_KeyNotStored" xml:space="preserve"><value>No API key stored — enter one before enabling AI categorization.</value></data>
 </root>

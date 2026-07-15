@@ -438,6 +438,27 @@ public sealed class MainViewModelTests : IAsyncLifetime
             .And.Contain("No auto-install");
     }
 
+    [Fact]
+    public async Task Ai_key_affordance_reflects_write_only_service_status()
+    {
+        using var vm = CreateShell();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        vm.Tools.Should().NotBeNull();
+        var tools = vm.Tools!;
+
+        await tools.LoadAiStatusAsync();
+        tools.AiKeyStorageText.Should().Be(
+            "No API key stored — enter one before enabling AI categorization.");
+
+        _state.Ai.SaveSettings("sk-secret", "deepseek-chat", string.Empty, enabled: true);
+        await tools.LoadAiStatusAsync();
+
+        tools.AiKeyStorageText.Should().Be(
+            "API key stored — leave the field blank to keep it, or enter a new key to replace it.");
+        tools.AiStatusText.Should().StartWith("DeepSeek key stored");
+        tools.AiApiKey.Should().BeEmpty("the service never returns the write-only secret");
+    }
+
     private sealed class FakeReleaseUpdateChecker(ReleaseUpdateResult result) : IReleaseUpdateChecker
     {
         public string? InstalledVersion { get; private set; }

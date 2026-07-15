@@ -2,6 +2,16 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.134] - 2026-07-14
+
+### Changed
+- The write-only DeepSeek API-key field now shows a localized watermark and a
+  service-backed stored/not-stored indicator, including clear guidance that a
+  blank field preserves an existing key while a new value replaces it.
+- Corrupt-database recovery and staged startup restore now operate only on their
+  own disposed non-pooled handle instead of clearing process-wide SQLite pools
+  and interrupting unrelated live databases.
+
 ## [0.12.133] - 2026-07-14
 
 ### Added
