@@ -944,14 +944,14 @@ public sealed class WpfSmokeTests
     private static void SeedShellState(MainViewModel vm, string state)
     {
         vm.IsConnected = state is "empty" or "populated" or "loading";
-        vm.FilteringModeText = vm.IsConnected ? "Normal - deterministic state" : string.Empty;
+        vm.FilteringModeText = vm.IsConnected ? "Normal — deterministic state" : string.Empty;
         vm.EnforcementPauseText = vm.IsConnected ? "Hosts and firewall enforcement active." : string.Empty;
         vm.ConnectionText = state switch
         {
             "loading" => "Loading deterministic service data...",
-            "disconnected" => "Disconnected - deterministic service unavailable",
-            "error" => "Error - deterministic service request failed",
-            _ => "Connected - deterministic visual state",
+            "disconnected" => "Disconnected — deterministic service unavailable",
+            "error" => "Error — deterministic service request failed",
+            _ => "Connected — deterministic visual state",
         };
         if (state == "populated")
         {

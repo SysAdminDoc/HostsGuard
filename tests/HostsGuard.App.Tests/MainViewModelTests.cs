@@ -347,7 +347,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         vm.RestoreSafeNetworkPostureCommand.CanExecute(null).Should().BeFalse();
         await vm.RestoreSafeNetworkPostureAsync();
 
-        vm.ConnectionText.Should().Be("Safe posture unavailable - service is not connected");
+        vm.ConnectionText.Should().Be("Safe posture unavailable — service is not connected");
     }
 
     [Fact]
@@ -389,7 +389,7 @@ public sealed class MainViewModelTests : IAsyncLifetime
         killSwitch.Enabled.Should().BeFalse();
         killSwitch.Engaged.Should().BeFalse();
         status.HostsBlocked.Should().Be(1);
-        vm.ConnectionText.Should().StartWith("Safe network posture restored - hosts-file blocks left unchanged.");
+        vm.ConnectionText.Should().StartWith("Safe network posture restored — hosts-file blocks left unchanged.");
     }
 
     [Fact]

@@ -386,7 +386,7 @@ public sealed partial class ToolsViewModel : ObservableObject
             var ech = string.IsNullOrWhiteSpace(result.EchSummary)
                 ? string.Empty
                 : I18n.T("Inspect_EchSuffix", " | Service-wide ECH visibility (not attributable to this domain): {0} {1}", result.EchSummary, result.EchRemediation);
-            InspectResult = I18n.T("Inspect_Result", "{0} - {1} ({2} ms){3}",
+            InspectResult = I18n.T("Inspect_Result", "{0} — {1} ({2} ms){3}",
                 result.Blocked ? I18n.T("Inspect_Blocked", "BLOCKED") : I18n.T("Inspect_Reachable", "reachable"), records, result.LatencyMs, ech);
             ServiceBindingStatusText = !result.ServiceBindingQueryAvailable
                 ? I18n.T("ServiceBinding_Unavailable", "Direct HTTPS/SVCB inspection unavailable: {0}", result.ServiceBindingMessage)

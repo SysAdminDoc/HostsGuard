@@ -1,6 +1,6 @@
 # HostsGuard
 
-![Version](https://img.shields.io/badge/version-0.12.151-blue)
+![Version](https://img.shields.io/badge/version-0.12.152-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
@@ -65,7 +65,7 @@ The final Python build (v3.17.0) is preserved at the [`python-eol`](https://gith
 | Inbound consent | Opt-in prompting on unruled **inbound** connections too, producing scoped inbound rules (off by default to avoid unsolicited-inbound noise) |
 | Decision history | Every consent decision is recorded and reviewable, with WFP filter origin/runtime and interface attribution when Windows emits it |
 | Posture rails | Arming Notify/Learning sets default-outbound Block per profile; the prior posture is restored on switch back to Normal and on service stop |
-| Accessibility | Full AutomationProperties coverage, explicit tab order, live-region threat banner, keyboard/screen-reader focus management |
+| Accessibility | Full AutomationProperties coverage, localized inspector labels, explicit tab order, live-region threat banner, keyboard/screen-reader focus management |
 
 ### Hosts Activity
 

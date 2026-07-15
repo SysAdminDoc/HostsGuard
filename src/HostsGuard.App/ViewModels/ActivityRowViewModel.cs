@@ -10,7 +10,11 @@ public sealed partial class ActivityRowViewModel : ObservableObject
     private string _domain = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RootText))]
     private string _root = string.Empty;
+
+    /// <summary>Localized root-domain label for the activity inspector.</summary>
+    public string RootText => Services.I18n.T("Activity_RootLabel", "Root: {0}", Root);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBlockCandidate))]

@@ -2,6 +2,15 @@
 
 All notable changes to HostsGuard are documented in this file.
 
+## [0.12.152] - 2026-07-14
+
+### Changed
+- The DNS activity inspector now derives its root-domain label from localized
+  row-view-model text, with English, German, Spanish, and French coverage.
+- User-facing resources and status fallbacks consistently use typographic em
+  dashes for sentence separators; a regression gate preserves syntactic hyphens
+  while rejecting future spaced ASCII-hyphen separators.
+
 ## [0.12.151] - 2026-07-14
 
 ### Changed

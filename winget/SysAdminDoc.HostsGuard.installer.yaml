@@ -1,5 +1,5 @@
 PackageIdentifier: SysAdminDoc.HostsGuard
-PackageVersion: 0.12.151
+PackageVersion: 0.12.152
 InstallerType: inno
 Scope: machine
 InstallModes:
@@ -8,10 +8,10 @@ InstallModes:
 UpgradeBehavior: install
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/SysAdminDoc/HostsGuard/releases/download/v0.12.151/HostsGuard-v0.12.151-win-x64-dotnet-Setup.exe
-    InstallerSha256: C072896EE8685175F8841CD159E2CB4422511C19F586E886F140F4068EF3B08B
+    InstallerUrl: https://github.com/SysAdminDoc/HostsGuard/releases/download/v0.12.152/HostsGuard-v0.12.152-win-x64-dotnet-Setup.exe
+    InstallerSha256: 6CD75E860BAE1D41C4AE9550D4E36908CD6DD91B162972839D825DD73577369C
   - Architecture: arm64
-    InstallerUrl: https://github.com/SysAdminDoc/HostsGuard/releases/download/v0.12.151/HostsGuard-v0.12.151-win-arm64-dotnet-Setup.exe
-    InstallerSha256: 5F5182E7E159BDED13BCF9D4A2B86EAF20842C40ED7A1E00444647ABA1842327
+    InstallerUrl: https://github.com/SysAdminDoc/HostsGuard/releases/download/v0.12.152/HostsGuard-v0.12.152-win-arm64-dotnet-Setup.exe
+    InstallerSha256: A1C909E91C3F4FB8BC26E3059F435000BDA3B267303C0E2B369E1FBACCE229FF
 ManifestType: installer
 ManifestVersion: 1.6.0

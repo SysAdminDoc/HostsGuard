@@ -391,7 +391,7 @@
   <data name="Consent_InterfaceWithIndex" xml:space="preserve"><value>{0} (índice {1})</value></data>
   <data name="Consent_InterfaceIndex" xml:space="preserve"><value>índice {0}</value></data>
   <data name="Consent_PortOnly" xml:space="preserve"><value>puerto {0}</value></data>
-  <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard - conexión bloqueada</value></data>
+  <data name="Consent_WindowTitle" xml:space="preserve"><value>HostsGuard — conexión bloqueada</value></data>
   <data name="Consent_ThreatBanner" xml:space="preserve"><value>Advertencia: esta dirección remota está en la lista de inteligencia de amenazas</value></data>
   <data name="Consent_Resolving" xml:space="preserve"><value>resolviendo...</value></data>
   <data name="Consent_Pid" xml:space="preserve"><value>PID {0}</value></data>
@@ -785,6 +785,7 @@
   <data name="AllowlistReview_ActionAllow" xml:space="preserve"><value>Permitir dominio recomendado</value></data>
   <data name="AllowlistReview_Allowed" xml:space="preserve"><value>Se permitio {0}; se elimino la recomendacion</value></data>
   <data name="Dialog_Ok" xml:space="preserve"><value>Aceptar</value></data>
+  <data name="Activity_RootLabel" xml:space="preserve"><value>Dominio raíz: {0}</value></data>
   <data name="FwActivity_CommandGroupMode" xml:space="preserve"><value>Modo</value></data>
   <data name="FwActivity_CommandGroupView" xml:space="preserve"><value>Vista</value></data>
   <data name="FwActivity_CommandGroupSearch" xml:space="preserve"><value>Buscar y explicar</value></data>

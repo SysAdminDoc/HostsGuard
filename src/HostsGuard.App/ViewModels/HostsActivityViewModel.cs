@@ -331,11 +331,11 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
 
                     if (WatchRetry.IsAuthenticationFailure(ex))
                     {
-                        OnUi(() => StatusText = I18n.T("Activity_StreamAuthExpired", "Live feed authentication expired - reconnect to the service"));
+                        OnUi(() => StatusText = I18n.T("Activity_StreamAuthExpired", "Live feed authentication expired — reconnect to the service"));
                         break;
                     }
 
-                    OnUi(() => StatusText = I18n.T("Activity_StreamRetry", "Live feed disconnected - retrying"));
+                    OnUi(() => StatusText = I18n.T("Activity_StreamRetry", "Live feed disconnected — retrying"));
                 }
 
                 if (!ct.IsCancellationRequested)
@@ -602,7 +602,7 @@ public sealed partial class HostsActivityViewModel : ObservableObject, IDisposab
             }
 
             StatusText = removed == domains.Count
-                ? I18n.T("Activity_UnblockedMany", "Unblocked {0} domain(s) - removed from hosts", removed)
+                ? I18n.T("Activity_UnblockedMany", "Unblocked {0} domain(s) — removed from hosts", removed)
                 : I18n.T("Activity_UnblockedPartial", "Unblocked {0} of {1}", removed, domains.Count);
             await RefreshAsync();
         });

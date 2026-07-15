@@ -152,7 +152,7 @@ public sealed partial class BlocklistSourceViewModel : ObservableObject
                 parts.Add(I18n.T("Blocklists_EndpointLatency", "{0} · {1} ms", endpoint, LastEndpointLatencyMs));
             }
 
-            return string.Join(" - ", parts);
+            return string.Join(" — ", parts);
         }
     }
 
@@ -339,7 +339,7 @@ public sealed partial class BlocklistsViewModel : ObservableObject
         if (r.CheckpointId > 0) report.Add(I18n.T("Blocklists_ResultCheckpoint", "checkpoint {0}", r.CheckpointId));
         var health = report.Count != 0 ? $" [{string.Join(", ", report)}]" : string.Empty;
         var prefix = r.Preview ? I18n.T("Blocklists_PreviewPrefix", "Preview: ") : string.Empty;
-        var warn = r.Warning.Length != 0 ? $" - {r.Warning}" : string.Empty;
+        var warn = r.Warning.Length != 0 ? $" — {r.Warning}" : string.Empty;
         return $"{prefix}{r.Message}{health}{warn}";
     }
 

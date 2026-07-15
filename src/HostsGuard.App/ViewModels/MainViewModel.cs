@@ -267,7 +267,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var activity = Activity!;
             var fwActivity = FwActivity!;
             IsConnected = true;
-            ConnectionText = I18n.T("Status.ConnectedLoading", "Connected - loading views...");
+            ConnectionText = I18n.T("Status.ConnectedLoading", "Connected — loading views...");
 
             activity.StartWatching();
             fwActivity.StartWatching();
@@ -311,7 +311,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             IsConnected = false;
             ConnectionText = I18n.T(
                 "Status.Unavailable",
-                "Service unavailable - start or restart HostsGuardSvc, then reconnect. Details: {0}",
+                "Service unavailable — start or restart HostsGuardSvc, then reconnect. Details: {0}",
                 ex.Message);
         }
     }
@@ -925,7 +925,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var minutesText = minutesValue?.ToString() ?? string.Empty;
         if (!int.TryParse(minutesText, out var minutes))
         {
-            ConnectionText = I18n.T("Shell_PauseInvalid", "Pause unavailable - invalid duration");
+            ConnectionText = I18n.T("Shell_PauseInvalid", "Pause unavailable — invalid duration");
             return;
         }
 
@@ -946,7 +946,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_client is null)
         {
-            ConnectionText = I18n.T("Shell_SafePostureUnavailable", "Safe posture unavailable - service is not connected");
+            ConnectionText = I18n.T("Shell_SafePostureUnavailable", "Safe posture unavailable — service is not connected");
             return;
         }
 
@@ -1016,7 +1016,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             var outcome = failures == 0
                 ? I18n.T("Shell_SafePostureRestored", "Safe network posture restored")
                 : I18n.T("Shell_SafePostureWarnings", "Safe network posture restored with warnings");
-            ConnectionText = I18n.T("Shell_SafePostureResult", "{0} - hosts-file blocks left unchanged. {1}", outcome, string.Join("; ", messages));
+            ConnectionText = I18n.T("Shell_SafePostureResult", "{0} — hosts-file blocks left unchanged. {1}", outcome, string.Join("; ", messages));
         });
     }
 
@@ -1082,11 +1082,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
                     if (WatchRetry.IsAuthenticationFailure(ex))
                     {
-                        SetConnectionTextOnUi(I18n.T("Shell_ConsentAuthExpired", "Consent prompt stream authentication expired - reconnect to the service."));
+                        SetConnectionTextOnUi(I18n.T("Shell_ConsentAuthExpired", "Consent prompt stream authentication expired — reconnect to the service."));
                         break;
                     }
 
-                    SetConnectionTextOnUi(I18n.T("Shell_ConsentRetry", "Consent prompt stream disconnected - retrying..."));
+                    SetConnectionTextOnUi(I18n.T("Shell_ConsentRetry", "Consent prompt stream disconnected — retrying..."));
                 }
 
                 if (!ct.IsCancellationRequested)
@@ -1187,7 +1187,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var info = new FileInfo(path);
         if (!info.Exists || info.Length > MaxImportBytes)
         {
-            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed - the file is missing or over 10 MB");
+            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed — the file is missing or over 10 MB");
             return;
         }
 
@@ -1351,7 +1351,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var info = new FileInfo(path);
         if (!info.Exists || info.Length > MaxImportBytes)
         {
-            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed - the file is missing or over 10 MB");
+            ConnectionText = I18n.T("Shell_ImportTooLarge", "Import failed — the file is missing or over 10 MB");
             return;
         }
 
@@ -1385,7 +1385,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             var result = await _client.Policy.ImportPolicyAsync(new ImportPolicyRequest { Json = json });
             ConnectionText = result.Ok
-                ? I18n.T("Shell_PolicyImported", "Policy imported - checkpoint {0}; {1}", result.CheckpointId, string.Join("; ", result.Summary))
+                ? I18n.T("Shell_PolicyImported", "Policy imported — checkpoint {0}; {1}", result.CheckpointId, string.Join("; ", result.Summary))
                 : result.Message;
             if (result.Ok)
             {
@@ -1415,7 +1415,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             var result = await _client.Policy.RestorePolicyCheckpointAsync(new Empty());
-            ConnectionText = result.Ok ? I18n.T("Shell_PolicyRestored", "Policy checkpoint restored - {0}", string.Join("; ", result.Summary)) : result.Message;
+            ConnectionText = result.Ok ? I18n.T("Shell_PolicyRestored", "Policy checkpoint restored — {0}", string.Join("; ", result.Summary)) : result.Message;
             if (result.Ok)
             {
                 await RefreshAllAsync();
@@ -1436,7 +1436,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _config.SaveLanguage(tag ?? string.Empty);
         var name = AppConfigStore.LanguageOptions.FirstOrDefault(option => option.Tag == (tag ?? string.Empty))?.Name
             ?? I18n.T("Shell_SystemDefault", "System default");
-        ConnectionText = I18n.T("Shell_LanguageSet", "Language set to {0} - restart HostsGuard to apply.", name);
+        ConnectionText = I18n.T("Shell_LanguageSet", "Language set to {0} — restart HostsGuard to apply.", name);
     }
 
     /// <summary>Back to defaults: filters cleared, toggles reset, 100% scale.</summary>
@@ -1556,7 +1556,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_client is null)
         {
-            ConnectionText = I18n.T("Shell_DiagnosticsUnavailable", "Diagnostics unavailable - service is not connected");
+            ConnectionText = I18n.T("Shell_DiagnosticsUnavailable", "Diagnostics unavailable — service is not connected");
             return;
         }
 
@@ -1568,7 +1568,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DbBlocked = status.DbBlocked;
             DbAllowed = status.DbAllowed;
             ConnectionText = I18n.T("Shell_DiagnosticsOk",
-                "Diagnostics OK - service v{0}, uptime {1} min, DNS {2}, connections {3}",
+                "Diagnostics OK — service v{0}, uptime {1} min, DNS {2}, connections {3}",
                 status.Version, status.UptimeSeconds / 60,
                 status.DnsMonitorActive ? I18n.T("Common_On", "on") : I18n.T("Common_Off", "off"),
                 status.ConnectionMonitorActive ? I18n.T("Common_On", "on") : I18n.T("Common_Off", "off"));
@@ -1607,11 +1607,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var label = mode switch
         {
-            "notify" => I18n.T("Shell_NotifyDescription", "Notify - prompt on new outbound connections"),
+            "notify" => I18n.T("Shell_NotifyDescription", "Notify — prompt on new outbound connections"),
             "learning" => learnMinutes > 0
-                ? I18n.T("Shell_LearningTimed", "Learning - auto-allow and record ({0} min left, then locks)", learnMinutes)
-                : I18n.T("Shell_LearningDescription", "Learning - auto-allow and record for review"),
-            _ => I18n.T("Shell_NormalDescription", "Normal - enforce existing policy silently"),
+                ? I18n.T("Shell_LearningTimed", "Learning — auto-allow and record ({0} min left, then locks)", learnMinutes)
+                : I18n.T("Shell_LearningDescription", "Learning — auto-allow and record for review"),
+            _ => I18n.T("Shell_NormalDescription", "Normal — enforce existing policy silently"),
         };
         return armed ? I18n.T("Shell_DefaultDenyArmed", "{0} (default-deny armed)", label) : label;
     }
@@ -1627,7 +1627,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var prefix = status.SuspendedByKillSwitch
             ? I18n.T("Shell_PauseSuspended", "Pause suspended by VPN kill-switch")
             : I18n.T("Shell_EnforcementPaused", "Hosts and outbound enforcement paused");
-        return I18n.T("Shell_PauseResumes", "{0} - resumes in {1} min.", prefix, remaining);
+        return I18n.T("Shell_PauseResumes", "{0} — resumes in {1} min.", prefix, remaining);
     }
 
     partial void OnUiScalePctChanged(int value)

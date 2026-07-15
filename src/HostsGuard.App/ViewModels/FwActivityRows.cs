@@ -456,5 +456,5 @@ public sealed partial class DecisionStepViewModel : ObservableObject
     [ObservableProperty]
     private string _nextAction = string.Empty;
 
-    public string Header => $"{Order}. {Outcome} - {Layer}";
+    public string Header => $"{Order}. {Outcome} — {Layer}";
 }

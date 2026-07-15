@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
 using HostsGuard.App.Services;
+using HostsGuard.App.ViewModels;
 using Xunit;
 
 namespace HostsGuard.App.Tests;
@@ -39,7 +40,7 @@ public sealed class I18nTests
             // A neutral key intentionally omitted from the satellite falls
             // back through ResourceManager before the caller's default.
             I18n.T("Status.ConnectedLoading", "different fallback")
-                .Should().Be("Connected - loading views...");
+                .Should().Be("Connected — loading views...");
             // An entirely unknown key falls back to the caller's English.
             I18n.T("Nope_Missing", "English fallback").Should().Be("English fallback");
         }
@@ -118,7 +119,7 @@ public sealed class I18nTests
         try
         {
             CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("qps-ploc");
-            var value = I18n.T("Status.Connected", "Connected - service v{0}", variable);
+            var value = I18n.T("Status.Connected", "Connected — service v{0}", variable);
 
             value.Should().StartWith("[!! ");
             value.Should().EndWith(" !!]");
@@ -169,9 +170,9 @@ public sealed class I18nTests
     }
 
     [Theory]
-    [InlineData("Strings.es.resx", 756, 2058)]
-    [InlineData("Strings.de.resx", 748, 2058)]
-    [InlineData("Strings.fr.resx", 748, 2058)]
+    [InlineData("Strings.es.resx", 757, 2059)]
+    [InlineData("Strings.de.resx", 749, 2059)]
+    [InlineData("Strings.fr.resx", 749, 2059)]
     public void Overall_used_string_coverage_is_measured_and_cannot_regress(
         string resourceFile,
         int minimumCovered,
@@ -204,6 +205,44 @@ public sealed class I18nTests
             .ToList();
 
         offenders.Should().BeEmpty("localized source must be clean UTF-8, not double-decoded text");
+    }
+
+    [Theory]
+    [InlineData("en", "Root: example.test")]
+    [InlineData("es", "Dominio raíz: example.test")]
+    [InlineData("de", "Stammdomain: example.test")]
+    [InlineData("fr", "Domaine racine : example.test")]
+    public void Activity_inspector_root_label_is_localized(string culture, string expected)
+    {
+        var original = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+            new ActivityRowViewModel { Root = "example.test" }.RootText.Should().Be(expected);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = original;
+        }
+    }
+
+    [Fact]
+    public void User_facing_copy_does_not_use_spaced_ascii_hyphens_as_dashes()
+    {
+        var resourceOffenders = Directory.EnumerateFiles(Path.Combine(AppDir, "Resources"), "Strings*.resx")
+            .SelectMany(file => ResourceValues(Path.GetFileName(file))
+                .Where(item => item.Value.Contains(" - ", StringComparison.Ordinal))
+                .Select(item => $"{Path.GetFileName(file)}:{item.Key}"));
+        var stringLiteral = new Regex("[$@]*\"[^\"]* - [^\"]*\"", RegexOptions.Compiled);
+        var codeOffenders = Directory.EnumerateFiles(AppDir, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+                && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(file => File.ReadLines(file).Select((line, index) => (file, line, index)))
+            .Where(item => stringLiteral.IsMatch(item.line))
+            .Select(item => $"{Path.GetFileName(item.file)}:{item.index + 1}");
+
+        resourceOffenders.Concat(codeOffenders).Should().BeEmpty(
+            "sentence separators use a typographic em dash while syntactic hyphens remain unchanged");
     }
 
     [Fact]

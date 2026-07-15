@@ -961,7 +961,7 @@
                                                        FontWeight="SemiBold"
                                                        TextWrapping="Wrap" />
                                         </DockPanel>
-                                        <TextBlock Text="{Binding Root, StringFormat='Root: {0}', TargetNullValue={svc:Loc Key=Xaml_DnsRowActionMenuTargetNull}}"
+                                        <TextBlock Text="{Binding RootText, TargetNullValue={svc:Loc Key=Xaml_DnsRowActionMenuTargetNull}}"
                                                    Style="{StaticResource Hg.DimText}"
                                                    Margin="0,5,0,0"
                                                    TextWrapping="Wrap" />
